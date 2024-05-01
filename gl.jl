@@ -5,7 +5,7 @@ using StaticArrays
 # include("glutils.jl")
 # using .GlUtils
 
-import Base:bind
+#import Base:bind
 
 #exports all enum instances
 macro exported_enum(T, B, syms...)
@@ -21,7 +21,7 @@ end
 abstract type AbstractObject end
 export bind, delete;
 
-bind(x::AbstractObject) = error("not implemented for $typeof(x)")
+use(x::AbstractObject) = error("not implemented for $typeof(x)")
 delete(x::AbstractObject) = error("not implemented for $typeof(x)")
 
 function glGenOne(glGenF) :: GLuint
@@ -80,15 +80,15 @@ mutable struct Buffer <: AbstractObject
     Buffer() = new(glGenOne(glGenBuffers))
 end
 delete(x::Buffer) = glDeleteBuffers(1,[x.id])
-bind(buffer::Buffer, target::BufferType = ARRAY_BUFFER) = bind(target,buffer)
-bind(target::BufferType, buffer::Buffer) = glBindBuffer(GLenum(target),buffer.id)
+use(buffer::Buffer, target::BufferType = ARRAY_BUFFER) = use(target,buffer)
+use(target::BufferType, buffer::Buffer) = glBindBuffer(GLenum(target),buffer.id)
 
 function bufferData(target::BufferType, data::Vector)
     @assert isbitstype(eltype(data)) "input array is not contiguous in memory"
     glBufferData(GLenum(target), sizeof(data), data, GL_STATIC_DRAW)
 end
 function bufferData(buffer::Buffer,target::BufferType, data::Vector)
-    bind(buffer.id, target)
+    use(buffer.id, target)
     bufferData(target, data)
 end
 
@@ -107,7 +107,7 @@ mutable struct VertexArray <: AbstractObject
     VertexArray() = new(glGenOne(glGenVertexArrays));
 end
 delete(x::VertexArray) = glDeleteVertexArrays(1,[x.id])
-bind(vao::VertexArray) = glBindVertexArray(vao.id)
+use(vao::VertexArray) = glBindVertexArray(vao.id)
 
 const JuliaType2OpenGL = Dict([
     Float16 => GL_HALF_FLOAT,
@@ -216,8 +216,7 @@ mutable struct Program <: AbstractObject
     Program(vertFile::String,fragFile::String)= new(createProgram(vertFile,fragFile))
 end
 delete(x::Program) = x.id!=0 && glDeleteProgram(x.id)
-bind(prog::Program) = glUseProgram(prog.id)
-const use = bind;
+use(prog::Program) = glUseProgram(prog.id)
 
 const LocType = Union{GLint,Int};
 
@@ -292,12 +291,12 @@ mutable struct Texture2D <: AbstractObject
     internalFormat ::GLenum
     function Texture2D(internalFormat::GLenum)
         tex = new(glGenOne(glGenTextures),internalFormat)
-        bind(tex)
+        use(tex)
         return tex
     end
 end
 delete(x::Texture2D) = glDeleteTextures(1,[x.id])
-bind(tex::Texture2D) = glBindTexture(GL_TEXTURE_2D,tex.id)
+use(tex::Texture2D) = glBindTexture(GL_TEXTURE_2D,tex.id)
 
 function Texture2D(internalFormat::GLenum, width, height)
     tex = Texture2D(internalFormat)
@@ -314,7 +313,7 @@ function getPixel1i(tex::Texture2D,x::GLint,y::GLint) :: GLint
 end
 
 function setTexture(prog::Union{GLuint,Program}, keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing
-    glActiveTexture(GL_TEXTURE0 + index); bind(val)
+    glActiveTexture(GL_TEXTURE0 + index); use(val)
     setUniform(prog,keyloc,GLint(index))
 end
 setTexture(keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing = setTexture(GLuint(glGetInteger(GL_CURRENT_PROGRAM)),keyloc,val,index)
@@ -329,12 +328,12 @@ mutable struct Framebuffer <: AbstractObject
     attachments :: Set{GLenum}
     function Framebuffer()
         fbo = new(glGenOne(glGenFramebuffers),Set{GLenum}());
-        bind(fbo);
+        use(fbo);
         return fbo;
     end
 end
 delete(x::Framebuffer) = glDeleteFramebuffers(1,[x.id])
-bind(fbo::Framebuffer) = glBindFramebuffer(GL_FRAMEBUFFER,fbo.id)
+use(fbo::Framebuffer) = glBindFramebuffer(GL_FRAMEBUFFER,fbo.id)
 
 function attach(fbo::Framebuffer, tex::Texture2D, attachment::GLenum, level::GLint=GLint(0))
     glNamedFramebufferTexture(fbo.id,attachment,tex.id,level)

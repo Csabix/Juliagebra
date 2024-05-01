@@ -27,7 +27,7 @@ mutable struct SyncedArray{T}
     vao :: VertexArray
     function SyncedArray{T}() where T
         sa = new{T}(Vector{T}(),Buffer(),VertexArray())
-        bind(sa.vao); bind(sa.vbo)
+        use(sa.vao); use(sa.vbo)
         vertexAttribs(T)
         return sa
     end
@@ -112,7 +112,7 @@ function render()
     
     # Pass 1: geometry -> framebuffer
 
-    bind(objects.frameBuffer)
+    use(objects.frameBuffer)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glClearBufferiv(GL_COLOR,1,GLuint[0 0 0 0])
     glEnable(GL_DEPTH_TEST)
@@ -121,10 +121,10 @@ function render()
     ldir = Vec4f(cos(t),1,sin(t),0)
     ldir = normalize((camera.view)*ldir)
 
-    bind(objects.vertexProgram)
+    use(objects.vertexProgram)
     setUniform("VP",viewProj(camera))
     setUniform("lightDir",ldir[1:3])
-    bind(scene.points.vao)
+    use(scene.points.vao)
     glDrawArrays(GL_POINTS, 0, GLsizei(length(scene.points.val)))
 
     # Pass 2: framebuffer -> backbuffer
@@ -133,7 +133,7 @@ function render()
     glClear(GL_COLOR_BUFFER_BIT)
     glDisable(GL_DEPTH_TEST)
 
-    bind(objects.postprocProgram)
+    use(objects.postprocProgram)
     setTexture("frame",objects.colorTexture,0)
     setTexture("idTex",objects.indexTexture,1)
     setUniform("index",GLint(state.selectIndex-1))
@@ -146,7 +146,7 @@ function keyDown(key::Cint,mods::Cint)::Nothing
     if key == GLFW_KEY_F5
         recompile()
         #printstyled("Shader recompilation success! :)\n";color=:green,bold:true)
-    else
+    elseif state.selectIndex != 0
         vert :: Vertex = scene.points.val[state.selectIndex];
         if key == GLFW_KEY_J
             vert = translate(vert,-0.1,0.0,0.0)

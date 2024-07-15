@@ -1,11 +1,11 @@
 module GL
 
-using ImGuiOpenGLBackend.ModernGL
-using StaticArrays
-# include("glutils.jl")
-# using .GlUtils
+import Base.length
+using StaticArrays, ImGuiOpenGLBackend.ModernGL
 
-#import Base:bind
+######################
+#       Utils        #
+######################
 
 #exports all enum instances
 macro exported_enum(T, B, syms...)
@@ -19,10 +19,11 @@ macro exported_enum(T, B, syms...)
 end
 
 abstract type AbstractObject end
-export bind, delete;
 
 use(x::AbstractObject) = error("not implemented for $typeof(x)")
 delete(x::AbstractObject) = error("not implemented for $typeof(x)")
+
+export delete, use
 
 function glGenOne(glGenF) :: GLuint
     id = GLuint[0]
@@ -69,10 +70,9 @@ end
     UNIFORM_BUFFER	           = GL_UNIFORM_BUFFER	          # Uniform block storage
 end
 
-#
-export Buffer
-# ===================
-export bufferData, upload!
+######################
+#       Buffer       #
+######################
 
 mutable struct Buffer <: AbstractObject
     id :: GLuint # opengl object name
@@ -96,10 +96,11 @@ function upload!(buffer::Buffer,data::Vector{T} where T)
     glNamedBufferData(buffer.id,sizeof(data),data,GL_STATIC_DRAW)
 end
 
-#
-export VertexArray
-# ===================
-export vertexAttribs
+export Buffer, bufferData, upload!, use, delete
+
+######################
+#     VertexArray    #
+######################
 
 mutable struct VertexArray <: AbstractObject
     id::GLuint
@@ -130,7 +131,7 @@ function vertexAttrib(index::Int, atype::DataType, stride::Int = sizeof(atype), 
     normalized::GLenum = elem <: Integer ? GL_TRUE : GL_FALSE   # normalized by default
     glEnableVertexAttribArray(GLuint(index))
     glVertexAttribPointer(GLuint(index),size,type,normalized,GLsizei(stride),Ptr{Nothing}(offset))
-    #println("glVertexAttribPointer(GLuint($index),$size,$ype,$normalized,GLsizei($stride),$(Ptr{Nothing}(offset)))");
+    #println("\tglVertexAttribPointer(index=$index,size=$size,type=$type,normalized=$normalized,stride=$stride,offset=$offset)");
 end
 
 function vertexAttribs(vtype::DataType)
@@ -159,16 +160,31 @@ function getInfoLog(obj::GLuint)::String
 		return ""
 	end
 end
-function createShader(file::String, typ::GLenum)::GLuint
+
+export VertexArray, vertexAttribs, use, delete
+
+######################
+#      Shader        #  TODO: Rename to Program?
+######################
+
+mutable struct Shader <: AbstractObject
+    id::GLuint
+    Shader() = new(0)
+    Shader(vertFile::String,fragFile::String)= new(createProgram(vertFile,fragFile))
+end
+delete(x::Shader) = x.id!=0 && glDeleteProgram(x.id)
+use(prog::Shader) = glUseProgram(prog.id)
+
+function createShaderStage(file::String, stage::GLenum)::GLuint
     source = read(file,String)
-    shader = glCreateShader(typ)
+    shader = glCreateShader(stage)
     glShaderSource(shader,1,convert(Ptr{UInt8},pointer([convert(Ptr{GLchar},pointer(source))])), C_NULL)
     glCompileShader(shader)
     success = GLint[0];	glGetShaderiv(shader, GL_COMPILE_STATUS, success)
     if success[] != GL_TRUE
-        if typ == GL_VERTEX_SHADER
+        if stage == GL_VERTEX_SHADER
             type, col = "vertex", 2
-        elseif typ == GL_FRAGMENT_SHADER
+        elseif stage == GL_FRAGMENT_SHADER
             type, col = "fragment", 6
         else
             type, col = "unknown", 1
@@ -185,8 +201,8 @@ end
 
 function createProgram(vertFile::String,fragFile::String)::GLuint
     prog = glCreateProgram()
-    vs = createShader(vertFile,GL_VERTEX_SHADER)
-    fs = createShader(fragFile,GL_FRAGMENT_SHADER)
+    vs = createShaderStage(vertFile,GL_VERTEX_SHADER)
+    fs = createShaderStage(fragFile,GL_FRAGMENT_SHADER)
     if fs == 0 || vs == 0; return 0; end
 	glAttachShader(prog, vs)
 	glAttachShader(prog, fs)
@@ -200,23 +216,16 @@ function createProgram(vertFile::String,fragFile::String)::GLuint
         printstyled(" fragment shaders:\n\n"; color = 8)
         printstyled(getInfoLog(prog),"\n\n"; color = 11, bold = true)
 	end
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    glDeleteShader(vs)
+    glDeleteShader(fs)
 	return prog
 end
 
-#
-export Program
-# ===================
-export use, setUniform, setTexture
+export Shader, use, delete
 
-mutable struct Program <: AbstractObject
-    id::GLuint
-    Program() = new(0)
-    Program(vertFile::String,fragFile::String)= new(createProgram(vertFile,fragFile))
-end
-delete(x::Program) = x.id!=0 && glDeleteProgram(x.id)
-use(prog::Program) = glUseProgram(prog.id)
+######################
+#      Uniforms      #
+######################
 
 const LocType = Union{GLint,Int};
 
@@ -277,14 +286,15 @@ setUniform(id::GLuint, loc::LocType, val::Any)::Nothing = id!=0 ? glUniform(loc,
 
 setUniform(id::GLuint, key::String, val::Any)::Nothing = id!=0 ? glUniform(glGetUniformLocation(id, key),val) : nothing
 
-setUniform(prog::Program, keyloc::StringOrLoc, val::Any)::Nothing = setUniform(prog.id, keyloc, val)
+setUniform(prog::Shader, keyloc::StringOrLoc, val::Any)::Nothing = setUniform(prog.id, keyloc, val)
 
 setUniform(key::StringOrLoc, val::Any)::Nothing =  setUniform(GLuint(glGetInteger(GL_CURRENT_PROGRAM)), key, val)
 
-#
-export Texture2D
-# ===================
-export getPixel1i
+export setUniform, setTexture
+
+######################
+export Texture2D     #
+######################
 
 mutable struct Texture2D <: AbstractObject
     id :: GLuint
@@ -312,16 +322,17 @@ function getPixel1i(tex::Texture2D,x::GLint,y::GLint) :: GLint
     return parr[]
 end
 
-function setTexture(prog::Union{GLuint,Program}, keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing
+function setTexture(prog::Union{GLuint,Shader}, keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing
     glActiveTexture(GL_TEXTURE0 + index); use(val)
     setUniform(prog,keyloc,GLint(index))
 end
 setTexture(keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing = setTexture(GLuint(glGetInteger(GL_CURRENT_PROGRAM)),keyloc,val,index)
 
-#
-export Framebuffer
-# ===================
-export attach, complete
+export Texture2D, getPixel1i, setTexture, use, delete
+
+######################
+#     Framebuffer    #
+######################
 
 mutable struct Framebuffer <: AbstractObject
     id :: GLuint
@@ -338,6 +349,7 @@ use(fbo::Framebuffer) = glBindFramebuffer(GL_FRAMEBUFFER,fbo.id)
 function attach(fbo::Framebuffer, tex::Texture2D, attachment::GLenum, level::GLint=GLint(0))
     glNamedFramebufferTexture(fbo.id,attachment,tex.id,level)
     push!(fbo.attachments,attachment)
+    return tex
 end
 
 function complete(fbo::Framebuffer)
@@ -350,4 +362,30 @@ function complete(fbo::Framebuffer)
     end
 end
 
-end # module GL
+export Framebuffer, attach, complete, use, delete
+
+
+######################
+#    SyncedBuffer    #
+######################
+
+mutable struct SyncedBuffer{T}
+    val :: Vector{T}
+    vbo :: Buffer
+    vao :: VertexArray
+    function SyncedBuffer{T}() where T
+        sa = new{T}(Vector{T}(),Buffer(),VertexArray())
+        use(sa.vao); use(sa.vbo) # TODO why need GL. ?
+        vertexAttribs(T)
+        return sa
+    end
+end
+upload!(sa::SyncedBuffer) = upload!(sa.vbo,sa.val)
+upload!(sa::SyncedBuffer{T},v::Vector{T}) where T = begin sa.val=v; upload!(sa) end
+length(sa::SyncedBuffer) = Base.length(sa.val)
+use(sa::SyncedBuffer) = use(sa.vao)
+delete(sa::SyncedBuffer{T}) where T = begin delete(sa.vao); delete(sa.vbo); sa.val=Vector{T}[] end
+
+export SyncedBuffer, upload!, upload!, length, use, delete
+
+end # module OGL

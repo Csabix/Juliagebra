@@ -10,8 +10,8 @@ uniform mat4 VP = mat4(1);
 
 void main()
 {
-    gl_Position = VP  * vec4(inPosition, 1.0);
-    gl_PointSize = 3*inSize;
+    gl_Position = VP  * vec4(inPosition, 1);
+    gl_PointSize = inSize;
     color = inColor;
     index = gl_VertexID;
 }

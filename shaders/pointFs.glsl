@@ -1,5 +1,4 @@
 #version 450
-
 flat in vec4  color;
 flat in int   index;
 
@@ -11,9 +10,10 @@ uniform vec3 lightDir = normalize(vec3(1));
 void main()
 {
     vec3 n = vec3(2*gl_PointCoord.x-1,1-2*gl_PointCoord.y,0);
-    float d = dot(n.xy,n.xy);
-    if(d>1) discard;
-    n.z = sqrt(1-d);
+    float dd = dot(n.xy,n.xy);
+    if(dd>1) discard;
+    n.z = sqrt(1-dd);
     outColor = color*(dot(n,lightDir)*0.75+0.25);
+    //outColor = vec4(n,1);
     outIndex = index;
 }

@@ -1,9 +1,10 @@
+#include("events.jl")
+
 module Cameras
 
-using ImGuiGLFWBackend.LibGLFW, ModernGL, GeometryBasics, LinearAlgebra
+using ImGuiGLFWBackend.LibGLFW, ModernGL, LinearAlgebra, GeometryBasics
+using ..Events
 
-export Camera,viewProj,setView!,setProj!,update!
-export keyboardButton,mouseMove,mouseButton,resizeWindow
 
 function lookat(eye::Vec3{T}, at::Vec3{T}, up::Vec3{T}) :: Mat4{T} where T <: Real
     f :: Vec3{T} = -normalize(at-eye) # Why -?
@@ -23,19 +24,23 @@ function perspective(fovy::T, aspect::T, zNear::T, zFar::T) :: Mat4{T} where T <
     )
 end
 
+######################
+#       Camera       #
+######################
+
 mutable struct Camera
-    eye:: Vec3f;    at :: Vec3f;    up :: Vec3f
+    eye  :: Vec3f;      at :: Vec3f;      up :: Vec3f
     view :: Mat4f;  proj :: Mat4f
 
-    goF :: Float32; goR :: Float32; goU :: Float32
-    mPrev :: Vec2f; mDown :: Bool
+    goF  :: Float32; goR  :: Float32; goU :: Float32
+    mPrev:: Vec2f;   mDown:: Bool
     atUV :: Vec2f
     
     speed :: Float32; lastTime::Float64
     resolution :: Vec2f
 
     function Camera(eye::Vec3f=Vec3f(2), at::Vec3f=Vec3f(0), up::Vec3f=Vec3f(0,1,0);
-                   fovy::Float32=pi/3f0, aspect::Float32=640f0/480f0, zNear::Float32=0.01f0, zFar::Float32=1000f0, speed=4.f0)
+                   fovy::Float32=pi/3f0, aspect::Float32=640f0/480f0, zNear::Float32=0.01f0, zFar::Float32=1000f0, speed::Float32=4.f0)
         cam = new(); cam.resolution = Vec2f(640,480)
         cam.speed, cam.lastTime = speed, time()
         cam.goF, cam.goR, cam.goU, cam.mDown = 0f0, 0f0, 0f0, false
@@ -47,8 +52,7 @@ end
 
 viewProj(cam::Camera)::Mat4f = cam.proj * cam.view
 
-
-function setView!(cam::Camera, eye::Vec3f, at::Vec3f=Vec3f(0,0,0), up::Vec3f=Vec3f(0,1,0))::Nothing
+function setView!(cam::Camera, eye::Vec3f, at::Vec3f=Vec3f(0), up::Vec3f=Vec3f(0,1,0))::Nothing
     cam.eye, cam.at, cam.up = eye, at, up
     w::Vec3f = at-eye
     cam.atUV = Vec2f(atan(w[3],w[1]),acos(w[2]/norm(w)))
@@ -66,8 +70,8 @@ function update!(s::Camera)::Nothing
     dTime = Float32(currTime-s.lastTime)
     s.lastTime = currTime
     w = Vec3f(cos(s.atUV[1])*sin(s.atUV[2]),
-                             cos(s.atUV[2]),
-              sin(s.atUV[1])*sin(s.atUV[2]))
+                           cos(s.atUV[2]),
+            sin(s.atUV[1])*sin(s.atUV[2]))
     right  ::Vec3f = -normalize(cross(w,s.up)) # Why -??
     dPos   ::Vec3f = (s.goF*w + s.goR*right + s.goU*s.up)*s.speed*dTime
     s.eye  = s.eye + dPos
@@ -76,8 +80,21 @@ function update!(s::Camera)::Nothing
     return nothing
 end
 
-function keyboardButton(s::Camera, key::Int32,action::Cint, mods::Int32)::Nothing
-    dir :: Float32 = action == GLFW_PRESS ? 1f0 : -1f0
+export Camera, viewProj, setView!, setProj!, update!
+
+######################
+#       Events       #
+######################
+
+function event!(s::Camera, ev::MouseMotionEvent)
+    if ev.mouse_btn & Events.MOUSE_BUTTON_LEFT != Events.MOUSE_BUTTON_NONE
+        s.atUV = s.atUV + Vec2f(ev.xrel,ev.yrel).*Vec2f(-0.002f0,0.001f0)*s.speed
+        s.atUV = [s.atUV[1] clamp(s.atUV[2],0.01f0,3.14f0)]
+    end
+end
+function event!(s::Camera, ev::KeyboardEvent)
+    dir :: Float32 = ev isa KeyboardDownEvent ? 1f0 : -1f0
+    key = ev.glfw_key
     if key == GLFW_KEY_W || key == GLFW_KEY_UP
         s.goF += dir
     elseif key == GLFW_KEY_S || key == GLFW_KEY_DOWN
@@ -95,28 +112,59 @@ function keyboardButton(s::Camera, key::Int32,action::Cint, mods::Int32)::Nothin
     elseif key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL
         s.speed = s.speed*4f0^dir
     end
-    return nothing
-end
-function mouseMove(s::Camera, xpos::Cdouble, ypos::Cdouble)::Nothing
-    mCurr = Vec2f(xpos,ypos)
-    if s.mDown
-        dUV :: Vec2f =  (mCurr-s.mPrev).*Vec2f(-0.002f0,0.001f0)*s.speed
-        s.atUV = s.atUV + dUV
-        s.atUV = [s.atUV[1] clamp(s.atUV[2],0.01f0,3.14f0)]
-    end
-    s.mPrev = mCurr
-    return nothing
-end
-function mouseButton(s::Camera, key::Int32,action::Cint, mods::Int32)::Nothing
-    if key == GLFW_MOUSE_BUTTON_LEFT
-        s.mDown = action == GLFW_PRESS
-    end
-    return nothing
 end
 
-function resizeWindow(s::Camera, width::Cint, height::Cint)
-    s.resolution = Vec2f(width,height)
-    setProj!(s,pi/3f0,Float32(width)/Float32(height))
+function event!(s::Camera, ev::ResizeEvent)
+    s.resolution = Vec2f(ev.width,ev.height)
+    setProj!(s,pi/3f0,Float32(ev.width)/Float32(ev.height))
 end
 
-end
+event!(::Camera,::Event) = nothing # general impl does nothing
+
+export event!
+
+end # module
+
+# function mouseMove(s::Camera, xpos::Cdouble, ypos::Cdouble)::Nothing
+#     mCurr = Vec2f(xpos,ypos)
+#     if s.mDown
+#         dUV :: Vec2f =  (mCurr-s.mPrev).*Vec2f(-0.002f0,0.001f0)*s.speed
+#         s.atUV = s.atUV + dUV
+#         s.atUV = [s.atUV[1] clamp(s.atUV[2],0.01f0,3.14f0)]
+#     end
+#     s.mPrev = mCurr
+#     return nothing
+# end
+# function mouseButton(s::Camera, key::Int32,action::Cint, mods::Int32)::Nothing
+#     if key == GLFW_MOUSE_BUTTON_LEFT
+#         s.mDown = action == GLFW_PRESS
+#     end
+#     return nothing
+# end
+
+# function keyboardButton(s::Camera, key::Int32,action::Cint, mods::Int32)::Nothing
+#     dir :: Float32 = action == GLFW_PRESS ? 1f0 : -1f0
+#     if key == GLFW_KEY_W || key == GLFW_KEY_UP
+#         s.goF += dir
+#     elseif key == GLFW_KEY_S || key == GLFW_KEY_DOWN
+#         s.goF -= dir
+#     elseif key == GLFW_KEY_D || key == GLFW_KEY_RIGHT
+#         s.goR += dir
+#     elseif key == GLFW_KEY_A || key == GLFW_KEY_LEFT
+#         s.goR -= dir
+#     elseif key == GLFW_KEY_E
+#         s.goU += dir
+#     elseif key == GLFW_KEY_Q
+#         s.goU -= dir
+#     elseif key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT
+#         s.speed = s.speed/4f0^dir
+#     elseif key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL
+#         s.speed = s.speed*4f0^dir
+#     end
+#     return nothing
+# end
+
+# function resizeWindow(s::Camera, width::Cint, height::Cint)
+#     s.resolution = Vec2f(width,height)
+#     setProj!(s,pi/3f0,Float32(width)/Float32(height))
+# end

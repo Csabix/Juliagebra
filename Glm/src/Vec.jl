@@ -1,6 +1,6 @@
 
 #
-#   VecN
+#   Vec N
 #
 
 abstract type VecNT{N,T<:StaticNumber} <: FieldVector{N, T} end
@@ -14,16 +14,9 @@ StaticArrays.similar_type(::Type{<:Vec2T}, ::Type{T}, s::Size{(2,)}) where T = V
 StaticArrays.similar_type(::Type{<:Vec3T}, ::Type{T}, s::Size{(3,)}) where T = Vec3T{T}
 StaticArrays.similar_type(::Type{<:Vec4T}, ::Type{T}, s::Size{(4,)}) where T = Vec4T{T}
 
-# Constructors
-    # First two should replace the next 6, but does not work :(
-    #   VecNT{N,T}() where {N,T} = zero(VecNT{N,T})
-    #   VecNT{N,T}(x::StaticNumber) where {N,T} = zero(VecNT{N,T}) .+ x
 Vec2T{T}(x::StaticNumber) where T = Vec2T{T}(x,x)
 Vec3T{T}(x::StaticNumber) where T = Vec3T{T}(x,x,x)
 Vec4T{T}(x::StaticNumber) where T = Vec4T{T}(x,x,x,x)
-Vec2T{T}() where T = Vec2T{T}(zero(T),zero(T))
-Vec3T{T}() where T = Vec3T{T}(zero(T),zero(T),zero(T))
-Vec4T{T}() where T = Vec4T{T}(zero(T),zero(T),zero(T),zero(T))
 Vec3T{T}(x::StaticNumber,yz::Vec2T) where T = Vec3T{T}(x,yz...)
 Vec3T{T}(xy::Vec2T,z::StaticNumber) where T = Vec3T{T}(xy...,z)
 Vec4T{T}(x::StaticNumber,y::StaticNumber,zw::Vec2T) where T = Vec4T{T}(x,y,zw...)
@@ -32,8 +25,7 @@ Vec4T{T}(xy::Vec2T,z::StaticNumber,w::StaticNumber) where T = Vec4T{T}(xy...,z,w
 Vec4T{T}(x::StaticNumber,yzw::Vec3T) where T = Vec4T{T}(x,yzw...)
 Vec4T{T}(xyz::Vec3T,w::StaticNumber) where T = Vec4T{T}(xyz...,w)
 Vec4T{T}(xy::Vec2T,zw::Vec2T) where T = Vec4T{T}(xy...,zw...)
-
-export Vec2T, Vec3T, Vec4T, VecTN, VecNT
+# Actually glsl has oversized vec constructors, such as vec2(vec3(1,2,3))=vec2(1,2). I don't wanna support that.
 
 # Generate concrete types and constructors
 for n in 2:4
@@ -49,6 +41,7 @@ end
 
 # SWIZZLE
 import StaticArrays.getindex
+
 @Base.propagate_inbounds @inline function getindex(v::VecNT{N,T},ii::NTuple{1}) where {N,T}
     v[@inbounds ii[1]]
 end

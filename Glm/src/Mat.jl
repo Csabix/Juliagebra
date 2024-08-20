@@ -1,6 +1,6 @@
 
 #
-#   MatN
+#   Mat N
 #
 
 const MatNxMT{N,M,T<:StaticNumber} = SMatrix{N,M,T}
@@ -8,15 +8,13 @@ const MatTNxM{T,N,M}               = MatNxMT{N,M,T}
 const MatNT{N}                     = MatNxMT{N,N}
 const MatTN{T,N}                   = MatNT{N,T}
 
-# MatTNxM{T,N,M,L}() where {T,N,M,L} = zero(MatNxMT{T,N,N,L})
-# MatNxMT{N,N,T}(x::StaticNumber) where {N,T} = one(MatNxMT{N,N,T}).*x # might be a better way
-
 mat_constructor(::Type{MatNxMT{N,M,T,L}},v...) where {N,M,T,L} = SMatrix{N,M,T,L}(v...) # general constructor
-#mat_constructor(::Type{MatNxMT{N,M,T,L}}) where {N,M,T,L} = zero(SMatrix{N,M,T,L})      # default constructor
-mat_constructor(::Type{MatNxMT{N,N,T,L}}, x::StaticNumber) where {N,T,L} = one(SMatrix{N,N,T,L}).*x # TODO N x M
+mat_constructor(::Type{MatNxMT{N,N,T,L}}, x::StaticNumber) where {N,T,L} = one(SMatrix{N,N,T,L}).*x # can do better?
+mat_constructor(::Type{MatNxMT{N,M,T,L}}, x::StaticNumber) where {N,M,T,L} = SMatrix{N,M,T,L}(diagm(N,M,repeat([x],min(N,M))))
 mat_constructor(::Type{MatNxMT{N,M,T,L}}, vs::Vararg{VecNT{N}}) where {N,M,T,L} = SMatrix{N,M,T,L}((vs...)...)
-
-export MatNxMT,MatTNxM,MatNT,MatTN
+# Glsl has matN constructors such as mat3(vec2,float,vec2,float,vec2,float)
+# which can be useful, but no alignmet to the columns is necessery. I don't wanna suport either.
+# Glsl mat types can be also constructed with smaller matrices filling with identity elsewhere. I'm not planning on adding this.
 
 # Generate all MatNxM types
 for n in 2:4
@@ -66,4 +64,3 @@ function perspective(fovy::T, aspect::T, zNear::T, zFar::T) :: Mat4T{T} where T
         0,               0,        -(2*zFar*zNear)/dz,  0
     )
 end
-export lookat, perspective

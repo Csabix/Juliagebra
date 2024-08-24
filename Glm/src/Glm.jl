@@ -17,10 +17,6 @@ export lookat, perspective
 # Matrices can be constructed from its column VecN-s with the lowecase *mat* functions.  (or one-arg construction: matN(x))
 """
 
-using StaticArrays
-using LinearAlgebra
-using Test
-
 # Option to export sized types like i16vec2 or u16mat3x4 apart from the default ones
 const noSizedTypes = true;
 
@@ -38,6 +34,9 @@ const StaticReal     = Union{StaticInteger,StaticFloat,Rational{<:StaticInteger}
 const StaticNumber   = Union{StaticReal,Complex{<:StaticReal}}
 #export StaticFloat,StaticSigned,StaticUnsigned,StaticInteger,StaticReal,StaticNumber # maybe not needed
 
+using StaticArrays
+using LinearAlgebra
+using Test
 
 include("Vec.jl")
 include("Mat.jl")

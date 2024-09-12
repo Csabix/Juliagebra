@@ -3,7 +3,8 @@ module InteractiveGeometry
 using Glm
 
 include("Geometry.jl")
-include("Drawing.jl")
+include("Movable&Dependent.jl")
+include("GeometryRenderer.jl")
 include("prettyprint.jl")
 
 const MPoint = Movable{Point};

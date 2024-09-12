@@ -14,7 +14,7 @@ function PrettyPrint.pp_impl(io,x::CommonProperties,it::Int)
     return it
 end
 
-function PrettyPrint.pp_impl(io,x::Drawing, it::Int)
+function PrettyPrint.pp_impl(io,x::InteractiveGeometry, it::Int)
     col = (typeof(x) <: Dependent ? 105 : 202);
     ind = " "^it;
     printstyled(io,"$(typeof(x).name.name){";color=col);

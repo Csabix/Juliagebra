@@ -13,8 +13,10 @@ end
 #
 #   Geometry interface
 #
-
-abstract type Geometry end
+abstract type Geometry
+#   value
+#   properties :: CommonProperties # (?)
+end
 
 abstract type AbstractPoints    <: Geometry end
 
@@ -50,22 +52,3 @@ label(g::Geometry)::String = g.properties.label
 value(g::Geometry) = g.value
 assign!(g::Geometry,y::Any)::Nothing = (g.value = y, nothing)
 render(g::Geometry) = show(g)
-
-
-#
-#   GeometryRenderer
-#
-
-struct GeometryRenderer{G}
-    data :: Vector{G}
-end
-getindex(gc::GeometryRenderer, id) = gc.data[id_to_index(gc,id)]
-
-render(gc::GeometryRenderer{<:StaticGeometries})  = println("Static geometry draw\n",gc)  # could use "data" buffer directly        TODO implement
-render(gc::GeometryRenderer{<:DynamicGeometries}) = println("Dynamic geometry draw\n",gc) # must manage memory or render seperately TODO implement
-
-id_to_index(gc::GeometryRenderer,id) = id # Maps renderer's id read from FBO to an index in data. TODO overload this
-
-# problem: GeometryRenderer and Drawing cannot both contain Geometries
-#   TODO: figure out how Drawing could ommit containing the Geometries. References? I think yes!
-

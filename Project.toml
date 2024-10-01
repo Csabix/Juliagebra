@@ -1,0 +1,4 @@
+[deps]
+GLFW = "f7f18e0c-5ee9-5ccd-a5bf-e8befd85ed98"
+ModernGL = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"

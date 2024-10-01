@@ -2,8 +2,16 @@
 
 module JuliAgebra
 
-include("helpers/macros.jl")
-export @connect
+using ModernGL
+using GLFW
+
+include("helpers/Macros/source/macros.jl")
+
+include("helpers/Gl/source/gl.jl")
+using .Gl
+
+include("helpers/Glm/source/glm.jl")
+using .Glm
 
 include("source/manager.jl")
 export Manager 

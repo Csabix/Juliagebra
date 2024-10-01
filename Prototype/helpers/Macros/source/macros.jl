@@ -18,3 +18,4 @@ macro connect(type, type_member, methods...)
     end
 end
 
+export @connect

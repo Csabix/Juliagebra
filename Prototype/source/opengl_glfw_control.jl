@@ -1,3 +1,5 @@
+#keyboard events also go here
+
 using GLFW
 using ModernGL
 
@@ -28,3 +30,6 @@ end
 function destroy!(grc::OpenGLGLFWController)
     GLFW.DestroyWindow(grc._GLFWWindow)
 end
+
+
+export OpenGLGLFWController

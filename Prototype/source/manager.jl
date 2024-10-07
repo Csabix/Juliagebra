@@ -41,9 +41,13 @@ function run!(m::Manager)
     init!(m._loc)
     init!(m._grc)
     while(!m._shrd.gameOver)
-        update!(m._loc)
         update!(m._grc)
+        update!(m._loc)
     end
     destroy!(m._loc)
     destroy!(m._grc)
 end
+
+export Manager
+export run!
+

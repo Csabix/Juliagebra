@@ -28,7 +28,7 @@ println("$(barack.a) <><><> $(barack.b)")
 #a = Vector{Int}(1:15)
 #println(a)
 #
-#b = view(a,5:10)
+b = view(a,5:10)
 #
 #println(b)
 #

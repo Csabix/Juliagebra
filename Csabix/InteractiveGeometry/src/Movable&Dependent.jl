@@ -11,6 +11,7 @@ id(x::InteractiveGeometry)::Int = id(x.geometry[])
 value(x::InteractiveGeometry) = value(x.geometry[])
 label(x::InteractiveGeometry) = label(x.geometry[])
 
+#inserts into sorted vector, stays sorted after insertion.
 insert2sorted(v::Vector, x::InteractiveGeometry)::Nothing = (splice!(v, searchsorted(v,x;by=id), [x]); nothing)
 
 #
@@ -23,7 +24,7 @@ mutable struct Movable{T <: Geometry} <: InteractiveGeometry
 end
 
 function moveto!(x::Movable,v::Any)::Nothing
-    assign!(x.geometry,v)
+    assign!(x.geometry,v)     # fst update of geometry
     map(update!,x.dependents) # used to be called update on movables
     return nothing
 end
@@ -39,10 +40,11 @@ mutable struct Dependent{T <: Geometry} <: InteractiveGeometry
     function Dependent{T}(geom::T,callback::Function,inputs) where {T <: Geometry} 
         ret = new(geom,callback,inputs,[])
         # Todo: there should be a way to create a vector of items to be inserted and merge those into the sorted list at once, maybe even in-place
+        # what happens if inputs are sorted by id, and after that doing the inserting
         for input in inputs
             if input isa Movable
                 insert2sorted(ret.movables,input)
-                insert2sorted(input.dependents,ret)
+                insert2sorted(input.dependents,ret) #maybe only at end is enough?
             elseif input isa Dependent
                 for movable in input.movables
                     insert2sorted(movable.dependents,ret)

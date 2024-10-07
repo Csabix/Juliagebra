@@ -19,3 +19,5 @@
 - ❌ Do windowing for points
 - ❌ Do simple ImGui Gui
 - ❌ Implement locking
+
+1 Vertex array for 2 seperate buffers

@@ -28,10 +28,19 @@ println("$(barack.a) <><><> $(barack.b)")
 #a = Vector{Int}(1:15)
 #println(a)
 #
-b = view(a,5:10)
+#b = view(a,5:10)
 #
 #println(b)
 #
 #insert!(a,2,5)
 #println(a)
 #println(b)
+
+function injects(a::Int,b::Int,c::Int,str::String)
+    println("$a, $b, $c, $str")
+end
+
+injects(a::Int,b::Int,c::Int) = injects(a,b,c,"lolz")
+
+injects(5,6,7)
+injects(50,60,70)

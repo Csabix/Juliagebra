@@ -24,8 +24,6 @@ end
 abstract type Event end
 
 struct MouseMotionEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
     mouseX    :: Int32
     mouseY    :: Int32
     xrel      :: Int32
@@ -33,27 +31,27 @@ struct MouseMotionEvent <: Event
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::MouseMotionEvent) = "MME"
+
 struct MouseDownEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
-    glfw_key  :: Cint
+    glfw_key  :: GLFW.MouseButton
     mouseX    :: Int32
     mouseY    :: Int32
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::MouseDownEvent) = "MDE"
+
 struct MouseUpEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
-    glfw_key  :: Cint
+    glfw_key  :: GLFW.MouseButton
     mouseX    :: Int32
     mouseY    :: Int32
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::MouseUpEvent) = "MUE"
+
 struct MouseWheelEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
     wheelX    :: Int32      # horizontal scroll
     wheelY    :: Int32      # vertical scroll
     mouseX    :: Int32
@@ -61,116 +59,108 @@ struct MouseWheelEvent <: Event
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::MouseWheelEvent) = "MWE"
+
 struct KeyboardDownEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
-    glfw_key  :: Cint
+    glfw_key  :: GLFW.Key
     glfw_scan :: Cint
     glfw_mods :: Cint
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::KeyboardDownEvent) = "KDE"
+
 struct KeyboardUpEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
-    glfw_key  :: Cint
+    glfw_key  :: GLFW.Key
     glfw_scan :: Cint
     glfw_mods :: Cint
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::KeyboardUpEvent) = "KUE"
+
 struct ResizeEvent <: Event
-    # timestamp :: UInt32
-    # window    :: Ptr{GLFW.Window}
     width     :: Int32
     height    :: Int32
     mouse_btn :: MouseButtonState
     key_mods  :: KeyModState
 end
+Base.string(e::ResizeEvent) = "RE"
+
+# TODO keep or delete?
 const MouseButtonEvent = Union{MouseDownEvent,MouseUpEvent}
 const MouseEvent    = Union{MouseMotionEvent,MouseButtonEvent}
 const KeyboardEvent = Union{KeyboardDownEvent,KeyboardUpEvent}
 const WindowEvent   = Union{ResizeEvent}
-#const Event         = Union{MouseEvent,KeyboardEvent,WindowEvent}
 
-mutable struct EventQueue
-    queue     :: Queue{Event}
-    window    :: Ptr{GLFW.Window}
-    mouseX    :: Int32
-    mouseY    :: Int32
-    mouse_btn :: MouseButtonState
-    key_mods  :: KeyModState
+
+mutable struct GLFWEventQueue
+    _queue::Queue{Event}
+    _mouseX    :: Int32
+    _mouseY    :: Int32
+    _mouse_btn :: MouseButtonState
+    _key_mods  :: KeyModState
+
+    function GLFWEventQueue(window::GLFW.Window)
+        glfwEQ = new(Queue{Event}(),0,0,MOUSE_BUTTON_NONE,KEY_MOD_NONE)
+        
+        GLFW.SetCursorPosCallback(window,(w,x,y) -> mouse_motion(w,x,y,glfwEQ))
+        GLFW.SetMouseButtonCallback(window,(w,key,action,mods) -> mouse_button(w,key,action,mods,glfwEQ))
+        GLFW.SetScrollCallback(window,(w,xoffset,yoffset) -> mouse_wheel(w,xoffset,yoffset,glfwEQ))
+        GLFW.SetKeyCallback(window,(w,key,scancde,action,mods) -> key_event(w,key,scancde,action,mods,glfwEQ))
+        GLFW.SetWindowSizeCallback(window,(w,x,y) -> window_resize(w,x,y,glfwEQ))
+        
+        return glfwEQ
+    end
 end
 
-global eq :: EventQueue
-
-function mouse_motion(window::Ptr{GLFW.Window}, x::Cdouble, y::Cdouble)::Cvoid
-    global eq
-    ev = MouseMotionEvent(x, y, x-eq.mouseX, y-eq.mouseY,eq.mouse_btn,eq.key_mods)
-    eq.mouseX, eq.mouseY = x, y
-    enqueue!(eq.queue,ev); return nothing
-    #push!(eq.queue,ev); return nothing
+function poll_event!(glfwEQ::GLFWEventQueue) :: Union{Nothing,Event}
+    return isempty(glfwEQ._queue) ? nothing : dequeue!(glfwEQ._queue)
 end
-function mouse_button(window::Ptr{GLFW.Window}, key::Cint, action::Cint, mods::Cint)::Cvoid
-    global eq
-    eq.key_mods = KeyModState(mods)
-    btn = key == GLFW_MOUSE_BUTTON_LEFT   ? MOUSE_BUTTON_LEFT   :
-          key == GLFW_MOUSE_BUTTON_RIGHT  ? MOUSE_BUTTON_RIGHT  :
-          key == GLFW_MOUSE_BUTTON_MIDDLE ? MOUSE_BUTTON_MIDDLE : MOUSE_BUTTON_NONE
-    if action == GLFW_PRESS
-        eq.mouse_btn |=  btn
-        ev = MouseDownEvent(key, eq.mouseX, eq.mouseY,eq.mouse_btn,eq.key_mods)
-    elseif action == GLFW_RELEASE
-        eq.mouse_btn ⊻= btn
-        ev = MouseUpEvent(key, eq.mouseX, eq.mouseY,eq.mouse_btn,eq.key_mods)
+
+function mouse_motion(window::GLFW.Window, x::Float64, y::Float64, glfwEQ::GLFWEventQueue)
+    ev = MouseMotionEvent(x, y, x-glfwEQ._mouseX, y-glfwEQ._mouseY,glfwEQ._mouse_btn,glfwEQ._key_mods)
+    glfwEQ._mouseX, glfwEQ._mouseY = x, y
+    enqueue!(glfwEQ._queue,ev)
+end
+function mouse_button(window::GLFW.Window, key::GLFW.MouseButton, action::GLFW.Action, mods::Int32,glfwEQ::GLFWEventQueue)
+    glfwEQ._key_mods = KeyModState(mods)
+    btn = key == GLFW.MOUSE_BUTTON_LEFT   ? MOUSE_BUTTON_LEFT   :
+          key == GLFW.MOUSE_BUTTON_RIGHT  ? MOUSE_BUTTON_RIGHT  :
+          key == GLFW.MOUSE_BUTTON_MIDDLE ? MOUSE_BUTTON_MIDDLE : MOUSE_BUTTON_NONE
+    if action == GLFW.PRESS
+        glfwEQ._mouse_btn |=  btn
+        ev = MouseDownEvent(key, glfwEQ._mouseX, glfwEQ._mouseY,glfwEQ._mouse_btn,glfwEQ._key_mods)
+    elseif action == GLFW.RELEASE
+        glfwEQ._mouse_btn ⊻= btn
+        ev = MouseUpEvent(key, glfwEQ._mouseX, glfwEQ._mouseY,glfwEQ._mouse_btn,glfwEQ._key_mods)
     else
         return nothing
     end
-    enqueue!(eq.queue,ev); return nothing
+    enqueue!(glfwEQ._queue,ev); return nothing
 end
-function mouse_wheel(window::Ptr{GLFW.Window}, xoffset::Cdouble, yoffset::Cdouble)::Cvoid
-    ev = MouseWheelEvent(xoffset, yoffset, eq.mouseX, eq.mouseY,eq.mouse_btn,eq.key_mods)
-    enqueue!(eq.queue,ev); return nothing
+function mouse_wheel(window::GLFW.Window, xoffset::Float64, yoffset::Float64,glfwEQ::GLFWEventQueue)
+    ev = MouseWheelEvent(xoffset, yoffset, glfwEQ._mouseX, glfwEQ._mouseY,glfwEQ._mouse_btn,glfwEQ._key_mods)
+    enqueue!(glfwEQ._queue,ev)
 end
-function key_event(window::Ptr{GLFW.Window}, key::Cint, scancode::Cint, action::Cint, mods::Cint)::Cvoid
-    global eq
-    eq.key_mods = KeyModState(mods)
-    if action == GLFW_PRESS
-        ev = KeyboardDownEvent(key, scancode, mods,eq.mouse_btn,eq.key_mods)
-    elseif action == GLFW_RELEASE
-        ev = KeyboardUpEvent(key, scancode, mods,eq.mouse_btn,eq.key_mods)
+function key_event(window::GLFW.Window, key::GLFW.Key, scancode::Int32, action::GLFW.Action, mods::Int32,glfwEQ::GLFWEventQueue)
+    glfwEQ._key_mods = KeyModState(mods)
+    if action == GLFW.PRESS
+        ev = KeyboardDownEvent(key, scancode, mods,glfwEQ._mouse_btn,glfwEQ._key_mods)
+    elseif action == GLFW.RELEASE
+        ev = KeyboardUpEvent(key, scancode, mods,glfwEQ._mouse_btn,glfwEQ._key_mods)
     else
         return nothing
     end
-    enqueue!(eq.queue,ev); return nothing
+    enqueue!(glfwEQ._queue,ev)
 end
-function windoow_resize(window::Ptr{GLFW.Window}, x::Cint, y::Cint)::Cvoid
-    global eq
-    ev = ResizeEvent(x,y,eq.mouse_btn,eq.key_mods)
-    enqueue!(eq.queue,ev); return nothing
-end
-
-function EventQueue(window :: Ptr{GLFW.Window})
-    global eq
-    mouseX, mouseY = 0, 0 # TODO get mouse pos from glfw?
-    eq = EventQueue(Queue{Event}(),window,mouseX,mouseY,MOUSE_BUTTON_NONE,KEY_MOD_NONE)
-    glfwSetCursorPosCallback(window, @cfunction(mouse_motion, Cvoid, (Ptr{GLFW.Window}, Cdouble, Cdouble)))
-    glfwSetMouseButtonCallback(window, @cfunction(mouse_button, Cvoid, (Ptr{GLFW.Window}, Cint, Cint, Cint)))
-    glfwSetScrollCallback(window, @cfunction(mouse_wheel, Cvoid, (Ptr{GLFW.Window}, Cdouble, Cdouble)))
-    glfwSetKeyCallback(window, @cfunction(key_event, Cvoid, (Ptr{GLFW.Window}, Cint, Cint, Cint, Cint)))
-    glfwSetWindowSizeCallback(window, @cfunction(windoow_resize, Cvoid, (Ptr{GLFW.Window}, Cint, Cint)))
-    # glfwSetCharCallback(window, @cfunction(CharCallback, Cvoid, (Ptr{GLFW.Window}, Cuint)))
-    # glfwSetWindowCloseCallback(window, @cfunction(WindowCloseCallback, Cvoid, (Ptr{GLFW.Window},)))
-    # glfwSetWindowPosCallback(window, @cfunction(WindowPosCallback, Cvoid, (Ptr{GLFW.Window}, Cint, Cint)))
-    return eq
+function window_resize(window::GLFW.Window, x::Int32, y::Int32,glfwEQ::GLFWEventQueue)
+    ev = ResizeEvent(x,y,glfwEQ._mouse_btn,glfwEQ._key_mods)
+    enqueue!(glfwEQ._queue,ev); return nothing
 end
 
-function poll_event!(q::EventQueue) :: Union{Nothing,Event}
-    return isempty(q.queue) ? nothing : dequeue!(q.queue)
-end
-
-export Event, EventQueue, poll_event!
+export Event, GLFWEventQueue, poll_event!
 export MouseMotionEvent,MouseDownEvent,MouseUpEvent,KeyboardDownEvent,KeyboardUpEvent,ResizeEvent
-export MouseEvent,MouseButtonEvent,KeyboardEvent,WindowEvent
+export string
 
 end # module

@@ -13,10 +13,10 @@ using .Glm
 include("helpers/Events/source/events.jl")
 using .Events
 
-include("source/manager.jl")
+include("source/shared_data.jl")
 
-include("source/opengl_glfw_control.jl")
+include("source/algebra_logic.jl")
 
-include("source/logic_control.jl")
+include("source/window_manager.jl")
 
 end

@@ -100,8 +100,7 @@ mutable struct Manager
     end
 end
 
-# TODO rename show to something better
-function show!(m::Manager)
+function play!(m::Manager)
     
     init!(m)
     while(!m._shrd._gameOver)

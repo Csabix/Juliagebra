@@ -18,10 +18,10 @@ macro exported_enum(T, B, syms...)
     end)
 end
 
-abstract type OpenGLObject end
+abstract type OpenGLWrapper end
 
-activate(x::OpenGLObject) = error("not implemented for $typeof(x)")
-delete(x::OpenGLObject) = error("not implemented for $typeof(x)")
+activate(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
+delete(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
 
 export delete, activate
 
@@ -80,7 +80,7 @@ end
 #       Buffer       #
 ######################
 
-mutable struct Buffer <: OpenGLObject
+mutable struct Buffer <: OpenGLWrapper
     id :: GLuint # opengl object name
     #Buffer() = glObjGenDel!(new(0),glGenBuffers,glDeleteBuffers);
     Buffer() = new(glGenOne(glGenBuffers))
@@ -108,7 +108,7 @@ export Buffer, bufferData, upload!, activate, delete
 #     VertexArray    #
 ######################
 
-mutable struct VertexArray <: OpenGLObject
+mutable struct VertexArray <: OpenGLWrapper
     id::GLuint
     # VertexArray() = glObjGenDel!(new(0),glGenVertexArrays,glDeleteVertexArrays);
     VertexArray() = new(glGenOne(glGenVertexArrays));
@@ -198,19 +198,19 @@ end
 export VertexArray, vertexAttribs, activate, delete
 
 ######################
-#      Shader        #  TODO: Rename to Program?
+#      Shader        #
 ######################
 
-mutable struct Shader <: OpenGLObject
+mutable struct ShaderProgram <: OpenGLWrapper
     id::GLuint
-    Shader() = new(0)
-    Shader(vertFile::String,fragFile::String)= new(createProgram(vertFile,fragFile))
+    ShaderProgram() = new(0)
+    ShaderProgram(vertPath::String,fragPath::String)= new(createProgram(vertPath,fragPath))
 end
-delete(x::Shader) = x.id!=0 && glDeleteProgram(x.id)
-activate(prog::Shader) = glUseProgram(prog.id)
+delete(x::ShaderProgram) = x.id!=0 && glDeleteProgram(x.id)
+activate(prog::ShaderProgram) = glUseProgram(prog.id)
 
-function createShaderStage(file::String, stage::GLenum)::GLuint
-    source = read(file,String)
+function createShaderStage(path::String, stage::GLenum)::GLuint
+    source = read(path,String)
     shader = glCreateShader(stage)
     glShaderSource(shader,1,convert(Ptr{UInt8},pointer([convert(Ptr{GLchar},pointer(source))])), C_NULL)
     glCompileShader(shader)
@@ -224,7 +224,7 @@ function createShaderStage(file::String, stage::GLenum)::GLuint
             type, col = "unknown", 1
         end
 		printstyled("ERROR compiling "; color = 1, bold=true)
-        printstyled(file,' '; color = col, underline=true, bold=true)
+        printstyled(path,' '; color = col, underline=true, bold=true)
         printstyled(type, " shader:\n\n"; color = 8)
         printstyled(getInfoLog(shader),"\n\n"; color = col, bold=true)
         glDeleteShader(shader);
@@ -233,10 +233,12 @@ function createShaderStage(file::String, stage::GLenum)::GLuint
     return shader
 end
 
-function createProgram(vertFile::String,fragFile::String)::GLuint
+# TODO: Rework for geometry shader as well
+
+function createProgram(vertPath::String,fragPath::String)::GLuint
     prog = glCreateProgram()
-    vs = createShaderStage(vertFile,GL_VERTEX_SHADER)
-    fs = createShaderStage(fragFile,GL_FRAGMENT_SHADER)
+    vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
+    fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
     if fs == 0 || vs == 0; return 0; end
 	glAttachShader(prog, vs)
 	glAttachShader(prog, fs)
@@ -244,9 +246,9 @@ function createProgram(vertFile::String,fragFile::String)::GLuint
 	status = GLint[0];	glGetProgramiv(prog, GL_LINK_STATUS, status)
 	if status[] == GL_FALSE
 		printstyled("ERROR linking "; color = 1, bold=true)
-        printstyled(vertFile; color = 2, underline = true, bold=true)
+        printstyled(vertPath; color = 2, underline = true, bold=true)
         printstyled(" vertex and "; color = 8)
-        printstyled(fragFile; color = 6, underline = true, bold=true)
+        printstyled(fragPath; color = 6, underline = true, bold=true)
         printstyled(" fragment shaders:\n\n"; color = 8)
         printstyled(getInfoLog(prog),"\n\n"; color = 11, bold = true)
 	end
@@ -255,7 +257,7 @@ function createProgram(vertFile::String,fragFile::String)::GLuint
 	return prog
 end
 
-export Shader, activate, delete
+export ShaderProgram, activate, delete
 
 ######################
 #      Uniforms      #
@@ -320,7 +322,7 @@ setUniform(id::GLuint, loc::LocType, val::Any)::Nothing = id!=0 ? glUniform(loc,
 
 setUniform(id::GLuint, key::String, val::Any)::Nothing = id!=0 ? glUniform(glGetUniformLocation(id, key),val) : nothing
 
-setUniform(prog::Shader, keyloc::StringOrLoc, val::Any)::Nothing = setUniform(prog.id, keyloc, val)
+setUniform(prog::ShaderProgram, keyloc::StringOrLoc, val::Any)::Nothing = setUniform(prog.id, keyloc, val)
 
 setUniform(key::StringOrLoc, val::Any)::Nothing =  setUniform(GLuint(glGetInteger(GL_CURRENT_PROGRAM)), key, val)
 
@@ -330,7 +332,7 @@ export setUniform, setTexture
 #      Texture2D     #
 ######################
 
-mutable struct Texture2D <: OpenGLObject
+mutable struct Texture2D <: OpenGLWrapper
     id :: GLuint
     internalFormat ::GLenum
     function Texture2D(internalFormat::GLenum)
@@ -356,7 +358,7 @@ function getPixel1i(tex::Texture2D,x::GLint,y::GLint) :: GLint
     return parr[]
 end
 
-function setTexture(prog::Union{GLuint,Shader}, keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing
+function setTexture(prog::Union{GLuint,ShaderProgram}, keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing
     glActiveTexture(GL_TEXTURE0 + index); activate(val)
     setUniform(prog,keyloc,GLint(index))
 end
@@ -368,7 +370,7 @@ export Texture2D, getPixel1i, setTexture, activate, delete
 #     Framebuffer    #
 ######################
 
-mutable struct Framebuffer <: OpenGLObject
+mutable struct Framebuffer <: OpenGLWrapper
     id :: GLuint
     attachments :: Set{GLenum}
     function Framebuffer()

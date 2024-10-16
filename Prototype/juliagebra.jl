@@ -10,13 +10,30 @@ using .Gl
 include("helpers/Glm/source/glm.jl")
 using .Glm
 
+
 include("helpers/Events/source/events.jl")
 using .Events
 
-include("source/shared_data.jl")
+using GLFW
+using ModernGL
+
+include("source/manager_containers/shared_data.jl")
+include("source/manager_containers/glfw_data.jl")
+include("source/manager_containers/opengl_data.jl")
+
+
+
 
 include("source/algebra_logic.jl")
+include("source/render_boss.jl")
+include("source/AlgebraObjects/bodies.jl")
+
+
 
 include("source/window_manager.jl")
+
+# TODO: rethink this export sometime in the future.
+import .Glm:Vec3
+export Vec3
 
 end

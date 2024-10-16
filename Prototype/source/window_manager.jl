@@ -1,80 +1,4 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
-#also the data which is shared between the logic and graphics is defined here as well.
-
-using GLFW
-using ModernGL
-
-#=
-  #####   #        #######  #     #  ######
- #     #  #        #        #  #  #  #     #    ##    #####    ##
- #        #        #        #  #  #  #     #   #  #     #     #  #
- #  ####  #        #####    #  #  #  #     #  #    #    #    #    #
- #     #  #        #        #  #  #  #     #  ######    #    ######
- #     #  #        #        #  #  #  #     #  #    #    #    #    #
-  #####   #######  #         ## ##   ######   #    #    #    #    #
-
-=#
-
-mutable struct GLFWData
-
-    _shrd::SharedData
-    _window::GLFW.Window
-    _glfwEQ::GLFWEventQueue
-
-    function GLFWData(shrd::SharedData)
-        window = GLFW.CreateWindow(shrd._width,shrd._height,shrd._name)
-    
-        if window == C_NULL
-            error("GLFW window creation failed.")
-        end
-    
-        GLFW.MakeContextCurrent(window)
-        glfwEQ = GLFWEventQueue(window)
-
-        new(shrd,window,glfwEQ)
-    end
-end
-
-
-destroy!(glfw::GLFWData) = GLFW.DestroyWindow(glfw._window)
-
-
-#=
- #######                           #####   #        ######
- #     #  #####   ######  #    #  #     #  #        #     #    ##    #####    ##
- #     #  #    #  #       ##   #  #        #        #     #   #  #     #     #  #
- #     #  #    #  #####   # #  #  #  ####  #        #     #  #    #    #    #    #
- #     #  #####   #       #  # #  #     #  #        #     #  ######    #    ######
- #     #  #       #       #   ##  #     #  #        #     #  #    #    #    #    #
- #######  #       ######  #    #   #####   #######  ######   #    #    #    #    #
-
-=#
-
-mutable struct OpenGLData
-
-
-    function OpenGLData(glfw::GLFWData)
-        #NOTE: for OpenGLData to succesfully construct, a GLFWData is required, but not stored
-        glClearColor(1.0,0.0,1.0,1.0)
-        new()
-    end
-end
-
-
-function destroy!(openglD::OpenGLData)
-
-end
-
-#=
- #     #
- ##   ##    ##    #    #    ##     ####   ######  #####
- # # # #   #  #   ##   #   #  #   #    #  #       #    #
- #  #  #  #    #  # #  #  #    #  #       #####   #    #
- #     #  ######  #  # #  ######  #  ###  #       #####
- #     #  #    #  #   ##  #    #  #    #  #       #   #
- #     #  #    #  #    #  #    #   ####   ######  #    #
-
-=#
 
 mutable struct Manager
 
@@ -83,7 +7,8 @@ mutable struct Manager
     _opengl::Union{OpenGLData,Nothing}
     _windowCreated::Bool
     _algebra::AlgebraLogic
-    
+    _renderBoss::RenderBoss
+
     function Manager(
         name::String="Unnamed Window",
         width::Int=640,
@@ -95,9 +20,16 @@ mutable struct Manager
         opengl = nothing
         windowCreated = false
         algebra = AlgebraLogic(shrd)
+        renderBoss = RenderBoss()
 
-        new(shrd,glfw,opengl,windowCreated,algebra)
+        new(shrd,glfw,opengl,windowCreated,algebra,renderBoss)
     end
+end
+
+#@connect JuliAgebra.Manager JuliAgebra.Manager._renderBoss JuliAgebra.submit!
+
+function submit!(m::Manager,plan::RenderPlan)
+    submit!(m._renderBoss,plan)
 end
 
 function play!(m::Manager)
@@ -124,7 +56,6 @@ function play!(m::Manager)
 end
 
 
-
 function init!(m::Manager)
     if m._windowCreated
         error("Window is already created, can't init! again.")
@@ -149,5 +80,6 @@ function destroy!(m::Manager)
 end
 
 export Manager
-export show!
+export play!
+export submit!
 

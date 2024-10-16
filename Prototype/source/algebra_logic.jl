@@ -11,8 +11,18 @@
 
 =#
 
+abstract type AlgebraObject end
+
+#Array{T,1} = Vector{T}
+
 mutable struct AlgebraLogic
     _shrd::SharedData
+    _algObjs::Vector{AlgebraObject}
+
+    function AlgebraLogic(shrd::SharedData)
+        new(shrd,Vector{AlgebraObject}())
+    end
+
 end
 
 function init!(_loc::AlgebraLogic)

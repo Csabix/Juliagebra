@@ -16,6 +16,7 @@ using .Events
 
 using GLFW
 using ModernGL
+using DataStructures
 
 include("source/manager_containers/shared_data.jl")
 include("source/manager_containers/glfw_data.jl")
@@ -25,7 +26,6 @@ include("source/manager_containers/opengl_data.jl")
 
 
 include("source/algebra_logic.jl")
-include("source/render_boss.jl")
 include("source/AlgebraObjects/bodies.jl")
 
 

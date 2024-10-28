@@ -7,7 +7,8 @@ mutable struct Manager
     _opengl::Union{OpenGLData,Nothing}
     _windowCreated::Bool
     _algebra::AlgebraLogic
-    _renderBoss::RenderBoss
+    _plans::Queue{RenderPlan}
+    _employees::Vector{RenderEmployee}
 
     function Manager(
         name::String="Unnamed Window",
@@ -20,16 +21,15 @@ mutable struct Manager
         opengl = nothing
         windowCreated = false
         algebra = AlgebraLogic(shrd)
-        renderBoss = RenderBoss()
+        plans = Queue{RenderPlan}()
+        employees = Vector{RenderEmployee}()
 
-        new(shrd,glfw,opengl,windowCreated,algebra,renderBoss)
+        new(shrd,glfw,opengl,windowCreated,algebra,plans,employees)
     end
 end
 
-#@connect JuliAgebra.Manager JuliAgebra.Manager._renderBoss JuliAgebra.submit!
-
 function submit!(m::Manager,plan::RenderPlan)
-    submit!(m._renderBoss,plan)
+    enqueue!(m._plans,plan)    
 end
 
 function play!(m::Manager)
@@ -44,8 +44,14 @@ function play!(m::Manager)
         GLFW.PollEvents()
         ev = poll_event!(m._glfw._glfwEQ)
         while(!isnothing(ev))
-            println(string(ev))
+            #println(string(ev))
             ev = poll_event!(m._glfw._glfwEQ)
+        end
+        
+        while(!isempty(m._plans))
+            println("Processing RenderPlan!")
+            employee = recruit!(dequeue!(m._plans),m._opengl)
+            push!(m._employees,employee)
         end
 
         m._shrd._gameOver = GLFW.WindowShouldClose(m._glfw._window)
@@ -60,7 +66,6 @@ function init!(m::Manager)
     if m._windowCreated
         error("Window is already created, can't init! again.")
     end
-    
     
     m._glfw = GLFWData(m._shrd)
     m._opengl = OpenGLData(m._glfw)

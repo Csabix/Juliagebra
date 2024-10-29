@@ -11,8 +11,6 @@
 
 =#
 
-abstract type AlgebraObject end
-
 #Array{T,1} = Vector{T}
 
 mutable struct AlgebraLogic

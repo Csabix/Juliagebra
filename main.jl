@@ -10,6 +10,6 @@ push!(tri,Vec3(1,0,0))
 push!(tri,Vec3(1,1,0))
 
 
-submit!(manager,ModLimBodyPlan(tri))
+submit!(manager,Movable_Limited_Plan(tri))
 play!(manager)
 

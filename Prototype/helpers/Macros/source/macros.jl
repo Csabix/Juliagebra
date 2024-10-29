@@ -4,9 +4,6 @@
 #end
 
 
-@doc """
-    connect macro connects a list of types functions to a type member. 
-"""
 macro connect(type, type_member, methods...)
     connections = Expr[]
     for method in methods

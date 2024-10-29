@@ -17,18 +17,13 @@ using .Events
 using GLFW
 using ModernGL
 using DataStructures
+# using StaticArrays
 
-include("source/manager_containers/shared_data.jl")
-include("source/manager_containers/glfw_data.jl")
-include("source/manager_containers/opengl_data.jl")
-
-
-
-
-include("source/algebra_logic.jl")
+include("source/shared_data.jl")
+include("source/glfw_data.jl")
+include("source/opengl_data.jl")
 include("source/AlgebraObjects/bodies.jl")
-
-
+include("source/algebra_logic.jl")
 
 include("source/window_manager.jl")
 

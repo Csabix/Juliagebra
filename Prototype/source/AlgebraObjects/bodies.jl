@@ -9,53 +9,62 @@ end
 
 mutable struct Movable_Limited_Body <:AlgebraObject
     _vertexes::AbstractArray{Vec3,1} 
-    _dirty::Bool
+    _soil::Function
 
     function Movable_Limited_Body(vertexes)
-        new(vertexes,false)
+        new(vertexes,() -> nothing)
     end
 
 end
 
-Base.string(self::Movable_Limited_Body)="Movable_Limited_Body"
-
-_soil!(self::Movable_Limited_Body) = (self._dirty = true)
-soiled(self::Movable_Limited_Body) = self._dirty
-sanitize(self::Movable_Limited_Body) = (self._dirty = false)
+Base.string(self::Movable_Limited_Body) = "Movable_Limited_Body"
 
 function Base.setindex!(self::Movable_Limited_Body,value::Vec3,key)
     vec = self._vertexes[key]
     vec.x = value.x
     vec.y = value.y
     vec.z = value.z
-    _soil!(self)
+    self._soil()
 end
 
 mutable struct Movable_Limited_Employee <:RenderEmployee
-    _assets::Movable_Limited_Body
+    _asset::Movable_Limited_Body
+    _dirty::Bool
+    _openglD::OpenGLData
     _gpuBuffer::Vector{Vec3}
 
-    function Movable_Limited_Employee(asset::Movable_Limited_Body,vertexes::Vector{Vec3})
+    function Movable_Limited_Employee(asset::Movable_Limited_Body,openglD::OpenGLData,vertexes::Vector{Vec3})
         # ! GPU construction data can come here
-        new(asset,vertexes)
+        dirty = false
+        self = new(asset,dirty,openglD,vertexes)
+        asset._soil = () -> soil(employee)
+        # * Merging this bad boy into openglData
+        myVector = get!(openglD._renderOffices,Movable_Limited_Employee,Vector{Movable_Limited_Employee}())
+        push!(myVector,self)        
     end
 
 end
 
 Base.string(self::Movable_Limited_Employee)="Movable_Limited_Employee"
+Base.string(self::Type{Movable_Limited_Employee}) = "Type: Movable_Limited_Employee"
 
-function actualize!(self::Movable_Limited_Employee)
-    sanitize(self._assets)
+function soil(self::Movable_Limited_Employee)
+    if !self._dirty
+        self._dirty = true
+        # * Notify openglData that I'm dirty by queuing myself.
+        enqueue!(self._openglD._updateMeQueue,self)
+    end
 end
 
+function sanitize!(self::Movable_Limited_Employee)
+    self._dirty = false
+end
 
-function recruit!(self::OpenGLData,plan::Movable_Limited_Plan)
+function recruit!(self::OpenGLData,plan::Movable_Limited_Plan)::Movable_Limited_Body
     vertexes = deepcopy(plan._vertexes)
-    #println(vertexes)
     asset = Movable_Limited_Body(view(vertexes, : ))
-    employee = Movable_Limited_Employee(asset,vertexes)
-    myVector = get!(self._renderOffices,Movable_Limited_Employee,Vector{Movable_Limited_Employee}())
-    push!(myVector,employee)
+    Movable_Limited_Employee(asset,self,vertexes)
+    return asset
 end
 
 export Movable_Limited_Plan

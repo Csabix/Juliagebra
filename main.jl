@@ -11,5 +11,6 @@ push!(tri,Vec3(1,1,0))
 
 
 submit!(manager,Movable_Limited_Plan(tri))
+submit!(manager,Movable_Limited_Plan(tri))
 play!(manager)
 

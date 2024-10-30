@@ -1,6 +1,3 @@
-abstract type AlgebraObject end
-abstract type RenderPlan end
-abstract type RenderEmployee end
 
 # * iter on employees to check changes
 # * iter on opengldata for rendering
@@ -10,31 +7,27 @@ mutable struct OpenGLData
 
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
     _renderOffices::Dict{<:DataType,Vector{<:RenderEmployee}}
+    _updateMeQueue::Queue{RenderEmployee}
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearColor(1.0,0.0,1.0,1.0)
-
+        
         renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
-        new(shrd,renderOffices)
+        updateMeQueue = Queue{RenderEmployee}()
+        new(shrd,renderOffices,updateMeQueue)
     end
 end
 
 function update!(self::OpenGLData)
-    for (_, office) in self._renderOffices
-        for employee in office
-            actualize!(employee)
-        end
+    while !isempty(self._updateMeQueue)
+        employee = dequeue!(self._updateMeQueue)
+        sanitize!(employee)
     end
     # * All the buffers are up to date at this point.
     # TODO: Rendering logic comes here    
 
     glClear(GL_COLOR_BUFFER_BIT)
-end
-
-function hire_for_plan!(self::OpenGLData,plan::T) where T<:RenderPlan
-    recruit!(self,plan)
-    print_render_offices(self)
 end
 
 function print_render_offices(self::OpenGLData)
@@ -47,7 +40,7 @@ function print_render_offices(self::OpenGLData)
         printstyled("$key:\n";color=:green)
         for employee in office
             printstyled("\t- ";color=:red,bold=true)
-            printstyled("$(string(employee)) - $(string(employee._assets))\n";color=:cyan)
+            printstyled("$(string(employee)) - $(string(employee._asset))\n";color=:cyan)
         end
     end
 

@@ -15,12 +15,16 @@
 
 mutable struct AlgebraLogic
     _shrd::SharedData
-    _algObjs::Vector{AlgebraObject}
+    _algebraObjects::Vector{AlgebraObject}
 
     function AlgebraLogic(shrd::SharedData)
         new(shrd,Vector{AlgebraObject}())
     end
 
+end
+
+function fuse!(self::AlgebraLogic,asset::T) where T<:AlgebraObject
+    push!(self._algebraObjects,asset)
 end
 
 function init!(_loc::AlgebraLogic)

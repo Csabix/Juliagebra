@@ -8,14 +8,20 @@ mutable struct OpenGLData
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
     _renderOffices::Dict{<:DataType,Vector{<:RenderEmployee}}
     _updateMeQueue::Queue{RenderEmployee}
+    _combinerShader::ShaderProgram
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearColor(1.0,0.0,1.0,1.0)
         
+        myPath = (@__FILE__)
+        myPath = myPath[1:(length(myPath) - length("opengl_data.jl"))]
+        #println(myPath)
+        combinerShader = ShaderProgram(myPath * "shaders/dflt_combiner.vert", myPath * "shaders/dflt_combiner.frag")
+
         renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
         updateMeQueue = Queue{RenderEmployee}()
-        new(shrd,renderOffices,updateMeQueue)
+        new(shrd,renderOffices,updateMeQueue,combinerShader)
     end
 end
 
@@ -48,5 +54,5 @@ end
 
 
 function destroy!(self::OpenGLData)
-
+    delete(self._combinerShader)
 end

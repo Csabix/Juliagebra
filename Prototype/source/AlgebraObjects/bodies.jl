@@ -35,6 +35,7 @@ mutable struct Movable_Limited_Employee <:RenderEmployee
 
     function Movable_Limited_Employee(asset::Movable_Limited_Body,openglD::OpenGLData,vertexes::Vector{Vec3})
         # ! GPU construction data can come here
+        # TODO: Construct GPU objects
         dirty = false
         self = new(asset,dirty,openglD,vertexes)
         asset._soil = () -> soil(employee)
@@ -58,6 +59,7 @@ end
 
 function sanitize!(self::Movable_Limited_Employee)
     self._dirty = false
+    # TODO: Add OpenGL Upload Logic
 end
 
 function recruit!(self::OpenGLData,plan::Movable_Limited_Plan)::Movable_Limited_Body

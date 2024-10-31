@@ -200,62 +200,102 @@ export VertexArray, vertexAttribs, activate, delete
 ######################
 #      Shader        #
 ######################
-
 mutable struct ShaderProgram <: OpenGLWrapper
     id::GLuint
-    ShaderProgram() = new(0)
-    ShaderProgram(vertPath::String,fragPath::String)= new(createProgram(vertPath,fragPath))
+    #ShaderProgram() = new(0)
+    function ShaderProgram(vertPath::String,fragPath::String)
+        vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
+        fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
+        prog = linkShaders!(vs,fs)
+        new(prog)
+    end
+    function ShaderProgram(vertPath::String,geomPath::String,fragPath::String)
+        vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
+        gs = createShaderStage(geomPath,GL_GEOMETRY_SHADER)
+        fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
+        prog = linkShaders!(vs,gs,fs)
+        new(prog)
+    end
 end
-delete(x::ShaderProgram) = x.id!=0 && glDeleteProgram(x.id)
-activate(prog::ShaderProgram) = glUseProgram(prog.id)
+delete(x::ShaderProgram) = (x.id!=0 && glDeleteProgram(x.id))
+activate(prog::ShaderProgram) = (glUseProgram(prog.id))
+
+
+function linkShaders!(shaders::GLuint...)::GLuint
+    prog = glCreateProgram()
+    
+    for shader in shaders
+        glAttachShader(prog, shader)
+    end
+    glLinkProgram(prog)
+    
+    status = Ref{GLint}(0)
+    glGetProgramiv(prog, GL_LINK_STATUS, status)
+    if status[] == GL_FALSE
+        
+        infoLogLength = Ref{GLint}(0)
+        glGetProgramiv(prog, GL_INFO_LOG_LENGTH, infoLogLength)
+        
+        infoLog = Vector{UInt8}(undef, infoLogLength[])
+        dummyInfoLogLength = Ref{GLint}(0)
+        glGetProgramInfoLog(prog, infoLogLength[],dummyInfoLogLength,infoLog)
+        
+        errorMessage = String(infoLog)
+        println(errorMessage)
+
+        glDeleteProgram(prog)
+        error("Shader linking failed!")
+    end
+    return prog
+end
 
 function createShaderStage(path::String, stage::GLenum)::GLuint
     source = read(path,String)
     shader = glCreateShader(stage)
     glShaderSource(shader,1,convert(Ptr{UInt8},pointer([convert(Ptr{GLchar},pointer(source))])), C_NULL)
     glCompileShader(shader)
-    success = GLint[0];	glGetShaderiv(shader, GL_COMPILE_STATUS, success)
-    if success[] != GL_TRUE
-        if stage == GL_VERTEX_SHADER
-            type, col = "vertex", 2
-        elseif stage == GL_FRAGMENT_SHADER
-            type, col = "fragment", 6
-        else
-            type, col = "unknown", 1
-        end
-		printstyled("ERROR compiling "; color = 1, bold=true)
-        printstyled(path,' '; color = col, underline=true, bold=true)
-        printstyled(type, " shader:\n\n"; color = 8)
-        printstyled(getInfoLog(shader),"\n\n"; color = col, bold=true)
-        glDeleteShader(shader);
-        return 0
+    
+    status = Ref{GLint}(0)
+    glGetShaderiv(shader, GL_COMPILE_STATUS, status)
+    if status[] == GL_FALSE
+        
+        infoLogLength = Ref{GLint}(0)
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, infoLogLength)
+        
+        infoLog = Vector{UInt8}(undef, infoLogLength[])
+        dummyInfoLogLength = Ref{GLint}(0)
+        glGetShaderInfoLog(shader, infoLogLength[],dummyInfoLogLength,infoLog)
+        
+        errorMessage = String(infoLog)
+        println(errorMessage)
+
+        glDeleteShader(shader)
+        error("Shader compilation failed!")
     end
     return shader
 end
 
-# TODO: Rework for geometry shader as well
-
-function createProgram(vertPath::String,fragPath::String)::GLuint
-    prog = glCreateProgram()
-    vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
-    fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
-    if fs == 0 || vs == 0; return 0; end
-	glAttachShader(prog, vs)
-	glAttachShader(prog, fs)
-	glLinkProgram(prog)
-	status = GLint[0];	glGetProgramiv(prog, GL_LINK_STATUS, status)
-	if status[] == GL_FALSE
-		printstyled("ERROR linking "; color = 1, bold=true)
-        printstyled(vertPath; color = 2, underline = true, bold=true)
-        printstyled(" vertex and "; color = 8)
-        printstyled(fragPath; color = 6, underline = true, bold=true)
-        printstyled(" fragment shaders:\n\n"; color = 8)
-        printstyled(getInfoLog(prog),"\n\n"; color = 11, bold = true)
-	end
-    glDeleteShader(vs)
-    glDeleteShader(fs)
-	return prog
-end
+#function createProgram(vertPath::String,fragPath::String)::GLuint
+#    prog = glCreateProgram()
+#    vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
+#    fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
+#    if fs == 0 || vs == 0; return 0; end
+#	glAttachShader(prog, vs)
+#	glAttachShader(prog, fs)
+#	glLinkProgram(prog)
+#	status = GLint[0];	glGetProgramiv(prog, GL_LINK_STATUS, status)
+#	if status[] == GL_FALSE
+#		printstyled("ERROR linking "; color = 1, bold=true)
+#        printstyled(vertPath; color = 2, underline = true, bold=true)
+#        printstyled(" vertex and "; color = 8)
+#        printstyled(fragPath; color = 6, underline = true, bold=true)
+#        printstyled(" fragment shaders:\n\n"; color = 8)
+#        printstyled(getInfoLog(prog),"\n\n"; color = 11, bold = true)
+#	end
+#    glDeleteShader(vs)
+#    glDeleteShader(fs)
+#	return prog
+#end
 
 export ShaderProgram, activate, delete
 

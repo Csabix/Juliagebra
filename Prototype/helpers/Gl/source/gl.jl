@@ -21,9 +21,9 @@ end
 abstract type OpenGLWrapper end
 
 activate(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
-delete(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
+destroy!(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
 
-export delete, activate
+export destroy!, activate
 
 """
 Generate one id with the specified input glGenFunction.
@@ -85,7 +85,7 @@ mutable struct Buffer <: OpenGLWrapper
     #Buffer() = glObjGenDel!(new(0),glGenBuffers,glDeleteBuffers);
     Buffer() = new(glGenOne(glGenBuffers))
 end
-delete(x::Buffer) = glDeleteBuffers(1,[x.id])
+destroy!(x::Buffer) = glDeleteBuffers(1,[x.id])
 activate(buffer::Buffer, target::BufferType = ARRAY_BUFFER) = activate(target,buffer)
 activate(target::BufferType, buffer::Buffer) = glBindBuffer(GLenum(target),buffer.id)
 
@@ -102,7 +102,7 @@ function upload!(buffer::Buffer,data::Vector{T} where T)
     glNamedBufferData(buffer.id,sizeof(data),data,GL_STATIC_DRAW)
 end
 
-export Buffer, bufferData, upload!, activate, delete
+export Buffer, bufferData, upload!, activate, destroy!
 
 ######################
 #     VertexArray    #
@@ -113,7 +113,7 @@ mutable struct VertexArray <: OpenGLWrapper
     # VertexArray() = glObjGenDel!(new(0),glGenVertexArrays,glDeleteVertexArrays);
     VertexArray() = new(glGenOne(glGenVertexArrays));
 end
-delete(x::VertexArray) = glDeleteVertexArrays(1,[x.id])
+destroy!(x::VertexArray) = glDeleteVertexArrays(1,[x.id])
 activate(vao::VertexArray) = glBindVertexArray(vao.id)
 
 const JuliaType2OpenGL = Dict([
@@ -147,7 +147,7 @@ If `vec3`, `vec2`, `float` is 1 big element in a buffer, then `layout (location 
 `0` for `vec3`, `sizeof(vec3)` for `vec2`, `sizeof(vec3) + sizeof(vec2)` for `float`.
 
 """
-function vertexAttrib(index::Int, atype::DataType, stride::Int = sizeof(atype), offset::UInt = 0)
+function vertexAttrib(index::Int, atype::DataType, stride::Int = sizeof(atype), offset::UInt = UInt(0))
     #get number of components (3 for vec3)
     size::GLint = atype <: StaticArray ? length(atype) : 1
     @assert 1<=size<=4 "invalid vertex attrib size"
@@ -175,7 +175,7 @@ function vertexAttribs(vtype::DataType)
         ltypes = vtype.types
         for i in eachindex(ltypes)
             # fieldoffset tells the byte offset of the i-th type in vtype.
-            vertexAttrib(i-1,ltypes[i],stride,fieldoffset(vtype,i))
+            vertexAttrib(i-1,ltypes[i],stride,UInt(fieldoffset(vtype,i)))
         end
     end
 end
@@ -195,7 +195,7 @@ function getInfoLog(obj::GLuint)::String
 	end
 end
 
-export VertexArray, vertexAttribs, activate, delete
+export VertexArray, vertexAttribs, activate, destroy!
 
 ######################
 #      Shader        #
@@ -217,9 +217,10 @@ mutable struct ShaderProgram <: OpenGLWrapper
         new(prog)
     end
 end
-delete(x::ShaderProgram) = (x.id!=0 && glDeleteProgram(x.id))
+destroy!(x::ShaderProgram) = (x.id!=0 && glDeleteProgram(x.id))
 activate(prog::ShaderProgram) = (glUseProgram(prog.id))
 
+export activate, destroy!
 
 function linkShaders!(shaders::GLuint...)::GLuint
     prog = glCreateProgram()
@@ -275,29 +276,7 @@ function createShaderStage(path::String, stage::GLenum)::GLuint
     return shader
 end
 
-#function createProgram(vertPath::String,fragPath::String)::GLuint
-#    prog = glCreateProgram()
-#    vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
-#    fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
-#    if fs == 0 || vs == 0; return 0; end
-#	glAttachShader(prog, vs)
-#	glAttachShader(prog, fs)
-#	glLinkProgram(prog)
-#	status = GLint[0];	glGetProgramiv(prog, GL_LINK_STATUS, status)
-#	if status[] == GL_FALSE
-#		printstyled("ERROR linking "; color = 1, bold=true)
-#        printstyled(vertPath; color = 2, underline = true, bold=true)
-#        printstyled(" vertex and "; color = 8)
-#        printstyled(fragPath; color = 6, underline = true, bold=true)
-#        printstyled(" fragment shaders:\n\n"; color = 8)
-#        printstyled(getInfoLog(prog),"\n\n"; color = 11, bold = true)
-#	end
-#    glDeleteShader(vs)
-#    glDeleteShader(fs)
-#	return prog
-#end
-
-export ShaderProgram, activate, delete
+export ShaderProgram, activate, destroy!
 
 ######################
 #      Uniforms      #
@@ -368,9 +347,17 @@ setUniform(key::StringOrLoc, val::Any)::Nothing =  setUniform(GLuint(glGetIntege
 
 export setUniform, setTexture
 
+# TODO: Clean up unused definitions.
+# TODO: Clean up comments.
+
+
 ######################
 #      Texture2D     #
 ######################
+
+
+
+#=
 
 mutable struct Texture2D <: OpenGLWrapper
     id :: GLuint
@@ -381,7 +368,7 @@ mutable struct Texture2D <: OpenGLWrapper
         return tex
     end
 end
-delete(x::Texture2D) = glDeleteTextures(1,[x.id])
+destroy!(x::Texture2D) = glDeleteTextures(1,[x.id])
 activate(tex::Texture2D) = glBindTexture(GL_TEXTURE_2D,tex.id)
 
 function Texture2D(internalFormat::GLenum, width, height)
@@ -404,12 +391,90 @@ function setTexture(prog::Union{GLuint,ShaderProgram}, keyloc::StringOrLoc, val:
 end
 setTexture(keyloc::StringOrLoc, val::Texture2D, index::LocType)::Nothing = setTexture(GLuint(glGetInteger(GL_CURRENT_PROGRAM)),keyloc,val,index)
 
-export Texture2D, getPixel1i, setTexture, activate, delete
+=#
+
+
+
+mutable struct Texture22D <: OpenGLWrapper
+    _id::GLuint
+    #_unit::GLuint #Like GL_TEXTURE0 wich is first input texture
+    _width::Int
+    _height::Int
+    _internalFormat::GLuint
+    _uploadFormat::GLuint
+    _eachDataType::GLuint
+
+    function Texture22D(width::Int,height::Int,internalFormat::GLuint,uploadFormat::GLuint,eachDataType::GLuint)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+        
+        id = Ref{GLuint}(0)
+        glGenTextures(1,id)
+        id = id[]
+        
+        self = new(id,width,height,internalFormat,uploadFormat,eachDataType)
+        update!(self)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+
+        return self
+    end
+end
+
+function _updateSomeTexture!(id::GLuint,width::Int,height::Int,internalFormat::GLuint,uploadFormat::GLuint,eachDataType::GLuint,data=C_NULL)
+    glBindTexture(GL_TEXTURE_2D, id)
+    glTexImage2D(GL_TEXTURE_2D,0,internalFormat,width,height,0,uploadFormat,eachDataType,data)
+end
+
+activate(self::Texture22D,unit::GLuint) = (glActiveTexture(unit); glBindTexture(GL_TEXTURE_2D, self._id))
+update!(self::Texture22D,data) = _updateSomeTexture!(self._id,self._width,self._height,self._internalFormat,self._uploadFormat,self._eachDataType,data)
+update!(self::Texture22D) = update!(self,C_NULL)
+destroy!(self::Texture22D) = glDeleteTextures(1,[self._id])
+
+createRGBATexture2D(width::Int,height::Int)::Texture22D = Texture22D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
+createIDTexture2D(width::Int,height::Int)::Texture22D = Texture22D(width,height,GL_R32I,GL_RED_INTEGER,GL_UNSIGNED_INT)
+createDepthTexture2D(width::Int,height::Int)::Texture22D = Texture22D(width,height,GL_DEPTH_COMPONENT,GL_DEPTH_COMPONENT,GL_FLOAT)
+
+export Texture22D, getPixel1i, setTexture, activate, destroy!, update!, createRGBATexture2D, createIDTexture2D, createDepthTexture2D
+
+# RenderBuffer
+#=
+mutable struct RenderBuffer
+    _id::GLuint
+    _width::Int
+    _height::Int
+    _internalFormat::GLuint
+
+    function RenderBuffer(width::Int,height::Int,internalFormat::GLuint,fboAttachmentPoint::GLuint)
+        id = Ref{GLuint}(0)
+        glGenRenderbuffers(1,id)
+        id = id[]
+        
+        self = new(id,width,height,internalFormat)
+        update!(self)
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, fboAttachmentPoint, GL_RENDERBUFFER, self._id)
+
+        return self
+    end
+
+end
+
+function _updateSomeRenderBuffer!(id::GLuint,width::Int,height::Int,internalFormat::GLuint)
+    glBindRenderbuffer(GL_RENDERBUFFER,id)
+    glRenderbufferStorage(GL_RENDERBUFFER, internalFormat, width, height)
+end
+
+update!(self::RenderBuffer) = _updateSomeRenderBuffer!(self._id,self._width,self._height,self._internalFormat)
+destroy!(self::RenderBuffer) = glDeleteRenderbuffers(1,[self._id])
+=#
+
 
 ######################
 #     Framebuffer    #
 ######################
 
+#=
 mutable struct Framebuffer <: OpenGLWrapper
     id :: GLuint
     attachments :: Set{GLenum}
@@ -419,7 +484,7 @@ mutable struct Framebuffer <: OpenGLWrapper
         return fbo;
     end
 end
-delete(x::Framebuffer) = glDeleteFramebuffers(1,[x.id])
+destroy!(x::Framebuffer) = glDeleteFramebuffers(1,[x.id])
 activate(fbo::Framebuffer) = glBindFramebuffer(GL_FRAMEBUFFER,fbo.id)
 
 function attach(fbo::Framebuffer, tex::Texture2D, attachment::GLenum, level::GLint=GLint(0))
@@ -437,8 +502,48 @@ function complete(fbo::Framebuffer)
         error("Framebuffer is incomplete. Status = $status")
     end
 end
+=#
 
-export Framebuffer, attach, complete, activate, delete
+mutable struct FrameBuffer
+    _id::GLuint
+
+    function FrameBuffer(attachements::Dict{GLuint,Texture22D})
+        id = Ref{GLuint}(0)
+        glGenFramebuffers(1,id)
+        id = id[]
+
+        self = new(id)
+        activate(self)
+
+        attachmentPoints = Vector{GLenum}(undef,0)
+
+        for (attachementPoint,texture) in attachements
+            #println("$(attachementPoint) - $(texture._id)")
+            
+            glFramebufferTexture(GL_FRAMEBUFFER, attachementPoint, texture._id, 0)
+            if attachementPoint != GL_DEPTH_ATTACHMENT
+                push!(attachmentPoints,attachementPoint)
+            end
+        end
+
+        glDrawBuffers(length(attachmentPoints), attachmentPoints)
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            error("FrameBuffer creation failed!")
+        end
+        
+        disable(self)
+
+        return self
+    end
+end
+
+activate(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, self._id)
+disable(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
+destroy!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])
+
+export FrameBuffer, attach, complete, activate, destroy!, disable
+
+
 
 
 ######################
@@ -460,8 +565,8 @@ upload!(sa::SyncedBuffer) = upload!(sa.vbo,sa.val)
 upload!(sa::SyncedBuffer{T},v::Vector{T}) where T = begin sa.val=v; upload!(sa) end
 length(sa::SyncedBuffer) = Base.length(sa.val)
 activate(sa::SyncedBuffer) = activate(sa.vao)
-delete(sa::SyncedBuffer{T}) where T = begin delete(sa.vao); delete(sa.vbo); sa.val=Vector{T}[] end
+destroy!(sa::SyncedBuffer{T}) where T = begin destroy!(sa.vao); destroy!(sa.vbo); sa.val=Vector{T}[] end
 
-export SyncedBuffer, upload!, upload!, length, activate, delete
+export SyncedBuffer, upload!, upload!, length, activate, destroy!
 
 end # module OGL

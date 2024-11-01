@@ -4,8 +4,9 @@ mutable struct SharedData
   _width::Int
   _height::Int
   _gameOver::Bool
+  _selectedID::UInt32
 
   function SharedData(name::String,width::Int,height::Int)
-      new(name,width,height,false)
+      new(name,width,height,false,0)
   end
 end

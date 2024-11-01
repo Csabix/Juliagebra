@@ -21,6 +21,11 @@ function update!(self::ImGuiData,openglD::OpenGLData)
     CImGui.NewFrame()
     CImGui.Begin("Data Peeker")
     if CImGui.BeginTabBar("Places")
+        if CImGui.BeginTabItem("Shared Data")
+            CImGui.Text("Selected ID by cursor: $(self._shrd._selectedID)")
+            CImGui.EndTabItem()
+        end
+        
         if CImGui.BeginTabItem("Render Items")
             _display!(self,openglD)
             CImGui.EndTabItem()

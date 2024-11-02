@@ -11,9 +11,9 @@ mutable struct OpenGLData
     _combinerShader::ShaderProgram
     _backgroundShader::ShaderProgram
     
-    _mainRGBATexture :: Texture22D
-    _mainIDTexture :: Texture22D
-    _mainDepthTexture :: Texture22D
+    _mainRGBATexture :: Texture2D
+    _mainIDTexture :: Texture2D
+    _mainDepthTexture :: Texture2D
     _mainFBO :: FrameBuffer
     
     _dummyBuffer :: Buffer
@@ -30,18 +30,16 @@ mutable struct OpenGLData
         backgroundShader = ShaderProgram(myPath * "shaders/dflt_bckg.vert", myPath * "shaders/dflt_bckg.frag")
         combinerShader = ShaderProgram(myPath * "shaders/dflt_combiner.vert", myPath * "shaders/dflt_combiner.frag")
 
-        mainAttachements = Dict{GLuint,Texture22D}()
+        mainAttachements = Dict{GLuint,Texture2D}()
         mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
         mainAttachements[GL_COLOR_ATTACHMENT1] = createIDTexture2D(shrd._width,shrd._height)
         mainAttachements[GL_DEPTH_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
         mainFBO = FrameBuffer(mainAttachements)
         
-        dummyBuffer = Buffer()
-        # ! This upload! causes an opengl error. MUST FIX!
-        upload!(dummyBuffer,[Vec3(0.0,0.0,0.0)])
-        dummyVertexArray = VertexArray()
-        activate(dummyVertexArray)
-        vertexAttribs(Vec3)
+        dummyBuffer = Buffer(GL_STATIC_DRAW)
+        Gl.update!(dummyBuffer,getAPlane())
+        dummyVertexArray = VertexArray(Vec3)
+
 
         
 
@@ -57,20 +55,24 @@ mutable struct OpenGLData
     end
 end
 
-# TODO: Clean checkErrors, so that it's prettier
+# TODO: Make checkErrors prettier
 
 function checkErrors(self::OpenGLData)
     opengl_error = glGetError()
-    while (opengl_error != GL_NO_ERROR)
-        println(self._index)
-        println(string(opengl_error))
-        
-        opengl_error = glGetError()
-        #if 1282 == GL_INVALID_OPERATION
-        #    println("lols")
-        #end
-    end
+    if opengl_error != GL_NO_ERROR
+        while (opengl_error != GL_NO_ERROR)
+            println(string(opengl_error))
+            #println(self._index)
+            
 
+            #opengl_error = glGetError()
+            #if 1282 == GL_INVALID_OPERATION
+            #    println("lols")
+            #end
+            opengl_error = glGetError()
+        end
+    error("OpenGL error(s) occured!")
+    end
 end
 
 function update!(self::OpenGLData)
@@ -89,7 +91,8 @@ function update!(self::OpenGLData)
     activate(self._mainFBO)
     activate(self._backgroundShader)
 
-    glDrawArrays(GL_TRIANGLES,0,6)
+    #glDrawArrays(GL_TRIANGLES,0,6)
+    draw(self._dummyBuffer,GL_TRIANGLES)
 
     glReadBuffer(GL_COLOR_ATTACHMENT1)
     num = Array{UInt32}(undef,1)
@@ -109,9 +112,6 @@ end
 
 
 function destroy!(self::OpenGLData)
-    
-    
-    
     Gl.destroy!(self._combinerShader)
     Gl.destroy!(self._backgroundShader)
     Gl.destroy!(self._mainFBO)
@@ -120,8 +120,6 @@ function destroy!(self::OpenGLData)
     Gl.destroy!(self._mainRGBATexture)
     Gl.destroy!(self._dummyBuffer)
     Gl.destroy!(self._dummyVertexArray)
-
-    
 end
 
 

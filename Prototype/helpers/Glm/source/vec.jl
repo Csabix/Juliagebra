@@ -69,3 +69,16 @@ const SwizzleBounds = [UInt8('x'):UInt8('x'),UInt8('x'):UInt8('y'),UInt8('x'):UI
 end
 
 export getindex
+
+function getAPlane()::Vector{Vec3} 
+    plane = Vector{Vec3}()
+    push!(plane,Vec3(-1.0,-1.0, 1.0))
+    push!(plane,Vec3(-1.0,1.0,1.0))
+    push!(plane,Vec3(1.0,-1.0,1.0))
+    push!(plane,Vec3(-1.0,1.0,1.0))
+    push!(plane,Vec3(1.0,1.0,1.0))
+    push!(plane,Vec3(1.0,-1.0,1.0))
+    return plane
+end
+
+export getAPlane

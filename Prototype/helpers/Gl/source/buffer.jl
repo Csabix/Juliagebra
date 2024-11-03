@@ -9,22 +9,22 @@ mutable struct Buffer <:OpenGLWrapper
         glGenBuffers(1,id)
         id = id[]
         self = new(id,usage,0)
-        update!(self,[])
+        upload!(self,[])
 
         return self
     end
 end
 
-function update!(self::Buffer,data::Vector)
+function upload!(self::Buffer,data::Vector)
     self._numOfItems = length(data)
     glBindBuffer(GL_ARRAY_BUFFER,self._id)
     glBufferData(GL_ARRAY_BUFFER,sizeof(data),data,self._usage)
 end
 
-update!(self::Buffer,data::Vector,usage::GLuint) = (self._usage = usage;update!(self,data))
+upload!(self::Buffer,data::Vector,usage::GLuint) = (self._usage = usage;update!(self,data))
 activate(self::Buffer) = glBindBuffer(GL_ARRAY_BUFFER,self._id)
-destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
+delete!(self::Buffer) = glDeleteBuffers(1,[self._id])
 draw(mode::GLuint,length::Int) = glDrawArrays(mode,0,length)
 draw(self::Buffer,mode::GLuint) = draw(mode,self._numOfItems) 
 
-export Buffer, update!, activate, destroy!, draw
+export Buffer, upload!, activate, delete!, draw

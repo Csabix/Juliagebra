@@ -43,6 +43,10 @@ function update!(self::ImGuiData,openglD::OpenGLData)
 end
 
 function _display!(self::ImGuiData,openglD::OpenGLData)
+
+    CImGui.Text("Background Color:")    
+    CImGui.SliderFloat3("RGB",Ref(openglD._backgroundCol),0.0,1.0)
+        
     CImGui.Text("Render Offices:")
     i = 1
     for (key,office) in openglD._renderOffices
@@ -59,6 +63,9 @@ function _display!(self::ImGuiData,openglD::OpenGLData)
         end
         i+=1
     end
+
+
+
 end
 
 function destroy!(self::ImGuiData)

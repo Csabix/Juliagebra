@@ -6,9 +6,9 @@
 abstract type VecNT{N,T<:StaticNumber} <: FieldVector{N, T} end
 const VecTN{T,N} = VecNT{N,T}
 
-struct Vec2T{T} <: VecNT{2,T};  x::T; y::T;             end
-struct Vec3T{T} <: VecNT{3,T};  x::T; y::T; z::T;       end
-struct Vec4T{T} <: VecNT{4,T};  x::T; y::T; z::T; w::T; end
+mutable struct Vec2T{T} <: VecNT{2,T};  x::T; y::T;             end
+mutable struct Vec3T{T} <: VecNT{3,T};  x::T; y::T; z::T;       end
+mutable struct Vec4T{T} <: VecNT{4,T};  x::T; y::T; z::T; w::T; end
 
 StaticArrays.similar_type(::Type{<:Vec2T}, ::Type{T}, s::Size{(2,)}) where T = Vec2T{T}
 StaticArrays.similar_type(::Type{<:Vec3T}, ::Type{T}, s::Size{(3,)}) where T = Vec3T{T}

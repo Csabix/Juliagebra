@@ -15,7 +15,7 @@ mutable struct Texture2D <: OpenGLWrapper
         id = id[]
         
         self = new(id,width,height,internalFormat,uploadFormat,eachDataType)
-        update!(self)
+        upload!(self)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -31,11 +31,12 @@ function _updateSomeTexture!(id::GLuint,width::Int,height::Int,internalFormat::G
 end
 
 activate(self::Texture2D,unit::GLuint) = (glActiveTexture(unit); glBindTexture(GL_TEXTURE_2D, self._id))
-update!(self::Texture2D,data) = _updateSomeTexture!(self._id,self._width,self._height,self._internalFormat,self._uploadFormat,self._eachDataType,data)
-update!(self::Texture2D) = update!(self,C_NULL)
-destroy!(self::Texture2D) = glDeleteTextures(1,[self._id])
+upload!(self::Texture2D,data) = _updateSomeTexture!(self._id,self._width,self._height,self._internalFormat,self._uploadFormat,self._eachDataType,data)
+upload!(self::Texture2D) = upload!(self,C_NULL)
+delete!(self::Texture2D) = glDeleteTextures(1,[self._id])
 
-export Texture2D, activate, update!, destroy!
+
+export Texture2D, activate, upload!, delete!
 
 createRGBATexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
 createIDTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_R32I,GL_RED_INTEGER,GL_UNSIGNED_INT)

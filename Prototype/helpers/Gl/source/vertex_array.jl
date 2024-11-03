@@ -14,7 +14,7 @@ mutable struct VertexArray <: OpenGLWrapper
         return self
     end
 end
-destroy!(x::VertexArray) = glDeleteVertexArrays(1,[x._id])
+delete!(x::VertexArray) = glDeleteVertexArrays(1,[x._id])
 activate(vao::VertexArray) = glBindVertexArray(vao._id)
 
 const JuliaType2OpenGL = Dict([
@@ -83,4 +83,4 @@ function _vertexAttribs(vtype::DataType)
     end
 end
 
-export VertexArray, activate, destroy!
+export VertexArray, activate, delete!

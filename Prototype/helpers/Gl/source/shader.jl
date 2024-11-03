@@ -1,22 +1,45 @@
 mutable struct ShaderProgram <: OpenGLWrapper
     _id::GLuint
+    _uniforms::Dict{String,GLint}
 
-    function ShaderProgram(vertPath::String,fragPath::String)
+    function ShaderProgram(vertPath::String,fragPath::String,uniformNames::Vector{String}=Vector{String}(undef,0))
         vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
         fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
         prog = linkShaders!(vs,fs)
-        new(prog)
+        uniforms = _scrapeUniforms(prog,uniformNames)
+        #println(uniforms)
+        new(prog,uniforms)
     end
-    function ShaderProgram(vertPath::String,geomPath::String,fragPath::String)
+    function ShaderProgram(vertPath::String,geomPath::String,fragPath::String,uniformNames::Vector{String}=Vector{String}(undef,0))
         vs = createShaderStage(vertPath,GL_VERTEX_SHADER)
         gs = createShaderStage(geomPath,GL_GEOMETRY_SHADER)
         fs = createShaderStage(fragPath,GL_FRAGMENT_SHADER)
         prog = linkShaders!(vs,gs,fs)
-        new(prog)
+        uniforms = _scrapeUniforms(prog,uniformNames)
+        new(prog,uniforms)
     end
 end
-destroy!(self::ShaderProgram) = (self._id!=0 && glDeleteProgram(self._id))
-activate(self::ShaderProgram) = (glUseProgram(self._id))
+delete!(self::ShaderProgram) = (self._id!=0 && glDeleteProgram(self._id))
+activate(self::ShaderProgram) = glUseProgram(self._id)
+
+function setUniform!(self::ShaderProgram,name::String,data::Any)
+    if !haskey(self._uniforms,name)
+        error("No Uniform named: $name!")
+    end
+    glUniform(self._uniforms[name],data)
+end
+
+function _scrapeUniforms(prog::GLuint,names::Vector{String})::Dict{String,GLint}
+    namesToLocations = Dict{String,GLint}()
+    for name in names
+        location = glGetUniformLocation(prog,name)
+        if location == -1
+            error("Unknown uniform variable: \"$(name)\"!")
+        end
+        namesToLocations[name] = location
+    end
+    return namesToLocations
+end
 
 function linkShaders!(shaders::GLuint...)::GLuint
     prog = glCreateProgram()
@@ -72,4 +95,7 @@ function createShaderStage(path::String, stage::GLenum)::GLuint
     return shader
 end
 
-export ShaderProgram, activate, destroy!
+
+
+export ShaderProgram, activate, setUniform!, delete!
+

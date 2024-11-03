@@ -16,7 +16,7 @@ mutable struct FrameBuffer
         for (attachementPoint,texture) in attachements
             #println("$(attachementPoint) - $(texture._id)")
             
-            glFramebufferTexture(GL_FRAMEBUFFER, attachementPoint, texture._id, 0)
+            glFramebufferTexture2D(GL_FRAMEBUFFER, attachementPoint, GL_TEXTURE_2D, texture._id, 0)
             if (attachementPoint != GL_DEPTH_ATTACHMENT) && (attachementPoint != GL_STENCIL_ATTACHMENT)
                 push!(attachmentPoints,attachementPoint)
             end
@@ -35,6 +35,6 @@ end
 
 activate(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, self._id)
 disable(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
-destroy!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])
+delete!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])
 
-export FrameBuffer, activate, disable, destroy!
+export FrameBuffer, activate, disable, delete!

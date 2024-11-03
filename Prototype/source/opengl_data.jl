@@ -20,6 +20,8 @@ mutable struct OpenGLData
     _dummyVertexArray :: VertexArray
     _index :: Int
 
+    _backgroundCol::Vec3
+
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearColor(1.0,0.0,1.0,1.0)
@@ -27,7 +29,7 @@ mutable struct OpenGLData
         myPath = (@__FILE__)
         myPath = myPath[1:(length(myPath) - length("opengl_data.jl"))]
         
-        backgroundShader = ShaderProgram(myPath * "shaders/dflt_bckg.vert", myPath * "shaders/dflt_bckg.frag")
+        backgroundShader = ShaderProgram(myPath * "shaders/dflt_bckg.vert", myPath * "shaders/dflt_bckg.frag",["bCol"])
         combinerShader = ShaderProgram(myPath * "shaders/dflt_combiner.vert", myPath * "shaders/dflt_combiner.frag")
 
         mainAttachements = Dict{GLuint,Texture2D}()
@@ -37,7 +39,7 @@ mutable struct OpenGLData
         mainFBO = FrameBuffer(mainAttachements)
         
         dummyBuffer = Buffer(GL_STATIC_DRAW)
-        Gl.update!(dummyBuffer,getAPlane())
+        upload!(dummyBuffer,getAPlane())
         dummyVertexArray = VertexArray(Vec3)
 
 
@@ -51,7 +53,8 @@ mutable struct OpenGLData
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
             dummyBuffer,dummyVertexArray,
-            0)
+            0,
+            Vec3(0.0,0.0,1.0))
     end
 end
 
@@ -82,18 +85,23 @@ function update!(self::OpenGLData)
         employee = dequeue!(self._updateMeQueue)
         sanitize!(employee)
     end
-    glEnable(GL_DEPTH_TEST)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    #glEnable(GL_DEPTH_TEST)
+    #glEnable(GL_BLEND)
+    #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     # * All the buffers are up to date at this point.
-
+    
+    activate(self._mainFBO)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    
+    
     activate(self._dummyVertexArray)
     activate(self._dummyBuffer)
-    activate(self._mainFBO)
     activate(self._backgroundShader)
-
-    #glDrawArrays(GL_TRIANGLES,0,6)
+    setUniform!(self._backgroundShader,"bCol",self._backgroundCol)  
+    
     draw(self._dummyBuffer,GL_TRIANGLES)
-
+    
     glReadBuffer(GL_COLOR_ATTACHMENT1)
     num = Array{UInt32}(undef,1)
     glReadPixels(0, 0, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
@@ -102,34 +110,20 @@ function update!(self::OpenGLData)
     disable(self._mainFBO)
     activate(self._combinerShader)
     activate(self._mainRGBATexture,GL_TEXTURE0)
-
-    glDrawArrays(GL_TRIANGLES,0,6)
-
-
-
-    
+    draw(self._dummyBuffer,GL_TRIANGLES)
 end
 
 
 function destroy!(self::OpenGLData)
-    Gl.destroy!(self._combinerShader)
-    Gl.destroy!(self._backgroundShader)
-    Gl.destroy!(self._mainFBO)
-    Gl.destroy!(self._mainDepthTexture)
-    Gl.destroy!(self._mainIDTexture)
-    Gl.destroy!(self._mainRGBATexture)
-    Gl.destroy!(self._dummyBuffer)
-    Gl.destroy!(self._dummyVertexArray)
+    Gl.delete!(self._combinerShader)
+    Gl.delete!(self._backgroundShader)
+    Gl.delete!(self._mainFBO)
+    Gl.delete!(self._mainDepthTexture)
+    Gl.delete!(self._mainIDTexture)
+    Gl.delete!(self._mainRGBATexture)
+    Gl.delete!(self._dummyBuffer)
+    Gl.delete!(self._dummyVertexArray)
 end
-
-
-
-
-
-
-
-
-
 
 function print_render_offices(self::OpenGLData)
     printstyled("---------------\n";color=:white, bold=true)

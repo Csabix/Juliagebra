@@ -33,10 +33,11 @@ end
 activate(self::Texture2D,unit::GLuint) = (glActiveTexture(unit); glBindTexture(GL_TEXTURE_2D, self._id))
 upload!(self::Texture2D,data) = _updateSomeTexture!(self._id,self._width,self._height,self._internalFormat,self._uploadFormat,self._eachDataType,data)
 upload!(self::Texture2D) = upload!(self,C_NULL)
+resize!(self::Texture2D,width::Int,height::Int) = (self._width = width; self._height = height; upload!(self))
 delete!(self::Texture2D) = glDeleteTextures(1,[self._id])
 
 
-export Texture2D, activate, upload!, delete!
+export Texture2D, activate, upload!,resize!, delete!
 
 createRGBATexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
 createIDTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_R32I,GL_RED_INTEGER,GL_UNSIGNED_INT)

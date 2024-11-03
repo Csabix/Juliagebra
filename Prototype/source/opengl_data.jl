@@ -54,7 +54,7 @@ mutable struct OpenGLData
             mainFBO,
             dummyBuffer,dummyVertexArray,
             0,
-            Vec3(0.0,0.0,1.0))
+            Vec3(0.73,0.73,0.73))
     end
 end
 
@@ -75,6 +75,30 @@ function checkErrors(self::OpenGLData)
             opengl_error = glGetError()
         end
     error("OpenGL error(s) occured!")
+    end
+end
+
+function resize!(self::OpenGLData)
+    width = self._shrd._width
+    height = self._shrd._height
+    glViewport(0,0,width,height)
+    Gl.resize!(self._mainRGBATexture,width,height)
+    Gl.resize!(self._mainIDTexture,width,height)
+    Gl.resize!(self._mainDepthTexture,width,height)
+end
+
+function readID(self::OpenGLData)
+    x = self._shrd._mouseX
+    y = self._shrd._mouseY
+    width = self._shrd._width
+    height = self._shrd._height
+
+    if self._shrd._shouldReadID && x<width && y<height
+        glReadBuffer(GL_COLOR_ATTACHMENT1)
+        num = Array{UInt32}(undef,1)
+        glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
+        self._shrd._selectedID = num[1]
+        self._shrd._shouldReadID = false
     end
 end
 
@@ -101,11 +125,7 @@ function update!(self::OpenGLData)
     setUniform!(self._backgroundShader,"bCol",self._backgroundCol)  
     
     draw(self._dummyBuffer,GL_TRIANGLES)
-    
-    glReadBuffer(GL_COLOR_ATTACHMENT1)
-    num = Array{UInt32}(undef,1)
-    glReadPixels(0, 0, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
-    self._shrd._selectedID = num[1]
+    readID(self)
 
     disable(self._mainFBO)
     activate(self._combinerShader)

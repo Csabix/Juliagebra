@@ -32,10 +32,34 @@ function submit!(self::Manager,plan::RenderPlan)
     enqueue!(self._plans,plan)    
 end
 
-function hire_for_plan!(openglData::OpenGLData,algebraLogic::AlgebraLogic,plan::T) where T<:RenderPlan
-    asset = recruit!(openglData,plan)
-    #print_render_offices(openglData)
-    fuse!(algebraLogic,asset)
+function handleEvents!(self::Manager)
+    GLFW.PollEvents()
+    ev = poll_event!(self._glfw._glfwEQ)
+    while(!isnothing(ev))
+        handleEvent!(ev,self)
+        ev = poll_event!(self._glfw._glfwEQ)
+    end
+end
+
+handleEvent!(self::T where T<:Event, m::Manager) = println(string(self))
+
+function handleEvent!(ev::ResizeEvent,m::Manager)
+    m._shrd._width = ev.width
+    m._shrd._height = ev.height
+    resize!(m._opengl)
+end
+
+function handleEvent!(ev::MouseMotionEvent,m::Manager)
+    m._shrd._mouseX = ev.mouseX
+    m._shrd._mouseY = m._shrd._height - ev.mouseY
+    m._shrd._shouldReadID = true
+end
+
+function handlePlans!(self::Manager)
+    while(!isempty(self._plans))
+        asset = recruit!(self._opengl,dequeue!(self._plans))
+        fuse!(self._algebra,asset)
+    end
 end
 
 function play!(self::Manager)
@@ -45,22 +69,12 @@ function play!(self::Manager)
         update!(self._algebra)
         update!(self._opengl)
         update!(self._imgui,self._opengl)
+        
+        handlePlans!(self)
+        handleEvents!(self)
 
         GLFW.SwapBuffers(self._glfw._window)
-        GLFW.PollEvents()
-        ev = poll_event!(self._glfw._glfwEQ)
-        while(!isnothing(ev))
-            #println(string(ev))
-            ev = poll_event!(self._glfw._glfwEQ)
-        end
-        
-        while(!isempty(self._plans))
-            #println("Processing a Plan!")
-            hire_for_plan!(self._opengl,self._algebra,dequeue!(self._plans))
-        end
-
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
-        
     end
     destroy!(self)
     
@@ -75,7 +89,6 @@ function init!(self::Manager)
     self._glfw = GLFWData(self._shrd)
     self._opengl = OpenGLData(self._glfw,self._shrd)
     self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd)
-
     self._windowCreated = true
 
     init!(self._algebra)

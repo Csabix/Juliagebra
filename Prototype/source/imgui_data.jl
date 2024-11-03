@@ -22,7 +22,7 @@ function update!(self::ImGuiData,openglD::OpenGLData)
     CImGui.Begin("Data Peeker")
     if CImGui.BeginTabBar("Places")
         if CImGui.BeginTabItem("Shared Data")
-            CImGui.Text("Selected ID by cursor: $(self._shrd._selectedID)")
+            _display!(self,self._shrd)
             CImGui.EndTabItem()
         end
         
@@ -40,6 +40,12 @@ function update!(self::ImGuiData,openglD::OpenGLData)
     CImGui.End()
     CImGui.Render()
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
+end
+
+function _display!(self::ImGuiData,shrd::SharedData)
+    CImGui.Text("Selected ID by cursor: $(shrd._selectedID)")
+    CImGui.Text("cursor pos: ($(shrd._mouseX),$(shrd._mouseY))")
+    CImGui.Text("Window dimension: ($(shrd._width),$(shrd._height))")
 end
 
 function _display!(self::ImGuiData,openglD::OpenGLData)

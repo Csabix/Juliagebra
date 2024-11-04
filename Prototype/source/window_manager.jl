@@ -62,16 +62,28 @@ function handlePlans!(self::Manager)
     end
 end
 
+function updateDeltaTime!(self::Manager)
+    
+    currentTime = time()    
+    self._shrd._deltaTime =  currentTime - self._shrd._oldTime
+    self._shrd._oldTime = currentTime
+
+end
+
 function play!(self::Manager)
     
     init!(self)
     while(!self._shrd._gameOver)
-        update!(self._algebra)
-        update!(self._opengl)
-        update!(self._imgui,self._opengl)
         
         handlePlans!(self)
+        
+        update!(self._algebra)
+        update!(self._opengl)
+        update!(self._imgui,self._opengl,self._algebra)
+        
+       
         handleEvents!(self)
+        updateDeltaTime!(self)
 
         GLFW.SwapBuffers(self._glfw._window)
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
@@ -79,7 +91,6 @@ function play!(self::Manager)
     destroy!(self)
     
 end
-
 
 function init!(self::Manager)
     if self._windowCreated
@@ -92,6 +103,8 @@ function init!(self::Manager)
     self._windowCreated = true
 
     init!(self._algebra)
+    # ! Needed for first deltaTime to be accurate!
+    updateDeltaTime!(self)
 end
 
 function destroy!(self::Manager)

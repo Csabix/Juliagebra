@@ -36,7 +36,7 @@ include("source/AlgebraObjects/bodies.jl")
 include("source/window_manager.jl")
 
 # TODO: rethink this export sometime in the future.
-import .Glm:Vec3
-export Vec3
+import .Glm:Vec3T
+export Vec3T
 
 end

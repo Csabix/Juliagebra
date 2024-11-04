@@ -64,3 +64,5 @@ function perspective(fovy::T, aspect::T, zNear::T, zFar::T) :: Mat4T{T} where T
         0,               0,        -(2*zFar*zNear)/dz,  0
     )
 end
+
+export  lookat, perspective

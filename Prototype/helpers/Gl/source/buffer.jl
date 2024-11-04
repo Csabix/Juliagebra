@@ -18,7 +18,16 @@ end
 function upload!(self::Buffer,data::Vector)
     self._numOfItems = length(data)
     glBindBuffer(GL_ARRAY_BUFFER,self._id)
+    
+    if length(data) > 0
+        @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
+        #println(reinterpret(Float32, data))
+        #println(self._id)
+    end
+
     glBufferData(GL_ARRAY_BUFFER,sizeof(data),data,self._usage)
+    #println("$(sizeof(data)) - $(length(data))")
+    
 end
 
 upload!(self::Buffer,data::Vector,usage::GLuint) = (self._usage = usage;update!(self,data))

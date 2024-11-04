@@ -8,8 +8,11 @@ mutable struct OpenGLData
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
     _renderOffices::Dict{<:DataType,Vector{<:RenderEmployee}}
     _updateMeQueue::Queue{RenderEmployee}
+    
     _combinerShader::ShaderProgram
     _backgroundShader::ShaderProgram
+    _bodyShader::ShaderProgram
+
     
     _mainRGBATexture :: Texture2D
     _mainIDTexture :: Texture2D
@@ -18,6 +21,7 @@ mutable struct OpenGLData
     
     _dummyBuffer :: Buffer
     _dummyVertexArray :: VertexArray
+
     _index :: Int
 
     _backgroundCol::Vec3
@@ -31,6 +35,7 @@ mutable struct OpenGLData
         
         backgroundShader = ShaderProgram(myPath * "shaders/dflt_bckg.vert", myPath * "shaders/dflt_bckg.frag",["bCol"])
         combinerShader = ShaderProgram(myPath * "shaders/dflt_combiner.vert", myPath * "shaders/dflt_combiner.frag")
+        bodyShader = ShaderProgram(myPath * "shaders/body_3D.vert", myPath * "shaders/body_3D.frag",["VP"])
 
         mainAttachements = Dict{GLuint,Texture2D}()
         mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
@@ -42,13 +47,15 @@ mutable struct OpenGLData
         upload!(dummyBuffer,getAPlane())
         dummyVertexArray = VertexArray(Vec3)
 
-
-        
+        glEnable(GL_DEPTH_TEST)
+        glDepthFunc(GL_LEQUAL)
+        #glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
         renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
         updateMeQueue = Queue{RenderEmployee}()
         
-        new(shrd,renderOffices,updateMeQueue,combinerShader,backgroundShader,
+        new(shrd,renderOffices,updateMeQueue,
+            combinerShader,backgroundShader,bodyShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
@@ -109,34 +116,51 @@ function update!(self::OpenGLData)
         employee = dequeue!(self._updateMeQueue)
         sanitize!(employee)
     end
-    #glEnable(GL_DEPTH_TEST)
-    #glEnable(GL_BLEND)
     #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     # * All the buffers are up to date at this point.
-    
+    #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     activate(self._mainFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     
     
     activate(self._dummyVertexArray)
-    activate(self._dummyBuffer)
     activate(self._backgroundShader)
     setUniform!(self._backgroundShader,"bCol",self._backgroundCol)  
-    
     draw(self._dummyBuffer,GL_TRIANGLES)
-    readID(self)
 
+    activate(self._bodyShader)
+    
+    p = perspective(Float32(70.0),Float32(self._shrd._width/self._shrd._height),Float32(0.01),Float32(100.0))
+    l = lookat(Vec3T{Float32}(0.0,0.0,-5.0),Vec3T{Float32}(0.0,0.0,0.0),Vec3T{Float32}(0.0,1.0,0.0))
+    vp = p * l 
+    setUniform!(self._bodyShader,"VP",vp)  
+    
+    for employee in self._renderOffices[Movable_Limited_Employee]
+        draw!(employee)
+    end
+
+    readID(self)
     disable(self._mainFBO)
+
     activate(self._combinerShader)
     activate(self._mainRGBATexture,GL_TEXTURE0)
+    activate(self._dummyVertexArray)
     draw(self._dummyBuffer,GL_TRIANGLES)
 end
 
 
 function destroy!(self::OpenGLData)
+    for (_, office) in self._renderOffices
+        for employee in office
+           delete!(employee) 
+        end
+    end
+    
+    
     Gl.delete!(self._combinerShader)
     Gl.delete!(self._backgroundShader)
+    Gl.delete!(self._bodyShader)
     Gl.delete!(self._mainFBO)
     Gl.delete!(self._mainDepthTexture)
     Gl.delete!(self._mainIDTexture)

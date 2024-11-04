@@ -14,7 +14,7 @@ mutable struct ImGuiData
     end
 end
 
-function update!(self::ImGuiData,openglD::OpenGLData)
+function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
@@ -32,7 +32,7 @@ function update!(self::ImGuiData,openglD::OpenGLData)
         end
         
         if CImGui.BeginTabItem("Algebra Items")
-
+            _display!(self,algebraL)
             CImGui.EndTabItem()
         end
     end
@@ -42,17 +42,43 @@ function update!(self::ImGuiData,openglD::OpenGLData)
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
 end
 
+function _display!(self::ImGuiData,algebraL::AlgebraLogic)
+    CImGui.Text("Stored Alfebra Objects:")
+    i = 1
+    for (algebraObject) in algebraL._algebraObjects
+        if CImGui.TreeNode("$(i) - $(string(algebraObject))")
+            
+            CImGui.TreePop()
+        end
+        i+=1
+    end
+end
+
+
+
 function _display!(self::ImGuiData,shrd::SharedData)
-    CImGui.Text("Selected ID by cursor: $(shrd._selectedID)")
-    CImGui.Text("cursor pos: ($(shrd._mouseX),$(shrd._mouseY))")
-    CImGui.Text("Window dimension: ($(shrd._width),$(shrd._height))")
+    CImGui.Text("Selected ID: $(shrd._selectedID)")
+    CImGui.Text("Cursor Pos: ($(shrd._mouseX),$(shrd._mouseY))")
+    CImGui.Text("Window Dimensions: ($(shrd._width),$(shrd._height))")
+    CImGui.Text("Delta Time: $(shrd._deltaTime)")
 end
 
 function _display!(self::ImGuiData,openglD::OpenGLData)
 
-    CImGui.Text("Background Color:")    
-    CImGui.SliderFloat3("RGB",Ref(openglD._backgroundCol),0.0,1.0)
-        
+    CImGui.Text("Background Color:")
+    r = Ref(openglD._backgroundCol.x)
+    g = Ref(openglD._backgroundCol.y)
+    b = Ref(openglD._backgroundCol.z)
+
+    CImGui.SliderFloat("R-(Bckg)",r,0.0,1.0)
+    CImGui.SliderFloat("G-(Bckg)",g,0.0,1.0)
+    CImGui.SliderFloat("B-(Bckg)",b,0.0,1.0)
+    
+    
+
+    openglD._backgroundCol = Vec3(r[],g[],b[])
+
+
     CImGui.Text("Render Offices:")
     i = 1
     for (key,office) in openglD._renderOffices

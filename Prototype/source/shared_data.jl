@@ -8,9 +8,10 @@ mutable struct SharedData
   _shouldReadID::Bool
   _mouseX::Int
   _mouseY::Int
-  
+  _oldTime::Float64
+  _deltaTime::Float32
 
   function SharedData(name::String,width::Int,height::Int)
-      new(name,width,height,false,0,false)
+      new(name,width,height,false,0,false,0.0,0.0)
   end
 end

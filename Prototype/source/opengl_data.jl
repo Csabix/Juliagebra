@@ -146,6 +146,7 @@ function update!(self::OpenGLData)
     activate(self._combinerShader)
     activate(self._mainRGBATexture,GL_TEXTURE0)
     activate(self._dummyVertexArray)
+    #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     draw(self._dummyBuffer,GL_TRIANGLES)
 end
 

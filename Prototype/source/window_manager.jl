@@ -52,8 +52,10 @@ end
 function handleEvent!(ev::MouseMotionEvent,m::Manager)
     m._shrd._mouseX = ev.mouseX
     m._shrd._mouseY = m._shrd._height - ev.mouseY
-    m._shrd._shouldReadID = true
+    m._shrd._mouseMoved = true
 end
+
+
 
 function handlePlans!(self::Manager)
     while(!isempty(self._plans))

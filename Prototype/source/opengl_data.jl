@@ -9,18 +9,18 @@ mutable struct OpenGLData
     _renderOffices::Dict{<:DataType,Vector{<:RenderEmployee}}
     _updateMeQueue::Queue{RenderEmployee}
     
+    # ! Shaders
     _combinerShader::ShaderProgram
     _backgroundShader::ShaderProgram
     _bodyShader::ShaderProgram
-
     
+    # ! Main FBO objects
     _mainRGBATexture :: Texture2D
     _mainIDTexture :: Texture2D
     _mainDepthTexture :: Texture2D
     _mainFBO :: FrameBuffer
     
-    _dummyBuffer :: Buffer
-    _dummyVertexArray :: VertexArray
+    _dummyBufferArray::BufferArray
 
     _index :: Int
 
@@ -33,9 +33,9 @@ mutable struct OpenGLData
         myPath = (@__FILE__)
         myPath = myPath[1:(length(myPath) - length("opengl_data.jl"))]
         
-        backgroundShader = ShaderProgram(myPath * "shaders/dflt_bckg.vert", myPath * "shaders/dflt_bckg.frag",["bCol"])
-        combinerShader = ShaderProgram(myPath * "shaders/dflt_combiner.vert", myPath * "shaders/dflt_combiner.frag")
-        bodyShader = ShaderProgram(myPath * "shaders/body_3D.vert", myPath * "shaders/body_3D.frag",["VP"])
+        backgroundShader = ShaderProgram(myPath * "Shaders/dflt_bckg.vert", myPath * "Shaders/dflt_bckg.frag",["bCol"])
+        combinerShader = ShaderProgram(myPath * "Shaders/dflt_combiner.vert", myPath * "Shaders/dflt_combiner.frag")
+        bodyShader = ShaderProgram(myPath * "Shaders/body_3D.vert", myPath * "Shaders/body_3D.frag",["VP"])
 
         mainAttachements = Dict{GLuint,Texture2D}()
         mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
@@ -43,9 +43,7 @@ mutable struct OpenGLData
         mainAttachements[GL_DEPTH_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
         mainFBO = FrameBuffer(mainAttachements)
         
-        dummyBuffer = Buffer(GL_STATIC_DRAW)
-        upload!(dummyBuffer,getAPlane())
-        dummyVertexArray = VertexArray(Vec3)
+        dummyBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,getAPlane())
 
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
@@ -59,7 +57,7 @@ mutable struct OpenGLData
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
-            dummyBuffer,dummyVertexArray,
+            dummyBufferArray,
             0,
             Vec3(0.73,0.73,0.73))
     end
@@ -89,9 +87,9 @@ function resize!(self::OpenGLData)
     width = self._shrd._width
     height = self._shrd._height
     glViewport(0,0,width,height)
-    Gl.resize!(self._mainRGBATexture,width,height)
-    Gl.resize!(self._mainIDTexture,width,height)
-    Gl.resize!(self._mainDepthTexture,width,height)
+    resize!(self._mainRGBATexture,width,height)
+    resize!(self._mainIDTexture,width,height)
+    resize!(self._mainDepthTexture,width,height)
 end
 
 function readID(self::OpenGLData)
@@ -100,12 +98,12 @@ function readID(self::OpenGLData)
     width = self._shrd._width
     height = self._shrd._height
 
-    if self._shrd._shouldReadID && x<width && y<height
+    if self._shrd._mouseMoved && x<width && y<height
         glReadBuffer(GL_COLOR_ATTACHMENT1)
         num = Array{UInt32}(undef,1)
         glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
         self._shrd._selectedID = num[1]
-        self._shrd._shouldReadID = false
+        self._shrd._mouseMoved = false
     end
 end
 
@@ -123,11 +121,9 @@ function update!(self::OpenGLData)
     activate(self._mainFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     
-    
-    activate(self._dummyVertexArray)
     activate(self._backgroundShader)
     setUniform!(self._backgroundShader,"bCol",self._backgroundCol)  
-    draw(self._dummyBuffer,GL_TRIANGLES)
+    draw(self._dummyBufferArray,GL_TRIANGLES)
 
     activate(self._bodyShader)
     
@@ -145,29 +141,26 @@ function update!(self::OpenGLData)
 
     activate(self._combinerShader)
     activate(self._mainRGBATexture,GL_TEXTURE0)
-    activate(self._dummyVertexArray)
-    #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    draw(self._dummyBuffer,GL_TRIANGLES)
+    draw(self._dummyBufferArray,GL_TRIANGLES)
 end
 
 
 function destroy!(self::OpenGLData)
     for (_, office) in self._renderOffices
         for employee in office
-           delete!(employee) 
+            destroy!(employee) 
         end
     end
     
     
-    Gl.delete!(self._combinerShader)
-    Gl.delete!(self._backgroundShader)
-    Gl.delete!(self._bodyShader)
-    Gl.delete!(self._mainFBO)
-    Gl.delete!(self._mainDepthTexture)
-    Gl.delete!(self._mainIDTexture)
-    Gl.delete!(self._mainRGBATexture)
-    Gl.delete!(self._dummyBuffer)
-    Gl.delete!(self._dummyVertexArray)
+    destroy!(self._combinerShader)
+    destroy!(self._backgroundShader)
+    destroy!(self._bodyShader)
+    destroy!(self._mainFBO)
+    destroy!(self._mainDepthTexture)
+    destroy!(self._mainIDTexture)
+    destroy!(self._mainRGBATexture)
+    destroy!(self._dummyBufferArray)
 end
 
 function print_render_offices(self::OpenGLData)

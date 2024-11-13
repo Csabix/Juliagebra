@@ -1,5 +1,3 @@
-module Events
-
 using DataStructures, BitFlags, GLFW
 
 Base.:⊻(  x::T, y::T) where {T<:BitFlag} = T(Integer(x) ⊻ Integer(y))
@@ -159,8 +157,6 @@ function window_resize(window::GLFW.Window, x::Int32, y::Int32,glfwEQ::GLFWEvent
     enqueue!(glfwEQ._queue,ev); return nothing
 end
 
-export Event, GLFWEventQueue, poll_event!
-export MouseMotionEvent,MouseDownEvent,MouseUpEvent,KeyboardDownEvent,KeyboardUpEvent,ResizeEvent
-export string
-
-end # module
+#export Event, GLFWEventQueue, poll_event!
+#export MouseMotionEvent,MouseDownEvent,MouseUpEvent,KeyboardDownEvent,KeyboardUpEvent,ResizeEvent
+#export string

@@ -33,13 +33,13 @@ for n in 2:4
     # Diagonal types : MatN:
     nsym = Symbol("Mat$(n)T");
     @eval const $nsym{T} = MatNT{$n,T,$n*$n}
-    @eval export $nsym
+    #@eval export $nsym
     for (str, type) in CharTypeMap
         ssym = Symbol(uppercase(str)*"Mat$(n)")
         fsym = Symbol(lowercase(str)*"mat$(n)")
         @eval const $ssym = $nsym{$type}
         @eval @inline $fsym(v...) = mat_constructor($ssym,v...) 
-        @eval export $ssym, $fsym
+        #@eval export $ssym, $fsym
     end
 end
 
@@ -65,4 +65,4 @@ function perspective(fovy::T, aspect::T, zNear::T, zFar::T) :: Mat4T{T} where T
     )
 end
 
-export  lookat, perspective
+#export  lookat, perspective

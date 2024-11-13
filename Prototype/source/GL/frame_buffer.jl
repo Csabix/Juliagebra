@@ -35,6 +35,4 @@ end
 
 activate(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, self._id)
 disable(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
-delete!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])
-
-export FrameBuffer, activate, disable, delete!
+destroy!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])

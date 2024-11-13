@@ -35,7 +35,7 @@ for n in 2:4
         fsym = Symbol(lowercase(str)*"vec"*string(n))
         @eval const $ssym = $dsym{$type}
         @eval @inline $fsym(v...) = $ssym(v...) 
-        @eval export $ssym, $fsym
+        #@eval export $ssym, $fsym
     end
 end
 

@@ -2,18 +2,11 @@
 
 module JuliAgebra
 
-include("helpers/Macros/source/macros.jl")
+include("source/GL/gl.jl")
 
-include("helpers/Gl/source/gl.jl")
-using .Gl
+include("source/GLM/glm.jl")
 
-
-include("helpers/Glm/source/glm.jl")
-using .Glm
-
-
-include("helpers/Events/source/events.jl")
-using .Events
+include("source/events.jl")
 
 using GLFW
 using ModernGL
@@ -36,7 +29,6 @@ include("source/AlgebraObjects/bodies.jl")
 include("source/window_manager.jl")
 
 # TODO: rethink this export sometime in the future.
-import .Glm:Vec3T
 export Vec3T
 
 end

@@ -5,7 +5,7 @@ mutable struct SharedData
   _height::Int
   _gameOver::Bool
   _selectedID::UInt32
-  _shouldReadID::Bool
+  _mouseMoved::Bool
   _mouseX::Int
   _mouseY::Int
   _oldTime::Float64

@@ -19,7 +19,7 @@ mutable struct ShaderProgram <: OpenGLWrapper
         new(prog,uniforms)
     end
 end
-delete!(self::ShaderProgram) = (self._id!=0 && glDeleteProgram(self._id))
+destroy!(self::ShaderProgram) = (self._id!=0 && glDeleteProgram(self._id))
 activate(self::ShaderProgram) = glUseProgram(self._id)
 
 function setUniform!(self::ShaderProgram,name::String,data::Any)
@@ -95,7 +95,4 @@ function createShaderStage(path::String, stage::GLenum)::GLuint
     return shader
 end
 
-
-
-export ShaderProgram, activate, setUniform!, delete!
 

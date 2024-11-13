@@ -32,16 +32,14 @@ mutable struct Movable_Limited_Employee <:RenderEmployee
     _dirty::Bool
     _openglD::OpenGLData
     _data::Vector{Vec3T{Float32}}
-    _buffer::Buffer
-    _vertexArray :: VertexArray
+    _bufferArray::BufferArray
 
     function Movable_Limited_Employee(asset::Movable_Limited_Body,openglD::OpenGLData,data::Vector{Vec3T{Float32}})
-        # ! GPU construction data can come here
-        buffer = Buffer(GL_STATIC_DRAW)
-        upload!(buffer,data)
-        vertexArray = VertexArray(Vec3T{Float32})
+        
+        bufferArray = BufferArray(Vec3T{Float32},GL_STATIC_DRAW,data)
+        
         dirty = false
-        self = new(asset,dirty,openglD,data,buffer,vertexArray)
+        self = new(asset,dirty,openglD,data,bufferArray)
         asset._soil = () -> soil(employee)
         
         # * Merging this bad boy into openglData
@@ -63,7 +61,7 @@ function soil(self::Movable_Limited_Employee)
 end
 
 sanitize!(self::Movable_Limited_Employee) = (self._dirty = false; _sanitize!(self))
-_sanitize!(self::Movable_Limited_Employee) = upload!(self._buffer)
+_sanitize!(self::Movable_Limited_Employee) = upload!(self._bufferArray,self._data)
 
 function recruit!(self::OpenGLData,plan::Movable_Limited_Plan)::Movable_Limited_Body
     vertexes = deepcopy(plan._vertexes)
@@ -72,13 +70,8 @@ function recruit!(self::OpenGLData,plan::Movable_Limited_Plan)::Movable_Limited_
     return asset
 end
 
-function draw!(self::Movable_Limited_Employee)
-    activate(self._vertexArray)
-    Gl.draw(self._buffer,GL_TRIANGLES)
-end
+draw!(self::Movable_Limited_Employee) = draw(self._bufferArray,GL_TRIANGLES)
+destroy!(self::Movable_Limited_Employee) = destroy!(self._bufferArray)
 
-function delete!(self::Movable_Limited_Employee)
-    Gl.delete!(self._buffer)
-end
 
 export Movable_Limited_Plan

@@ -9,6 +9,8 @@ mutable struct Manager
     _windowCreated::Bool
     _algebra::AlgebraLogic
     _plans::Queue{RenderPlan}
+    _peripherals::Peripherals
+    _cam::Camera
 
     function Manager(
         name::String="Unnamed Window",
@@ -23,8 +25,9 @@ mutable struct Manager
         windowCreated = false
         algebra = AlgebraLogic(shrd)
         plans = Queue{RenderPlan}()
-
-        new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans)
+        peripherals = Peripherals()
+        cam = Camera()
+        new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
     end
 end
 
@@ -36,26 +39,36 @@ function handleEvents!(self::Manager)
     GLFW.PollEvents()
     ev = poll_event!(self._glfw._glfwEQ)
     while(!isnothing(ev))
-        handleEvent!(ev,self)
+       
+        handleEvent!(self,ev)
         ev = poll_event!(self._glfw._glfwEQ)
+        
     end
+   
 end
 
-handleEvent!(self::T where T<:Event, m::Manager) = println(string(self))
+handleEvent!(self::Manager,ev::T where T<:Event) = println(string(ev))
 
-function handleEvent!(ev::ResizeEvent,m::Manager)
-    m._shrd._width = ev.width
-    m._shrd._height = ev.height
-    resize!(m._opengl)
+function handleEvent!(self::Manager,ev::ResizeEvent)
+    self._shrd._width = ev.width
+    self._shrd._height = ev.height
+    resize!(self._opengl)
 end
 
-function handleEvent!(ev::MouseMotionEvent,m::Manager)
-    m._shrd._mouseX = ev.mouseX
-    m._shrd._mouseY = m._shrd._height - ev.mouseY
-    m._shrd._mouseMoved = true
+function handleEvent!(self::Manager,ev::MouseMotionEvent)
+    self._shrd._mouseX = ev.mouseX
+    self._shrd._mouseY = self._shrd._height - ev.mouseY
+
+    self._shrd._mouseMoved = true
 end
 
+handleEvent!(self::Manager,ev::MouseDownEvent) = flip!(self._peripherals,ev.glfw_key)
 
+handleEvent!(self::Manager,ev::MouseUpEvent) = flip!(self._peripherals,ev.glfw_key)
+
+handleEvent!(self::Manager,ev::KeyboardDownEvent) = flip!(self._peripherals,ev.glfw_key)
+
+handleEvent!(self::Manager,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_key)
 
 function handlePlans!(self::Manager)
     while(!isempty(self._plans))
@@ -72,20 +85,27 @@ function updateDeltaTime!(self::Manager)
 
 end
 
+function updateCam!(self::Manager)
+    if self._peripherals._forwardHeld
+        addAt!(self._cam,Vec3T{Float32}(0,1,0)*Float32(self._shrd._deltaTime)*Float32(0.1))
+        self._opengl._vp = getMat(self._cam,self._shrd._width,self._shrd._height)
+    end
+end
+
 function play!(self::Manager)
     
     init!(self)
     while(!self._shrd._gameOver)
-        
+        updateDeltaTime!(self)
         handlePlans!(self)
-        
+        updateCam!(self)
         update!(self._algebra)
         update!(self._opengl)
         update!(self._imgui,self._opengl,self._algebra)
         
        
         handleEvents!(self)
-        updateDeltaTime!(self)
+        
 
         GLFW.SwapBuffers(self._glfw._window)
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)

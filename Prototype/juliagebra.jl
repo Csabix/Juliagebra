@@ -20,6 +20,8 @@ abstract type RenderEmployee end
 
 include("source/shared_data.jl")
 include("source/glfw_data.jl")
+include("source/peripherals.jl")
+include("source/camera.jl")
 include("source/algebra_logic.jl")
 include("source/opengl_data.jl")
 include("source/imgui_data.jl")

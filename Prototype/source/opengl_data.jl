@@ -26,6 +26,8 @@ mutable struct OpenGLData
 
     _backgroundCol::Vec3
 
+    _vp::Mat4T
+
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearColor(1.0,0.0,1.0,1.0)
@@ -52,6 +54,10 @@ mutable struct OpenGLData
         renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
         updateMeQueue = Queue{RenderEmployee}()
         
+        p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
+        l = lookat(Vec3T{Float32}(0.0,-5.0,0.0),Vec3T{Float32}(0.0,0.0,0.0),Vec3T{Float32}(0.0,0.0,1.0))
+        vp = p * l 
+
         new(shrd,renderOffices,updateMeQueue,
             combinerShader,backgroundShader,bodyShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
@@ -59,7 +65,8 @@ mutable struct OpenGLData
             mainFBO,
             dummyBufferArray,
             0,
-            Vec3(0.73,0.73,0.73))
+            Vec3(0.73,0.73,0.73),
+            vp)
     end
 end
 
@@ -127,10 +134,8 @@ function update!(self::OpenGLData)
 
     activate(self._bodyShader)
     
-    p = perspective(Float32(70.0),Float32(self._shrd._width/self._shrd._height),Float32(0.01),Float32(100.0))
-    l = lookat(Vec3T{Float32}(0.0,0.0,-5.0),Vec3T{Float32}(0.0,0.0,0.0),Vec3T{Float32}(0.0,1.0,0.0))
-    vp = p * l 
-    setUniform!(self._bodyShader,"VP",vp)  
+    
+    setUniform!(self._bodyShader,"VP",self._vp)  
     
     for employee in self._renderOffices[Movable_Limited_Employee]
         draw!(employee)

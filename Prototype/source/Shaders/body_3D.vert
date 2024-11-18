@@ -8,7 +8,7 @@ out vec3 normal;
 out vec3 lolz;
 
 void main(){
-    if (vertPosition.z == 0.0){
+    if (vertPosition.z == 1.0){
         lolz = vec3(0.0,1.0,0.0);
     }else{
         lolz = vec3(1.0,0.0,0.0);

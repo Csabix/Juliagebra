@@ -14,8 +14,8 @@ mutable struct Manager
 
     function Manager(
         name::String="Unnamed Window",
-        width::Int=640,
-        height::Int=480
+        width::Int=1280,
+        height::Int=720
         )
 
         shrd = SharedData(name,width,height)
@@ -39,12 +39,10 @@ function handleEvents!(self::Manager)
     GLFW.PollEvents()
     ev = poll_event!(self._glfw._glfwEQ)
     while(!isnothing(ev))
-       
         handleEvent!(self,ev)
         ev = poll_event!(self._glfw._glfwEQ)
         
     end
-   
 end
 
 handleEvent!(self::Manager,ev::T where T<:Event) = println(string(ev))
@@ -58,8 +56,14 @@ end
 function handleEvent!(self::Manager,ev::MouseMotionEvent)
     self._shrd._mouseX = ev.mouseX
     self._shrd._mouseY = self._shrd._height - ev.mouseY
-
+    self._shrd._relMouseX += ev.xrel
+    self._shrd._relMouseY += ev.yrel
     self._shrd._mouseMoved = true
+end
+
+function handleEvent!(self::Manager,ev::MouseWheelEvent)
+    self._shrd._wheelUpDown = -ev.wheelY
+    self._shrd._wheelMoved = true
 end
 
 handleEvent!(self::Manager,ev::MouseDownEvent) = flip!(self._peripherals,ev.glfw_key)
@@ -86,10 +90,30 @@ function updateDeltaTime!(self::Manager)
 end
 
 function updateCam!(self::Manager)
-    if self._peripherals._forwardHeld
-        addAt!(self._cam,Vec3T{Float32}(0,1,0)*Float32(self._shrd._deltaTime)*Float32(0.1))
-        self._opengl._vp = getMat(self._cam,self._shrd._width,self._shrd._height)
+    dt = self._shrd._deltaTime
+    if self._peripherals._middleHeld && self._shrd._mouseMoved
+        lr = self._shrd._relMouseX
+        ud = self._shrd._relMouseY
+        if self._peripherals._mod1Held
+            moveAt!(self._cam,Float32(0.0),Float32(lr),Float32(-ud),dt)
+        else
+            sensitivityRot!(self._cam,Float32(lr),Float32(ud),dt)
+        end
     end
+
+    
+
+    if self._shrd._wheelMoved
+        sensitivityZoom(self._cam,Float32(self._shrd._wheelUpDown),dt)
+    end
+
+    if self._peripherals._forwardHeld
+        moveAt!(self._cam,Float32(1.0),Float32(0.0),Float32(0.0),dt)
+    end
+    
+
+    self._opengl._vp = getMat(self._cam,self._shrd._width,self._shrd._height)
+
 end
 
 function play!(self::Manager)
@@ -101,8 +125,8 @@ function play!(self::Manager)
         updateCam!(self)
         update!(self._algebra)
         update!(self._opengl)
-        update!(self._imgui,self._opengl,self._algebra)
-        
+        update!(self._imgui,self._opengl,self._algebra,self._cam)
+        update!(self._shrd)
        
         handleEvents!(self)
         

@@ -94,8 +94,8 @@ const WindowEvent   = Union{ResizeEvent}
 
 mutable struct GLFWEventQueue
     _queue::Queue{Event}
-    _mouseX    :: Int32
-    _mouseY    :: Int32
+    _mouseX    :: Float64
+    _mouseY    :: Float64
     _mouse_btn :: MouseButtonState
     _key_mods  :: KeyModState
 

@@ -1,36 +1,90 @@
 @kwdef mutable struct Camera
-    _fov::Float32 = 70
+    _fov::Float32 = 90.0
     _zNear::Float32 = 0.01
     _zFar::Float32 = 100.0
     _eye::Vec3T{Float32}= Vec3T{Float32}(0.0,-5.0,0.0)
     _at::Vec3T{Float32} = Vec3T{Float32}(0.0,0.0,0.0)
     _up::Vec3T{Float32} = Vec3T{Float32}(0.0,0.0,1.0)
-    _distance::Float32 = -5.0
-    _leftRightRot::Float32 = 0.0
-    _upDownRot::Float32 = 0.0
+    _zoom::Float32 = 3.0
+    _leftRightRot::Float32 = 270.0
+    _upDownRot::Float32 = 90.0
+    _rotateSensitivity::Float32 = 290.0
+    _zoomSensitivity::Float32 = 22.0
+    _moveSpeed::Float32 = 0.33
+    _x::Float32 = 0.0
+    _y::Float32 = 0.0
+    _z::Float32 = 0.0
 end
 
-function setRot!(self::Camera,upDownRot::Float32,leftRightRot::Float32)
-    self._leftRightRot = leftRightRot % 360
-    self._upDownRot = upDownRot % 360
+function setRot!(self::Camera,leftRightRot::Float32,upDownRot::Float32)
+    self._leftRightRot = (leftRightRot + 360.0) % 360.0
+    self._upDownRot = clamp(upDownRot,0.0001,179.9999)
 end
 
-addRot!(self::Camera,leftRightRot::Float32,upDownRot::Float32) = setRot!(self,self._leftRightRot + leftRightRot, self._upDownRot + upDownRot)
+function addRot!(self::Camera,leftRightRot::Float32,upDownRot::Float32)
+    lr = self._leftRightRot + leftRightRot
+    ud = self._upDownRot + upDownRot
+    setRot!(self,lr,ud)
+end
+
+function sensitivityRot!(self::Camera,leftRightRot::Float32,upDownRot::Float32,deltaTime::Float32)
+    lr = leftRightRot*self._rotateSensitivity*deltaTime
+    ud = upDownRot*self._rotateSensitivity*deltaTime
+    addRot!(self,lr,ud)                                                                             
+end
+
+setZoom!(self::Camera,zoom::Float32) = self._zoom = clamp(zoom,0,100)
+    
+addZoom!(self::Camera,zoom::Float32) = setZoom!(self,self._zoom + zoom)
+
+function sensitivityZoom(self::Camera,zoom::Float32,deltaTime::Float32)
+    addZoom!(self,zoom*self._zoomSensitivity*deltaTime)
+end
 
 setAt!(self::Camera,at::Vec3T{Float32}) = self._at = at
 
-addAt!(self::Camera,at::Vec3T{Float32}) = setAt!(self,self._at + at)
+addAt!(self::Camera,v::Vec3T{Float32}) = setAt!(self,self._at + v)
+
+function moveAt!(self::Camera,x::Float32,y::Float32,z::Float32,deltaTime::Float32)
+    
+    to = normalize(-self._eye + self._at)
+    side = normalize(cross(to,self._up))
+    up = cross(to,side)
+    
+    to *=x
+    side*=y
+    up *=z
+
+    v = to + side + up
+
+    addAt!(self,v*self._moveSpeed*exp(self._zoom)*deltaTime)
+end
+
+function setAts!(self::Camera,x::Float32,y::Float32,z::Float32,deltaTime::Float32)
+    
+    to = normalize(-self._eye + self._at)
+    side = normalize(cross(to,self._up))
+    up = cross(to,side)
+    
+    v = to + side + up
+
+    addAt!(self,v*self._moveSpeed*exp(self._zoom)*deltaTime)
+end
 
 function getMat(self::Camera,width,height)
     
-    dv = Vec3T{Float32}(cos(self._leftRightRot)*sin(self._upDownRot),
-                        sin(self._leftRightRot)*sin(self._upDownRot) ,       
-                        cos(self._upDownRot)
-                        )
-    
-    self._eye = dv * self._distance + self._at
+    lr = deg2rad(self._leftRightRot)
+    ud = deg2rad(self._upDownRot)
 
-    p = perspective(self._fov,Float32(width/height),self._zNear,self._zFar)
+    x = cos(lr)*sin(ud)
+    y = sin(lr)*sin(ud)
+    z = cos(ud)
+    dv = Vec3T{Float32}(x,y,z)       
+                        
+    self._eye = dv * -(exp(self._zoom)-1.0) + self._at
+
+    p = perspective(deg2rad(self._fov),Float32(width/height),self._zNear,self._zFar)
     l = lookat(self._eye,self._at,self._up)
     return p * l
 end
+

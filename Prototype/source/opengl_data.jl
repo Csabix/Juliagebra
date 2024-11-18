@@ -13,7 +13,8 @@ mutable struct OpenGLData
     _combinerShader::ShaderProgram
     _backgroundShader::ShaderProgram
     _bodyShader::ShaderProgram
-    
+    _centerShader::ShaderProgram
+
     # ! Main FBO objects
     _mainRGBATexture :: Texture2D
     _mainIDTexture :: Texture2D
@@ -21,6 +22,7 @@ mutable struct OpenGLData
     _mainFBO :: FrameBuffer
     
     _dummyBufferArray::BufferArray
+    _centerBufferArray::BufferArray
 
     _index :: Int
 
@@ -38,6 +40,7 @@ mutable struct OpenGLData
         backgroundShader = ShaderProgram(myPath * "Shaders/dflt_bckg.vert", myPath * "Shaders/dflt_bckg.frag",["bCol"])
         combinerShader = ShaderProgram(myPath * "Shaders/dflt_combiner.vert", myPath * "Shaders/dflt_combiner.frag")
         bodyShader = ShaderProgram(myPath * "Shaders/body_3D.vert", myPath * "Shaders/body_3D.frag",["VP"])
+        centerShader = ShaderProgram(myPath*"Shaders/center.vert",myPath*"Shaders/center.frag")
 
         mainAttachements = Dict{GLuint,Texture2D}()
         mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
@@ -46,10 +49,18 @@ mutable struct OpenGLData
         mainFBO = FrameBuffer(mainAttachements)
         
         dummyBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,getAPlane())
-
+        centerBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,Vector{Vec3T{Float32}}([Vec3T{Float32}(0.0,0.0,-1.0)]))
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
-        #glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+        
+        glEnable(GL_CULL_FACE)
+        glCullFace(GL_BACK)
+        
+        glPolygonMode(GL_BACK,GL_LINE)
+
+        #glEnable(GL_PROGRAM_POINT_SIZE)
+        #glDisable(GL_POINT_SMOOTH)
+        #glEnable(GL_POINT_SPRITE)
 
         renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
         updateMeQueue = Queue{RenderEmployee}()
@@ -57,22 +68,21 @@ mutable struct OpenGLData
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         l = lookat(Vec3T{Float32}(0.0,-5.0,0.0),Vec3T{Float32}(0.0,0.0,0.0),Vec3T{Float32}(0.0,0.0,1.0))
         vp = p * l 
-
+        
         new(shrd,renderOffices,updateMeQueue,
-            combinerShader,backgroundShader,bodyShader,
+            combinerShader,backgroundShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
-            dummyBufferArray,
+            dummyBufferArray,centerBufferArray,
             0,
             Vec3(0.73,0.73,0.73),
             vp)
     end
 end
 
-# TODO: Make checkErrors prettier
-
 function checkErrors(self::OpenGLData)
+    # TODO: Make checkErrors prettier
     opengl_error = glGetError()
     if opengl_error != GL_NO_ERROR
         while (opengl_error != GL_NO_ERROR)
@@ -110,7 +120,6 @@ function readID(self::OpenGLData)
         num = Array{UInt32}(undef,1)
         glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
         self._shrd._selectedID = num[1]
-        self._shrd._mouseMoved = false
     end
 end
 
@@ -133,8 +142,6 @@ function update!(self::OpenGLData)
     draw(self._dummyBufferArray,GL_TRIANGLES)
 
     activate(self._bodyShader)
-    
-    
     setUniform!(self._bodyShader,"VP",self._vp)  
     
     for employee in self._renderOffices[Movable_Limited_Employee]
@@ -142,6 +149,8 @@ function update!(self::OpenGLData)
     end
 
     readID(self)
+    #activate(self._centerShader)
+    #draw(self._centerBufferArray,GL_POINTS)
     disable(self._mainFBO)
 
     activate(self._combinerShader)
@@ -161,11 +170,13 @@ function destroy!(self::OpenGLData)
     destroy!(self._combinerShader)
     destroy!(self._backgroundShader)
     destroy!(self._bodyShader)
+    destroy!(self._centerShader)
     destroy!(self._mainFBO)
     destroy!(self._mainDepthTexture)
     destroy!(self._mainIDTexture)
     destroy!(self._mainRGBATexture)
     destroy!(self._dummyBufferArray)
+    destroy!(self._centerBufferArray)
 end
 
 function print_render_offices(self::OpenGLData)

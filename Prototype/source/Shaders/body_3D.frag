@@ -6,7 +6,7 @@ layout(location = 1) out uint outInd;
 
 //in vec3 normal;
 uniform vec3 toLight = vec3(0.0,1.0,0.0);
-uniform vec3 bodyColor = vec3(0.0,1.0,0.0);
+uniform vec3 bodyColor = vec3(1.0,0.0,0.0);
 uniform vec3 Ld = vec3(0.5,0.5,0.5);
 uniform uint id = uint(99);
 

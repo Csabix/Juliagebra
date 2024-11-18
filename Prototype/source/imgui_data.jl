@@ -14,7 +14,7 @@ mutable struct ImGuiData
     end
 end
 
-function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic)
+function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam::Camera)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
@@ -35,6 +35,11 @@ function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic)
             _display!(self,algebraL)
             CImGui.EndTabItem()
         end
+
+        if CImGui.BeginTabItem("Camera")
+            _display!(self,cam)
+            CImGui.EndTabItem()
+        end
     end
     
     CImGui.End()
@@ -42,12 +47,35 @@ function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic)
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
 end
 
+function slider1(self::T,text::String,min::AbstractFloat,max::AbstractFloat)::T where T
+    self_ref = Ref(self)
+    CImGui.SliderFloat(text,self_ref,min,max)
+    return self_ref[]
+end
+
+function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)::Vec3T
+    self_ref = Ref(self)
+    CImGui.SliderFloat3(text,self_ref,min,max)
+    return self_ref[]
+end
+
+function _display!(self::ImGuiData,cam::Camera)
+    cam._fov = slider1(cam._fov,"Fov",0.0,150.0)
+    cam._at = slider3(cam._at,"At",-10.0,10.0)
+    cam._eye = slider3(cam._eye,"Eye",-50.0,50.0)
+    cam._leftRightRot = slider1(cam._leftRightRot,"Left-Right",0.0,360.0)
+    cam._upDownRot = slider1(cam._upDownRot,"Up-Down",0.0,360.0)
+    cam._rotateSensitivity = slider1(cam._rotateSensitivity,"Rotate sensitivity",0.0,500.0)
+    cam._zoom = slider1(cam._zoom,"Zoom",0.0,10.0)
+    cam._zoomSensitivity = slider1(cam._zoomSensitivity,"Zoom sensitivity",0.0,100.0)
+    cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
+end
+
 function _display!(self::ImGuiData,algebraL::AlgebraLogic)
     CImGui.Text("Stored Alfebra Objects:")
     i = 1
     for (algebraObject) in algebraL._algebraObjects
-        if CImGui.TreeNode("$(i) - $(string(algebraObject))")
-            
+        if CImGui.TreeNode("$(i) - $(string(algebraObject))")        
             CImGui.TreePop()
         end
         i+=1
@@ -59,6 +87,8 @@ end
 function _display!(self::ImGuiData,shrd::SharedData)
     CImGui.Text("Selected ID: $(shrd._selectedID)")
     CImGui.Text("Cursor Pos: ($(shrd._mouseX),$(shrd._mouseY))")
+    CImGui.Text("Relative cursor: ($(shrd._relMouseX),$(shrd._relMouseY))")
+    CImGui.Text("Cursor moved: $(shrd._mouseMoved)")
     CImGui.Text("Window Dimensions: ($(shrd._width),$(shrd._height))")
     CImGui.Text("Delta Time: $(shrd._deltaTime)")
 end
@@ -66,17 +96,12 @@ end
 function _display!(self::ImGuiData,openglD::OpenGLData)
 
     CImGui.Text("Background Color:")
-    r = Ref(openglD._backgroundCol.x)
-    g = Ref(openglD._backgroundCol.y)
-    b = Ref(openglD._backgroundCol.z)
 
-    CImGui.SliderFloat("R-(Bckg)",r,0.0,1.0)
-    CImGui.SliderFloat("G-(Bckg)",g,0.0,1.0)
-    CImGui.SliderFloat("B-(Bckg)",b,0.0,1.0)
-    
-    
-
-    openglD._backgroundCol = Vec3(r[],g[],b[])
+    #r = slider(openglD._backgroundCol.x,"R-(Bckg)",0.0,1.0)
+    #g = slider(openglD._backgroundCol.y,"G-(Bckg)",0.0,1.0)
+    #b = slider(openglD._backgroundCol.z,"B-(Bckg)",0.0,1.0)
+    #openglD._backgroundCol = Vec3(r,g,b)
+    openglD._backgroundCol = slider3(openglD._backgroundCol,"RGB-(Bckg)",0.0,1.0)
 
 
     CImGui.Text("Render Offices:")

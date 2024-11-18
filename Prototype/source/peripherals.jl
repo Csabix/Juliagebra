@@ -11,6 +11,9 @@ mutable struct Peripherals
     _aHeld::Bool
     _bHeld::Bool
     _middleHeld::Bool
+    _inHeld::Bool
+    _outHeld::Bool
+    _mod1Held::Bool
     function Peripherals()
         keyToFlip = Dict([
             GLFW.KEY_W => (x) -> flipForward!(x),
@@ -21,9 +24,10 @@ mutable struct Peripherals
             GLFW.KEY_E => (x) -> flipDown!(x),
             GLFW.MOUSE_BUTTON_LEFT => (x) -> flipA!(x),
             GLFW.MOUSE_BUTTON_RIGHT => (x) -> flipB!(x),
-            GLFW.MOUSE_BUTTON_MIDDLE => (x) -> flipMiddle!(x)
+            GLFW.MOUSE_BUTTON_MIDDLE => (x) -> flipMiddle!(x),
+            GLFW.KEY_LEFT_SHIFT => (x) -> flipMod1!(x)
         ])
-        new(keyToFlip,fill(false,9)...)
+        new(keyToFlip,fill(false,12)...)
     end
 end
 
@@ -42,4 +46,8 @@ flipA!(self::Peripherals) = self._aHeld = !self._aHeld
 flipB!(self::Peripherals) = self._bHeld = !self._bHeld
 flipMiddle!(self::Peripherals) = self._middleHeld = !self._middleHeld
 
+flipIn!(self::Peripherals) = self._inHeld = !self._inHeld
+flipOut!(self::Peripherals) = self._outHeld = !self._outHeld
+
+flipMod1!(self::Peripherals) = self._mod1Held = !self._mod1Held
 

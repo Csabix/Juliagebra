@@ -19,9 +19,9 @@ mutable struct GizmoGL
 
     function GizmoGL()
         
-        red   = Vec3F(0.0,0.0,1.0)
+        red   = Vec3F(1.0,0.0,0.0)
         green = Vec3F(0.0,1.0,0.0)
-        blue  = Vec3F(1.0,0.0,0.0)
+        blue  = Vec3F(0.0,0.0,1.0)
         pos = Vec3F(0.0,0.0,0.0)
 
         myPath = (@__FILE__)
@@ -107,7 +107,7 @@ end
 
 function _getAxisClampedT(axis::Vec2F,mouse::Vec2F)::Float32
     partOne =  axis.x * mouse.x + axis.y * mouse.y
-    partDiv =  axis.x*axis.x + axis.y*axis.y
+    partDiv =  axis.x * axis.x + axis.y * axis.y
     return partOne / partDiv
 end
 
@@ -118,10 +118,10 @@ function _screen24(v::Vec4F,shrd::SharedData)::Vec2F
 end
 
 function _getAxisClampedT(axis::Vec3F,origin::Vec3F,mouse::Vec2F,vp::Mat4T,shrd::SharedData)::Float32
-    screenOrigin = vp * Vec4F(origin.x,origin.y,origin.z,1.0)
+    screenOrigin = vp * Vec4F(origin,1.0)
     screenOrigin = _screen24(screenOrigin,shrd)
 
-    screenAxis = vp * Vec4F(axis.x,axis.y,axis.z,1.0)
+    screenAxis = vp * Vec4F(axis,1.0)
     screenAxis = _screen24(screenAxis,shrd)
 
     screenMouse = Vec2F((mouse.x/shrd._width)*2-1,(mouse.y/shrd._height)*2-1)

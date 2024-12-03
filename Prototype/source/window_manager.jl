@@ -38,6 +38,7 @@ end
 function handleEvents!(self::Manager)
     GLFW.PollEvents()
     ev = poll_event!(self._glfw._glfwEQ)
+    # TODO: Lusta esemenykuldes
     while(!isnothing(ev))
         handleEvent!(self,ev)
         ev = poll_event!(self._glfw._glfwEQ)

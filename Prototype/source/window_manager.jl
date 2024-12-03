@@ -117,8 +117,9 @@ function updateCam!(self::Manager)
 end
 
 function updateGizmo!(self::Manager)
-    id = self._shrd._selectedID
-    id = UInt32(3)
+    id = self._shrd._selectedGizmo
+    #id = UInt32(2)
+    #println(id)
 
     if (id > 0) && (id <= 3) && self._peripherals._aHeld
         setAxisClampedT!(self._opengl._gizmoGL,id,

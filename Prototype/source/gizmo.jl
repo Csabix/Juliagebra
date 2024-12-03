@@ -105,20 +105,31 @@ function _getAxisClampedT(v::Vec2F,p::Vec2F,a::Vec2F)::Float32
     return (partOne + partTwo) / partDiv
 end
 
+function _getAxisClampedT(axis::Vec2F,mouse::Vec2F)::Float32
+    partOne =  axis.x * mouse.x + axis.y * mouse.y
+    partDiv =  axis.x*axis.x + axis.y*axis.y
+    return partOne / partDiv
+end
+
 function _screen24(v::Vec4F,shrd::SharedData)::Vec2F
-    x = (((v.x/v.w)+1)/2)*shrd._width
-    y = (((v.y/v.w)+1)/2)*shrd._height
+    x = (((v.x/v.w)))#+1)/2)*shrd._width
+    y = (((v.y/v.w)))#+1)/2)*shrd._height
     return Vec2F(x,y)
 end
 
-function _getAxisClampedT(axis::Vec3F,pos::Vec3F,a::Vec2F,vp::Mat4T,shrd::SharedData)::Float32
-    oldV = vp * Vec4F(axis.x,axis.y,axis.z,1.0)
-    oldV = _screen24(oldV,shrd)
-    p = vp * Vec4F(pos.x,pos.y,pos.z,1.0)
-    p = _screen24(p,shrd)
-    v = -p + oldV
+function _getAxisClampedT(axis::Vec3F,origin::Vec3F,mouse::Vec2F,vp::Mat4T,shrd::SharedData)::Float32
+    screenOrigin = vp * Vec4F(origin.x,origin.y,origin.z,1.0)
+    screenOrigin = _screen24(screenOrigin,shrd)
+
+    screenAxis = vp * Vec4F(axis.x,axis.y,axis.z,1.0)
+    screenAxis = _screen24(screenAxis,shrd)
+
+    screenMouse = Vec2F((mouse.x/shrd._width)*2-1,(mouse.y/shrd._height)*2-1)
+    screenMouse = screenMouse - screenOrigin
+
     #println("center:($(p.x);$(p.y)) <> vector:($(v.x);$(v.y)) <> mouse:($(a.x);$(a.y))")
-    t = _getAxisClampedT(v,p,a)
+    t = _getAxisClampedT(screenAxis,screenMouse)
+    #println("axis:($((mouse.x/shrd._width)*2-1);$((mouse.y/shrd._height)*2-1)")
     #println(t)
     #v1 = p+oldV*t
     
@@ -127,12 +138,12 @@ function _getAxisClampedT(axis::Vec3F,pos::Vec3F,a::Vec2F,vp::Mat4T,shrd::Shared
 end
 
 function setAxisClampedT!(self::GizmoGL,selectedAxis::UInt32,shrd::SharedData,vp::Mat4T)
-    a = Vec2F(shrd._mouseX,shrd._mouseY)
-    p = self._pos
-    v = self._idToAxis[selectedAxis] * self._scale
-    t = _getAxisClampedT(v,p,a,vp,shrd)
-    
-    self._pos =  (p + v*t)    
+    mouse = Vec2F(shrd._mouseX,shrd._mouseY)
+    origin = self._pos
+    axis = self._idToAxis[selectedAxis] * self._scale
+    t = _getAxisClampedT(axis,origin,mouse,vp,shrd)
+    #println(t)
+    self._pos =  (origin + axis*t)   
 end
 
 function destroy!(self::GizmoGL)

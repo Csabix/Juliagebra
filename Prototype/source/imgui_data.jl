@@ -59,6 +59,12 @@ function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)
     return self_ref[]
 end
 
+function slideri(self,text,min,max)
+    self_ref = Ref(self)
+    CImGui.SliderInt(text,self_ref,min,max)
+    return self_ref[]
+end
+
 function _display!(self::ImGuiData,cam::Camera)
     cam._fov = slider1(cam._fov,"Fov",0.0,150.0)
     cam._at = slider3(cam._at,"At",-10.0,10.0)
@@ -91,6 +97,8 @@ function _display!(self::ImGuiData,shrd::SharedData)
     CImGui.Text("Cursor moved: $(shrd._mouseMoved)")
     CImGui.Text("Window Dimensions: ($(shrd._width),$(shrd._height))")
     CImGui.Text("Delta Time: $(shrd._deltaTime)")
+    #shrd._selectedGizmo = UInt32(slideri(Int(shrd._selectedGizmo),"GizmoID",1,3))
+
 end
 
 function _display!(self::ImGuiData,openglD::OpenGLData)

@@ -13,9 +13,10 @@ mutable struct SharedData
     _wheelMoved::Bool
     _oldTime::Float64
     _deltaTime::Float32
+    _selectedGizmo::UInt32
 
     function SharedData(name::String,width::Int,height::Int)
-        new(name,width,height,false,0,false,0,0,0,false,0.0,0.0)
+        new(name,width,height,false,UInt32(0),false,0,0,0,0,0.0,false,0.0,0.0,UInt32(1))
     end
 end
 

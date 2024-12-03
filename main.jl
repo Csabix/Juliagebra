@@ -3,14 +3,14 @@ using .JuliAgebra
 
 manager = Manager()
 
-cube = Vector{Vec3T{Float32}}()
+cube = Vector{Vec3F}()
 
-push!(cube,Vec3T{Float32}(-1.0, 1.0, -1.0))
-push!(cube,Vec3T{Float32}(1.0, 1.0, -1.0))
-push!(cube,Vec3T{Float32}( 1.0, 1.0, 1.0))
-push!(cube,Vec3T{Float32}(1.0, 1.0, 1.0))
-push!(cube,Vec3T{Float32}( -1.0, 1.0, 1.0))
-push!(cube,Vec3T{Float32}( -1.0, 1.0, -1.0))
+push!(cube,Vec3F(-1.0, 1.0, -1.0))
+push!(cube,Vec3F(1.0, 1.0, -1.0))
+push!(cube,Vec3F( 1.0, 1.0, 1.0))
+push!(cube,Vec3F(1.0, 1.0, 1.0))
+push!(cube,Vec3F( -1.0, 1.0, 1.0))
+push!(cube,Vec3F( -1.0, 1.0, -1.0))
 
 for i in 0:2
     for j in 1:6
@@ -18,7 +18,7 @@ for i in 0:2
         x = -cube[index].y
         y = cube[index].x
         z = cube[index].z      
-        v = Vec3T{Float32}(x,y,z)
+        v = Vec3F(x,y,z)
         push!(cube,v)
     end
 end
@@ -28,7 +28,7 @@ for i in 1:6
     x = -cube[index].z 
     y = cube[index].y
     z = cube[index].x  
-    v = Vec3T{Float32}(x,y,z)
+    v = Vec3F(x,y,z)
     push!(cube,v)
 end
 
@@ -37,7 +37,7 @@ for i in 1:6
     x = cube[index].z 
     y = cube[index].y
     z = -cube[index].x  
-    v = Vec3T{Float32}(x,y,z)
+    v = Vec3F(x,y,z)
     push!(cube,v)
 end
 

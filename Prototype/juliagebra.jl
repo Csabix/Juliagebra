@@ -21,6 +21,7 @@ abstract type RenderEmployee end
 include("source/shared_data.jl")
 include("source/glfw_data.jl")
 include("source/peripherals.jl")
+include("source/gizmo.jl")
 include("source/camera.jl")
 include("source/algebra_logic.jl")
 include("source/opengl_data.jl")
@@ -31,6 +32,6 @@ include("source/AlgebraObjects/bodies.jl")
 include("source/window_manager.jl")
 
 # TODO: rethink this export sometime in the future.
-export Vec3T
+export Vec3F
 
 end

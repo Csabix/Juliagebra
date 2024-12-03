@@ -82,3 +82,7 @@ function getAPlane()::Vector{Vec3}
 end
 
 export getAPlane
+
+const Vec4F = Vec4T{Float32}
+const Vec3F = Vec3T{Float32}
+const Vec2F = Vec2T{Float32}

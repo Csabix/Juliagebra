@@ -111,9 +111,21 @@ function updateCam!(self::Manager)
         moveAt!(self._cam,Float32(1.0),Float32(0.0),Float32(0.0),dt)
     end
     
-
+    self._opengl._camPos = self._cam._eye
     self._opengl._vp = getMat(self._cam,self._shrd._width,self._shrd._height)
 
+end
+
+function updateGizmo!(self::Manager)
+    id = self._shrd._selectedID
+    id = UInt32(3)
+
+    if (id > 0) && (id <= 3) && self._peripherals._aHeld
+        setAxisClampedT!(self._opengl._gizmoGL,id,
+                        self._shrd,
+                        getMat(self._cam,self._shrd._width,self._shrd._height))
+        
+    end
 end
 
 function play!(self::Manager)
@@ -123,6 +135,7 @@ function play!(self::Manager)
         updateDeltaTime!(self)
         handlePlans!(self)
         updateCam!(self)
+        updateGizmo!(self)
         update!(self._algebra)
         update!(self._opengl)
         update!(self._imgui,self._opengl,self._algebra,self._cam)

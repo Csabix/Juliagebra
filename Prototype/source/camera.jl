@@ -1,16 +1,16 @@
 @kwdef mutable struct Camera
-    _fov::Float32 = 90.0
+    _fov::Float32 = 50.0
     _zNear::Float32 = 0.01
-    _zFar::Float32 = 100.0
-    _eye::Vec3T{Float32}= Vec3T{Float32}(0.0,-5.0,0.0)
-    _at::Vec3T{Float32} = Vec3T{Float32}(0.0,0.0,0.0)
-    _up::Vec3T{Float32} = Vec3T{Float32}(0.0,0.0,1.0)
+    _zFar::Float32 = 999999.0
+    _eye::Vec3F= Vec3F(0.0,-5.0,0.0)
+    _at::Vec3F = Vec3F(0.0,0.0,0.0)
+    _up::Vec3F = Vec3F(0.0,0.0,1.0)
     _zoom::Float32 = 3.0
     _leftRightRot::Float32 = 270.0
     _upDownRot::Float32 = 90.0
-    _rotateSensitivity::Float32 = 290.0
+    _rotateSensitivity::Float32 = 120.0
     _zoomSensitivity::Float32 = 22.0
-    _moveSpeed::Float32 = 0.33
+    _moveSpeed::Float32 = 0.115
     _x::Float32 = 0.0
     _y::Float32 = 0.0
     _z::Float32 = 0.0
@@ -41,9 +41,9 @@ function sensitivityZoom(self::Camera,zoom::Float32,deltaTime::Float32)
     addZoom!(self,zoom*self._zoomSensitivity*deltaTime)
 end
 
-setAt!(self::Camera,at::Vec3T{Float32}) = self._at = at
+setAt!(self::Camera,at::Vec3F) = self._at = at
 
-addAt!(self::Camera,v::Vec3T{Float32}) = setAt!(self,self._at + v)
+addAt!(self::Camera,v::Vec3F) = setAt!(self,self._at + v)
 
 function moveAt!(self::Camera,x::Float32,y::Float32,z::Float32,deltaTime::Float32)
     
@@ -79,7 +79,7 @@ function getMat(self::Camera,width,height)
     x = cos(lr)*sin(ud)
     y = sin(lr)*sin(ud)
     z = cos(ud)
-    dv = Vec3T{Float32}(x,y,z)       
+    dv = Vec3F(x,y,z)       
                         
     self._eye = dv * -(exp(self._zoom)-1.0) + self._at
 

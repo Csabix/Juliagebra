@@ -9,9 +9,9 @@ out vec3 lolz;
 
 void main(){
     if (vertPosition.z == 1.0){
-        lolz = vec3(0.0,1.0,0.0);
+        lolz = vec3(1.0,1.0,0.0);
     }else{
-        lolz = vec3(1.0,0.0,0.0);
+        lolz = vec3(0.0,1.0,1.0);
     }
     
     gl_Position = VP * vec4(vertPosition,1.0);

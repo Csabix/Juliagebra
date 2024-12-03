@@ -102,7 +102,7 @@ function _display!(self::ImGuiData,openglD::OpenGLData)
     #b = slider(openglD._backgroundCol.z,"B-(Bckg)",0.0,1.0)
     #openglD._backgroundCol = Vec3(r,g,b)
     openglD._backgroundCol = slider3(openglD._backgroundCol,"RGB-(Bckg)",0.0,1.0)
-
+    openglD._gizmoGL._pos = slider3(openglD._gizmoGL._pos,"Gizmo-(x,y,z)",-10.0,10.0)
 
     CImGui.Text("Render Offices:")
     i = 1

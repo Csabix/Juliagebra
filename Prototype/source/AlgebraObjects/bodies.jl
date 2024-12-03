@@ -4,11 +4,11 @@
 # ! Limited = Fix sized
 
 mutable struct Movable_Limited_Plan <: JuliAgebra.RenderPlan
-    _vertexes::Vector{Vec3T{Float32}}
+    _vertexes::Vector{Vec3F}
 end
 
 mutable struct Movable_Limited_Body <:AlgebraObject
-    _vertexes::AbstractArray{Vec3T{Float32},1} 
+    _vertexes::AbstractArray{Vec3F,1} 
     _soil::Function
 
     function Movable_Limited_Body(vertexes)
@@ -31,12 +31,12 @@ mutable struct Movable_Limited_Employee <:RenderEmployee
     _asset::Movable_Limited_Body
     _dirty::Bool
     _openglD::OpenGLData
-    _data::Vector{Vec3T{Float32}}
+    _data::Vector{Vec3F}
     _bufferArray::BufferArray
 
-    function Movable_Limited_Employee(asset::Movable_Limited_Body,openglD::OpenGLData,data::Vector{Vec3T{Float32}})
+    function Movable_Limited_Employee(asset::Movable_Limited_Body,openglD::OpenGLData,data::Vector{Vec3F})
         
-        bufferArray = BufferArray(Vec3T{Float32},GL_STATIC_DRAW,data)
+        bufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,data)
         
         dirty = false
         self = new(asset,dirty,openglD,data,bufferArray)

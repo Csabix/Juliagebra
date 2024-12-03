@@ -70,15 +70,15 @@ Shorter function to automatically create a vertexAttribPointer from arguments.
 - `vtype` -> could be a single type, like vec3 or it could be a complex struct type.
 
 """
-function _vertexAttribs(vtype::DataType)
+function _vertexAttribs(vtype::DataType,index::Int = 0)
     if vtype <: StaticArray || vtype <: Real
-        _vertexAttrib(0,vtype)
+        _vertexAttrib(index,vtype)
     else
         stride::Int = sizeof(vtype)
         ltypes = vtype.types
         for i in eachindex(ltypes)
             # fieldoffset tells the byte offset of the i-th type in vtype.
-            _vertexAttrib(i-1,ltypes[i],stride,UInt(fieldoffset(vtype,i)))
+            _vertexAttrib(i-1 + index,ltypes[i],stride,UInt(fieldoffset(vtype,i)))
         end
     end
 end

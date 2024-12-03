@@ -23,12 +23,14 @@ mutable struct OpenGLData
     
     _dummyBufferArray::BufferArray
     _centerBufferArray::BufferArray
+    _gizmoGL::GizmoGL
 
     _index :: Int
 
     _backgroundCol::Vec3
 
     _vp::Mat4T
+    _camPos::Vec3F
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
@@ -49,7 +51,9 @@ mutable struct OpenGLData
         mainFBO = FrameBuffer(mainAttachements)
         
         dummyBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,getAPlane())
-        centerBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,Vector{Vec3T{Float32}}([Vec3T{Float32}(0.0,0.0,-1.0)]))
+        centerBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
+        gizmoGL = GizmoGL()
+
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
         
@@ -58,26 +62,28 @@ mutable struct OpenGLData
         
         glPolygonMode(GL_BACK,GL_LINE)
 
-        #glEnable(GL_PROGRAM_POINT_SIZE)
+        glEnable(GL_PROGRAM_POINT_SIZE)
         #glDisable(GL_POINT_SMOOTH)
-        #glEnable(GL_POINT_SPRITE)
+        glEnable(GL_POINT_SPRITE)
 
         renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
         updateMeQueue = Queue{RenderEmployee}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
-        l = lookat(Vec3T{Float32}(0.0,-5.0,0.0),Vec3T{Float32}(0.0,0.0,0.0),Vec3T{Float32}(0.0,0.0,1.0))
+        l = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * l 
-        
+        camPos = Vec3F(0.0,0.0,0.0)
+
+
         new(shrd,renderOffices,updateMeQueue,
             combinerShader,backgroundShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
-            dummyBufferArray,centerBufferArray,
+            dummyBufferArray,centerBufferArray,gizmoGL,
             0,
             Vec3(0.73,0.73,0.73),
-            vp)
+            vp,camPos)
     end
 end
 
@@ -148,6 +154,8 @@ function update!(self::OpenGLData)
         draw!(employee)
     end
 
+    draw(self._gizmoGL,self._vp,self._camPos)
+
     readID(self)
     #activate(self._centerShader)
     #draw(self._centerBufferArray,GL_POINTS)
@@ -177,6 +185,7 @@ function destroy!(self::OpenGLData)
     destroy!(self._mainRGBATexture)
     destroy!(self._dummyBufferArray)
     destroy!(self._centerBufferArray)
+    destroy!(self._gizmoGL)
 end
 
 function print_render_offices(self::OpenGLData)

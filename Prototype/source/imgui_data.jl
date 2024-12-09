@@ -59,7 +59,7 @@ function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)
     return self_ref[]
 end
 
-function slideri(self,text,min,max)
+function slider1i(self,text::String,min::Integer,max::Integer)
     self_ref = Ref(self)
     CImGui.SliderInt(text,self_ref,min,max)
     return self_ref[]
@@ -97,7 +97,7 @@ function _display!(self::ImGuiData,shrd::SharedData)
     CImGui.Text("Cursor moved: $(shrd._mouseMoved)")
     CImGui.Text("Window Dimensions: ($(shrd._width),$(shrd._height))")
     CImGui.Text("Delta Time: $(shrd._deltaTime)")
-    #shrd._selectedGizmo = UInt32(slideri(Int(shrd._selectedGizmo),"GizmoID",1,3))
+    shrd._selectedGizmo = slider1i(shrd._selectedGizmo,"GizmoID",1,3)
 
 end
 

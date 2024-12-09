@@ -30,6 +30,8 @@ mutable struct OpenGLData
     _backgroundCol::Vec3
 
     _vp::Mat4T
+    _v::Mat4T
+    _p::Mat4T
     _camPos::Vec3F
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
@@ -70,8 +72,8 @@ mutable struct OpenGLData
         updateMeQueue = Queue{RenderEmployee}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
-        l = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
-        vp = p * l 
+        v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
+        vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
 
@@ -83,7 +85,7 @@ mutable struct OpenGLData
             dummyBufferArray,centerBufferArray,gizmoGL,
             0,
             Vec3(0.73,0.73,0.73),
-            vp,camPos)
+            vp,v,p,camPos)
     end
 end
 

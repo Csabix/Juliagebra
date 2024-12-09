@@ -113,7 +113,12 @@ function updateCam!(self::Manager)
     end
     
     self._opengl._camPos = self._cam._eye
-    self._opengl._vp = getMat(self._cam,self._shrd._width,self._shrd._height)
+    vp,v,p = getMat(self._cam,self._shrd._width,self._shrd._height)
+    
+    self._opengl._vp = vp
+    self._opengl._v  = v
+    self._opengl._p  = p
+
 
 end
 
@@ -122,10 +127,12 @@ function updateGizmo!(self::Manager)
     #id = UInt32(2)
     #println(id)
 
+    #id = Int32(1)
+
     if (id > 0) && (id <= 3) && self._peripherals._aHeld
         setAxisClampedT!(self._opengl._gizmoGL,id,
                         self._shrd,
-                        getMat(self._cam,self._shrd._width,self._shrd._height))
+                        self._opengl._vp,self._opengl._v,self._opengl._p)
         
     end
 end

@@ -85,6 +85,6 @@ function getMat(self::Camera,width,height)
 
     p = perspective(deg2rad(self._fov),Float32(width/height),self._zNear,self._zFar)
     l = lookat(self._eye,self._at,self._up)
-    return p * l
+    return p * l,l,p
 end
 

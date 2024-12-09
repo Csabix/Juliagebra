@@ -3,22 +3,18 @@
 layout(location = 0) in vec3 vertPosition;
 
 uniform mat4 VP;
-uniform float scaleFactor;
 uniform vec3 gizmoCenter = vec3(0.0,0.0,0.0);
-
-// ! xx-yy-zz
-// ! fb-lr-ud
-// ! up-left-forward
+uniform float gizmoScale = 1.0;
 
 out vec3 endColor;
+flat out uint gizmoID;
+
 
 const vec3 endColors[3] = vec3[3](
     vec3(0.9   ,0.0   ,0.0),
     vec3(0.0   ,0.9   ,0.0),
     vec3(0.0   ,0.0   ,0.9)
 );
-
-flat out uint gizmoID;
 
 const uint gizmoIDs[3] = uint[3](
     uint(1),
@@ -33,8 +29,6 @@ void main(){
 
     gl_PointSize = 25.0;
     
-    vec3 scaledPos = vertPosition * scaleFactor;
-    // * SP = screenPos
-    vec4 SP = VP * vec4(scaledPos + gizmoCenter,1.0);
+    vec4 SP = VP * vec4((vertPosition*gizmoScale) + gizmoCenter,1.0);
     gl_Position = SP;
 }

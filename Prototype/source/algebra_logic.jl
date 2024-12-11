@@ -38,4 +38,3 @@ end
 function destroy!(_loc::AlgebraLogic)
 
 end
-

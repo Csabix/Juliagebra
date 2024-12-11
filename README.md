@@ -35,3 +35,5 @@ Side quest:
 - 3D Grid
 - Feliratok
 - 
+
+CustomValue -> nem rajzolható, viszont a gráfbakerülhetett és tetszőleges objektum típust tud a callback-je vosszaadni.

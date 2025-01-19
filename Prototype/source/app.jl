@@ -1,6 +1,6 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
 
-mutable struct Manager
+mutable struct App
 
     _shrd::SharedData
     _glfw::Union{GLFWData,Nothing}
@@ -12,7 +12,7 @@ mutable struct Manager
     _peripherals::Peripherals
     _cam::Camera
 
-    function Manager(
+    function App(
         name::String="Unnamed Window",
         width::Int=1280,
         height::Int=720
@@ -31,11 +31,11 @@ mutable struct Manager
     end
 end
 
-function submit!(self::Manager,plan::RenderPlan)
+function submit!(self::App,plan::RenderPlan)
     enqueue!(self._plans,plan)    
 end
 
-function handleEvents!(self::Manager)
+function handleEvents!(self::App)
     GLFW.PollEvents()
     ev = poll_event!(self._glfw._glfwEQ)
     # TODO: Lusta esemenykuldes
@@ -46,15 +46,16 @@ function handleEvents!(self::Manager)
     end
 end
 
-handleEvent!(self::Manager,ev::T where T<:Event) = println(string(ev))
+handleEvent!(self::App,ev::T where T<:Event) = println(string(ev))
 
-function handleEvent!(self::Manager,ev::ResizeEvent)
+function handleEvent!(self::App,ev::ResizeEvent)
     self._shrd._width = ev.width
     self._shrd._height = ev.height
     resize!(self._opengl)
+    resize!(self._imgui)
 end
 
-function handleEvent!(self::Manager,ev::MouseMotionEvent)
+function handleEvent!(self::App,ev::MouseMotionEvent)
     self._shrd._mouseX = ev.mouseX
     self._shrd._mouseY = self._shrd._height - ev.mouseY
     self._shrd._relMouseX += ev.xrel
@@ -62,35 +63,35 @@ function handleEvent!(self::Manager,ev::MouseMotionEvent)
     self._shrd._mouseMoved = true
 end
 
-function handleEvent!(self::Manager,ev::MouseWheelEvent)
+function handleEvent!(self::App,ev::MouseWheelEvent)
     self._shrd._wheelUpDown = -ev.wheelY
     self._shrd._wheelMoved = true
 end
 
-handleEvent!(self::Manager,ev::MouseDownEvent) = flip!(self._peripherals,ev.glfw_key)
+handleEvent!(self::App,ev::MouseDownEvent) = flip!(self._peripherals,ev.glfw_key)
 
-handleEvent!(self::Manager,ev::MouseUpEvent) = flip!(self._peripherals,ev.glfw_key)
+handleEvent!(self::App,ev::MouseUpEvent) = flip!(self._peripherals,ev.glfw_key)
 
-handleEvent!(self::Manager,ev::KeyboardDownEvent) = flip!(self._peripherals,ev.glfw_key)
+handleEvent!(self::App,ev::KeyboardDownEvent) = flip!(self._peripherals,ev.glfw_key)
 
-handleEvent!(self::Manager,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_key)
+handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_key)
 
-function handlePlans!(self::Manager)
+function handlePlans!(self::App)
     while(!isempty(self._plans))
         asset = recruit!(self._opengl,dequeue!(self._plans))
         fuse!(self._algebra,asset)
     end
 end
 
-function updateDeltaTime!(self::Manager)
+function updateDeltaTime!(self::App)
     
     currentTime = time()    
     self._shrd._deltaTime =  currentTime - self._shrd._oldTime
-    self._shrd._oldTime = currentTime
-
+    self._shrd._oldTime   =  currentTime
+    
 end
 
-function updateCam!(self::Manager)
+function updateCam!(self::App)
     dt = self._shrd._deltaTime
     if self._peripherals._middleHeld && self._shrd._mouseMoved
         lr = self._shrd._relMouseX
@@ -102,7 +103,7 @@ function updateCam!(self::Manager)
         end
     end
 
-    
+        
 
     if self._shrd._wheelMoved
         sensitivityZoom(self._cam,Float32(self._shrd._wheelUpDown),dt)
@@ -122,7 +123,7 @@ function updateCam!(self::Manager)
 
 end
 
-function updateGizmo!(self::Manager)
+function updateGizmo!(self::App)
     id = self._shrd._selectedGizmo
     #id = UInt32(2)
     #println(id)
@@ -137,14 +138,16 @@ function updateGizmo!(self::Manager)
     end
 end
 
-function play!(self::Manager)
+function play!(self::App)
     
     init!(self)
     while(!self._shrd._gameOver)
+        
         updateDeltaTime!(self)
         handlePlans!(self)
         updateCam!(self)
         updateGizmo!(self)
+        
         update!(self._algebra)
         update!(self._opengl)
         update!(self._imgui,self._opengl,self._algebra,self._cam)
@@ -152,7 +155,6 @@ function play!(self::Manager)
        
         handleEvents!(self)
         
-
         GLFW.SwapBuffers(self._glfw._window)
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
     end
@@ -160,7 +162,7 @@ function play!(self::Manager)
     
 end
 
-function init!(self::Manager)
+function init!(self::App)
     if self._windowCreated
         error("Window is already created, can't init! again.")
     end
@@ -175,7 +177,7 @@ function init!(self::Manager)
     updateDeltaTime!(self)
 end
 
-function destroy!(self::Manager)
+function destroy!(self::App)
     if !self._windowCreated
         error("No window created, thus, can't destroy!.")
     end
@@ -186,7 +188,7 @@ function destroy!(self::Manager)
     destroy!(self._algebra)
 end
 
-export Manager
+export App
 export play!
 export submit!
 

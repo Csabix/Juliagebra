@@ -1,7 +1,7 @@
 include("Prototype/juliagebra.jl")
 using .JuliAgebra
 
-manager = Manager()
+manager = App()
 
 cube = Vector{Vec3F}()
 

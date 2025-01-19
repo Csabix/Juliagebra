@@ -1,18 +1,3 @@
-#the controller must have open ends, for the graphics and windowing
-
-#=
-    #                                                     #
-   # #    #        ####   ######  #####   #####     ##    #         ####    ####   #   ####
-  #   #   #       #    #  #       #    #  #    #   #  #   #        #    #  #    #  #  #    #
- #     #  #       #       #####   #####   #    #  #    #  #        #    #  #       #  #
- #######  #       #  ###  #       #    #  #####   ######  #        #    #  #  ###  #  #
- #     #  #       #    #  #       #    #  #   #   #    #  #        #    #  #    #  #  #    #
- #     #  ######   ####   ######  #####   #    #  #    #  #######   ####    ####   #   ####
-
-=#
-
-#Array{T,1} = Vector{T}
-
 mutable struct AlgebraLogic
     _shrd::SharedData
     _algebraObjects::Vector{AlgebraObject}

@@ -1,16 +1,24 @@
 mutable struct ImGuiData
     _shrd::SharedData
 
+    _width::Int
+    _height::Int
+
+    _pos_x::Int
+    _pos_y::Int
+
     function ImGuiData(glfwD::GLFWData,openglD::OpenGLData,shrd::SharedData)
         imgui_context = CImGui.CreateContext()
+        
         CImGui.StyleColorsDark()
         CImGui.GetIO()
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
-        # ! This Bloody bugger just copes than pastes #version 330 into the shader.
-        # ! What an absolute jokester this library is.
-        #println(unsafe_string(glGetString(GL_VERSION)))
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
-        new(shrd)
+        
+        self = new(shrd,0,0,0,0)
+        resize!(self)
+
+        return self
     end
 end
 
@@ -19,7 +27,19 @@ function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam:
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
-    CImGui.Begin("Data Peeker")
+    
+    CImGui.SetNextWindowSize((self._width,self._height))
+    
+
+    CImGui.Begin("Data Peeker",C_NULL,CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove)
+    
+    if (CImGui.IsWindowCollapsed())
+        CImGui.SetWindowPos((0,self._shrd._height))
+    else
+        CImGui.SetWindowPos((self._pos_x,self._pos_y))
+    end
+    
+    
     if CImGui.BeginTabBar("Places")
         if CImGui.BeginTabItem("Shared Data")
             _display!(self,self._shrd)
@@ -131,6 +151,12 @@ function _display!(self::ImGuiData,openglD::OpenGLData)
 
 
 
+end
+
+function resize!(self::ImGuiData)
+    self._width = self._shrd._width
+    self._height = floor(self._shrd._height * 0.3)
+    self._pos_y = self._shrd._height - self._height
 end
 
 function destroy!(self::ImGuiData)

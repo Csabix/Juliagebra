@@ -14,7 +14,9 @@ using CImGui
 using DataStructures
 # using StaticArrays
 
-include("source/AlgebraObjects/abstracts.jl")
+abstract type Renderers end
+abstract type Algebras end
+abstract type Plans end
 
 include("source/shared_data.jl")
 include("source/glfw_data.jl")
@@ -25,8 +27,7 @@ include("source/algebra_logic.jl")
 include("source/opengl_data.jl")
 include("source/imgui_data.jl")
 
-include("source/AlgebraObjects/bodies.jl")
-include("source/AlgebraObjects/points.jl")
+include("source/base.jl")
 
 include("source/app.jl")
 

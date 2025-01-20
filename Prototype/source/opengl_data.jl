@@ -6,8 +6,8 @@ mutable struct OpenGLData
     _shrd::SharedData
 
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
-    _renderOffices::Dict{<:DataType,Vector{<:RenderEmployee}}
-    _updateMeQueue::Queue{RenderEmployee}
+    _renderOffices::Dict{<:DataType,Vector{<:Renderers}}
+    _updateMeQueue::Queue{Renderers}
     
     # ! Shaders
     _combinerShader::ShaderProgram
@@ -68,8 +68,8 @@ mutable struct OpenGLData
         #glDisable(GL_POINT_SMOOTH)
         glEnable(GL_POINT_SPRITE)
 
-        renderOffices = Dict{DataType,Vector{<:RenderEmployee}}()
-        updateMeQueue = Queue{RenderEmployee}()
+        renderOffices = Dict{DataType,Vector{<:Renderers}}()
+        updateMeQueue = Queue{Renderers}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
@@ -135,8 +135,8 @@ function update!(self::OpenGLData)
     checkErrors(self)
     self._index += 1
     while !isempty(self._updateMeQueue)
-        employee = dequeue!(self._updateMeQueue)
-        sanitize!(employee)
+        renderer = dequeue!(self._updateMeQueue)
+        update!(renderer)
     end
     #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -152,8 +152,10 @@ function update!(self::OpenGLData)
     activate(self._bodyShader)
     setUniform!(self._bodyShader,"VP",self._vp)  
     
-    for employee in self._renderOffices[Movable_Limited_Employee]
-        draw!(employee)
+    for (_,office) in self._renderOffices
+        for renderer in office
+            draw!(renderer,self._vp)
+        end
     end
 
     draw(self._gizmoGL,self._vp,self._camPos)
@@ -171,8 +173,8 @@ end
 
 function destroy!(self::OpenGLData)
     for (_, office) in self._renderOffices
-        for employee in office
-            destroy!(employee) 
+        for renderer in office
+            destroy!(renderer) 
         end
     end
     

@@ -1,6 +1,6 @@
 
 abstract type AlgebraObject end
 
-abstract type RenderPlan end
+abstract type Plans end
 
 abstract type RenderEmployee end

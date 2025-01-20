@@ -8,7 +8,7 @@ mutable struct App
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
     _algebra::AlgebraLogic
-    _plans::Queue{RenderPlan}
+    _plans::Queue{Plans}
     _peripherals::Peripherals
     _cam::Camera
 
@@ -24,14 +24,14 @@ mutable struct App
         imgui = nothing
         windowCreated = false
         algebra = AlgebraLogic(shrd)
-        plans = Queue{RenderPlan}()
+        plans = Queue{Plans}()
         peripherals = Peripherals()
         cam = Camera()
         new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
     end
 end
 
-function submit!(self::App,plan::RenderPlan)
+function submit!(self::App,plan::Plans)
     enqueue!(self._plans,plan)    
 end
 

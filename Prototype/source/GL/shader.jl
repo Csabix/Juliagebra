@@ -24,7 +24,7 @@ activate(self::ShaderProgram) = glUseProgram(self._id)
 
 function setUniform!(self::ShaderProgram,name::String,data::Any)
     if !haskey(self._uniforms,name)
-        error("No Uniform named: $name!")
+        error("No Uniform named: $(name)!")
     end
     glUniform(self._uniforms[name],data)
 end

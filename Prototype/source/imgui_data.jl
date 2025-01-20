@@ -98,12 +98,13 @@ function _display!(self::ImGuiData,cam::Camera)
 end
 
 function _display!(self::ImGuiData,algebraL::AlgebraLogic)
-    CImGui.Text("Stored Alfebra Objects:")
+    CImGui.Text("Stored Algebra Objects:")
     i = 1
     for (algebraObject) in algebraL._algebraObjects
-        if CImGui.TreeNode("$(i) - $(string(algebraObject))")        
-            CImGui.TreePop()
-        end
+        CImGui.Text("$(i) - $(string(algebraObject))")
+        #if CImGui.TreeNode()        
+        #    CImGui.TreePop()
+        #end
         i+=1
     end
 end
@@ -138,10 +139,7 @@ function _display!(self::ImGuiData,openglD::OpenGLData)
         if CImGui.TreeNode("$(i) - $(string(key))")
             j = 1
             for employee in office
-                if CImGui.TreeNode("$(j) - $(string(employee))")
-                    CImGui.Text(string(employee._asset))
-                    CImGui.TreePop()
-                end
+                CImGui.Text("$(j) - $(string(employee))")
                 j+=1
             end
             CImGui.TreePop()

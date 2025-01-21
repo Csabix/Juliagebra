@@ -124,17 +124,21 @@ function updateCam!(self::App)
 end
 
 function updateGizmo!(self::App)
-    id = self._shrd._selectedGizmo
-    #id = UInt32(2)
-    #println(id)
+    
+    id = self._shrd._selectedID
 
-    #id = Int32(1)
-
-    if (id > 0) && (id <= 3) && self._peripherals._aHeld
-        setAxisClampedT!(self._opengl._gizmoGL,id,
+    if self._peripherals._aHeld
+        if self._shrd._selectedGizmo == 0
+            if (id > 0) && (id<=3)
+                self._shrd._selectedGizmo = id
+            end
+        else
+            setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                         self._shrd,
-                        self._opengl._vp,self._opengl._v,self._opengl._p)
-        
+                        self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
+        end
+    else
+       self._shrd._selectedGizmo = 0
     end
 end
 
@@ -146,12 +150,12 @@ function play!(self::App)
         updateDeltaTime!(self)
         handlePlans!(self)
         updateCam!(self)
-        updateGizmo!(self)
         
         update!(self._algebra)
         update!(self._opengl)
         update!(self._imgui,self._opengl,self._algebra,self._cam)
         update!(self._shrd)
+        updateGizmo!(self)
        
         handleEvents!(self)
         

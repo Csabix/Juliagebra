@@ -5,8 +5,6 @@ function relativePath()::String
     return myPath
 end
 
-
-
 mutable struct SuperAlgebra
     _renderer::Renderers
     _rendererID::Int
@@ -14,7 +12,7 @@ end
 
 super(self::Algebras)::SuperAlgebra = error("Create \"super!(self)\" func for Algebras!")
 
-function soilOnce!(self::Algebras)
+function soilOnlyOnce!(self::Algebras)
     self_super = super(self)
     soil!(self_super._renderer,self)
 end
@@ -35,13 +33,12 @@ super(self::Point)::SuperAlgebra = return self._parent
 Base.string(self::Point) = "Point($(self._x),$(self._y),$(self._z))"
 
 mutable struct SuperRenderer
-    
     _context::OpenGLData
     _shader::ShaderProgram
-    _dirty::Bool
+    _parentLock::QueueLock
 
-    function SuperRenderer(context::OpenGLData,shader::ShaderProgram)
-        new(context,shader,false)
+    function SuperRenderer(context::OpenGLData,shader::ShaderProgram) 
+        new(context,shader,QueueLock())
     end
 end
 
@@ -56,20 +53,18 @@ _destroy!(self::Renderers)              = error("Create \"_destroy!(self)\" func
 
 function soil!(self::Renderers)
     self_super = super(self)
-    if (!self_super._dirty)
-        self_super._dirty = true
-        enqueue!(self_super._context._updateMeQueue,self)
-    end
+    lock(self_super._parentLock,self_super._context._updateMeQueue,self)
 end
 
 function update!(self::Renderers)
     _update!(self)
-    super(self)._dirty = false
+    unlock(super(self)._parentLock)
 end
 
-function draw!(self::Renderers,vp)
+function draw!(self::Renderers,vp,id)
     activate(super(self)._shader)
-    setUniform!(super(self)._shader,"VP",vp) 
+    setUniform!(super(self)._shader,"VP",vp)
+    setUniform!(super(self)._shader,"selectedID",id)
     _draw!(self)
 end
 
@@ -89,7 +84,7 @@ mutable struct PointRenderer <: Renderers
 
     function PointRenderer(context::OpenGLData) 
         rp = relativePath()
-        shader = ShaderProgram(rp * "Shaders/point.vert",rp * "Shaders/point.frag",["VP"])
+        shader = ShaderProgram(rp * "Shaders/point.vert",rp * "Shaders/point.frag",["VP","selectedID"])
         parent = SuperRenderer(context,shader)
 
         buffer = BufferArray(Vec4F,GL_DYNAMIC_DRAW)
@@ -104,7 +99,7 @@ mutable struct PointRenderer <: Renderers
             points,
             queue,
             coords,
-            1)
+            ID_LOWER_BOUND+1)
     end
 end
 
@@ -114,11 +109,12 @@ Base.string(self::PointRenderer) = return "PointRenderer($(length(self._points))
 function _update!(self::PointRenderer)
     while !isempty(self._queue)
         point = dequeue!(self._queue)
+        println("Updating point: $(string(point))")
         id = super(point)._rendererID
         x = point._x
-        y = point._x
-        z = point._x
-        self._coords[id] = Vec4F(x,y,z,id)
+        y = point._y
+        z = point._z
+        self._coords[id-ID_LOWER_BOUND] = Vec4F(x,y,z,id)
     end
     upload!(self._buffer,self._coords)
 end
@@ -133,7 +129,7 @@ function add!(self::PointRenderer,x,y,z)::Point
     push!(self._coords,Vec4F(0,0,0,0))
     push!(self._points,newPoint)
     
-    soilOnce!(newPoint)
+    soilOnlyOnce!(newPoint)
     
     self._nextRendererID+=1
 

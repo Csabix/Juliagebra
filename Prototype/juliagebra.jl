@@ -14,24 +14,20 @@ using CImGui
 using DataStructures
 # using StaticArrays
 
-abstract type Renderers end
-abstract type Algebras end
-abstract type Plans end
+include("source/abstracts.jl")
 
 include("source/shared_data.jl")
 include("source/glfw_data.jl")
 include("source/peripherals.jl")
-include("source/gizmo.jl")
 include("source/camera.jl")
+include("source/gizmo.jl")
 include("source/algebra_logic.jl")
 include("source/opengl_data.jl")
 include("source/imgui_data.jl")
 
+
 include("source/base.jl")
 
 include("source/app.jl")
-
-# TODO: rethink this export sometime in the future.
-export Vec3F
 
 end

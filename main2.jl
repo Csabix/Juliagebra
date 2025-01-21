@@ -5,8 +5,10 @@ manager = App()
 
 
 
-submit!(manager,PointPlan(0,0,0))
-submit!(manager,PointPlan(10,10,10))
-submit!(manager,PointPlan(-15,-15,-15))
+for x in -5:5
+    for y in -5:5
+        submit!(manager,PointPlan(x,y,0))
+    end
+end
 
 play!(manager)

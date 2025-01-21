@@ -136,6 +136,7 @@ function update!(self::OpenGLData)
     self._index += 1
     while !isempty(self._updateMeQueue)
         renderer = dequeue!(self._updateMeQueue)
+        println("($(string(self._index))) Updating renderer -> $(string(renderer))")
         update!(renderer)
     end
     #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -154,11 +155,11 @@ function update!(self::OpenGLData)
     
     for (_,office) in self._renderOffices
         for renderer in office
-            draw!(renderer,self._vp)
+            draw!(renderer,self._vp,self._shrd._selectedID)
         end
     end
 
-    draw(self._gizmoGL,self._vp,self._camPos)
+    draw(self._gizmoGL,self._vp,self._camPos,self._shrd._selectedGizmo)
 
     readID(self)
     #activate(self._centerShader)

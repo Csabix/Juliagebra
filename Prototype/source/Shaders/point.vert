@@ -2,6 +2,8 @@
 
 layout(location = 0) in vec4 vertPosition;
 
+flat out uint id;
+
 uniform mat4 VP;
 
 void main(){
@@ -9,4 +11,5 @@ void main(){
     
     vec4 SP = VP * vec4(vertPosition.xyz,1.0);
     gl_Position = SP;
+    id = uint(vertPosition.w);
 }

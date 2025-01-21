@@ -1,4 +1,4 @@
-mutable struct GizmoGL 
+mutable struct GizmoGL     
     # ! Shaders:
     _endShader::ShaderProgram
     _lineShader::ShaderProgram
@@ -40,7 +40,7 @@ mutable struct GizmoGL
         lineShader = ShaderProgram(
             myPath * "Shaders/gizmo_line.vert",
             myPath * "Shaders/gizmo_line.frag",
-            ["VP","gizmoCenter","gizmoScale"])
+            ["VP","gizmoCenter","gizmoScale","selectedID"])
         
         debugShader = ShaderProgram(
             myPath * "Shaders/gizmo_debug.vert",
@@ -85,8 +85,11 @@ mutable struct GizmoGL
 
         lineVecs = Vector{Vec3F}([
             pos,red,
+            pos,-red,
             pos,green,
-            pos,blue])
+            pos,-green,
+            pos,blue,
+            pos,-blue])
 
         lineBuffer = BufferArray(
             Vec3F,
@@ -96,7 +99,7 @@ mutable struct GizmoGL
         
         size = 0.1
 
-        glLineWidth(6.0)
+        glLineWidth(15.0)
 
         new(endShader,lineShader,debugShader,
             endBuffer,lineBuffer,debugBuffer,debugLineBuffer,
@@ -107,38 +110,34 @@ mutable struct GizmoGL
     end
 end
 
-function draw(self::GizmoGL,vp::Mat4T,camPos::Vec3F)
+function draw(self::GizmoGL,vp::Mat4T,camPos::Vec3F,gID::UInt32)
     
     gs = norm(camPos - self._pos) * self._size
     
-
-    # TODO: Optimize glClears
-
     glClear(GL_DEPTH_BUFFER_BIT)
 
     activate(self._lineShader)
     setUniform!(self._lineShader,"VP",vp)  
     setUniform!(self._lineShader,"gizmoCenter",self._pos)
     setUniform!(self._lineShader,"gizmoScale",gs)
+    setUniform!(self._lineShader,"selectedID",gID)
     draw(self._lineBuffer,GL_LINES)
 
-    glClear(GL_DEPTH_BUFFER_BIT)
+    #glClear(GL_DEPTH_BUFFER_BIT)
 
-    activate(self._endShader)
-    setUniform!(self._endShader,"VP",vp)
-    setUniform!(self._endShader,"gizmoCenter",self._pos)
-    setUniform!(self._endShader,"gizmoScale",gs)
-    draw(self._endBuffer,GL_POINTS)
+    #activate(self._endShader)
+    #setUniform!(self._endShader,"VP",vp)
+    #setUniform!(self._endShader,"gizmoCenter",self._pos)
+    #setUniform!(self._endShader,"gizmoScale",gs)
+    #draw(self._endBuffer,GL_POINTS)
 
-    activate(self._debugShader)
-    
-    draw(self._debugBuffer,GL_POINTS)
-    
-    setUniform!(self._debugShader,"line",Float32(1.0))
-    draw(self._debugLineBuffer,GL_LINES)
-    setUniform!(self._debugShader,"line",Float32(0.0))
-
-
+    #activate(self._debugShader)
+    #
+    #draw(self._debugBuffer,GL_POINTS)
+    #
+    #setUniform!(self._debugShader,"line",Float32(1.0))
+    #draw(self._debugLineBuffer,GL_LINES)
+    #setUniform!(self._debugShader,"line",Float32(0.0))
 
 end
 
@@ -154,7 +153,7 @@ function _screen24(v::Vec4F,shrd::SharedData)::Vec2F
     return Vec2F(x,y)
 end
 
-function _getAxisClampedT(self::GizmoGL,axis::Vec3F,origin::Vec3F,mouse::Vec2F,vp::Mat4T,shrd::SharedData)::Float32
+function screenVecs(origin,axis,mouse,shrd,vp)
     screenOrigin = vp * Vec4F(origin,1.0)
     screenOrigin = _screen24(screenOrigin,shrd)
 
@@ -164,33 +163,82 @@ function _getAxisClampedT(self::GizmoGL,axis::Vec3F,origin::Vec3F,mouse::Vec2F,v
     screenMouse = Vec2F((mouse.x/shrd._width)*2-1,(mouse.y/shrd._height)*2-1)
     screenMouse = screenMouse
 
+    return (screenOrigin,screenAxis,screenMouse)
+end
+
+function _getAxisClampedT(self::GizmoGL,axis::Vec3F,origin::Vec3F,mouse::Vec2F,vp::Mat4T,shrd::SharedData)::Float32
+    
+    screenOrigin,screenAxis,screenMouse = screenVecs(origin,axis,mouse,shrd,vp)
+    
+    #screenOrigin = vp * Vec4F(origin,1.0)
+    #screenOrigin = _screen24(screenOrigin,shrd)
+    #
+    #screenAxis = vp * Vec4F(axis,1.0)
+    #screenAxis = _screen24(screenAxis,shrd)
+    #
+    #screenMouse = Vec2F((mouse.x/shrd._width)*2-1,(mouse.y/shrd._height)*2-1)
+    #screenMouse = screenMouse
+
     t = _getAxisClampedT(screenAxis-screenOrigin,screenMouse-screenOrigin)
 
     clampedStuff = screenOrigin + (screenAxis-screenOrigin)*t
 
-    self._debugVec[1] = screenOrigin
-    self._debugVec[2] = screenAxis
-    self._debugVec[3] = screenMouse
-    self._debugVec[4] = clampedStuff
-
-    upload!(self._debugBuffer,self._debugVec)
-
-    self._debugLineVec[1] = screenAxis
-    self._debugLineVec[2] = clampedStuff
-    self._debugLineVec[3] = clampedStuff
-    self._debugLineVec[4] = screenMouse
-
-    upload!(self._debugLineBuffer,self._debugLineVec)
-
+    #
+    #self._debugVec[1] = screenOrigin
+    #self._debugVec[2] = screenAxis
+    #self._debugVec[3] = screenMouse
+    #self._debugVec[4] = clampedStuff
+    #
+    #upload!(self._debugBuffer,self._debugVec)
+    #
+    #self._debugLineVec[1] = screenAxis
+    #self._debugLineVec[2] = clampedStuff
+    #self._debugLineVec[3] = clampedStuff
+    #self._debugLineVec[4] = screenMouse
+    #
+    #upload!(self._debugLineBuffer,self._debugLineVec)
+    #
     return t
 end
 
-function setAxisClampedT!(self::GizmoGL,selectedAxis::Int32,shrd::SharedData,vp::Mat4T,v::Mat4T,p::Mat4T)
+function planeIntersect(P0::Vec3F,v::Vec3F,Q::Vec3F,i::Vec3F,j::Vec3F)::Vec3F
+    p = P0 - Q
+    m = Mat3T{Float32}(
+        -v.x, i.x, j.x,
+        -v.y, i.y, j.y,
+        -v.z, i.z, j.z
+    )
+    mInv = inv(m)
+
+    return mInv * p
+end
+
+function getAxisVecs(self,shrd,cam,selectedAxis)
     mouse = Vec2F(shrd._mouseX,shrd._mouseY)
     origin = self._pos
-    axis = self._idToAxis[selectedAxis] + origin
+    gs = norm(cam._eye - self._pos) * self._size
+    axis = self._idToAxis[selectedAxis] * gs  + origin
+
+    return (mouse,origin,gs,axis)
+end
+
+function setAxisClampedT!(self::GizmoGL,selectedAxis::UInt32,shrd::SharedData,vp::Mat4T,cam::Camera,v,p)
+    
+    mouse,origin,gs,axis = getAxisVecs(self,shrd,cam,selectedAxis)
+    
     t = _getAxisClampedT(self,axis,origin,mouse,vp,shrd)
-    self._pos =  (origin + (axis-origin)*t)   
+    
+    oldPos = self._pos
+    self._pos = (origin + (axis-origin)*t) 
+
+    mouse,origin,gs,axis = getAxisVecs(self,shrd,cam,selectedAxis)
+    screenOrigin,screenAxis,screenMouse = screenVecs(origin,axis,mouse,shrd,vp)
+    
+    if (norm(screenAxis-screenOrigin) < 0.01)
+        self._pos = oldPos
+    end
+
+     
 end
 
 function destroy!(self::GizmoGL)

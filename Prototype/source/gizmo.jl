@@ -236,9 +236,7 @@ function setAxisClampedT!(self::GizmoGL,selectedAxis::UInt32,shrd::SharedData,vp
     
     if (norm(screenAxis-screenOrigin) < 0.01)
         self._pos = oldPos
-    end
-
-     
+    end     
 end
 
 function destroy!(self::GizmoGL)

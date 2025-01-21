@@ -131,6 +131,10 @@ function readID(self::OpenGLData)
     end
 end
 
+function fetch(self::OpenGLData,id)
+    return fetch(self._renderOffices[PointRenderer][1],id)
+end
+
 function update!(self::OpenGLData)
     checkErrors(self)
     self._index += 1
@@ -155,11 +159,14 @@ function update!(self::OpenGLData)
     
     for (_,office) in self._renderOffices
         for renderer in office
-            draw!(renderer,self._vp,self._shrd._selectedID)
+            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID)
         end
     end
 
-    draw(self._gizmoGL,self._vp,self._camPos,self._shrd._selectedGizmo)
+    if(self._shrd._gizmoEnabled)
+        draw(self._gizmoGL,self._vp,self._camPos,self._shrd._selectedGizmo)
+    end
+    
 
     readID(self)
     #activate(self._centerShader)

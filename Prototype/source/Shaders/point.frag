@@ -6,6 +6,7 @@ layout(location = 1) out uint outInd;
 flat in uint id;
 
 uniform uint selectedID;
+uniform uint pickedID;
 
 // ! x:[0,1] -> [-0.5,0.5]
 // ! y:[0,1] -> [-0.5,0.5]
@@ -20,15 +21,20 @@ bool plusNorm(vec2 coords,float size){
     
 }
 
-uniform vec3 endColor = vec3(1.0,0.0,1.0);
-uniform vec4 selectedColor = vec4(0.0,1.0,1.0,0.0);
+uniform vec4 defaultColor = vec4(1.0,0.0,1.0,1.0);
+uniform vec4 selectedColor = vec4(0.0,1.0,1.0,1.0);
+uniform vec4 pickedColor = vec4(1.0,1.0,0.0,1.0);
 
 void main(){
 
-    vec4 drawColor = vec4(endColor,1.0);
+    vec4 drawColor = defaultColor;
 
     if(selectedID == id){
         drawColor = selectedColor;
+    }
+
+    if(pickedID == id){
+        drawColor = pickedColor;
     }
 
     vec2 texCoord = gl_PointCoord;

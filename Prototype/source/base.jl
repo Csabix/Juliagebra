@@ -32,6 +32,13 @@ end
 super(self::Point)::SuperAlgebra = return self._parent
 Base.string(self::Point) = "Point($(self._x),$(self._y),$(self._z))"
 
+function set(self::Point,x::Float64,y::Float64,z::Float64)
+    self._x = x
+    self._y = y
+    self._z = z
+    soilOnlyOnce!(self)
+end
+
 mutable struct SuperRenderer
     _context::OpenGLData
     _shader::ShaderProgram
@@ -61,10 +68,11 @@ function update!(self::Renderers)
     unlock(super(self)._parentLock)
 end
 
-function draw!(self::Renderers,vp,id)
+function draw!(self::Renderers,vp,selectedID,pickedID)
     activate(super(self)._shader)
     setUniform!(super(self)._shader,"VP",vp)
-    setUniform!(super(self)._shader,"selectedID",id)
+    setUniform!(super(self)._shader,"selectedID",selectedID)
+    setUniform!(super(self)._shader,"pickedID",pickedID)
     _draw!(self)
 end
 
@@ -84,7 +92,7 @@ mutable struct PointRenderer <: Renderers
 
     function PointRenderer(context::OpenGLData) 
         rp = relativePath()
-        shader = ShaderProgram(rp * "Shaders/point.vert",rp * "Shaders/point.frag",["VP","selectedID"])
+        shader = ShaderProgram(rp * "Shaders/point.vert",rp * "Shaders/point.frag",["VP","selectedID","pickedID"])
         parent = SuperRenderer(context,shader)
 
         buffer = BufferArray(Vec4F,GL_DYNAMIC_DRAW)
@@ -134,6 +142,10 @@ function add!(self::PointRenderer,x,y,z)::Point
     self._nextRendererID+=1
 
     return newPoint
+end
+
+function fetch(self::PointRenderer, id)
+    return self._points[id-ID_LOWER_BOUND]
 end
 
 function soil!(self::PointRenderer,item::Point)

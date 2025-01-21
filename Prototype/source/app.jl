@@ -126,6 +126,21 @@ end
 function updateGizmo!(self::App)
     
     id = self._shrd._selectedID
+    
+    if(self._peripherals._bHeld)
+        self._shrd._pickedID = id
+        if(id>4)
+            self._shrd._gizmoEnabled = true
+            p = fetch(self._opengl,self._shrd._pickedID)
+            self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
+        else
+            self._shrd._gizmoEnabled = false  
+        end
+    end
+
+    if(!self._shrd._gizmoEnabled)
+        return
+    end
 
     if self._peripherals._aHeld
         if self._shrd._selectedGizmo == 0
@@ -136,6 +151,12 @@ function updateGizmo!(self::App)
             setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                         self._shrd,
                         self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
+            p = fetch(self._opengl,self._shrd._pickedID)      
+            set(
+                p,
+                Float64(self._opengl._gizmoGL._pos.x),
+                Float64(self._opengl._gizmoGL._pos.y),
+                Float64(self._opengl._gizmoGL._pos.z))
         end
     else
        self._shrd._selectedGizmo = 0

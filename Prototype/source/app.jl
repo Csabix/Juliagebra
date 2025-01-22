@@ -31,6 +31,16 @@ mutable struct App
     end
 end
 
+
+
+function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: Plans
+    plan = PointPlan(x,y,z,nothing,dependents,callback)
+    submit!(app,plan)
+    return plan
+end
+
+Point!(x,y,z,app::App) = Point!(x,y,z,Vector{Plans}(), () -> () ,app)
+
 function submit!(self::App,plan::Plans)
     enqueue!(self._plans,plan)    
 end
@@ -129,7 +139,7 @@ function updateGizmo!(self::App)
     
     if(self._peripherals._bHeld)
         self._shrd._pickedID = id
-        if(id>4)
+        if(id>3)
             self._shrd._gizmoEnabled = true
             p = fetch(self._opengl,self._shrd._pickedID)
             self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
@@ -216,4 +226,5 @@ end
 export App
 export play!
 export submit!
+export Point!
 

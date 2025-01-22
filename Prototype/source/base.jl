@@ -8,6 +8,22 @@ end
 mutable struct SuperAlgebra
     _renderer::Renderers
     _rendererID::Int
+
+    _dependents::Vector{Algebras}
+    _graph::Vector{Algebras}
+
+    _callback::Function
+
+    function SuperAlgebra(renderer::Renderers,rendererID::Int,planDependents::Vector{Plans},callback::Function)
+        algebraDependents = Vector{Algebras}()
+        
+        for plan in planDependents
+            push!(algebraDependents,algebra(plan))
+        end
+
+        new(renderer,rendererID,algebraDependents,Vector{Algebras}(),callback)
+    end
+
 end
 
 super(self::Algebras)::SuperAlgebra = error("Create \"super!(self)\" func for Algebras!")
@@ -23,14 +39,14 @@ mutable struct Point <: Algebras
     _y::Float64
     _z::Float64    
 
-    function Point(renderer,rendererID::Int)
-        p = SuperAlgebra(renderer,rendererID)
+    function Point(renderer,rendererID::Int,dependents::Vector{Plans},callback::Function)
+        p = SuperAlgebra(renderer,rendererID,dependents,callback)
         new(p,0,0,0)
     end
 end
 
 super(self::Point)::SuperAlgebra = return self._parent
-Base.string(self::Point) = "Point($(self._x),$(self._y),$(self._z))"
+Base.string(self::Point) = "Point[$(super(self)._rendererID) - $(string(length(super(self)._dependents))) - $(string(length(super(self)._graph)))]($(self._x),$(self._y),$(self._z))"
 
 function set(self::Point,x::Float64,y::Float64,z::Float64)
     self._x = x
@@ -127,23 +143,6 @@ function _update!(self::PointRenderer)
     upload!(self._buffer,self._coords)
 end
 
-function add!(self::PointRenderer,x,y,z)::Point
-    
-    newPoint = Point(self,self._nextRendererID)
-    newPoint._x = x
-    newPoint._y = y
-    newPoint._z = z
-
-    push!(self._coords,Vec4F(0,0,0,0))
-    push!(self._points,newPoint)
-    
-    soilOnlyOnce!(newPoint)
-    
-    self._nextRendererID+=1
-
-    return newPoint
-end
-
 function fetch(self::PointRenderer, id)
     return self._points[id-ID_LOWER_BOUND]
 end
@@ -156,11 +155,17 @@ end
 _draw!(self::PointRenderer) = draw(self._buffer,GL_POINTS)
 _destroy!(self::PointRenderer) = destroy!(self._buffer)
 
-struct PointPlan <: Plans
+mutable struct PointPlan <: Plans
     x::Float64
     y::Float64
     z::Float64
+    _item::Union{Nothing,Point}
+    _plans::Vector{Plans}
+    _callback::Function
 end
+
+algebra(self::PointPlan)::Algebras = return self._item
+Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(self._item))"
 
 function recruit!(self::OpenGLData, plan::PointPlan)::Point
     myVector = get!(self._renderOffices,PointRenderer,Vector{PointRenderer}())
@@ -169,7 +174,26 @@ function recruit!(self::OpenGLData, plan::PointPlan)::Point
         push!(myVector,PointRenderer(self))
     end
 
-    return add!(myVector[1],plan.x,plan.y,plan.z)
+    point = add!(myVector[1],plan)
+    plan._item = point
+    return point
 end
 
-export  PointPlan
+function add!(self::PointRenderer,plan::PointPlan)::Point
+    
+    newPoint = Point(self,self._nextRendererID,plan._plans,plan._callback)
+    newPoint._x = plan.x
+    newPoint._y = plan.y
+    newPoint._z = plan.z
+
+    push!(self._coords,Vec4F(0,0,0,0))
+    push!(self._points,newPoint)
+    
+    soilOnlyOnce!(newPoint)
+    
+    self._nextRendererID+=1
+
+    return newPoint
+end
+
+export PointPlan

@@ -2,6 +2,8 @@ abstract type Renderers end
 abstract type Algebras end
 abstract type Plans end
 
+algebra(p::Plans)::Algebras = error("Create \"algebra(self)\" func for Plans")
+
 ID_LOWER_BOUND = 3
 
 @kwdef mutable struct QueueLock

@@ -53,6 +53,22 @@ function set(self::Point,x::Float64,y::Float64,z::Float64)
     self._y = y
     self._z = z
     soilOnlyOnce!(self)
+    for item in super(self)._graph
+        callback(item)
+    end
+end
+
+x(self::Point) = return self._x
+y(self::Point) = return self._y
+z(self::Point) = return self._z
+
+
+function callback(self::Point)
+    x,y,z = super(self)._callback(super(self)._dependents...)
+    self._x = Float64(x)
+    self._y = Float64(y)
+    self._z = Float64(z)
+    soilOnlyOnce!(self)
 end
 
 mutable struct SuperRenderer
@@ -197,3 +213,4 @@ function add!(self::PointRenderer,plan::PointPlan)::Point
 end
 
 export PointPlan
+export x,y,z

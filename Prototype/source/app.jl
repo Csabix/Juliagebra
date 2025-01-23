@@ -13,7 +13,7 @@ mutable struct App
     _cam::Camera
 
     function App(
-        name::String="Unnamed Window",
+        name::String="Juliagebra",
         width::Int=1280,
         height::Int=720
         )

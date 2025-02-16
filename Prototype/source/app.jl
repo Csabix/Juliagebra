@@ -8,7 +8,7 @@ mutable struct App
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
     _algebra::AlgebraLogic
-    _plans::Queue{Plans}
+    _plans::Queue{€Plan}
     _peripherals::Peripherals
     _cam::Camera
 
@@ -24,7 +24,7 @@ mutable struct App
         imgui = nothing
         windowCreated = false
         algebra = AlgebraLogic(shrd)
-        plans = Queue{Plans}()
+        plans = Queue{€Plan}()
         peripherals = Peripherals()
         cam = Camera()
         new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
@@ -33,16 +33,16 @@ end
 
 
 
-function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: Plans
+function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: €Plan
     plan = PointPlan(x,y,z,nothing,dependents,callback)
     submit!(app,plan)
     return plan
 end
 
-Point!(x,y,z,app::App) = Point!(x,y,z,Vector{Plans}(), () -> () ,app)
+Point!(x,y,z,app::App) = Point!(x,y,z,Vector{€Plan}(), () -> () ,app)
 
-function submit!(self::App,plan::Plans)
-    enqueue!(self._plans,plan)    
+function submit!(self::App,plan::€Plan)
+    DataStructures.enqueue!(self._plans,plan)    
 end
 
 function handleEvents!(self::App)
@@ -88,7 +88,7 @@ handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_ke
 
 function handlePlans!(self::App)
     while(!isempty(self._plans))
-        asset = recruit!(self._opengl,dequeue!(self._plans))
+        asset = recruit!(self._opengl,DataStructures.dequeue!(self._plans))
         fuse!(self._algebra,asset)
     end
 end

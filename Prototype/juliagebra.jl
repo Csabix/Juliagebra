@@ -16,6 +16,8 @@ using DataStructures
 
 include("source/abstracts.jl")
 
+ID_LOWER_BOUND = 3
+
 include("source/shared_data.jl")
 include("source/glfw_data.jl")
 include("source/peripherals.jl")
@@ -25,6 +27,15 @@ include("source/algebra_logic.jl")
 include("source/opengl_data.jl")
 include("source/imgui_data.jl")
 
+include("source/plans.jl")
+
+include("source/queuelock.jl")
+
+include("source/renderers.jl")
+
+include("source/algebra.jl")
+
+include("source/point.jl")
 
 include("source/base.jl")
 

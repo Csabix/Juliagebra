@@ -2,7 +2,9 @@
 # ! €Algebra
 # ? ---------------------------------
 
-mutable struct Algebra
+mutable struct Algebra <:€QueueLock
+    _queueLock::QueueLock
+    
     _renderer::€Renderer
     _rendererID::Int
 
@@ -18,13 +20,14 @@ mutable struct Algebra
             push!(algebraDependents,_Algebra_(plan))
         end
 
-        new(renderer,rendererID,algebraDependents,Vector{€Algebra}(),callback)
+        new(QueueLock(),renderer,rendererID,algebraDependents,Vector{€Algebra}(),callback)
     end
 
 end
 
 _Algebra_(self::€Algebra)::Algebra = error("Missing \"_Algebra_\" func for instance of €Algebra")
+_QueueLock_(self::€Algebra)::QueueLock = _Algebra_(self)._queueLock
 
-function enqueue!(self::€Algebra)
-    enqueue!(_Algebra_(self)._renderer,self)
+function senqueue!(self::€Algebra)
+    senqueue!(_Algebra_(self)._renderer,self)
 end

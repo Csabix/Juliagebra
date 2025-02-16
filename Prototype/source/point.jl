@@ -30,7 +30,7 @@ function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
     self._y = y
     self._z = z
     
-    enqueue!(self)
+    senqueue!(self)
     
     for item in _Algebra_(self)._graph
         callback(item)
@@ -50,7 +50,7 @@ function callback(self::PointAlgebra)
     self._y = Float64(y)
     self._z = Float64(z)
     
-    enqueue!(self)
+    senqueue!(self)
 end
 
 # ? ---------------------------------
@@ -73,14 +73,13 @@ Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._p
 # ! PointRenderer
 # ? ---------------------------------
 
-mutable struct PointRenderer <:€Renderer
-    _renderer::Renderer
+mutable struct PointRenderer <:€Renderer{PointAlgebra}
+    _renderer::Renderer{PointAlgebra}
 
     _shader::ShaderProgram
     _buffer::BufferArray
     
     _points::Vector{PointAlgebra}
-    _queue::Queue{PointAlgebra}
     _coords::Vector{Vec4F}
 
     _nextRendererID::Int
@@ -89,12 +88,11 @@ mutable struct PointRenderer <:€Renderer
         rp     = pointRelativePath()
         
         shader = ShaderProgram(rp * "Shaders/point.vert",rp * "Shaders/point.frag",["VP","selectedID","pickedID"])
-        renderer = Renderer(context)
+        renderer = Renderer{PointAlgebra}(context)
 
         buffer = BufferArray(Vec4F,GL_DYNAMIC_DRAW)
         
         points = Vector{PointAlgebra}()
-        queue = Queue{PointAlgebra}()
         coords = Vector{Vec4F}()
 
         new(
@@ -102,7 +100,6 @@ mutable struct PointRenderer <:€Renderer
             shader,
             buffer,
             points,
-            queue,
             coords,
             ID_LOWER_BOUND+1)
     end
@@ -112,8 +109,8 @@ _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._points)))"
 
 function update!(self::PointRenderer)
-    while !isempty(self._queue)
-        point = DataStructures.dequeue!(self._queue)
+    while !isempty(self._renderer._algebraQueue)
+        point = sdequeue!(self._renderer._algebraQueue)
         println("Updating point: $(string(point))")
         id = _Algebra_(point)._rendererID
         x = point._x
@@ -141,11 +138,6 @@ function destroy!(self::PointRenderer)
     destroy!(self._buffer)
 end
 
-function enqueue!(self::PointRenderer,item::PointAlgebra)
-    DataStructures.enqueue!(self._queue,item)
-    enqueue!(self)
-end
-
 function add!(self::PointRenderer,plan::PointPlan)::PointAlgebra
     
     newPoint = PointAlgebra(self,self._nextRendererID,plan._plans,plan._callback)
@@ -156,7 +148,7 @@ function add!(self::PointRenderer,plan::PointPlan)::PointAlgebra
     push!(self._coords,Vec4F(0,0,0,0))
     push!(self._points,newPoint)
     
-    enqueue!(newPoint)
+    senqueue!(newPoint)
     
     self._nextRendererID+=1
 

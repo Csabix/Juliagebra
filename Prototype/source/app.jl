@@ -42,7 +42,7 @@ end
 Point!(x,y,z,app::App) = Point!(x,y,z,Vector{€Plan}(), () -> () ,app)
 
 function submit!(self::App,plan::€Plan)
-    DataStructures.enqueue!(self._plans,plan)    
+    enqueue!(self._plans,plan)    
 end
 
 function handleEvents!(self::App)
@@ -88,7 +88,7 @@ handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_ke
 
 function handlePlans!(self::App)
     while(!isempty(self._plans))
-        asset = recruit!(self._opengl,DataStructures.dequeue!(self._plans))
+        asset = recruit!(self._opengl,dequeue!(self._plans))
         fuse!(self._algebra,asset)
     end
 end

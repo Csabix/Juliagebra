@@ -138,8 +138,9 @@ end
 function update!(self::OpenGLData)
     checkErrors(self)
     self._index += 1
+    
     while !isempty(self._updateMeQueue)
-        renderer = dequeue!(self._updateMeQueue)
+        renderer = sdequeue!(self._updateMeQueue)
         println("($(string(self._index))) Updating renderer -> $(string(renderer))")
         update!(renderer)
     end

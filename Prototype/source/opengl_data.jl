@@ -6,8 +6,8 @@ mutable struct OpenGLData
     _shrd::SharedData
 
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
-    _renderOffices::Dict{<:DataType,Vector{<:€Renderer}}
-    _updateMeQueue::Queue{€Renderer}
+    _renderOffices::Dict{<:DataType,Vector{<:RendererDNA}}
+    _updateMeQueue::Queue{RendererDNA}
     
     # ! Shaders
     _combinerShader::ShaderProgram
@@ -68,8 +68,8 @@ mutable struct OpenGLData
         #glDisable(GL_POINT_SMOOTH)
         glEnable(GL_POINT_SPRITE)
 
-        renderOffices = Dict{DataType,Vector{<:€Renderer}}()
-        updateMeQueue = Queue{€Renderer}()
+        renderOffices = Dict{DataType,Vector{<:RendererDNA}}()
+        updateMeQueue = Queue{RendererDNA}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))

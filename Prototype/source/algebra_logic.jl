@@ -1,14 +1,14 @@
 mutable struct AlgebraLogic
     _shrd::SharedData
-    _algebraObjects::Vector{€Algebra}
+    _algebraObjects::Vector{AlgebraDNA}
 
     function AlgebraLogic(shrd::SharedData)
-        new(shrd,Vector{€Algebra}())
+        new(shrd,Vector{AlgebraDNA}())
     end
 
 end
 
-function fuse!(self::AlgebraLogic,asset::T) where T<:€Algebra
+function fuse!(self::AlgebraLogic,asset::T) where T<:AlgebraDNA
     for item in self._algebraObjects
         for d in _Algebra_(asset)._dependents
             if (d in _Algebra_(item)._graph) || d === item

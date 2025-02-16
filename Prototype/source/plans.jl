@@ -1,6 +1,6 @@
 # ? ---------------------------------
-# ! €Plan
+# ! PlanDNA
 # ? ---------------------------------
 
-_Algebra_(self::€Plan)::€Algebra = error("Missing \"_Algebra_\" func for instance of €Plan")
+_Algebra_(self::PlanDNA)::AlgebraDNA = error("Missing \"_Algebra_\" func for instance of PlanDNA")
 

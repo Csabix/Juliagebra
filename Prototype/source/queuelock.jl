@@ -1,16 +1,16 @@
 # ? ---------------------------------
-# ! €QueueLock
+# ! QueueLockDNA
 # ? ---------------------------------
 
 @kwdef mutable struct QueueLock
     _locked::Bool=false
 end
 
-function _QueueLock_(self::T)::QueueLock where T<:€QueueLock
+function _QueueLock_(self::T)::QueueLock where T<:QueueLockDNA
     error("Missing \"_QueueLock_\" func for instance of $(string(typeof(self)))")
 end
 
-function senqueue!(queue::Queue{T}, item::T) where T<:€QueueLock
+function senqueue!(queue::Queue{T}, item::T) where T<:QueueLockDNA
     ql = _QueueLock_(item)
     if(!ql._locked)
         enqueue!(queue,item)
@@ -18,7 +18,7 @@ function senqueue!(queue::Queue{T}, item::T) where T<:€QueueLock
     end
 end
 
-function sdequeue!(queue::Queue{T})::T where T<:€QueueLock
+function sdequeue!(queue::Queue{T})::T where T<:QueueLockDNA
     item = dequeue!(queue)
     ql = _QueueLock_(item)
     ql._locked = false

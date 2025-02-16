@@ -1,4 +1,4 @@
-abstract type €Plan                     end
-abstract type €QueueLock                end
-abstract type €Algebra  <: €QueueLock   end
-abstract type €Renderer{T<:€Algebra} <: €QueueLock   end
+abstract type PlanDNA                                       end
+abstract type QueueLockDNA                                  end
+abstract type AlgebraDNA  <: QueueLockDNA                   end
+abstract type RendererDNA{T<:AlgebraDNA} <: QueueLockDNA    end

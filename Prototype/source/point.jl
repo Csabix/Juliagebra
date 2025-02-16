@@ -10,13 +10,13 @@ end
 # ! PointAlgebra
 # ? ---------------------------------
 
-mutable struct PointAlgebra <:€Algebra
+mutable struct PointAlgebra <:AlgebraDNA
     _algebra::Algebra
     _x::Float64
     _y::Float64
     _z::Float64    
 
-    function PointAlgebra(renderer,rendererID::Int,dependents::Vector{€Plan},callback::Function)
+    function PointAlgebra(renderer,rendererID::Int,dependents::Vector{PlanDNA},callback::Function)
         a = Algebra(renderer,rendererID,dependents,callback)
         new(a,0,0,0)
     end
@@ -57,23 +57,23 @@ end
 # ! PointPlan
 # ? ---------------------------------
 
-mutable struct PointPlan <:€Plan
+mutable struct PointPlan <:PlanDNA
     x::Float64
     y::Float64
     z::Float64
     _algebra::Union{Nothing,PointAlgebra}
-    _plans::Vector{€Plan}
+    _plans::Vector{PlanDNA}
     _callback::Function
 end
 
-_Algebra_(self::PointPlan)::€Algebra = return self._algebra
+_Algebra_(self::PointPlan)::AlgebraDNA = return self._algebra
 Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(self._algebra))"
 
 # ? ---------------------------------
 # ! PointRenderer
 # ? ---------------------------------
 
-mutable struct PointRenderer <:€Renderer{PointAlgebra}
+mutable struct PointRenderer <:RendererDNA{PointAlgebra}
     _renderer::Renderer{PointAlgebra}
 
     _shader::ShaderProgram

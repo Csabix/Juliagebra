@@ -8,7 +8,7 @@ mutable struct App
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
     _algebra::AlgebraLogic
-    _plans::Queue{€Plan}
+    _plans::Queue{PlanDNA}
     _peripherals::Peripherals
     _cam::Camera
 
@@ -24,7 +24,7 @@ mutable struct App
         imgui = nothing
         windowCreated = false
         algebra = AlgebraLogic(shrd)
-        plans = Queue{€Plan}()
+        plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = Camera()
         new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
@@ -33,15 +33,15 @@ end
 
 
 
-function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: €Plan
+function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: PlanDNA
     plan = PointPlan(x,y,z,nothing,dependents,callback)
     submit!(app,plan)
     return plan
 end
 
-Point!(x,y,z,app::App) = Point!(x,y,z,Vector{€Plan}(), () -> () ,app)
+Point!(x,y,z,app::App) = Point!(x,y,z,Vector{PlanDNA}(), () -> () ,app)
 
-function submit!(self::App,plan::€Plan)
+function submit!(self::App,plan::PlanDNA)
     enqueue!(self._plans,plan)    
 end
 

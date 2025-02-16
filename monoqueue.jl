@@ -4,12 +4,12 @@ using DataStructures
     _locked::Bool=false
 end
 
-abstract type €QueueLockAble end
+abstract type QueueLockDNAAble end
 
-_QueueLock_(self::€QueueLockAble)::QueueLock = error("Define _QueueLock_ for children!")
+_QueueLock_(self::QueueLockDNAAble)::QueueLock = error("Define _QueueLock_ for children!")
 
 
-function enqueue!(queue::Queue{T}, item::T) where T<:€QueueLockAble
+function enqueue!(queue::Queue{T}, item::T) where T<:QueueLockDNAAble
     ql = _QueueLock_(item)
     if(!ql._locked)
         DataStructures.enqueue!(queue,item)
@@ -17,14 +17,14 @@ function enqueue!(queue::Queue{T}, item::T) where T<:€QueueLockAble
     end
 end
 
-function dequeue!(queue::Queue{T})::T where T<:€QueueLockAble
+function dequeue!(queue::Queue{T})::T where T<:QueueLockDNAAble
     item = DataStructures.dequeue!(queue)
     ql = _QueueLock_(item)
     ql._locked = false
     return item
 end
 
-abstract type FourWheel <: €QueueLockAble end
+abstract type FourWheel <: QueueLockDNAAble end
 
 mutable struct Car <: FourWheel    
     name::String

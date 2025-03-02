@@ -1,10 +1,4 @@
 
-function pointRelativePath()::String
-    myPath = (@__FILE__)
-    myPath = myPath[1:(length(myPath) - length("point.jl"))]
-    return myPath
-end
-
 
 # ? ---------------------------------
 # ! PointAlgebra
@@ -15,22 +9,23 @@ mutable struct PointAlgebra <:AlgebraDNA
     _x::Float64
     _y::Float64
     _z::Float64    
+    _rendererID::Int
 
     function PointAlgebra(renderer,rendererID::Int,dependents::Vector{PlanDNA},callback::Function)
-        a = Algebra(renderer,rendererID,dependents,callback)
-        new(a,0,0,0)
+        a = Algebra(renderer,dependents,callback)
+        new(a,0,0,0,rendererID)
     end
 end
 
 _Algebra_(self::PointAlgebra)::Algebra = return self._algebra
-Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._rendererID) - $(string(length(_Algebra_(self)._dependents))) - $(string(length(_Algebra_(self)._graph)))]($(self._x),$(self._y),$(self._z))"
+Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._algebraID) - $(string(length(_Algebra_(self)._dependents))) - $(string(length(_Algebra_(self)._graph)))]($(self._x),$(self._y),$(self._z))"
 
 function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
     self._x = x
     self._y = y
     self._z = z
     
-    senqueue!(self)
+    flag!(self)
     
     for item in _Algebra_(self)._graph
         callback(item)
@@ -50,7 +45,7 @@ function callback(self::PointAlgebra)
     self._y = Float64(y)
     self._z = Float64(z)
     
-    senqueue!(self)
+    flag!(self)
 end
 
 # ? ---------------------------------
@@ -61,13 +56,17 @@ mutable struct PointPlan <:PlanDNA
     x::Float64
     y::Float64
     z::Float64
-    _algebra::Union{Nothing,PointAlgebra}
+    _plan::Plan
     _plans::Vector{PlanDNA}
     _callback::Function
+
+    function PointPlan(x,y,z,plans::Vector{T},callback::Function) where {T<:PlanDNA}
+        new(x,y,z,Plan(),plans,callback)
+    end
 end
 
-_Algebra_(self::PointPlan)::AlgebraDNA = return self._algebra
-Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(self._algebra))"
+_Plan_(self::PointPlan)::Plan = return self._plan
+Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._algebra))"
 
 # ? ---------------------------------
 # ! PointRenderer
@@ -77,52 +76,42 @@ mutable struct PointRenderer <:RendererDNA{PointAlgebra}
     _renderer::Renderer{PointAlgebra}
 
     _shader::ShaderProgram
-    _buffer::BufferArray
-    
-    _points::Vector{PointAlgebra}
+    _buffer::BufferArray    
     _coords::Vector{Vec4F}
 
     _nextRendererID::Int
 
     function PointRenderer(context::OpenGLData) 
-        rp     = pointRelativePath()
         
-        shader = ShaderProgram(rp * "Shaders/point.vert",rp * "Shaders/point.frag",["VP","selectedID","pickedID"])
+        shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID"])
         renderer = Renderer{PointAlgebra}(context)
 
         buffer = BufferArray(Vec4F,GL_DYNAMIC_DRAW)
-        
-        points = Vector{PointAlgebra}()
         coords = Vector{Vec4F}()
 
         new(
             renderer,
             shader,
             buffer,
-            points,
             coords,
-            ID_LOWER_BOUND+1)
+            1)
     end
 end
 
 _Renderer_(self::PointRenderer) = return self._renderer
-Base.string(self::PointRenderer) = return "PointRenderer($(length(self._points)))"
+Base.string(self::PointRenderer) = return "PointRenderer($(self._nextRendererID - 1))"
 
-function update!(self::PointRenderer)
-    while !isempty(self._renderer._algebraQueue)
-        point = sdequeue!(self._renderer._algebraQueue)
-        println("Updating point: $(string(point))")
-        id = _Algebra_(point)._rendererID
-        x = point._x
-        y = point._y
-        z = point._z
-        self._coords[id-ID_LOWER_BOUND] = Vec4F(x,y,z,id)
-    end
-    upload!(self._buffer,self._coords)
+function sync!(self::PointRenderer,point::PointAlgebra)
+    println("Syncing point: $(string(point))")
+    id = point._rendererID
+    x = point._x
+    y = point._y
+    z = point._z
+    self._coords[id] = Vec4F(x,y,z,_Algebra_(point)._algebraID)
 end
 
-function fetch(self::PointRenderer, id)
-    return self._points[id-ID_LOWER_BOUND]
+function upload!(self::PointRenderer)
+    upload!(self._buffer,self._coords)
 end
 
 function draw!(self::PointRenderer,vp,selectedID,pickedID) 
@@ -138,22 +127,19 @@ function destroy!(self::PointRenderer)
     destroy!(self._buffer)
 end
 
-function add!(self::PointRenderer,plan::PointPlan)::PointAlgebra
+function plan2Algebra(self::PointRenderer,plan::PointPlan)::PointAlgebra
     
     newPoint = PointAlgebra(self,self._nextRendererID,plan._plans,plan._callback)
     newPoint._x = plan.x
     newPoint._y = plan.y
     newPoint._z = plan.z
 
-    push!(self._coords,Vec4F(0,0,0,0))
-    push!(self._points,newPoint)
-    
-    senqueue!(newPoint)
-    
     self._nextRendererID+=1
-
+    
+    push!(self._coords,Vec4F(0,0,0,0))
     return newPoint
 end
+
 
 function recruit!(self::OpenGLData, plan::PointPlan)::PointAlgebra
     myVector = get!(self._renderOffices,PointRenderer,Vector{PointRenderer}())
@@ -162,10 +148,8 @@ function recruit!(self::OpenGLData, plan::PointPlan)::PointAlgebra
         push!(myVector,PointRenderer(self))
     end
 
-    point = add!(myVector[1],plan)
-    plan._algebra = point
+    point = assignPlan!(myVector[1],plan)
     return point
 end
 
-export PointPlan
 export x,y,z

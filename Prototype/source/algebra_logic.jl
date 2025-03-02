@@ -18,6 +18,11 @@ function fuse!(self::AlgebraLogic,asset::T) where T<:AlgebraDNA
         end
     end
     push!(self._algebraObjects,asset)
+    _Algebra_(asset)._algebraID = length(self._algebraObjects) + ID_LOWER_BOUND
+end
+
+function fetch(self::AlgebraLogic,id::Integer)::AlgebraDNA
+    return self._algebraObjects[id - ID_LOWER_BOUND]
 end
 
 function init!(_loc::AlgebraLogic)

@@ -28,23 +28,20 @@ mutable struct GizmoGL
         green = Vec3F(0.0,1.0,0.0)
         blue  = Vec3F(0.0,0.0,1.0)
         pos   = Vec3F(0.0,0.0,0.0)
-
-        myPath = (@__FILE__)
-        myPath = myPath[1:(length(myPath) - length("gizmo.jl"))]
         
         endShader = ShaderProgram(
-            myPath * "Shaders/gizmo_end.vert",
-            myPath * "Shaders/gizmo_end.frag",
+            sp("gizmo_end.vert"),
+            sp("gizmo_end.frag"),
             ["VP","gizmoCenter","gizmoScale"])
 
         lineShader = ShaderProgram(
-            myPath * "Shaders/gizmo_line.vert",
-            myPath * "Shaders/gizmo_line.frag",
+            sp("gizmo_line.vert"),
+            sp("gizmo_line.frag"),
             ["VP","gizmoCenter","gizmoScale","selectedID"])
         
         debugShader = ShaderProgram(
-            myPath * "Shaders/gizmo_debug.vert",
-            myPath * "Shaders/gizmo_debug.frag"
+            sp("gizmo_debug.vert"),
+            sp("gizmo_debug.frag")
             ,["line"])
 
         debugVecs = Vector{Vec2F}([

@@ -6,28 +6,49 @@ mutable struct Renderer{T<:AlgebraDNA} <:QueueLockDNA
     _context::OpenGLData
     _queueLock::QueueLock
     
+    _algebras::Vector{T}
     _algebraQueue::Queue{T}
     
     function Renderer{T}(context::OpenGLData) where {T<:AlgebraDNA}
-        new{T}(context,QueueLock(),Queue{T}())
+        new{T}(context,QueueLock(),Vector{T}(),Queue{T}())
     end
 end
-
 
 _Renderer_(self::RendererDNA)::Renderer  = error("Missing \"_Renderer_\" func for instance of RendererDNA")
 _QueueLock_(self::RendererDNA)::QueueLock = return _Renderer_(self)._queueLock
 
-update!(self::RendererDNA)                        = error("Missing \"update!\" func for instance of RendererDNA")
+
+function update!(self::RendererDNA)
+    r = _Renderer_(self)
+    
+    while !isempty(r._algebraQueue)
+        algebra = sdequeue!(r._algebraQueue)
+        sync!(self,algebra)
+    end
+    upload!(self)
+end
+
+
+function flag!(self::AlgebraDNA)
+    r = _Algebra_(self)._renderer
+    senqueue!(_Renderer_(r)._algebraQueue,self)
+    senqueue!(_Renderer_(r)._context._updateMeQueue,r)
+end 
+
+
+function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:AlgebraDNA}
+    newAlgebra = plan2Algebra(self,plan)
+    _Plan_(plan)._algebra = newAlgebra
+
+    push!(_Renderer_(self)._algebras,newAlgebra)
+    flag!(newAlgebra)
+    
+    return newAlgebra
+end
+
+
+sync!(self::RendererDNA{T},item::T) where {T<:AlgebraDNA}   = error("Missing func!")
+upload!(self::RendererDNA)                                  = error("Missing func!")
 draw!(self::RendererDNA)                          = error("Missing \"draw!\" func for instance of RendererDNA")
-draw!(self::RendererDNA,vp,selectedID,pickedID)   = error("Missing \"draw!\" func for instance of RendererDNA")
 destroy!(self::RendererDNA)                       = error("Missing \"destroy!\" func for instance of RendererDNA")
-
-function senqueue!(self::RendererDNA{T},algebra::T) where T<:AlgebraDNA
-    senqueue!(_Renderer_(self)._algebraQueue,algebra)
-    senqueue!(self)
-end
-
-function senqueue!(self::RendererDNA)
-    updateMeQueue = _Renderer_(self)._context._updateMeQueue
-    senqueue!(updateMeQueue,self)
-end
+(plan2Algebra(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:AlgebraDNA} = error("Missing func!")

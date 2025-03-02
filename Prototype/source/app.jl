@@ -34,7 +34,7 @@ end
 
 
 function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: PlanDNA
-    plan = PointPlan(x,y,z,nothing,dependents,callback)
+    plan = PointPlan(x,y,z,dependents,callback)
     submit!(app,plan)
     return plan
 end
@@ -141,7 +141,7 @@ function updateGizmo!(self::App)
         self._shrd._pickedID = id
         if(id>3)
             self._shrd._gizmoEnabled = true
-            p = fetch(self._opengl,self._shrd._pickedID)
+            p = fetch(self._algebra,self._shrd._pickedID)
             self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
         else
             self._shrd._gizmoEnabled = false  
@@ -161,7 +161,7 @@ function updateGizmo!(self::App)
             setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                         self._shrd,
                         self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-            p = fetch(self._opengl,self._shrd._pickedID)      
+            p = fetch(self._algebra,self._shrd._pickedID)      
             set(
                 p,
                 Float64(self._opengl._gizmoGL._pos.x),

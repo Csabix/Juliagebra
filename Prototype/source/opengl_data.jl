@@ -37,14 +37,11 @@ mutable struct OpenGLData
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearColor(1.0,0.0,1.0,1.0)
-        
-        myPath = (@__FILE__)
-        myPath = myPath[1:(length(myPath) - length("opengl_data.jl"))]
-        
-        backgroundShader = ShaderProgram(myPath * "Shaders/dflt_bckg.vert", myPath * "Shaders/dflt_bckg.frag",["bCol"])
-        combinerShader = ShaderProgram(myPath * "Shaders/dflt_combiner.vert", myPath * "Shaders/dflt_combiner.frag")
-        bodyShader = ShaderProgram(myPath * "Shaders/body_3D.vert", myPath * "Shaders/body_3D.frag",["VP"])
-        centerShader = ShaderProgram(myPath*"Shaders/center.vert",myPath*"Shaders/center.frag")
+                
+        backgroundShader= ShaderProgram(sp("dflt_bckg.vert")    ,sp("dflt_bckg.frag"),["bCol"])
+        combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"))
+        bodyShader      = ShaderProgram(sp("body_3D.vert")      ,sp("body_3D.frag"),["VP"])
+        centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
 
         mainAttachements = Dict{GLuint,Texture2D}()
         mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
@@ -129,10 +126,6 @@ function readID(self::OpenGLData)
         glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
         self._shrd._selectedID = num[1]
     end
-end
-
-function fetch(self::OpenGLData,id)
-    return fetch(self._renderOffices[PointRenderer][1],id)
 end
 
 function update!(self::OpenGLData)

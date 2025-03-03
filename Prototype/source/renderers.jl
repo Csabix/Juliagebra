@@ -7,10 +7,11 @@ mutable struct Renderer{T<:AlgebraDNA} <:QueueLockDNA
     _queueLock::QueueLock
     
     _algebras::Vector{T}
-    _algebraQueue::Queue{T}
-    
+    _flaggedQueue::Queue{T}
+    _flaggedAsNewQueue::Queue{T}
+
     function Renderer{T}(context::OpenGLData) where {T<:AlgebraDNA}
-        new{T}(context,QueueLock(),Vector{T}(),Queue{T}())
+        new{T}(context,QueueLock(),Vector{T}(),Queue{T}(),Queue{T}())
     end
 end
 
@@ -21,27 +22,40 @@ _QueueLock_(self::RendererDNA)::QueueLock = return _Renderer_(self)._queueLock
 function update!(self::RendererDNA)
     r = _Renderer_(self)
     
-    while !isempty(r._algebraQueue)
-        algebra = sdequeue!(r._algebraQueue)
+    if !isempty(r._flaggedAsNewQueue)
+        while !isempty(r._flaggedAsNewQueue)
+            algebra = sdequeue!(r._flaggedAsNewQueue)
+            added!(self,algebra)
+        end
+        addedUpload!(self)
+    end
+    
+    while !isempty(r._flaggedQueue)
+        algebra = sdequeue!(r._flaggedQueue)
         sync!(self,algebra)
     end
-    upload!(self)
+    syncUpload!(self)
 end
 
 
 function flag!(self::AlgebraDNA)
     r = _Algebra_(self)._renderer
-    senqueue!(_Renderer_(r)._algebraQueue,self)
+    senqueue!(_Renderer_(r)._flaggedQueue,self)
     senqueue!(_Renderer_(r)._context._updateMeQueue,r)
 end 
 
+function flagAsNew!(self::AlgebraDNA)
+    r = _Algebra_(self)._renderer
+    senqueue!(_Renderer_(r)._flaggedAsNewQueue,self)
+    senqueue!(_Renderer_(r)._context._updateMeQueue,r)
+end
 
 function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:AlgebraDNA}
     newAlgebra = plan2Algebra(self,plan)
     _Plan_(plan)._algebra = newAlgebra
 
     push!(_Renderer_(self)._algebras,newAlgebra)
-    flag!(newAlgebra)
+    flagAsNew!(newAlgebra)
     
     return newAlgebra
 end

@@ -1,3 +1,6 @@
+# ? ---------------------------------
+# ! BufferArray
+# ? ---------------------------------
 
 draw(mode::GLuint,length::Real) = glDrawArrays(mode,0,length)
 
@@ -23,6 +26,40 @@ upload!(self::BufferArray,data::Vector) = (self._numOfItems=length(data);upload!
 
 draw(self::BufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,self._numOfItems))
 destroy!(self::BufferArray) = (destroy!(self._vertexArray);destroy!(self._buffer))
+
+# ? ---------------------------------
+# ! TypedBufferArray
+# ? ---------------------------------
+
+mutable struct TypedBufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{TypedBuffer}}}
+    
+    _typedBuffers::T
+    _vertexArray::VertexArray
+
+    function TypedBufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
+        
+        buffers = Vector{TypedBuffer}()
+        for type in T.parameters
+            push!(buffers,TypedBuffer{type}())
+        end
+        buffers = Tuple(buffers)
+
+        vertexArray = VertexArray(buffers)
+
+        new{typeof(buffers)}(buffers,vertexArray)
+    end
+end
+
+function destroy!(self::TypedBufferArray)
+    destroy!(self._vertexArray)
+    for buffer in self._typedBuffers
+        destroy!(buffer)
+    end
+end
+
+Base.length(self::TypedBufferArray)::Int = return length(self._typedBuffers[1])
+draw(self::TypedBufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,length(self)))
+upload!(self::TypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffers[index],data,usage)
 
 
 

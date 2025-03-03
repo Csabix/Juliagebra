@@ -11,9 +11,9 @@ mutable struct PointAlgebra <:AlgebraDNA
     _z::Float64    
     _rendererID::Int
 
-    function PointAlgebra(renderer,rendererID::Int,dependents::Vector{PlanDNA},callback::Function)
+    function PointAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function)
         a = Algebra(renderer,dependents,callback)
-        new(a,0,0,0,rendererID)
+        new(a,0,0,0,0)
     end
 end
 
@@ -76,9 +76,10 @@ mutable struct PointRenderer <:RendererDNA{PointAlgebra}
     _renderer::Renderer{PointAlgebra}
 
     _shader::ShaderProgram
-    _buffer::BufferArray    
-    _coords::Vector{Vec4F}
-
+    _buffer::TypedBufferArray    
+    _coords::Vector{Vec3F}
+    _ids::Vector{Float32}
+    
     _nextRendererID::Int
 
     function PointRenderer(context::OpenGLData) 
@@ -86,14 +87,16 @@ mutable struct PointRenderer <:RendererDNA{PointAlgebra}
         shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID"])
         renderer = Renderer{PointAlgebra}(context)
 
-        buffer = BufferArray(Vec4F,GL_DYNAMIC_DRAW)
-        coords = Vector{Vec4F}()
+        buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
+        coords = Vector{Vec3F}()
+        ids    = Vector{Float32}()
 
         new(
             renderer,
             shader,
             buffer,
             coords,
+            ids,
             1)
     end
 end
@@ -101,17 +104,39 @@ end
 _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(self._nextRendererID - 1))"
 
+function added!(self::PointRenderer,point::PointAlgebra)
+    
+    point._rendererID = self._nextRendererID
+    self._nextRendererID+=1
+
+    x   = point._x
+    y   = point._y
+    z   = point._z
+    aID = _Algebra_(point)._algebraID
+
+    push!(self._coords,Vec3F(x,y,z))
+    push!(self._ids,Float32(aID))
+
+    println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(point._rendererID)\taID: $(aID)")
+end
+
+function addedUpload!(self::PointRenderer)
+    upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
+    println("Uploaded ID buffer!")
+end
+
 function sync!(self::PointRenderer,point::PointAlgebra)
-    println("Syncing point: $(string(point))")
     id = point._rendererID
     x = point._x
     y = point._y
     z = point._z
-    self._coords[id] = Vec4F(x,y,z,_Algebra_(point)._algebraID)
+    self._coords[id] = Vec3F(x,y,z)
+    println("Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)")
 end
 
-function upload!(self::PointRenderer)
-    upload!(self._buffer,self._coords)
+function syncUpload!(self::PointRenderer)
+    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    println("Uploaded Coordinate buffer!")
 end
 
 function draw!(self::PointRenderer,vp,selectedID,pickedID) 
@@ -129,14 +154,11 @@ end
 
 function plan2Algebra(self::PointRenderer,plan::PointPlan)::PointAlgebra
     
-    newPoint = PointAlgebra(self,self._nextRendererID,plan._plans,plan._callback)
+    newPoint = PointAlgebra(self,plan._plans,plan._callback)
     newPoint._x = plan.x
     newPoint._y = plan.y
     newPoint._z = plan.z
 
-    self._nextRendererID+=1
-    
-    push!(self._coords,Vec4F(0,0,0,0))
     return newPoint
 end
 

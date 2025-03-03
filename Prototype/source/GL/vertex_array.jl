@@ -1,7 +1,9 @@
+# ? ---------------------------------
+# ! VertexArray
+# ? ---------------------------------
+
 mutable struct VertexArray <: OpenGLWrapper
     _id::GLuint
-    _itemType::DataType
-    # VertexArray() = glObjGenDel!(new(0),glGenVertexArrays,glDeleteVertexArrays);
     
     function VertexArray(itemType::DataType)
         id = Ref{GLuint}(0)
@@ -11,6 +13,30 @@ mutable struct VertexArray <: OpenGLWrapper
         
         activate(self)
         _vertexAttribs(itemType)
+        return self
+    end
+
+    function VertexArray(buffers::Tuple{Vararg{TypedBuffer}})
+        id = Ref{GLuint}(0)
+        glGenVertexArrays(1,id)
+        id = id[]
+        self = new(id)
+
+        activate(self)
+
+        stride = 0
+        for buffer in buffers
+            stride += tSize(buffer)
+        end
+
+        index = 0
+        offset = UInt(0)
+        for buffer in buffers
+            offset += _vertexAttribs(index,buffer,stride,offset)
+            index += 1
+        end
+        deactivate(buffers[1])
+
         return self
     end
 end
@@ -58,8 +84,9 @@ function _vertexAttrib(index::Int, atype::DataType, stride::Int = sizeof(atype),
     type::GLenum = JuliaType2OpenGL[elem]                       # dictionary
     normalized::GLenum = elem <: Integer ? GL_TRUE : GL_FALSE   # normalized by default
     glEnableVertexAttribArray(GLuint(index))
-    #stride needs to be converted into GLsizei type | pointer to offset (where the pointer doesnt know tha data it's reffering to, hence why Nothing is passed)
+    #stride needs to be converted into GLsizei type | pointer to offset (where the pointer doesnt know tha data it's reffering to, hence why Nothing is passed)    
     glVertexAttribPointer(GLuint(index),size,type,normalized,GLsizei(stride),Ptr{Nothing}(offset))
+    
     #println("\tglVertexAttribPointer(index=$index,size=$size,type=$type,normalized=$normalized,stride=$stride,offset=$offset)");
 end
 
@@ -81,4 +108,10 @@ function _vertexAttribs(vtype::DataType,index::Int = 0)
             _vertexAttrib(i-1 + index,ltypes[i],stride,UInt(fieldoffset(vtype,i)))
         end
     end
+end
+
+function _vertexAttribs(index::Int,buffer::TypedBuffer{T},stride::Int,offset::UInt)::UInt where {T<:Union{StaticArray,Real}}
+    activate(buffer)
+    _vertexAttrib(index,T)
+    return UInt(sizeof(T))
 end

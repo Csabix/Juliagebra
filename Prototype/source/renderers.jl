@@ -60,9 +60,11 @@ function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:AlgebraDNA
     return newAlgebra
 end
 
-
+added!(self::RendererDNA{T},item::T) where {T<:AlgebraDNA}  = error("Missing func!")
+addedUpload!(self::RendererDNA)                             = error("Missing func!")
 sync!(self::RendererDNA{T},item::T) where {T<:AlgebraDNA}   = error("Missing func!")
-upload!(self::RendererDNA)                                  = error("Missing func!")
-draw!(self::RendererDNA)                          = error("Missing \"draw!\" func for instance of RendererDNA")
+syncUpload!(self::RendererDNA)                              = error("Missing func!")
+draw!(self::RendererDNA,vp,selectedID,pickedID)             = error("Missing func!")
 destroy!(self::RendererDNA)                       = error("Missing \"destroy!\" func for instance of RendererDNA")
 (plan2Algebra(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:AlgebraDNA} = error("Missing func!")
+recruit!(self::OpenGLData, plan::PlanDNA)::AlgebraDNA       = error("Missing func!")

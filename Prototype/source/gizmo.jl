@@ -111,6 +111,7 @@ function draw(self::GizmoGL,vp::Mat4T,camPos::Vec3F,gID::UInt32)
     
     gs = norm(camPos - self._pos) * self._size
     
+    glLineWidth(15.0)
     glClear(GL_DEPTH_BUFFER_BIT)
 
     activate(self._lineShader)

@@ -39,6 +39,8 @@ include("source/algebra.jl")
 
 include("source/point.jl")
 
+include("source/curve.jl")
+
 include("source/base.jl")
 
 include("source/app.jl")

@@ -41,6 +41,14 @@ end
 
 Point!(x,y,z,app::App) = Point!(x,y,z,Vector{PlanDNA}(), () -> () ,app)
 
+function ParametricCurve!(tStart,tEnd,tNum,dependents::Vector{T}, callback::Function, app::App)::ParametricCurvePlan where T <: PlanDNA
+    plan = ParametricCurvePlan(tStart,tEnd,tNum,dependents,callback)
+    submit!(app,plan)
+    return plan
+end
+
+ParametricCurve!(tStart,tEnd,tNum,callback::Function, app::App)::ParametricCurvePlan = ParametricCurve!(tStart,tEnd,tNum,Vector{PlanDNA}(),callback,app)
+
 function submit!(self::App,plan::PlanDNA)
     enqueue!(self._plans,plan)    
 end
@@ -225,6 +233,5 @@ end
 
 export App
 export play!
-export submit!
 export Point!
-
+export ParametricCurve!

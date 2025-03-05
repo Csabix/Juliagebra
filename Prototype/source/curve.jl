@@ -24,6 +24,10 @@ end
 _Algebra_(self::ParametricCurveAlgebra)::Algebra = return self._algebra
 
 function _callback(self::ParametricCurveAlgebra)
+    
+    # TODO broadcasttal megoldva (mint numpyban).
+    # TODO indexeket 1 tömbbe
+
     for index in self._startIndex:self._endIndex
         t1 = Float64(index - self._startIndex)
         t2 = Float64(self._endIndex - self._startIndex)

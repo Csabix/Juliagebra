@@ -17,6 +17,10 @@ function spiral(t,p1)
     return (xx,yy,zz)
 end
 
+# TODO függvény az elején, hogy inline lehessen megadni: fv do ... end
+# TODO [0,1] a default, 50 lecserélése valami konstansra
+# TODO context kivétele
+
 crv1 = ParametricCurve!(0,tMax,50,[Center],spiral,context)
 
 play!(context)

@@ -1,5 +1,7 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
 
+global implicitApp = nothing
+
 mutable struct App
 
     _shrd::SharedData
@@ -27,27 +29,13 @@ mutable struct App
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = Camera()
-        new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
+        self = new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
+
+        global implicitApp
+        implicitApp = self
+        return self
     end
 end
-
-
-
-function Point!(x, y, z,dependents::Vector{T}, callback::Function, app::App)::PointPlan where T <: PlanDNA
-    plan = PointPlan(x,y,z,dependents,callback)
-    submit!(app,plan)
-    return plan
-end
-
-Point!(x,y,z,app::App) = Point!(x,y,z,Vector{PlanDNA}(), () -> () ,app)
-
-function ParametricCurve!(tStart,tEnd,tNum,dependents::Vector{T}, callback::Function, app::App)::ParametricCurvePlan where T <: PlanDNA
-    plan = ParametricCurvePlan(tStart,tEnd,tNum,dependents,callback)
-    submit!(app,plan)
-    return plan
-end
-
-ParametricCurve!(tStart,tEnd,tNum,callback::Function, app::App)::ParametricCurvePlan = ParametricCurve!(tStart,tEnd,tNum,Vector{PlanDNA}(),callback,app)
 
 function submit!(self::App,plan::PlanDNA)
     enqueue!(self._plans,plan)    
@@ -205,6 +193,8 @@ function play!(self::App)
     
 end
 
+play!() = play!(implicitApp)
+
 function init!(self::App)
     if self._windowCreated
         error("Window is already created, can't init! again.")
@@ -233,5 +223,3 @@ end
 
 export App
 export play!
-export Point!
-export ParametricCurve!

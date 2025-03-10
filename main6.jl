@@ -1,15 +1,14 @@
 include("Prototype/juliagebra.jl")
 using .JuliAgebra
 
-context = App()
+App()
 
-Center = Point!(0,0,0,context)
+Center = Point(0,0,0)
 
 tMax = (2*pi)*5
 radius = 5
 
-
-function spiral(t,p1)    
+crv1 = ParametricCurve(0,tMax,[Center]) do t,p1
     xx = cos(t) * radius
     yy = sin(t) * radius
     zz = z(p1) * (t/tMax)
@@ -17,10 +16,4 @@ function spiral(t,p1)
     return (xx,yy,zz)
 end
 
-# TODO függvény az elején, hogy inline lehessen megadni: fv do ... end
-# TODO [0,1] a default, 50 lecserélése valami konstansra
-# TODO context kivétele
-
-crv1 = ParametricCurve!(0,tMax,50,[Center],spiral,context)
-
-play!(context)
+play!()

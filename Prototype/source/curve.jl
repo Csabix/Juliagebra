@@ -79,7 +79,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveAlgebra}
         
         renderer = Renderer{ParametricCurveAlgebra}(context)
 
-        shader = ShaderProgram(sp("curve.vert"),sp("curve.frag"),["VP"])
+        shader = ShaderProgram(sp("rounded_curve.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["VP"])
         buffer = TypedBufferArray{Tuple{Vec3F}}()
 
         coords = Vector{Vec3F}()
@@ -125,7 +125,6 @@ end
 
 function draw!(self::CurveRenderer,vp,selectedID,pickedID)
     activate(self._shader)
-    glLineWidth(15.0)
     setUniform!(self._shader,"VP",vp)
     draw(self._buffer,GL_LINE_STRIP)
 end

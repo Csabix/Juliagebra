@@ -55,6 +55,9 @@ ParametricCurve(tStart,tEnd,tNum,dependents,callback,app)
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT,app::App)::ParametricCurvePlan = 
 ParametricCurve(tStart,tEnd,CURVE_DETAIL_LEVEL,dependents,callback,app)
 
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
+ParametricCurve(callback,tStart,tEnd,tNum,dependents,implicitApp)
+
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT)::ParametricCurvePlan =
 ParametricCurve(callback,tStart,tEnd,dependents,implicitApp)
 

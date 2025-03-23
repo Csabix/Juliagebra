@@ -10,7 +10,7 @@ function circle(radius,t)
     return (x,y,z)
 end
 
-crv1 = ParametricCurve!(0,2*pi,5, t -> circle(5.0,t),context)
-crv2 = ParametricCurve!(0,2*pi,5, t -> circle(10.0,t),context)
+crv1 = ParametricCurve(0,2*pi,5, t -> circle(5.0,t),context)
+crv2 = ParametricCurve(0,2*pi,5, t -> circle(10.0,t),context)
 
 play!(context)

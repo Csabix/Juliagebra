@@ -179,7 +179,7 @@ function play!(self::App)
         updateCam!(self)
         
         update!(self._algebra)
-        update!(self._opengl)
+        update!(self._opengl,self._cam)
         update!(self._imgui,self._opengl,self._algebra,self._cam)
         update!(self._shrd)
         updateGizmo!(self)

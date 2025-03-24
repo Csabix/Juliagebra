@@ -88,3 +88,19 @@ function getMat(self::Camera,width,height)
     return p * l,l,p
 end
 
+function getMat(self::Camera,width,height,zoom)
+    
+    lr = deg2rad(self._leftRightRot)
+    ud = deg2rad(self._upDownRot)
+
+    x = cos(lr)*sin(ud)
+    y = sin(lr)*sin(ud)
+    z = cos(ud)
+    dv = Vec3F(x,y,z)       
+                        
+    self._eye = dv * -(exp(zoom)-1.0)
+
+    p = perspective(deg2rad(self._fov),Float32(width/height),self._zNear,self._zFar)
+    l = lookat(self._eye,Vec3F(0,0,0),self._up)
+    return p * l,l,p
+end

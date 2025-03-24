@@ -24,6 +24,8 @@ mutable struct OpenGLData
     _dummyBufferArray::BufferArray
     _centerBufferArray::BufferArray
     _gizmoGL::GizmoGL
+    _orthoGizmoGL::OrthoGizmoGL
+
 
     _index :: Int
 
@@ -52,6 +54,7 @@ mutable struct OpenGLData
         dummyBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,getAPlane())
         centerBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
         gizmoGL = GizmoGL()
+        orthoGizmoGL = OrthoGizmoGL()
 
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
@@ -79,7 +82,7 @@ mutable struct OpenGLData
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
-            dummyBufferArray,centerBufferArray,gizmoGL,
+            dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             0,
             Vec3(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -128,7 +131,7 @@ function readID(self::OpenGLData)
     end
 end
 
-function update!(self::OpenGLData)
+function update!(self::OpenGLData,cam::Camera)
     checkErrors(self)
     self._index += 1
     
@@ -161,6 +164,7 @@ function update!(self::OpenGLData)
         draw(self._gizmoGL,self._vp,self._camPos,self._shrd._selectedGizmo)
     end
     
+    draw(self._orthoGizmoGL,cam,self._shrd._width,self._shrd._height)
 
     readID(self)
     #activate(self._centerShader)

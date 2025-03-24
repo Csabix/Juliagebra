@@ -4,3 +4,5 @@ function sp(shaderFileName::String)::String
     path = path * "Shaders/$(shaderFileName)"
     return path
 end
+
+Vec3FNan = Vec3F(NaN32,NaN32,NaN32)

@@ -8,4 +8,6 @@ out vec4 color;
 
 void main(){
     color = texture(screenTexture,textureCoord);
+    // TODO: id alapján itt színezni
+    // TODO: hoverID, selectedID
 }

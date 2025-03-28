@@ -79,7 +79,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveAlgebra}
         
         renderer = Renderer{ParametricCurveAlgebra}(context)
 
-        shader = ShaderProgram(sp("rounded_curve.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["VP"])
+        shader = ShaderProgram(sp("rounded_curve.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["V","P"])
         buffer = TypedBufferArray{Tuple{Vec3F}}()
 
         coords = Vector{Vec3F}()
@@ -123,9 +123,12 @@ function syncUpload!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
 end
 
-function draw!(self::CurveRenderer,vp,selectedID,pickedID)
+function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
+    vp,v,p = getMat(cam,shrd._width,shrd._height)
+    
     activate(self._shader)
-    setUniform!(self._shader,"VP",vp)
+    setUniform!(self._shader,"V",v)
+    setUniform!(self._shader,"P",p)
     draw(self._buffer,GL_LINE_STRIP)
 end
 

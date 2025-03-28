@@ -156,7 +156,7 @@ function update!(self::OpenGLData,cam::Camera)
     
     for (_,office) in self._renderOffices
         for renderer in office
-            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID)
+            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
     end
 

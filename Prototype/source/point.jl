@@ -139,7 +139,7 @@ function syncUpload!(self::PointRenderer)
     println("Uploaded Coordinate buffer!")
 end
 
-function draw!(self::PointRenderer,vp,selectedID,pickedID) 
+function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd) 
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"selectedID",selectedID)

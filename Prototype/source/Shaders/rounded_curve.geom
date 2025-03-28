@@ -23,45 +23,49 @@ uniform vec3 bColor = vec3(1.0,1.0,0.0);
 uniform mat4 V;
 uniform mat4 P;
 
+#define LVT vec2
+
 struct LineVecs{
-    vec2 fromPos;
-    vec2 toPos;
-    vec2 up;
-    vec2 right;
+    LVT fromPos;
+    LVT toPos;
+    LVT up;
+    LVT right;
+};
+
+#define CVT vec2
+
+struct CornerVecs{
+    CVT bo_le;
+    CVT bo_ri;
+    CVT up_le;
+    CVT up_ri;
 };
 
 LineVecs calcLineVecs(vec4 from, vec4 to){
     
-    vec2 fromPos = vec2(from.xy/from.w);
-    vec2 toPos   = vec2(to.xy/to.w);
+    LVT fromPos = LVT(from.xy/from.w);
+    LVT toPos   = LVT(to.xy/to.w);
     
-    vec2  fromToVec           = toPos - fromPos;
-    float fromToVecLength     = length(fromToVec);    
-    vec2  fromToVecNormalized = normalize(fromToVec);
-    vec2  upVec               = vec2(-fromToVecNormalized.y,fromToVecNormalized.x);
-    vec2  up                  = lineWidth*upVec;
-    vec2  right               = lineWidth*fromToVecNormalized;
+    LVT  fromToVec           = toPos - fromPos;
+    float fromToVecLength    = length(fromToVec);    
+    LVT  fromToVecNormalized = normalize(fromToVec);
+    LVT  upVec               = LVT(-fromToVecNormalized.y,fromToVecNormalized.x);
+    LVT  up                  = lineWidth*upVec;
+    LVT  right               = lineWidth*fromToVecNormalized;
 
     return LineVecs(fromPos,toPos,up,right);
 }
 
-struct CornerVecs{
-    vec2 bo_le;
-    vec2 bo_ri;
-    vec2 up_le;
-    vec2 up_ri;
-};
-
 CornerVecs calcCornerVecs(LineVecs lv){
-    vec2 bo_le  = lv.fromPos  - lv.up - lv.right;    
-    vec2 bo_ri  = lv.toPos    - lv.up + lv.right;
-    vec2 up_le  = lv.fromPos  + lv.up - lv.right;
-    vec2 up_ri  = lv.toPos    + lv.up + lv.right;
+    CVT bo_le  = lv.fromPos  - lv.up - lv.right;    
+    CVT bo_ri  = lv.toPos    - lv.up + lv.right;
+    CVT up_le  = lv.fromPos  + lv.up - lv.right;
+    CVT up_ri  = lv.toPos    + lv.up + lv.right;
 
     return CornerVecs(bo_le,bo_ri,up_le,up_ri);
 }
 
-vec4 finalCalc(vec2 corner, vec4 og){
+vec4 finalCalc(CVT corner, vec4 og){
     return vec4(corner*og.w,og.zw);
 }
 

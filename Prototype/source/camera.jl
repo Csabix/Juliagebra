@@ -1,7 +1,7 @@
 @kwdef mutable struct Camera
     _fov::Float32 = 50.0
     _zNear::Float32 = 0.01
-    _zFar::Float32 = 999999.0
+    _zFar::Float32 = 999.0
     _eye::Vec3F= Vec3F(0.0,-5.0,0.0)
     _at::Vec3F = Vec3F(0.0,0.0,0.0)
     _up::Vec3F = Vec3F(0.0,0.0,1.0)

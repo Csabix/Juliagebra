@@ -16,7 +16,7 @@ mutable struct OrthoGizmoGL
             sp("ortho_gizmo.vert"),
             sp("rounded_curve.geom"),
             sp("rounded_curve.frag"),
-            ["V","P"])
+            ["VP"])
 
         lineBuffer = TypedBufferArray{Tuple{Vec3F,Vec3F}}()
         
@@ -42,7 +42,7 @@ end
 function draw(self::OrthoGizmoGL,cam::Camera,width,height)
     vp,v,p = getMat(cam,width,height,3)
     activate(self._lineShader)
-    # ! setUniform!(self._lineShader,"VP",vp)
+    setUniform!(self._lineShader,"VP",vp)
     draw(self._lineBuffer,GL_LINE_STRIP)
 end
 

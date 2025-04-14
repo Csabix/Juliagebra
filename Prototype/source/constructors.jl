@@ -21,6 +21,9 @@ Point(x,y,z,Vector{PlanDNA}(), () -> () ,app)
 Point(x::Real,y::Real,z::Real) = 
 Point(x,y,z,implicitApp)
 
+Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT) = 
+Point(x,y,z,dependents,callback,implicitApp)
+
 Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT,app::App) = 
 Point(x,y,z,dependents,callback,app)
 
@@ -64,5 +67,19 @@ ParametricCurve(callback,tStart,tEnd,dependents,implicitApp)
 ParametricCurve(callback::Function,dependents::DependentsT,app::App)::ParametricCurvePlan = 
 ParametricCurve(CURVE_DEFULT_START,CURVE_DEFULT_END,CURVE_DETAIL_LEVEL,dependents,callback,app)
 
+# ? ---------------------------------
+# ! Segment
+# ? ---------------------------------
+
+function Segment(fst::PointPlan,snd::PointPlan)::ParametricCurvePlan
+    return ParametricCurve(0,1,2,[fst,snd]) do t,a,b
+        xx = t * x(a) + (1-t) * x(b) 
+        yy = t * y(a) + (1-t) * y(b)
+        zz = t * z(a) + (1-t) * z(b)
+        return (xx,yy,zz)
+    end
+end
+
 export Point
 export ParametricCurve
+export Segment

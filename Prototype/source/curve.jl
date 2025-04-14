@@ -21,6 +21,7 @@ mutable struct ParametricCurveAlgebra <: AlgebraDNA
     end
 end
 
+Base.string(self::ParametricCurveAlgebra)::String =  return "ParametricCurve: $(self._startIndex) - $(self._endIndex) - $(self._tNum)"
 _Algebra_(self::ParametricCurveAlgebra)::Algebra = return self._algebra
 
 function _callback(self::ParametricCurveAlgebra)

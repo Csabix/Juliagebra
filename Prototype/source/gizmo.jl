@@ -1,142 +1,66 @@
 mutable struct GizmoGL     
-    # ! Shaders:
-    _endShader::ShaderProgram
     _lineShader::ShaderProgram
-    _debugShader::ShaderProgram
-
-    # ! BufferArrays:
-    _endBuffer::BufferArray
-    _lineBuffer::BufferArray
-    _debugBuffer::BufferArray
-    _debugLineBuffer::BufferArray
-
+    _lineBuffer::TypedBufferArray
+    
+    _id2Axis::Vector
+    
     _pos::Vec3F
     _size::Float32
 
-    _red::Vec3F
-    _green::Vec3F
-    _blue::Vec3F
-    
-    _idToAxis::Vector
-    _debugVec::Vector
-    _debugLineVec::Vector
-
-
     function GizmoGL()
-        
-        red   = Vec3F(1.0,0.0,0.0)
-        green = Vec3F(0.0,1.0,0.0)
-        blue  = Vec3F(0.0,0.0,1.0)
-        pos   = Vec3F(0.0,0.0,0.0)
-        
-        endShader = ShaderProgram(
-            sp("gizmo_end.vert"),
-            sp("gizmo_end.frag"),
-            ["VP","gizmoCenter","gizmoScale"])
-
         lineShader = ShaderProgram(
-            sp("gizmo_line.vert"),
-            sp("gizmo_line.frag"),
-            ["VP","gizmoCenter","gizmoScale","selectedID"])
+            sp("move_gizmo.vert"),
+            sp("rounded_curve.geom"),
+            sp("rounded_curve.frag"),
+            ["VP","gizmoCenter","gizmoScale","selectedID","nanVal"])
         
-        debugShader = ShaderProgram(
-            sp("gizmo_debug.vert"),
-            sp("gizmo_debug.frag")
-            ,["line"])
+        lineBuffer = TypedBufferArray{Tuple{Vec3F,Vec3F,Float32}}()
 
-        debugVecs = Vector{Vec2F}([
-            Vec2F(0.0,0.0),
-            Vec2F(0.0,0.0),
-            Vec2F(0.0,0.0),
-            Vec2F(0.0,0.0)
+        linePosVec = Vector{Vec3F}([
+            Vec3F(1,0,0),Vec3F(-1,0,0),Vec3FNan,
+            Vec3F(0,1,0),Vec3F(0,-1,0),Vec3FNan,
+            Vec3F(0,0,1),Vec3F(0,0,-1)
+        ])
+        
+        lineColVec = Vector{Vec3F}([
+            Vec3F(1,0,0),Vec3F(1,0,0),Vec3FNan,
+            Vec3F(0,1,0),Vec3F(0,1,0),Vec3FNan,
+            Vec3F(0,0,1),Vec3F(0,0,1)
+        ])
+        
+        lineIDVec = Vector{Float32}([
+            Float32(1),Float32(1),NaN32,
+            Float32(2),Float32(2),NaN32,
+            Float32(3),Float32(3)
         ])
 
-        debugLineVecs = Vector{Vec2F}([
-            Vec2F(0.0,0.0),
-            Vec2F(0.0,0.0),
-            Vec2F(0.0,0.0),
-            Vec2F(0.0,0.0)
-        ])
+        id2Axis = [Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1)]
 
-        debugBuffer = BufferArray(
-            Vec2F,
-            GL_DYNAMIC_DRAW,
-            debugVecs
-        )
-
-        debugLineBuffer = BufferArray(
-            Vec2F,
-            GL_DYNAMIC_DRAW,
-            debugLineVecs
-        )
-
-        endVecs = Vector{Vec3F}([
-            red,
-            green,
-            blue])
-
-        endBuffer = BufferArray(
-            Vec3F,
-            GL_STATIC_DRAW,
-            endVecs)
-
-        lineVecs = Vector{Vec3F}([
-            pos,red,
-            pos,-red,
-            pos,green,
-            pos,-green,
-            pos,blue,
-            pos,-blue])
-
-        lineBuffer = BufferArray(
-            Vec3F,
-            GL_STATIC_DRAW,
-            lineVecs)
+        upload!(lineBuffer,1,linePosVec,GL_STATIC_DRAW)
+        upload!(lineBuffer,2,lineColVec,GL_STATIC_DRAW)
+        upload!(lineBuffer,3,lineIDVec,GL_STATIC_DRAW)
         
-        
-        size = 0.1
+        activate(lineShader)
+        setUniform!(lineShader,"nanVal",NaN32) 
 
-        glLineWidth(15.0)
-
-        new(endShader,lineShader,debugShader,
-            endBuffer,lineBuffer,debugBuffer,debugLineBuffer,
-            pos,size,
-            red,green,blue,
-            [red,green,blue],
-            debugVecs,debugLineVecs)
+        new(lineShader,lineBuffer,
+            id2Axis,
+            Vec3F(0.0,0.0,0.0),0.085)
     end
 end
 
-function draw(self::GizmoGL,vp::Mat4T,camPos::Vec3F,gID::UInt32)
+function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
     
-    gs = norm(camPos - self._pos) * self._size
-    
-    glLineWidth(15.0)
-    glClear(GL_DEPTH_BUFFER_BIT)
+    gs = Float32((exp(cam._zoom)-1.0) * self._size)
 
+    glClear(GL_DEPTH_BUFFER_BIT)
     activate(self._lineShader)
-    setUniform!(self._lineShader,"VP",vp)  
+    setUniform!(self._lineShader,"VP",vp)
+
     setUniform!(self._lineShader,"gizmoCenter",self._pos)
     setUniform!(self._lineShader,"gizmoScale",gs)
     setUniform!(self._lineShader,"selectedID",gID)
-    draw(self._lineBuffer,GL_LINES)
-
-    #glClear(GL_DEPTH_BUFFER_BIT)
-
-    #activate(self._endShader)
-    #setUniform!(self._endShader,"VP",vp)
-    #setUniform!(self._endShader,"gizmoCenter",self._pos)
-    #setUniform!(self._endShader,"gizmoScale",gs)
-    #draw(self._endBuffer,GL_POINTS)
-
-    #activate(self._debugShader)
-    #
-    #draw(self._debugBuffer,GL_POINTS)
-    #
-    #setUniform!(self._debugShader,"line",Float32(1.0))
-    #draw(self._debugLineBuffer,GL_LINES)
-    #setUniform!(self._debugShader,"line",Float32(0.0))
-
+    draw(self._lineBuffer,GL_LINE_STRIP)
 end
 
 function _getAxisClampedT(axis::Vec2F,mouse::Vec2F)::Float32
@@ -167,35 +91,9 @@ end
 function _getAxisClampedT(self::GizmoGL,axis::Vec3F,origin::Vec3F,mouse::Vec2F,vp::Mat4T,shrd::SharedData)::Float32
     
     screenOrigin,screenAxis,screenMouse = screenVecs(origin,axis,mouse,shrd,vp)
-    
-    #screenOrigin = vp * Vec4F(origin,1.0)
-    #screenOrigin = _screen24(screenOrigin,shrd)
-    #
-    #screenAxis = vp * Vec4F(axis,1.0)
-    #screenAxis = _screen24(screenAxis,shrd)
-    #
-    #screenMouse = Vec2F((mouse.x/shrd._width)*2-1,(mouse.y/shrd._height)*2-1)
-    #screenMouse = screenMouse
-
     t = _getAxisClampedT(screenAxis-screenOrigin,screenMouse-screenOrigin)
 
     clampedStuff = screenOrigin + (screenAxis-screenOrigin)*t
-
-    #
-    #self._debugVec[1] = screenOrigin
-    #self._debugVec[2] = screenAxis
-    #self._debugVec[3] = screenMouse
-    #self._debugVec[4] = clampedStuff
-    #
-    #upload!(self._debugBuffer,self._debugVec)
-    #
-    #self._debugLineVec[1] = screenAxis
-    #self._debugLineVec[2] = clampedStuff
-    #self._debugLineVec[3] = clampedStuff
-    #self._debugLineVec[4] = screenMouse
-    #
-    #upload!(self._debugLineBuffer,self._debugLineVec)
-    #
     return t
 end
 
@@ -215,7 +113,7 @@ function getAxisVecs(self,shrd,cam,selectedAxis)
     mouse = Vec2F(shrd._mouseX,shrd._mouseY)
     origin = self._pos
     gs = norm(cam._eye - self._pos) * self._size
-    axis = self._idToAxis[selectedAxis] * gs  + origin
+    axis = self._id2Axis[selectedAxis] * gs  + origin
 
     return (mouse,origin,gs,axis)
 end
@@ -238,11 +136,6 @@ function setAxisClampedT!(self::GizmoGL,selectedAxis::UInt32,shrd::SharedData,vp
 end
 
 function destroy!(self::GizmoGL)
-    destroy!(self._endShader)
-    destroy!(self._endBuffer)
     destroy!(self._lineShader)
     destroy!(self._lineBuffer)
-    destroy!(self._debugShader)
-    destroy!(self._debugBuffer)
-    destroy!(self._debugLineBuffer)
 end

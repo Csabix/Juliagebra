@@ -62,7 +62,7 @@ mutable struct OpenGLData
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
         
-        glPolygonMode(GL_BACK,GL_LINE)
+        #glPolygonMode(GL_BACK,GL_LINE)
 
         glEnable(GL_PROGRAM_POINT_SIZE)
         #glDisable(GL_POINT_SMOOTH)
@@ -75,7 +75,6 @@ mutable struct OpenGLData
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
-
 
         new(shrd,renderOffices,updateMeQueue,
             combinerShader,backgroundShader,bodyShader,centerShader,
@@ -95,13 +94,6 @@ function checkErrors(self::OpenGLData)
     if opengl_error != GL_NO_ERROR
         while (opengl_error != GL_NO_ERROR)
             println(string(opengl_error))
-            #println(self._index)
-            
-
-            #opengl_error = glGetError()
-            #if 1282 == GL_INVALID_OPERATION
-            #    println("lols")
-            #end
             opengl_error = glGetError()
         end
     error("OpenGL error(s) occured!")
@@ -161,7 +153,7 @@ function update!(self::OpenGLData,cam::Camera)
     end
 
     if(self._shrd._gizmoEnabled)
-        draw(self._gizmoGL,self._vp,self._camPos,self._shrd._selectedGizmo)
+        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo)
     end
     
     draw(self._orthoGizmoGL,cam,self._shrd._width,self._shrd._height)

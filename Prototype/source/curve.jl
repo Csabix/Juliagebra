@@ -14,10 +14,12 @@ mutable struct ParametricCurveAlgebra <: AlgebraDNA
     _endIndex::Int
     _tValues::Vector{Vec3F}
 
-    function ParametricCurveAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function)
+    _color::Vec3F
+
+    function ParametricCurveAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function,color::Vec3F)
         a = Algebra(renderer,dependents,callback)
         
-        new(a,0,0,0,0,0,[])
+        new(a,0,0,0,0,0,[],Vec3FNan)
     end
 end
 
@@ -55,10 +57,16 @@ mutable struct ParametricCurvePlan <: PlanDNA
     
     _plan::Plan
     _plans::Vector{PlanDNA}
+    _color::Vec3F
     _callback::Function
 
-    function ParametricCurvePlan(tStart,tEnd,tNum,plans::Vector{T},callback::Function) where {T<:PlanDNA}
-        new(tStart,tEnd,tNum,Plan(),plans,callback)
+    function ParametricCurvePlan(tStart,tEnd,tNum,plans::Vector{T},callback::Function,color) where {T<:PlanDNA}
+
+        r = Float32(color[1])
+        g = Float32(color[2])
+        b = Float32(color[3])
+
+        new(tStart,tEnd,tNum,Plan(),plans,Vec3F(r,g,b),callback)
     end
 end
 
@@ -75,21 +83,24 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveAlgebra}
     _buffer::TypedBufferArray
 
     _coords::Vector{Vec3F}
+    _colors::Vector{Vec3F}
 
     function CurveRenderer(context::OpenGLData)
         
         renderer = Renderer{ParametricCurveAlgebra}(context)
 
-        shader = ShaderProgram(sp("rounded_curve.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["VP"])
-        buffer = TypedBufferArray{Tuple{Vec3F}}()
+        shader = ShaderProgram(sp("rounded_curve_colored.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["VP"])
+        buffer = TypedBufferArray{Tuple{Vec3F,Vec3F}}()
 
         coords = Vector{Vec3F}()
+        colors = Vector{Vec3F}()
 
         new(
             renderer,
             shader,
             buffer,
-            coords)
+            coords,
+            colors)
     end
 end
 
@@ -101,8 +112,11 @@ function added!(self::CurveRenderer,curve::ParametricCurveAlgebra)
     
     for i in 1:curve._tNum
         push!(self._coords,Vec3F(0,0,0))
+        push!(self._colors,curve._color)
     end
-    push!(self._coords,Vec3F(NaN32,NaN32,NaN32))
+    push!(self._coords,Vec3FNan)
+    push!(self._colors,Vec3FNan)
+
     
     curve._endIndex = length(self._coords) - 1
     curve._tValues = self._coords
@@ -114,6 +128,8 @@ end
 
 function addedUpload!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    upload!(self._buffer,2,self._colors,GL_DYNAMIC_DRAW)
+
 end
 
 function sync!(self::CurveRenderer,curve::ParametricCurveAlgebra)
@@ -138,11 +154,12 @@ function destroy!(self::CurveRenderer)
 end
 
 function plan2Algebra(self::CurveRenderer,plan::ParametricCurvePlan)::ParametricCurveAlgebra
-    curve = ParametricCurveAlgebra(self,plan._plans,plan._callback)
+    curve = ParametricCurveAlgebra(self,plan._plans,plan._callback,plan._color)
     
     curve._tStart   = plan._tStart
     curve._tEnd     = plan._tEnd
     curve._tNum     = plan._tNum
+    curve._color    = plan._color
 
     return curve
 end

@@ -8,6 +8,7 @@ uniform float lineWidth;
 // * Same 4 all.
 in vec2 fromPos;
 in vec2 toPos;
+flat in uint geomID;
 
 // * Different 4 all
 in float leftDist;
@@ -24,5 +25,5 @@ void main(){
     }
 
     outCol = vec4(pointCol,1.0);    
-    outInd = uint(0);
+    outInd = geomID;
 }

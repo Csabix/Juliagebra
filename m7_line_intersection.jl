@@ -44,20 +44,20 @@ ip = Point(-50,-50,-50,[a1,b1,a2,b2]) do a1,b1,a2,b2
         return no_intersect
     end
 
-    hit = ray_p0 + t * ray_v
+    hit1 = ray_p0 + t * ray_v
 
-    ss = ((hit - a1v) ./ v1v)
-    s = ss[1]
+    plane_n  = normalize(cross(v2v,n_up))    
+    plane_q0 = a2v
+    ray_p0 = a1v
+    ray_v  = v1v
+    s = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)
     if (s > 1.0 || s<0.0)
         return no_intersect
     end
 
-    printstyled("d: $(d)\n"; color=:blue)
-    printstyled("t: $(t)\n"; color=:blue)
-    printstyled("hit: $(hit)\n"; color=:blue)
-    printstyled("ss: $(ss)\n"; color=:blue)
-    printstyled("s: $(s)\n"; color=:blue)
+    hit2 = ray_p0 + s * ray_v
 
+    hit = (hit1 + hit2) ./ 2
 
     return(hit[1],hit[2],hit[3])
 end

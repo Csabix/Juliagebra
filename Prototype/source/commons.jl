@@ -6,3 +6,4 @@ function sp(shaderFileName::String)::String
 end
 
 Vec3FNan = Vec3F(NaN32,NaN32,NaN32)
+Vec4FNan = Vec4F(NaN32,NaN32,NaN32,NaN32)

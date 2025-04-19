@@ -2,6 +2,13 @@
 # ! AlgebraDNA
 # ? ---------------------------------
 
+# TODO: rename this to RenderedAlgebra, then Create an actual Algebra struct (one which doesnt requiere a renderer).
+# TODO: Algebra struct must have dispatch on callback.
+# TODO: Algebra type must be solo Type.
+# TODO: RenderedAlgebra type must intersection (Union{}) of QueLock and Algebra.
+# TODO: QueLockGroup should be created like T = Union{T,C}.
+
+
 mutable struct Algebra <:QueueLockDNA
     _queueLock::QueueLock
     

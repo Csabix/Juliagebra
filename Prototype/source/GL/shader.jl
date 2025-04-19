@@ -90,7 +90,7 @@ function createShaderStage(path::String, stage::GLenum)::GLuint
         println(errorMessage)
 
         glDeleteShader(shader)
-        error("Shader compilation failed!")
+        error("Shader compilation failed in \"$(path)\"!")
     end
     return shader
 end

@@ -20,6 +20,8 @@ end
 _Algebra_(self::PointAlgebra)::Algebra = return self._algebra
 Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._algebraID) - $(string(length(_Algebra_(self)._dependents))) - $(string(length(_Algebra_(self)._graph)))]($(self._x),$(self._y),$(self._z))"
 
+# TODO: Move set to Algebra
+
 function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
     self._x = x
     self._y = y

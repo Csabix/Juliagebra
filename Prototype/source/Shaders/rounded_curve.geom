@@ -2,6 +2,7 @@
 
 layout (lines) in;
 in vec3 color[];
+flat in uint vertID[];
 
 layout (triangle_strip, max_vertices = 4) out;
 
@@ -10,15 +11,13 @@ uniform float lineWidth = 0.01;
 // * Same 4 all.
 out vec2 fromPos;
 out vec2 toPos;
+flat out uint geomID;
 
 // * Different 4 all
 out float leftDist;
 out float rightDist;
 out vec2 fragPos;
 out vec3 pointCol;
-
-uniform vec3 aColor = vec3(1.0,0.0,0.0);
-uniform vec3 bColor = vec3(1.0,1.0,0.0);
 
 #define LVT vec2
 
@@ -102,14 +101,16 @@ void main(){
     fragPos     = cv.bo_le; 
     leftDist    = lv.leftValue;
     rightDist   = lv.rightValue;
-    pointCol    = color[0];       
+    pointCol    = color[0];
+    geomID      = vertID[0];    
     EmitVertex();
 
     gl_Position = finalCalc(cv.bo_ri,to);
     fragPos     = cv.bo_ri; 
     leftDist    = lv.rightValue;
     rightDist   = lv.leftValue;
-    pointCol    = color[1];  
+    pointCol    = color[1];
+    geomID      = vertID[1];
     EmitVertex();
     
     gl_Position = finalCalc(cv.up_le,from);
@@ -117,13 +118,15 @@ void main(){
     leftDist    = lv.leftValue;
     rightDist   = lv.rightValue;
     pointCol    = color[0]; 
+    geomID       = vertID[0];
     EmitVertex();
 
     gl_Position = finalCalc(cv.up_ri,to);
     fragPos     = cv.up_ri; 
     leftDist    = lv.rightValue;
     rightDist   = lv.leftValue;
-    pointCol    = color[1]; 
+    pointCol    = color[1];
+    geomID      = vertID[1];
     EmitVertex();
 
     EndPrimitive();    

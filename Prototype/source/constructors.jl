@@ -38,9 +38,10 @@ Point(POINT_DEFAULT_X,POINT_DEFAULT_Y,POINT_DEFAULT_Z,dependents,callback,app)
 CURVE_DETAIL_LEVEL  = 1000
 CURVE_DEFULT_START  = 0
 CURVE_DEFULT_END    = 1
+CURVE_DEFAULT_COLOR = (0.6,0.6,0.9)
 
-function ParametricCurve(tStart,tEnd,tNum,dependents::DependentsT, callback::Function, app::App)::ParametricCurvePlan
-    plan = ParametricCurvePlan(tStart,tEnd,tNum,dependents,callback)
+function ParametricCurve(tStart,tEnd,tNum,dependents::DependentsT, callback::Function, app::App, color=CURVE_DEFAULT_COLOR)::ParametricCurvePlan
+    plan = ParametricCurvePlan(tStart,tEnd,tNum,dependents,callback,color)
     submit!(app,plan)
     return plan
 end
@@ -61,6 +62,9 @@ ParametricCurve(tStart,tEnd,CURVE_DETAIL_LEVEL,dependents,callback,app)
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
 ParametricCurve(callback,tStart,tEnd,tNum,dependents,implicitApp)
 
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT,color)::ParametricCurvePlan =
+ParametricCurve(tStart,tEnd,tNum,dependents,callback,implicitApp,color)
+
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT)::ParametricCurvePlan =
 ParametricCurve(callback,tStart,tEnd,dependents,implicitApp)
 
@@ -71,14 +75,20 @@ ParametricCurve(CURVE_DEFULT_START,CURVE_DEFULT_END,CURVE_DETAIL_LEVEL,dependent
 # ! Segment
 # ? ---------------------------------
 
-function Segment(fst::PointPlan,snd::PointPlan)::ParametricCurvePlan
-    return ParametricCurve(0,1,2,[fst,snd]) do t,a,b
+DEFAULT_SEGMENT_COLOR = (0.6,0.0,1.0)
+
+function Segment(fst::PointPlan,snd::PointPlan,color)::ParametricCurvePlan
+    return ParametricCurve(0,1,2,[fst,snd],color) do t,a,b
         xx = t * x(a) + (1-t) * x(b) 
         yy = t * y(a) + (1-t) * y(b)
         zz = t * z(a) + (1-t) * z(b)
         return (xx,yy,zz)
     end
 end
+
+Segment(fst::PointPlan,snd::PointPlan) =
+Segment(fst,snd,DEFAULT_SEGMENT_COLOR)
+
 
 export Point
 export ParametricCurve

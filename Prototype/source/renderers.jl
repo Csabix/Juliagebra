@@ -2,7 +2,7 @@
 # ! RendererDNA
 # ? ---------------------------------
 
-mutable struct Renderer{T<:AlgebraDNA} <:QueueLockDNA
+mutable struct Renderer{T<:RenderedAlgebraDNA} <:QueueLockDNA
     _context::OpenGLData
     _queueLock::QueueLock
     
@@ -10,7 +10,7 @@ mutable struct Renderer{T<:AlgebraDNA} <:QueueLockDNA
     _flaggedQueue::Queue{T}
     _flaggedAsNewQueue::Queue{T}
 
-    function Renderer{T}(context::OpenGLData) where {T<:AlgebraDNA}
+    function Renderer{T}(context::OpenGLData) where {T<:RenderedAlgebraDNA}
         new{T}(context,QueueLock(),Vector{T}(),Queue{T}(),Queue{T}())
     end
 end
@@ -38,19 +38,19 @@ function update!(self::RendererDNA)
 end
 
 
-function flag!(self::AlgebraDNA)
-    r = _Algebra_(self)._renderer
+function flag!(self::RenderedAlgebraDNA)
+    r = _RenderedAlgebra_(self)._renderer
     senqueue!(_Renderer_(r)._flaggedQueue,self)
     senqueue!(_Renderer_(r)._context._updateMeQueue,r)
 end 
 
-function flagAsNew!(self::AlgebraDNA)
-    r = _Algebra_(self)._renderer
+function flagAsNew!(self::RenderedAlgebraDNA)
+    r = _RenderedAlgebra_(self)._renderer
     senqueue!(_Renderer_(r)._flaggedAsNewQueue,self)
     senqueue!(_Renderer_(r)._context._updateMeQueue,r)
 end
 
-function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:AlgebraDNA}
+function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:RenderedAlgebraDNA}
     newAlgebra = plan2Algebra(self,plan)
     _Plan_(plan)._algebra = newAlgebra
 
@@ -60,11 +60,11 @@ function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:AlgebraDNA
     return newAlgebra
 end
 
-added!(self::RendererDNA{T},item::T) where {T<:AlgebraDNA}  = error("Missing func!")
+added!(self::RendererDNA{T},item::T) where {T<:RenderedAlgebraDNA}  = error("Missing func!")
 addedUpload!(self::RendererDNA)                             = error("Missing func!")
-sync!(self::RendererDNA{T},item::T) where {T<:AlgebraDNA}   = error("Missing func!")
+sync!(self::RendererDNA{T},item::T) where {T<:RenderedAlgebraDNA}   = error("Missing func!")
 syncUpload!(self::RendererDNA)                              = error("Missing func!")
 draw!(self::RendererDNA,vp,selectedID,pickedID)             = error("Missing func!")
 destroy!(self::RendererDNA)                       = error("Missing \"destroy!\" func for instance of RendererDNA")
-(plan2Algebra(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:AlgebraDNA} = error("Missing func!")
+(plan2Algebra(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:RenderedAlgebraDNA} = error("Missing func!")
 recruit!(self::OpenGLData, plan::PlanDNA)::AlgebraDNA       = error("Missing func!")

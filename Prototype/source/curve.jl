@@ -3,8 +3,8 @@
 # ! ParametricCurveAlgebra
 # ? ---------------------------------
 
-mutable struct ParametricCurveAlgebra <: AlgebraDNA
-    _algebra::Algebra
+mutable struct ParametricCurveAlgebra <: RenderedAlgebraDNA
+    _renderedAlgebra::RenderedAlgebra
     
     _tStart::Float64
     _tEnd::Float64
@@ -17,32 +17,33 @@ mutable struct ParametricCurveAlgebra <: AlgebraDNA
     _color::Vec3F
 
     function ParametricCurveAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function,color::Vec3F)
-        a = Algebra(renderer,dependents,callback)
+        a = RenderedAlgebra(renderer,dependents,callback)
         
         new(a,0,0,0,0,0,[],Vec3FNan)
     end
 end
 
 Base.string(self::ParametricCurveAlgebra)::String =  return "ParametricCurve: $(self._startIndex) - $(self._endIndex) - $(self._tNum)"
-_Algebra_(self::ParametricCurveAlgebra)::Algebra = return self._algebra
+_RenderedAlgebra_(self::ParametricCurveAlgebra)::RenderedAlgebra = return self._renderedAlgebra
 
-function _callback(self::ParametricCurveAlgebra)
-    
-    # TODO broadcasttal megoldva (mint numpyban).
-    # TODO indexeket 1 tömbbe
+function evalCallback(self::ParametricCurveAlgebra,t,index)
+    return _Algebra_(self)._callback(t,_Algebra_(self)._dependents...)
+end
 
+dpCallbackReturn(self::ParametricCurveAlgebra,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveAlgebra,t,index,undef::Undef) = self._tValues[index] = Vec3FNan
+
+function runCallbacks(self::ParametricCurveAlgebra)
     for index in self._startIndex:self._endIndex
         t1 = Float64(index - self._startIndex)
         t2 = Float64(self._endIndex - self._startIndex)
         t = (t1 / t2) * (self._tEnd - self._tStart) + self._tStart
-        
-        x,y,z = _Algebra_(self)._callback(t,_Algebra_(self)._dependents...)
-        self._tValues[index] = Vec3F(x,y,z)
+        dpEvalCallback(self,t,index)
     end
 end
 
-function callback(self::ParametricCurveAlgebra)
-    _callback(self)
+function onGraphEval(self::ParametricCurveAlgebra)
+    runCallbacks(self)
     flag!(self)
 end
 
@@ -121,7 +122,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveAlgebra)
     curve._endIndex = length(self._coords) - 1
     curve._tValues = self._coords
 
-    _callback(curve)
+    runCallbacks(curve)
 
     println("Added Curve as: $(curve._startIndex) - $(curve._endIndex) - $(curve._tNum)")
 end

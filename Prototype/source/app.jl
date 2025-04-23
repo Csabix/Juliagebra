@@ -84,6 +84,9 @@ handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_ke
 
 function handlePlans!(self::App)
     while(!isempty(self._plans))
+        
+        # TODO: refactor algebra to its plan assignment here.
+        
         asset = recruit!(self._opengl,dequeue!(self._plans))
         fuse!(self._algebra,asset)
     end

@@ -90,6 +90,22 @@ Segment(fst::PointPlan,snd::PointPlan) =
 Segment(fst,snd,DEFAULT_SEGMENT_COLOR)
 
 
+
+
+# ? ---------------------------------
+# ! Intersections
+# ? ---------------------------------
+
+function Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum,app::App)::Curve2CurveIntersectionPlan
+    plan = Curve2CurveIntersectionPlan(curve1,curve2,UInt(intersectionNum))
+    submit!(app,plan)
+    return plan
+end
+
+Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum) =
+Intersection(curve1,curve2,intersectionNum,implicitApp)
+
 export Point
 export ParametricCurve
 export Segment
+export Intersection

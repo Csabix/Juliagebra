@@ -4,23 +4,23 @@
 # ! PointAlgebra
 # ? ---------------------------------
 
-mutable struct PointAlgebra <:AlgebraDNA
-    _algebra::Algebra
+mutable struct PointAlgebra <:RenderedAlgebraDNA
+    _renderedAlgebra::RenderedAlgebra
     _x::Float64
     _y::Float64
     _z::Float64    
     _rendererID::Int
 
     function PointAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function)
-        a = Algebra(renderer,dependents,callback)
+        a = RenderedAlgebra(renderer,dependents,callback)
         new(a,0,0,0,0)
     end
 end
 
-_Algebra_(self::PointAlgebra)::Algebra = return self._algebra
+_RenderedAlgebra_(self::PointAlgebra)::RenderedAlgebra = return self._renderedAlgebra
 Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._algebraID) - $(string(length(_Algebra_(self)._dependents))) - $(string(length(_Algebra_(self)._graph)))]($(self._x),$(self._y),$(self._z))"
 
-# TODO: Move set to Algebra
+# TODO: Move set to RenderedAlgebra
 
 function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
     self._x = x
@@ -29,26 +29,37 @@ function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
     
     flag!(self)
     
-    for item in _Algebra_(self)._graph
-        callback(item)
-    end
+    evalGraph(self)
+
 end
 
 x(self::PointAlgebra) = return self._x
 y(self::PointAlgebra) = return self._y
 z(self::PointAlgebra) = return self._z
 
-function callback(self::PointAlgebra)
-    x,y,z = _Algebra_(self)._callback(_Algebra_(self)._dependents...)
-    
-    # TODO: Multiple-Dispatch on _callback return
-    
+function evalCallback(self::PointAlgebra)
+    return _Algebra_(self)._callback(_Algebra_(self)._dependents...)
+end
+
+function dpCallbackReturn(self::PointAlgebra,v)
+    x,y,z = v
     self._x = Float64(x)
     self._y = Float64(y)
     self._z = Float64(z)
     
     flag!(self)
 end
+
+function dpCallbackReturn(self::PointAlgebra,undef::Undef)
+    
+    self._x = NaN64
+    self._y = NaN64
+    self._z = NaN64
+    
+    flag!(self)
+end
+
+onGraphEval(self::PointAlgebra) = dpEvalCallback(self)
 
 # ? ---------------------------------
 # ! PointPlan

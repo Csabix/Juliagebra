@@ -51,7 +51,7 @@ function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam:
             CImGui.EndTabItem()
         end
         
-        if CImGui.BeginTabItem("Algebra Items")
+        if CImGui.BeginTabItem("RenderedAlgebra Items")
             _display!(self,algebraL)
             CImGui.EndTabItem()
         end
@@ -98,7 +98,7 @@ function _display!(self::ImGuiData,cam::Camera)
 end
 
 function _display!(self::ImGuiData,algebraL::AlgebraLogic)
-    CImGui.Text("Stored Algebra Objects:")
+    CImGui.Text("Stored RenderedAlgebra Objects:")
     i = 1
     for (algebraObject) in algebraL._algebraObjects
         CImGui.Text("$(i) - $(string(algebraObject))")

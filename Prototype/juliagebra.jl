@@ -32,15 +32,21 @@ include("source/imgui_data.jl")
 
 include("source/plans.jl")
 
+include("source/undef.jl")
+
+include("source/algebra.jl")
+
 include("source/queuelock.jl")
 
 include("source/renderers.jl")
 
-include("source/algebra.jl")
+include("source/rendered_algebra.jl")
 
 include("source/point.jl")
 
 include("source/curve.jl")
+
+include("source/intersections.jl")
 
 include("source/base.jl")
 

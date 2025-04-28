@@ -61,5 +61,38 @@ Base.length(self::TypedBufferArray)::Int = return length(self._typedBuffers[1])
 draw(self::TypedBufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,length(self)))
 upload!(self::TypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffers[index],data,usage)
 
+# ? ---------------------------------
+# ! IndexedTypedBufferArray
+# ? ---------------------------------
 
+mutable struct IndexedTypedBufferArray{T} <: OpenGLWrapper
+    _typedBuffer::TypedBufferArray{T}
+    _indexBuffer::TypedBuffer
 
+    function IndexedTypedBufferArray{T}() where T
+        typedBuffer = TypedBufferArray{T}()
+        activate(typedBuffer._vertexArray)
+        
+        indexBuffer = IndexBuffer()
+        activate(indexBuffer)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer._id);
+        deactivate(indexBuffer)
+
+        # TODO: move binding to buffer's function.
+
+        new(typedBuffer,IndexBuffer)
+    end
+end
+
+function destroy!(self::IndexedTypedBufferArray)
+    destroy!(self._typedBuffer)
+    destroy!(self._indexBuffer)
+end
+
+upload!(self::IndexedTypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffer,index,data,usage)
+uploadIndexes!(self::IndexedTypedBufferArray,data::Vector,usage::GLuint) = upload!(self._indexBuffer,data,usage)
+
+function draw(self::IndexedTypedBufferArray,mode::GLuint)
+    activate(self._typedBuffer._vertexArray)
+    glDrawElements(mode, length(self._indexBuffer), GL_UNSIGNED_INT, 0);
+end

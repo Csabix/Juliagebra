@@ -3,11 +3,11 @@
 # ? ---------------------------------
 
 
-mutable struct Buffer <:OpenGLWrapper
+mutable struct Buffer{T} <:OpenGLWrapper
     _id::GLuint
     _numOfItems::Int
 
-    function Buffer()
+    function Buffer{T}() where T
         id = Ref{GLuint}(0)
         glGenBuffers(1,id)
         id = id[]
@@ -16,8 +16,10 @@ mutable struct Buffer <:OpenGLWrapper
     end
 end
 
-function upload!(self::Buffer,data::Vector,usage::GLuint)
-    glBindBuffer(GL_ARRAY_BUFFER,self._id)
+Buffer() = Buffer{GL_ARRAY_BUFFER}()
+
+function upload!(self::Buffer{T},data::Vector,usage::GLuint) where T
+    glBindBuffer(T,self._id)
     self._numOfItems = length(data)
 
     if self._numOfItems > 0
@@ -25,13 +27,13 @@ function upload!(self::Buffer,data::Vector,usage::GLuint)
         #println(reinterpret(Float32, data))
         #println(self._id)
     end
-    glBufferData(GL_ARRAY_BUFFER,sizeof(data),data,usage)
+    glBufferData(T,sizeof(data),data,usage)
     #println("$(sizeof(data)) - $(length(data))")
 end
 
 Base.length(self::Buffer)::Int = self._numOfItems
-activate(self::Buffer) = glBindBuffer(GL_ARRAY_BUFFER,self._id)
-deactivate(self::Buffer) = glBindBuffer(GL_ARRAY_BUFFER,0)
+activate(self::Buffer{T}) where T = glBindBuffer(T,self._id)
+deactivate(self::Buffer{T}) where T = glBindBuffer(T,0)
 destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
 
 
@@ -42,8 +44,8 @@ destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
 mutable struct TypedBuffer{T}<:OpenGLWrapper where {T<:Union{StaticArray,Real}} 
     _buffer::Buffer
 
-    function TypedBuffer{T}() where {T<:Union{StaticArray,Real}}
-        buffer = Buffer()
+    function TypedBuffer{T}(arrayMode=GL_ARRAY_BUFFER) where {T<:Union{StaticArray,Real}}
+        buffer = Buffer{arrayMode}()
         new(buffer)
     end
 end
@@ -61,3 +63,11 @@ Base.length(self::TypedBuffer)::Int = return length(self._buffer)
 activate(self::TypedBuffer) = activate(self._buffer)
 deactivate(self::TypedBuffer) = deactivate(self._buffer)
 destroy!(self::TypedBuffer) = destroy!(self._buffer)
+
+# ? ---------------------------------
+# ! IndexBuffer
+# ? ---------------------------------
+
+IndexBuffer = TypedBuffer{UInt32}(GL_ELEMENT_ARRAY_BUFFER)
+
+# TODO: Implement binding for every buffer.

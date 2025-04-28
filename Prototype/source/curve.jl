@@ -129,7 +129,7 @@ end
 
 function addedUpload!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
-    upload!(self._buffer,2,self._colors,GL_DYNAMIC_DRAW)
+    upload!(self._buffer,2,self._colors,GL_STATIC_DRAW)
 
 end
 

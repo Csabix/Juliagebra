@@ -48,6 +48,8 @@ include("source/curve.jl")
 
 include("source/intersections.jl")
 
+include("source/mesh.jl")
+
 include("source/base.jl")
 
 include("source/app.jl")

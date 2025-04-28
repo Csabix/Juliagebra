@@ -105,7 +105,21 @@ end
 Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum) =
 Intersection(curve1,curve2,intersectionNum,implicitApp)
 
+# ? ---------------------------------
+# ! Mesh
+# ? ---------------------------------
+
+function Mesh(vertexes,normals,color,app::App)::MeshAlgebraPlan
+    plan = MeshAlgebraPlan(vertexes,normals,color)
+    submit!(app,plan)
+    return plan
+end
+
+Mesh(vertexes,normals,color) =
+Mesh(vertexes,normals,color,implicitApp)
+
 export Point
 export ParametricCurve
 export Segment
 export Intersection
+export Mesh

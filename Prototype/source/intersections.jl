@@ -2,6 +2,8 @@
 # ! Curve2CurveIntersectionAlgebra
 # ? ---------------------------------
 
+# TODO: Rename LineStrip, LineSeq
+
 EPSILON = 0.1
 
 
@@ -20,6 +22,9 @@ end
 _Algebra_(self::Curve2CurveIntersectionAlgebra)::Algebra = return self._algebra
 curve1(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return _Algebra_(self)._dependents[1]
 curve2(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return _Algebra_(self)._dependents[2]
+
+# TODO: Undef 2 Nothing
+# TODO: Optional keyword
 
 function Base.getindex(self::Curve2CurveIntersectionAlgebra,index)::Union{Tuple{Float32,Float32,Float32},Undef}
     if (index > self._intersectionNum || index < 1)

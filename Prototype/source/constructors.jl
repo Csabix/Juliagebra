@@ -68,6 +68,9 @@ ParametricCurve(tStart,tEnd,tNum,dependents,callback,implicitApp,color)
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT)::ParametricCurvePlan =
 ParametricCurve(callback,tStart,tEnd,dependents,implicitApp)
 
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
+ParametricCurve(callback,tStart,tEnd,Vector{PlanDNA}(),implicitApp)
+
 ParametricCurve(callback::Function,dependents::DependentsT,app::App)::ParametricCurvePlan = 
 ParametricCurve(CURVE_DEFULT_START,CURVE_DEFULT_END,CURVE_DETAIL_LEVEL,dependents,callback,app)
 

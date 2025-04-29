@@ -1,6 +1,6 @@
 include("Prototype/juliagebra.jl")
 using .JuliAgebra
-using LinearAlgebra
+using .JuliAgebra.LinearAlgebra
 
 context = App()
 

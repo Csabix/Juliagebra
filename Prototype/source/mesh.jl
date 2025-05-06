@@ -109,10 +109,14 @@ function syncUpload!(self::MeshAlgebraRenderer)
 end
 
 function draw!(self::MeshAlgebraRenderer,vp,selectedID,pickedID,cam,shrd)
+    glDisable(GL_CULL_FACE)
+    
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"lightDir",normalize(cam._eye-cam._at))
     draw(self._buffer,GL_TRIANGLES)
+
+    glEnable(GL_CULL_FACE)
 end
 
 function plan2Algebra(self::MeshAlgebraRenderer,plan::MeshAlgebraPlan)::MeshAlgebra

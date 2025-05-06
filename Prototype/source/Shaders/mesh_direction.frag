@@ -12,8 +12,13 @@ uniform float minFactor = 0.2;
 void main(){
     
     vec3 normal = normalize(vertNormal);
-    float diffuseFactor = max(dot(normal,lightDir),minFactor);
+    vec3 fragColor = vertColor;
+    if(!gl_FrontFacing){
+        fragColor = abs(1.0 - fragColor);
+        normal *= -1.0;
+    }
 
-    outCol = vec4(vertColor * diffuseFactor,1.0);    
+    float diffuseFactor = max(dot(normal,lightDir),minFactor);
+    outCol = vec4(fragColor * diffuseFactor,1.0);    
     outInd = uint(0);
 }

@@ -3,7 +3,7 @@ using .JuliAgebra
 
 App()
 
-function giveCube(xtr,ytr,ztr)
+function giveCube(xtr,ytr,ztr,scale=0)
     
     vertices = Vector()
     normals  = Vector()
@@ -28,7 +28,9 @@ function giveCube(xtr,ytr,ztr)
             for j in 1:2         
                 dd[dx] = x
                 dd[dy] = y
-                push!(vertices,(dd[1]+xtr,dd[2]+ytr,dd[3]+ztr))
+                push!(vertices,(dd[1]+xtr+dn[1]*scale,
+                                dd[2]+ytr+dn[2]*scale,
+                                dd[3]+ztr+dn[3]*scale))
                 push!(normals,dn)
                 xx = x
                 x = -y
@@ -36,7 +38,9 @@ function giveCube(xtr,ytr,ztr)
             end
             dd[dx] = x
             dd[dy] = y
-            push!(vertices,(dd[1]+xtr,dd[2]+ytr,dd[3]+ztr))
+            push!(vertices,(dd[1]+xtr+dn[1]*scale,
+                            dd[2]+ytr+dn[2]*scale,
+                            dd[3]+ztr+dn[3]*scale))
             push!(normals,dn)
         end
     end
@@ -61,6 +65,9 @@ for position in positions
     vertices,normals = giveCube(x,y,z)
     Mesh(vertices,normals,(0.8,0.0,0.3))
 end
+
+vertices,normals = giveCube(0,0,10,3)
+Mesh(vertices,normals,(0.8,0.0,0.3))
 
 play!()
 

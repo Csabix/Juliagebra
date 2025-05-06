@@ -80,7 +80,7 @@ mutable struct IndexedTypedBufferArray{T} <: OpenGLWrapper
 
         # TODO: move binding to buffer's function.
 
-        new(typedBuffer,IndexBuffer)
+        new(typedBuffer,indexBuffer)
     end
 end
 

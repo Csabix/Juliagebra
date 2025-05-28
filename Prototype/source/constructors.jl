@@ -121,8 +121,21 @@ end
 Mesh(vertexes,normals,color) =
 Mesh(vertexes,normals,color,implicitApp)
 
+# ? ---------------------------------
+# ! ParametricSurface
+# ? ---------------------------------
+
+SURFACE_DEFAULT_COLOR = (0.8,0.0,0.3)
+
+function ParametricSurface(callback::Function,dependents::DependentsT,width,height,uStart,uEnd,vStart,vEnd,color=SURFACE_DEFAULT_COLOR, app::App=implicitApp)::ParametricSurfacePlan
+    plan = ParametricSurfacePlan(dependents,callback,width,height,uStart,uEnd,vStart,vEnd,color)
+    submit!(app,plan)
+    return plan
+end
+
 export Point
 export ParametricCurve
 export Segment
 export Intersection
 export Mesh
+export ParametricSurface

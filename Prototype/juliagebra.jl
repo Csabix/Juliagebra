@@ -30,6 +30,10 @@ include("source/algebra_logic.jl")
 include("source/opengl_data.jl")
 include("source/imgui_data.jl")
 
+include("source/flat_matrix_manager.jl")
+
+include("source/flat_matrix.jl")
+
 include("source/plans.jl")
 
 include("source/undef.jl")

@@ -66,19 +66,19 @@ upload!(self::TypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(
 # ? ---------------------------------
 
 mutable struct IndexedTypedBufferArray{T} <: OpenGLWrapper
-    _typedBuffer::TypedBufferArray{T}
+    _typedBuffer::TypedBufferArray
     _indexBuffer::TypedBuffer
 
-    function IndexedTypedBufferArray{T}() where T
-        typedBuffer = TypedBufferArray{T}()
-        activate(typedBuffer._vertexArray)
+    function IndexedTypedBufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
         
         indexBuffer = IndexBuffer()
-        activate(indexBuffer)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer._id);
-        deactivate(indexBuffer)
+        typedBuffer = TypedBufferArray{T}()
 
-        # TODO: move binding to buffer's function.
+        activate(typedBuffer._vertexArray)        
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer._buffer._id);
+        
+        glBindVertexArray(0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
         new(typedBuffer,indexBuffer)
     end
@@ -89,10 +89,17 @@ function destroy!(self::IndexedTypedBufferArray)
     destroy!(self._indexBuffer)
 end
 
+Base.length(self::IndexedTypedBufferArray)::Int = return length(self._typedBuffer)
 upload!(self::IndexedTypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffer,index,data,usage)
 uploadIndexes!(self::IndexedTypedBufferArray,data::Vector,usage::GLuint) = upload!(self._indexBuffer,data,usage)
 
 function draw(self::IndexedTypedBufferArray,mode::GLuint)
+    #println("$(length(self._indexBuffer))")
+    #println("$(length(self._typedBuffer._typedBuffers[1]))")
+    #println("$(length(self._typedBuffer._typedBuffers[2]))")
+    #println("$(length(self._typedBuffer._typedBuffers[3]))")
+
     activate(self._typedBuffer._vertexArray)
-    glDrawElements(mode, length(self._indexBuffer), GL_UNSIGNED_INT, 0);
+    #activate(self._indexBuffer)
+    glDrawElements(mode, length(self._indexBuffer), GL_UNSIGNED_INT, C_NULL);
 end

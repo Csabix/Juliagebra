@@ -68,6 +68,6 @@ destroy!(self::TypedBuffer) = destroy!(self._buffer)
 # ! IndexBuffer
 # ? ---------------------------------
 
-IndexBuffer = TypedBuffer{UInt32}(GL_ELEMENT_ARRAY_BUFFER)
+IndexBuffer() = TypedBuffer{UInt32}(GL_ELEMENT_ARRAY_BUFFER)
 
 # TODO: Implement binding for every buffer.

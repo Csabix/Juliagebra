@@ -118,6 +118,11 @@ function _display!(self::ImGuiData,shrd::SharedData)
     CImGui.Text("Cursor moved: $(shrd._mouseMoved)")
     CImGui.Text("Window Dimensions: ($(shrd._width),$(shrd._height))")
     CImGui.Text("Delta Time: $(shrd._deltaTime)")
+
+    fpsApprx = 1.0/shrd._deltaTime
+
+    CImGui.Text("FPS approx: $(fpsApprx)")
+
     #shrd._selectedGizmo = slider1i(shrd._selectedGizmo,"GizmoID",1,3)
 
 end

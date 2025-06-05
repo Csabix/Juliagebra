@@ -63,11 +63,22 @@ end
 function setInlandNormal(self::ParametricSurfaceAlgebra,u,v)
     uVec = self._uvValues[u+1,v  ] - self._uvValues[u-1,v  ]
     vVec = self._uvValues[u  ,v+1] - self._uvValues[u  ,v-1]
-    self._uvNormals[u,v] = cross(normalize(uVec),normalize(vVec))
+    self._uvNormals[u,v] = normalize(cross(uVec,vVec))
 end
 
 function setEdgeNormal(self::ParametricSurfaceAlgebra,u,v)
     self._uvNormals[u,v] = Vec3F(0,0,0)
+end
+
+function setNormal(self::ParametricSurfaceAlgebra,u,v;
+    right=self._uvValues[u+1,v  ],
+    left =self._uvValues[u-1,v  ],
+    down =self._uvValues[u  ,v+1],
+    up   =self._uvValues[u  ,v-1])
+
+    uVec = right - left
+    vVec = down - up
+    self._uvNormals[u,v] = normalize(cross(uVec,vVec))
 end
 
 function runCallbacks(self::ParametricSurfaceAlgebra)
@@ -79,21 +90,54 @@ function runCallbacks(self::ParametricSurfaceAlgebra)
     
     for v in 2:(height(self._uvValues)-1)
         for u in 2:(width(self._uvValues)-1)
-            setInlandNormal(self,u,v)
+            setNormal(self,u,v)
         end
     end
 
-    for v in [1,height(self._uvValues)]
-        for u in 1:width(self._uvValues)
-            setEdgeNormal(self,u,v)
-        end
+    # * Upper row, (u=u;v=1)
+    for u in 2:(width(self._uvValues)-1)
+        setNormal(self,u,1,
+        up=self._uvValues[u,1])
     end
 
-    for v in 1:height(self._uvValues)
-        for u in [1,width(self._uvValues)]
-            setEdgeNormal(self,u,v)
-        end
+    # * Bottom row, (u=u;v=height)
+    for u in 2:(width(self._uvValues)-1)
+        setNormal(self,u,height(self._uvValues),
+        down=self._uvValues[u,height(self._uvValues)])
     end
+
+    # * Left column, (u=1;v=v)
+    for v in 2:(height(self._uvValues)-1)
+        setNormal(self,1,v,
+        left=self._uvValues[1,v])
+    end
+
+    # * Right column, (u=width;v=v)
+    for v in 2:(height(self._uvValues)-1)
+        setNormal(self,width(self._uvValues),v,
+        right=self._uvValues[width(self._uvValues),v])
+    end
+
+    # * (1,1)
+    setNormal(self,1,1,
+        left = self._uvValues[1,1],
+        up   = self._uvValues[1,1])
+
+    # * (width,1)
+    setNormal(self,width(self._uvValues),1,
+        right = self._uvValues[width(self._uvValues),1],
+        up    = self._uvValues[width(self._uvValues),1])
+
+    # * (1,height)
+    setNormal(self,1,height(self._uvValues),
+        left  = self._uvValues[1,height(self._uvValues)],
+        down  = self._uvValues[1,height(self._uvValues)])
+
+    # * (width,height)
+    setNormal(self,width(self._uvValues),height(self._uvValues),
+        right = self._uvValues[width(self._uvValues),height(self._uvValues)],
+        down  = self._uvValues[width(self._uvValues),height(self._uvValues)])
+
 end
 
 function onGraphEval(self::ParametricSurfaceAlgebra)

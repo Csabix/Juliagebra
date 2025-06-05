@@ -132,3 +132,21 @@ function recruit!(self::OpenGLData, plan::Curve2CurveIntersectionPlan)::Curve2Cu
     _Plan_(plan)._algebra = a
     return a
 end
+
+
+
+# ? ---------------------------------
+# ! Surface2SurfaceIntersectionAlgebra
+# ? ---------------------------------
+
+mutable struct Surface2SurfaceIntersectionAlgebra
+
+end
+
+# ? ---------------------------------
+# ! Surface2SurfaceIntersectionPlan
+# ? ---------------------------------
+
+mutable struct Surface2SurfaceIntersectionPlan
+    
+end

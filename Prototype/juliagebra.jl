@@ -50,11 +50,11 @@ include("source/point.jl")
 
 include("source/curve.jl")
 
-include("source/intersections.jl")
-
 include("source/mesh.jl")
 
 include("source/surface.jl")
+
+include("source/intersections.jl")
 
 include("source/base.jl")
 

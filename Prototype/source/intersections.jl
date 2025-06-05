@@ -139,14 +139,107 @@ end
 # ! Curve2SurfaceIntersectionAlgebra
 # ? ---------------------------------
 
-mutable struct Curve2SurfaceIntersectionAlgebra
+mutable struct Curve2SurfaceIntersectionAlgebra <: AlgebraDNA
+    _algebra::Algebra
+    _intersections::Vector{Vec3F}
+    _foundIntersectionNum::Int
 
+    function Curve2SurfaceIntersectionAlgebra(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectNum)
+        algebra = Algebra(Vector{PlanDNA}([curve,surface]),() -> ())
+        intersections = Vector{Vec3F}(undef,intersectNum)
+        new(algebra,intersections,0)
+    end
+end
+
+_Algebra_(self::Curve2SurfaceIntersectionAlgebra)::Algebra = return self._algebra
+curve(self::Curve2SurfaceIntersectionAlgebra)::ParametricCurveAlgebra = return _Algebra_(self)._dependents[1]
+surface(self::Curve2SurfaceIntersectionAlgebra)::ParametricSurfaceAlgebra = return _Algebra_(self)._dependents[2]
+
+function Base.getindex(self::Curve2SurfaceIntersectionAlgebra,index)::Union{Tuple{Float32,Float32,Float32},Undef}
+    if (index > self._foundIntersectionNum || index < 1)
+        return Undef()
+    end
+    
+    v = self._intersections[index]
+
+    return (v[1],v[2],v[3])
+end
+
+function onGraphEval(self::Curve2SurfaceIntersectionAlgebra)
+    maxIntersectNum = length(self._intersections)
+    self._foundIntersectionNum = 0
+
+    crv = curve(self)
+    srfc = surface(self)
+
+    for triangle in TrianglesOf(srfc._uvValues)
+        for i in crv._startIndex:(crv._endIndex-1)
+            p1 = crv._tValues[i]
+            p2 = crv._tValues[i+1]
+            a,b,c = triangle
+
+            tuv = Segment2TriangleIntersection(p1,p2,a,b,c)
+            t = tuv[1]
+            u = tuv[2]
+            v = tuv[3]
+            w = 1-u-v
+
+            if (0.0<=t && t<=1.0 &&
+                0.0<=u && u<=1.0 &&
+                0.0<=v && v<=1.0 &&
+                0.0<=w && w<=1.0)
+                println("$(tuv)")
+                self._foundIntersectionNum+=1
+                intersectionPoint = p1 + t*(p2-p1)
+                self._intersections[self._foundIntersectionNum] = intersectionPoint
+                
+                if (self._foundIntersectionNum == maxIntersectNum)
+                    return
+                end
+            end
+        end
+    end
+end
+
+function Segment2TriangleIntersection(p1::Vec3F,p2::Vec3F,a::Vec3F,b::Vec3F,c::Vec3F)
+    p0 = p1
+    v = p2 - p1
+
+    ab = b - a
+    ac = c - a
+    ap = p0 - a
+    f = cross(v,ac)
+    g = cross(ap,ab)
+
+    tuv = (1/dot(f,ab)) * [dot(g,ac),dot(f,ap),dot(g,v)]
+    
+    return tuv
 end
 
 # ? ---------------------------------
 # ! Curve2SurfaceIntersectionPlan
 # ? ---------------------------------
 
-mutable struct Curve2SurfaceIntersectionPlan
-    
+mutable struct Curve2SurfaceIntersectionPlan <: PlanDNA
+    _plan::Plan
+    _curve::ParametricCurvePlan
+    _surface::ParametricSurfacePlan
+    _intersectNum::UInt
+
+    function Curve2SurfaceIntersectionPlan(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectNum)
+        new(Plan(),curve,surface,UInt(intersectNum))
+    end
+end
+
+_Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
+
+function recruit!(self::OpenGLData, plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceIntersectionAlgebra
+    curve = plan._curve
+    surface = plan._surface
+    intersectNum = plan._intersectNum
+
+
+    a = Curve2SurfaceIntersectionAlgebra(curve,surface,intersectNum)
+    _Plan_(plan)._algebra = a
+    return a
 end

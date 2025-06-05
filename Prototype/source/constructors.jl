@@ -108,6 +108,15 @@ end
 Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum) =
 Intersection(curve1,curve2,intersectionNum,implicitApp)
 
+function Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum,app::App)::Curve2SurfaceIntersectionPlan
+    plan = Curve2SurfaceIntersectionPlan(curve,surface,UInt(intersectionNum))
+    submit!(app,plan)
+    return plan
+end
+
+Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum) =
+Intersection(curve,surface,intersectionNum,implicitApp)
+
 # ? ---------------------------------
 # ! Mesh
 # ? ---------------------------------
@@ -132,6 +141,9 @@ function ParametricSurface(callback::Function,dependents::DependentsT,width,heig
     submit!(app,plan)
     return plan
 end
+
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,color=SURFACE_DEFAULT_COLOR, app::App=implicitApp) =
+ParametricSurface(callback,Vector{PlanDNA}(),width,height,uStart,uEnd,vStart,vEnd,color,app)
 
 export Point
 export ParametricCurve

@@ -15,7 +15,7 @@ mutable struct Algebra
             push!(algebraDependents,_Plan_(p)._algebra)
         end
         
-        new(0,algebraDependents,Vector{RenderedAlgebraDNA}(),callback)
+        new(0,algebraDependents,Vector{AlgebraDNA}(),callback)
     end
 end
 

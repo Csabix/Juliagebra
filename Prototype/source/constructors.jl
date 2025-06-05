@@ -139,3 +139,4 @@ export Segment
 export Intersection
 export Mesh
 export ParametricSurface
+export Undef

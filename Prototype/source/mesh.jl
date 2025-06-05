@@ -140,11 +140,11 @@ function plan2Algebra(self::MeshAlgebraRenderer,plan::MeshAlgebraPlan)::MeshAlge
 end
 
 function recruit!(self::OpenGLData,plan::MeshAlgebraPlan)::MeshAlgebra
-    myVector = get!(self._renderOffices,CurveRenderer,Vector{MeshAlgebraRenderer}())
+    myVector = get!(self._renderOffices,MeshAlgebraRenderer,Vector{MeshAlgebraRenderer}())
     if(length(myVector)!=1)
         push!(myVector,MeshAlgebraRenderer(self))
     end
-
+    
     mesh = assignPlan!(myVector[1],plan)
     return mesh
 end

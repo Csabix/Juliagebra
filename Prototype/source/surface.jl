@@ -284,7 +284,7 @@ function plan2Algebra(self::ParametricSurfaceRenderer,plan::ParametricSurfacePla
 end
 
 function recruit!(self::OpenGLData,plan::ParametricSurfacePlan)::ParametricSurfaceAlgebra
-    myVector = get!(self._renderOffices,CurveRenderer,Vector{ParametricSurfaceRenderer}())
+    myVector = get!(self._renderOffices,ParametricSurfaceRenderer,Vector{ParametricSurfaceRenderer}())
     if(length(myVector)!=1)
         push!(myVector,ParametricSurfaceRenderer(self))
     end

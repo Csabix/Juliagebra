@@ -136,17 +136,17 @@ end
 
 
 # ? ---------------------------------
-# ! Surface2SurfaceIntersectionAlgebra
+# ! Curve2SurfaceIntersectionAlgebra
 # ? ---------------------------------
 
-mutable struct Surface2SurfaceIntersectionAlgebra
+mutable struct Curve2SurfaceIntersectionAlgebra
 
 end
 
 # ? ---------------------------------
-# ! Surface2SurfaceIntersectionPlan
+# ! Curve2SurfaceIntersectionPlan
 # ? ---------------------------------
 
-mutable struct Surface2SurfaceIntersectionPlan
+mutable struct Curve2SurfaceIntersectionPlan
     
 end

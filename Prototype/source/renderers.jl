@@ -66,5 +66,5 @@ sync!(self::RendererDNA{T},item::T) where {T<:RenderedAlgebraDNA}   = error("Mis
 syncUpload!(self::RendererDNA)                              = error("Missing func!")
 draw!(self::RendererDNA,vp,selectedID,pickedID)             = error("Missing func!")
 destroy!(self::RendererDNA)                       = error("Missing \"destroy!\" func for instance of RendererDNA")
-(plan2Algebra(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:RenderedAlgebraDNA} = error("Missing func!")
+(plan2Algebra(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:RenderedAlgebraDNA} = error("Missing func for $(typeof(self)) - $(typeof(plan))!")
 recruit!(self::OpenGLData, plan::PlanDNA)::AlgebraDNA       = error("Missing func!")

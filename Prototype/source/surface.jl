@@ -76,6 +76,9 @@ function setNormal(self::ParametricSurfaceAlgebra,u,v;
     down =self._uvValues[u  ,v+1],
     up   =self._uvValues[u  ,v-1])
 
+    # TODO: Clampekkel megoldva?
+    # TODO: Fuggosegi normalvektor szamitas, kicsi 0.0001 eplszilonokkal, helyben szamitva
+
     uVec = right - left
     vVec = down - up
     self._uvNormals[u,v] = normalize(cross(uVec,vVec))

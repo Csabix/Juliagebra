@@ -185,10 +185,10 @@ function onGraphEval(self::Curve2SurfaceIntersectionAlgebra)
             w = 1-u-v
 
             if (0.0<=t && t<=1.0 &&
-                0.0<=u && u<=1.0 &&
-                0.0<=v && v<=1.0 &&
-                0.0<=w && w<=1.0)
-                println("$(tuv)")
+                0.0<=u &&
+                0.0<=v &&
+                0.0<=w)
+
                 self._foundIntersectionNum+=1
                 intersectionPoint = p1 + t*(p2-p1)
                 self._intersections[self._foundIntersectionNum] = intersectionPoint

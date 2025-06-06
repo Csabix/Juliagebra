@@ -1,5 +1,8 @@
 #version 330 core
 
+// TODO: Vonalnak a vonal kozepen vegigmeno szakasz alapjan discardolni a becsatolt texturabol
+// TODO: Ekkor az egesz vonal egy egyenes resze nem latszik, ha a vonal kozepe a melyseg mogott van.
+
 layout(location = 0) out vec4 outCol;
 layout(location = 1) out uint outInd;
 

@@ -3,6 +3,9 @@
 layout(location = 0) out vec4 outCol;
 layout(location = 1) out uint outInd;
 
+// TODO: Melyseg alapjan discardonlni, ha a becsatolt melyseg texturaban a kozeppont a melyseg mogott van
+// TODO: Ekkor az egesz pont nem jelenik meg, kulonben igen
+
 flat in uint id;
 
 uniform uint selectedID;

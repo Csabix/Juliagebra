@@ -8,6 +8,8 @@ mutable struct AlgebraLogic
 
 end
 
+# TODO: idotol valo fugges, timestep alapu osszefesulessel
+
 function fuse!(self::AlgebraLogic,asset::T) where T<:AlgebraDNA
     for item in self._algebraObjects
         for d in _Algebra_(asset)._dependents

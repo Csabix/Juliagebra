@@ -5,7 +5,7 @@ App()
 
 a = Point(0,0,0)
 
-wave = ParametricSurface([a],50,50,-10.0,10.0,-10.0,10.0) do u,v,p1
+wave = ParametricSurface([a],10,10,-10.0,10.0,-10.0,10.0) do u,v,p1
 
     xx = u
     yy = v
@@ -15,3 +15,5 @@ wave = ParametricSurface([a],50,50,-10.0,10.0,-10.0,10.0) do u,v,p1
 end
 
 play!()
+
+

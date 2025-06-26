@@ -22,8 +22,8 @@ surface1 = ParametricSurface([a],50,50,0.0,2*pi,0.0,1.0) do u,v,a
     v = v * z(a)
     
 
-    xx = r * v * cos(u)
-    yy = r * v * sin(u)
+    xx = r * v * sign(cos(u)) * abs(cos(u))^1.85
+    yy = r * v * sign(sin(u)) * abs(sin(u))^1.85
     zz = v
 
     return (xx,yy,zz)

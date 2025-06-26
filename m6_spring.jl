@@ -17,3 +17,6 @@ crv1 = ParametricCurve(0,tMax,55,[Center],(0.3,0.8,0.3)) do t,p1
 end
 
 play!()
+
+
+

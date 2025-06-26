@@ -17,7 +17,7 @@ p2,s2 = genPoints(0,1,0,5,0,0)
 
 
 phase = 5*3.14
-crv1 = ParametricCurve(-phase,phase,250,[p1,s1]) do t, p, s
+crv1 = ParametricCurve(-phase,phase,250,[p1,s1],(0.9,0.6,0.3)) do t, p, s
     #xd = (x(p) - x(s))^2
     #yd = (y(p) - y(s))^2
     #zd = (z(p) - z(s))^2
@@ -32,7 +32,7 @@ crv1 = ParametricCurve(-phase,phase,250,[p1,s1]) do t, p, s
     return (x(p) + xx, y(p) + yy, z(p) + zz)
 end
 
-crv2 = ParametricCurve(-phase,phase,250,[p2,s2]) do t, p, s
+crv2 = ParametricCurve(-phase,phase,250,[p2,s2],(0.3,0.6,0.9)) do t, p, s
     #xd = (x(p) - x(s))^2
     #yd = (y(p) - y(s))^2
     #zd = (z(p) - z(s))^2
@@ -56,3 +56,7 @@ for i in 1:100
 end
 
 play!()
+
+
+
+

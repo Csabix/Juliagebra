@@ -27,6 +27,13 @@ ip = Point(-50,-50,-50,[a1,b1,a2,b2]) do a1,b1,a2,b2
 
     n_up = normalize(cross(v1v,v2v))
     
+    # ! minden pont, itt felirhato ugy, mint a1 + v1 * t es dot(v1 * t,n_up) = 0, mivel n_up meroleges v1-re
+    # ! tehat dot(a1 + v1 * t,n_up) = dot(a1,n_up) + dot(v1 * t,n_up) = dot(a1,n_up) + 0
+    # ! azaz  dot((a2 + v2 * t2) - (a1 + v1 * t1),n_up) = dot(a2 + v2 * t2,n_up) - dot(a1 + v1 * t1,n_up) = dot(a2,n_up) - dot(a1,n_up)
+    # ! es dot(a2,n_up) - dot(a1,n_up) = dot(a2 - a1, n_up)
+    # ! szoval n_up azert jo vektor, mert mindenhol, csak a1,a2-tol fugg az eredmeny, mindenhol ugyanaz
+    # ! a1 es a2 ket olyan sikbol van, amik v1 és v2 olyan sikjai, hogy azok parhuzamosak egymasra
+    # ! igy d a ketto kozotti tavolsaga lesz
     # ! mivel "a" es "b" altal kifeszitett vektorok kozott az eltolas meroleges "n"-re, ezert mind1 mielyikkel szamolunk
     d = abs(dot(a2v-a1v,n_up))
     if( d > epsilon)

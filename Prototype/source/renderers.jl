@@ -50,14 +50,20 @@ function flagAsNew!(self::RenderedAlgebraDNA)
     senqueue!(_Renderer_(r)._context._updateMeQueue,r)
 end
 
-function assignPlan!(self::RendererDNA{T},plan::PlanDNA)::T where {T<:RenderedAlgebraDNA}
-    newAlgebra = plan2Algebra(self,plan)
-    _Plan_(plan)._algebra = newAlgebra
+function add!!(self::RendererDNA{T},dependent::T) where {T<:RenderedAlgebraDNA}
+    push!(_Renderer_(self)._algebras,dependent)
+    _RenderedAlgebra_(dependent)._rendererID = length(_Renderer_(self)._algebras)
+    flagAsNew!(dependent)
+end
 
-    push!(_Renderer_(self)._algebras,newAlgebra)
-    flagAsNew!(newAlgebra)
+function SingleRendererTactic(self::OpenGLData,t::Type{T})::T where T<:RendererDNA
+    myVector = get!(self._renderOffices,T,Vector{T}())
     
-    return newAlgebra
+    if(length(myVector)!=1)
+        push!(myVector,T(self))
+    end
+
+    return myVector[1]
 end
 
 added!(self::RendererDNA{T},item::T) where {T<:RenderedAlgebraDNA}  = error("Missing func!")

@@ -22,7 +22,7 @@ mutable struct ImGuiData
     end
 end
 
-function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam::Camera)
+function update!(self::ImGuiData,openglD::OpenGLData,algebraL::DependentGraph,cam::Camera)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
@@ -97,7 +97,7 @@ function _display!(self::ImGuiData,cam::Camera)
     cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
 end
 
-function _display!(self::ImGuiData,algebraL::AlgebraLogic)
+function _display!(self::ImGuiData,algebraL::DependentGraph)
     CImGui.Text("Stored RenderedAlgebra Objects:")
     i = 1
     for (algebraObject) in algebraL._algebraObjects

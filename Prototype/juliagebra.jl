@@ -26,7 +26,7 @@ include("source/peripherals.jl")
 include("source/camera.jl")
 include("source/gizmo.jl")
 include("source/ortho_gizmo.jl")
-include("source/algebra_logic.jl")
+include("source/dependent_graph.jl")
 include("source/opengl_data.jl")
 include("source/imgui_data.jl")
 

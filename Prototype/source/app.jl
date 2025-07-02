@@ -9,7 +9,7 @@ mutable struct App
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
-    _algebra::AlgebraLogic
+    _algebra::DependentGraph
     _plans::Queue{PlanDNA}
     _peripherals::Peripherals
     _cam::Camera
@@ -25,7 +25,7 @@ mutable struct App
         opengl = nothing
         imgui = nothing
         windowCreated = false
-        algebra = AlgebraLogic(shrd)
+        algebra = DependentGraph(shrd)
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = Camera()
@@ -84,12 +84,26 @@ handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_ke
 
 function handlePlans!(self::App)
     while(!isempty(self._plans))
-        
-        # TODO: refactor algebra to its plan assignment here.
-        
-        asset = recruit!(self._opengl,dequeue!(self._plans))
-        fuse!(self._algebra,asset)
+        build!(self,dequeue!(self._plans)) 
     end
+end
+
+function build!(self::App,plan::PlanDNA)
+    dependent = Plan2Algebra(plan)
+    
+    add!!(self._algebra,dependent)
+
+    _Plan_(plan)._algebra = dependent
+end
+
+function build!(self::App,plan::RenderedPlanDNA)
+    renderer  = Plan2Renderer(self._opengl,plan) 
+    dependent = Plan2Algebra(plan,renderer)
+    
+    add!!(self._algebra,dependent)
+    add!!(renderer,dependent)
+
+    _Plan_(plan)._algebra = dependent
 end
 
 function updateDeltaTime!(self::App)
@@ -181,7 +195,6 @@ function play!(self::App)
         handlePlans!(self)
         updateCam!(self)
         
-        update!(self._algebra)
         update!(self._opengl,self._cam)
         update!(self._imgui,self._opengl,self._algebra,self._cam)
         update!(self._shrd)
@@ -208,7 +221,6 @@ function init!(self::App)
     self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd)
     self._windowCreated = true
 
-    init!(self._algebra)
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
 end
@@ -221,7 +233,6 @@ function destroy!(self::App)
     destroy!(self._imgui)
     destroy!(self._opengl)
     destroy!(self._glfw)
-    destroy!(self._algebra)
 end
 
 export App

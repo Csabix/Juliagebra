@@ -1,4 +1,21 @@
 
+# ? ---------------------------------
+# ! PointPlan
+# ? ---------------------------------
+
+mutable struct PointPlan <: RenderedPlanDNA
+    x::Float64
+    y::Float64
+    z::Float64
+    _plan::Plan
+
+    function PointPlan(x,y,z,plans::Vector{T},callback::Function) where {T<:PlanDNA}
+        new(x,y,z,Plan(plans,callback))
+    end
+end
+
+_Plan_(self::PointPlan)::Plan = return self._plan
+Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._algebra))"
 
 # ? ---------------------------------
 # ! PointAlgebra
@@ -11,16 +28,23 @@ mutable struct PointAlgebra <:RenderedAlgebraDNA
     _z::Float64    
     _rendererID::Int
 
-    function PointAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function)
-        a = RenderedAlgebra(renderer,dependents,callback)
-        new(a,0,0,0,0)
+    function PointAlgebra(plan::PointPlan,renderer)
+        a = RenderedAlgebra(plan,renderer)
+        x = plan.x
+        y = plan.y
+        z = plan.z
+        new(a,x,y,z,0)
     end
 end
 
-_RenderedAlgebra_(self::PointAlgebra)::RenderedAlgebra = return self._renderedAlgebra
-Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._algebraID) - $(string(length(_Algebra_(self)._dependents))) - $(string(length(_Algebra_(self)._graph)))]($(self._x),$(self._y),$(self._z))"
 
-# TODO: Move set to RenderedAlgebra
+# ! Must have
+function Plan2Algebra(plan::PointPlan,renderer)::PointAlgebra
+    return PointAlgebra(plan,renderer)
+end
+
+_RenderedAlgebra_(self::PointAlgebra)::RenderedAlgebra = return self._renderedAlgebra
+Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._graphID) - $(string(length(_Algebra_(self)._graphParents))) - $(string(length(_Algebra_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
 
 function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
     self._x = x
@@ -38,7 +62,7 @@ y(self::PointAlgebra) = return self._y
 z(self::PointAlgebra) = return self._z
 
 function evalCallback(self::PointAlgebra)
-    return _Algebra_(self)._callback(_Algebra_(self)._dependents...)
+    return _Algebra_(self)._callback(_Algebra_(self)._graphParents...)
 end
 
 function dpCallbackReturn(self::PointAlgebra,v)
@@ -62,26 +86,6 @@ end
 onGraphEval(self::PointAlgebra) = dpEvalCallback(self)
 
 # ? ---------------------------------
-# ! PointPlan
-# ? ---------------------------------
-
-mutable struct PointPlan <:PlanDNA
-    x::Float64
-    y::Float64
-    z::Float64
-    _plan::Plan
-    _plans::Vector{PlanDNA}
-    _callback::Function
-
-    function PointPlan(x,y,z,plans::Vector{T},callback::Function) where {T<:PlanDNA}
-        new(x,y,z,Plan(),plans,callback)
-    end
-end
-
-_Plan_(self::PointPlan)::Plan = return self._plan
-Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._algebra))"
-
-# ? ---------------------------------
 # ! PointRenderer
 # ? ---------------------------------
 
@@ -90,11 +94,10 @@ mutable struct PointRenderer <:RendererDNA{PointAlgebra}
 
     _shader::ShaderProgram
     _buffer::TypedBufferArray    
+    
     _coords::Vector{Vec3F}
     _ids::Vector{Float32}
     
-    _nextRendererID::Int
-
     function PointRenderer(context::OpenGLData) 
         
         shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID"])
@@ -109,23 +112,20 @@ mutable struct PointRenderer <:RendererDNA{PointAlgebra}
             shader,
             buffer,
             coords,
-            ids,
-            1)
+            ids)
     end
 end
 
 _Renderer_(self::PointRenderer) = return self._renderer
-Base.string(self::PointRenderer) = return "PointRenderer($(self._nextRendererID - 1))"
+Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
+# ! Must have
 function added!(self::PointRenderer,point::PointAlgebra)
-    
-    point._rendererID = self._nextRendererID
-    self._nextRendererID+=1
+    aID = _Algebra_(point)._graphID
 
-    x   = point._x
-    y   = point._y
-    z   = point._z
-    aID = _Algebra_(point)._algebraID
+    x = point._x
+    y = point._y
+    z = point._z
 
     push!(self._coords,Vec3F(x,y,z))
     push!(self._ids,Float32(aID))
@@ -133,13 +133,15 @@ function added!(self::PointRenderer,point::PointAlgebra)
     println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(point._rendererID)\taID: $(aID)")
 end
 
+# ! Must have
 function addedUpload!(self::PointRenderer)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
     println("Uploaded ID buffer!")
 end
 
+# ! Must have
 function sync!(self::PointRenderer,point::PointAlgebra)
-    id = point._rendererID
+    id = point._renderedAlgebra._rendererID
     x = point._x
     y = point._y
     z = point._z
@@ -147,11 +149,13 @@ function sync!(self::PointRenderer,point::PointAlgebra)
     println("Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)")
 end
 
+# ! Must have
 function syncUpload!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     println("Uploaded Coordinate buffer!")
 end
 
+# ! Must have
 function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd) 
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
@@ -160,31 +164,15 @@ function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd)
     draw(self._buffer,GL_POINTS)
 end
 
+# ! Must have
 function destroy!(self::PointRenderer) 
     destroy!(self._shader)
     destroy!(self._buffer)
 end
 
-function plan2Algebra(self::PointRenderer,plan::PointPlan)::PointAlgebra
-    
-    newPoint = PointAlgebra(self,plan._plans,plan._callback)
-    newPoint._x = plan.x
-    newPoint._y = plan.y
-    newPoint._z = plan.z
-
-    return newPoint
-end
-
-
-function recruit!(self::OpenGLData, plan::PointPlan)::PointAlgebra
-    myVector = get!(self._renderOffices,PointRenderer,Vector{PointRenderer}())
-    
-    if(length(myVector)!=1)
-        push!(myVector,PointRenderer(self))
-    end
-
-    point = assignPlan!(myVector[1],plan)
-    return point
+# ! Must have
+function Plan2Renderer(self::OpenGLData,plan::PointPlan)
+    return SingleRendererTactic(self,PointRenderer)
 end
 
 export x,y,z

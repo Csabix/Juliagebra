@@ -10,13 +10,14 @@
 
 
 mutable struct RenderedAlgebra <:AlgebraDNA
-    _queueLock::QueueLock
     _algebra::Algebra
+    _queueLock::QueueLock
     _renderer::RendererDNA
-    
-    function RenderedAlgebra(renderer::RendererDNA,planDependents::Vector{PlanDNA},callback::Function)
-        algebra = Algebra(planDependents,callback)
-        new(QueueLock(),algebra,renderer)
+    _rendererID::Int
+
+    function RenderedAlgebra(plan::PlanDNA,renderer::RendererDNA,)
+        algebra = Algebra(plan)
+        new(algebra,QueueLock(),renderer,0)
     end
 
 end

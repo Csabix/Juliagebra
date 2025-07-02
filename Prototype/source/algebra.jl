@@ -3,19 +3,22 @@
 # ? ---------------------------------
 
 mutable struct Algebra
-    _algebraID::Int
-    _dependents::Vector{AlgebraDNA}
-    _graph::Vector{AlgebraDNA}
+    _graphID::Int                       # ? was algebraID
+    _graphParents::Vector{AlgebraDNA}   # ? was dependents
+    _graphChain::Vector{AlgebraDNA}     # ? was graph
     _callback::Function
 
-    function Algebra(planDependents::Vector{PlanDNA},callback::Function)
-        algebraDependents = Vector{AlgebraDNA}()
+    function Algebra(plan::PlanDNA)
         
-        for p in planDependents
-            push!(algebraDependents,_Plan_(p)._algebra)
+        graphParents = Vector{AlgebraDNA}()
+        graphChain = Vector{AlgebraDNA}()
+        callback = _Plan_(plan)._callback
+
+        for parent in _Plan_(plan)._graphParents
+            push!(graphParents,_Plan_(parent)._algebra)
         end
         
-        new(0,algebraDependents,Vector{AlgebraDNA}(),callback)
+        new(0,graphParents,graphChain,callback)
     end
 end
 
@@ -29,7 +32,7 @@ dpEvalCallback(self::AlgebraDNA,params...) = dpCallbackReturn(self,params...,eva
 onGraphEval(self::AlgebraDNA) =  error("Missing \"onGraphEval\" for subclass of AlgebraDNA")
 
 function evalGraph(self::AlgebraDNA)
-    for item in _Algebra_(self)._graph
+    for item in _Algebra_(self)._graphChain
         onGraphEval(item)
     end
 end

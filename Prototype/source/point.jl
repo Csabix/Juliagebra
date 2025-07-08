@@ -7,14 +7,14 @@ mutable struct PointPlan <: RenderedPlanDNA
     x::Float64
     y::Float64
     z::Float64
-    _plan::Plan
+    _plan::RenderedPlan
 
     function PointPlan(x,y,z,plans::Vector{T},callback::Function) where {T<:PlanDNA}
-        new(x,y,z,Plan(plans,callback))
+        new(x,y,z,RenderedPlan(plans,callback))
     end
 end
 
-_Plan_(self::PointPlan)::Plan = return self._plan
+_RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
 Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._algebra))"
 
 # ? ---------------------------------
@@ -26,21 +26,20 @@ mutable struct PointAlgebra <:RenderedAlgebraDNA
     _x::Float64
     _y::Float64
     _z::Float64    
-    _rendererID::Int
 
-    function PointAlgebra(plan::PointPlan,renderer)
-        a = RenderedAlgebra(plan,renderer)
+    function PointAlgebra(plan::PointPlan)
+        a = RenderedAlgebra(plan)
         x = plan.x
         y = plan.y
         z = plan.z
-        new(a,x,y,z,0)
+        new(a,x,y,z)
     end
 end
 
 
 # ! Must have
 function Plan2Algebra(plan::PointPlan,renderer)::PointAlgebra
-    return PointAlgebra(plan,renderer)
+    return PointAlgebra(plan)
 end
 
 _RenderedAlgebra_(self::PointAlgebra)::RenderedAlgebra = return self._renderedAlgebra
@@ -130,7 +129,7 @@ function added!(self::PointRenderer,point::PointAlgebra)
     push!(self._coords,Vec3F(x,y,z))
     push!(self._ids,Float32(aID))
 
-    println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(point._rendererID)\taID: $(aID)")
+    println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedAlgebra_(point)._rendererID)\taID: $(aID)")
 end
 
 # ! Must have

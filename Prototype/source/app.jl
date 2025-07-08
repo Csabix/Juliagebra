@@ -98,6 +98,8 @@ end
 
 function build!(self::App,plan::RenderedPlanDNA)
     renderer  = Plan2Renderer(self._opengl,plan) 
+    _RenderedPlan_(plan)._renderer = renderer
+    
     dependent = Plan2Algebra(plan,renderer)
     
     add!!(self._algebra,dependent)

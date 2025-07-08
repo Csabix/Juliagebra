@@ -2,22 +2,16 @@
 # ! RenderedAlgebraDNA
 # ? ---------------------------------
 
-# TODO: rename this to RenderedAlgebra, then Create an actual RenderedAlgebra struct (one which doesnt requiere a renderer).
-# TODO: Algebra struct must have dispatch on callback.
-# TODO: Algebra type must be solo Type.
-# TODO: RenderedAlgebra type must intersection (Union{}) of QueLock and RenderedAlgebra.
-# TODO: QueLockGroup should be created like T = Union{T,C}.
-
-
 mutable struct RenderedAlgebra <:AlgebraDNA
     _algebra::Algebra
     _queueLock::QueueLock
     _renderer::RendererDNA
     _rendererID::Int
 
-    function RenderedAlgebra(plan::PlanDNA,renderer::RendererDNA,)
+    function RenderedAlgebra(plan::RenderedPlanDNA)
         algebra = Algebra(plan)
-        new(algebra,QueueLock(),renderer,0)
+        renderedPlan = _RenderedPlan_(plan)
+        new(algebra,QueueLock(),renderedPlan._renderer,0)
     end
 
 end

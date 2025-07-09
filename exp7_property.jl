@@ -7,9 +7,11 @@ function Base.getindex(self::Alma,idx::Val{:A})
     return self.a
 end
 
-abstract type A end
+struct Aa end
 
-function Base.getindex(self::Alma,idx::Type{A})
+const A = Aa()
+
+function Base.getindex(self::Alma,idx::Aa)
     return self.a
 end
 

@@ -1,14 +1,13 @@
 include("Prototype/juliagebra.jl")
 using .JuliAgebra
 
+App()
 
-context = App()
-
-cursor = Point!(0,0,5,context)
+cursor = Point(0,0,5)
 
 function wave(xf,yf,zf,cap,cursor)
-    xc = x(cursor)
-    yc = y(cursor)
+    xc = cursor[X]
+    yc = cursor[Y]
     
     distance = sqrt((xc - xf)^2 + (yc - yf)^2)/ cap * 0.2
     
@@ -16,7 +15,7 @@ function wave(xf,yf,zf,cap,cursor)
         distance = 1
     end
 
-    zz = z(cursor) + (zf - z(cursor)) * distance
+    zz = cursor[Z] + (zf - cursor[Z]) * distance
 
     return (xf,yf,zz)
 end
@@ -26,10 +25,12 @@ for x in -10:10
         cap = 3.0
         xf = x * cap
         yf = y * cap
-        p = Point!(xf,yf,0,[cursor],cur -> wave(xf,yf,0.0,cap,cur),context)
+        Point(xf,yf,0,[cursor]) do cur
+            wave(xf,yf,0.0,cap,cur)
+        end
     end
 end
 
-play!(context)
+play!()
 
 

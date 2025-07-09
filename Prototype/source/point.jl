@@ -56,9 +56,13 @@ function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
 
 end
 
-x(self::PointAlgebra) = return self._x
-y(self::PointAlgebra) = return self._y
-z(self::PointAlgebra) = return self._z
+abstract type X end
+abstract type Y end
+abstract type Z end
+
+Base.getindex(self::PointAlgebra,idx::Type{X}) = return self._x
+Base.getindex(self::PointAlgebra,idx::Type{Y})  = return self._y
+Base.getindex(self::PointAlgebra,idx::Type{Z})  = return self._z
 
 function evalCallback(self::PointAlgebra)
     return _Algebra_(self)._callback(_Algebra_(self)._graphParents...)
@@ -174,4 +178,4 @@ function Plan2Renderer(self::OpenGLData,plan::PointPlan)
     return SingleRendererTactic(self,PointRenderer)
 end
 
-export x,y,z
+export X,Y,Z

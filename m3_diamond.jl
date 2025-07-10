@@ -5,12 +5,7 @@ App()
 
 A = Point(0,0,5)
 
-B1 = Point(0,0,0,[A]) do a 
-    #println("$(a[:x]),$(a[:y]),$(a[:z])")
-    #println("$(a[:x,:y,:z])")
-    #println("$(a[:x,:y])")
-    #println("$(a[:x,:z])")
-    
+B1 = Point(0,0,0,[A]) do a     
     return (a[:x] + 5,a[:y],a[:z])
 end
 

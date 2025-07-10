@@ -62,6 +62,17 @@ getPointField(self::PointAlgebra,fieldVal::Val{:z}) = return self._z
 getPointField(self::PointAlgebra,fieldVal) = error("Unrecognized Symbol for Point's field!")
 Base.getindex(self::PointAlgebra,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
 
+function Base.getindex(self::PointAlgebra,fieldSymbols...)
+    
+    fieldValues = []
+
+    for fieldSymbol in fieldSymbols
+        push!(fieldValues,self[fieldSymbol])
+    end
+
+    return tuple(fieldValues...)
+end
+
 function evalCallback(self::PointAlgebra)
     return _Algebra_(self)._callback(_Algebra_(self)._graphParents...)
 end

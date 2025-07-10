@@ -6,8 +6,8 @@ App()
 cursor = Point(0,0,5)
 
 function wave(xf,yf,zf,cap,cursor)
-    xc = cursor[X]
-    yc = cursor[Y]
+    xc = cursor[:x]
+    yc = cursor[:y]
     
     distance = sqrt((xc - xf)^2 + (yc - yf)^2)/ cap * 0.2
     
@@ -15,9 +15,9 @@ function wave(xf,yf,zf,cap,cursor)
         distance = 1
     end
 
-    zz = cursor[Z] + (zf - cursor[Z]) * distance
+    z = cursor[:z] + (zf - cursor[:z]) * distance
 
-    return (xf,yf,zz)
+    return (xf,yf,z)
 end
 
 for x in -10:10

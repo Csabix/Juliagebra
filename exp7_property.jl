@@ -24,3 +24,11 @@ A()
 println("$(aa[Val(:A)])")
 println("$(aa[A])")
 
+
+@enum Coord X Y Z
+
+function Base.getindex(self::Alma, field::Val{X})
+    return self.a
+end
+
+println("$(aa[Val(X)])")

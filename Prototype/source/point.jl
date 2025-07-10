@@ -56,13 +56,11 @@ function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
 
 end
 
-abstract type X end
-abstract type Y end
-abstract type Z end
-
-Base.getindex(self::PointAlgebra,idx::Type{X}) = return self._x
-Base.getindex(self::PointAlgebra,idx::Type{Y})  = return self._y
-Base.getindex(self::PointAlgebra,idx::Type{Z})  = return self._z
+getPointField(self::PointAlgebra,fieldVal::Val{:x}) = return self._x
+getPointField(self::PointAlgebra,fieldVal::Val{:y}) = return self._y
+getPointField(self::PointAlgebra,fieldVal::Val{:z}) = return self._z
+getPointField(self::PointAlgebra,fieldVal) = error("Unrecognized Symbol for Point's field!")
+Base.getindex(self::PointAlgebra,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
 
 function evalCallback(self::PointAlgebra)
     return _Algebra_(self)._callback(_Algebra_(self)._graphParents...)
@@ -177,5 +175,3 @@ end
 function Plan2Renderer(self::OpenGLData,plan::PointPlan)
     return SingleRendererTactic(self,PointRenderer)
 end
-
-export X,Y,Z

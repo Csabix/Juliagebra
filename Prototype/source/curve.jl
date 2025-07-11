@@ -20,8 +20,9 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
     end
 end
 
-Base.string(self::PointPlan)::String = return "Curve"
-_RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
+_RenderedPlan_(self::ParametricCurvePlan)::RenderedPlan = return self._plan
+Base.string(self::ParametricCurvePlan)::String = return "Curve"
+
 
 # ? ---------------------------------
 # ! ParametricCurveAlgebra
@@ -61,7 +62,7 @@ Base.string(self::ParametricCurveAlgebra)::String =  return "ParametricCurve: $(
 _RenderedAlgebra_(self::ParametricCurveAlgebra)::RenderedAlgebra = return self._renderedAlgebra
 
 function evalCallback(self::ParametricCurveAlgebra,t,index)
-    return _Algebra_(self)._callback(t,_Algebra_(self)._dependents...)
+    return _Algebra_(self)._callback(t,_Algebra_(self)._graphParents...)
 end
 
 dpCallbackReturn(self::ParametricCurveAlgebra,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
@@ -140,7 +141,6 @@ end
 function addedUpload!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._colors,GL_STATIC_DRAW)
-
 end
 
 # ! Must have

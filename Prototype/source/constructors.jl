@@ -6,12 +6,12 @@ const DependentsT = Vector{T} where T <: PlanDNA
 # ? ---------------------------------
 
 function _Point(;
+                _app::App = implicitApp,
                 _call::Function = () -> (),
                 _deps::DependentsT = Vector{PlanDNA}(),
                 _x = 0,
                 _y = 0,
                 _z = 0,
-                _app::App = implicitApp
                 )::PointPlan
     plan = PointPlan(_call,_deps,_x,_y,_z)
     submit!(_app,plan)
@@ -37,39 +37,34 @@ CURVE_DEFULT_START  = 0
 CURVE_DEFULT_END    = 1
 CURVE_DEFAULT_COLOR = (0.6,0.6,0.9)
 
-function ParametricCurve(tStart,tEnd,tNum,dependents::DependentsT, callback::Function, app::App, color=CURVE_DEFAULT_COLOR)::ParametricCurvePlan
-    plan = ParametricCurvePlan(tStart,tEnd,tNum,dependents,callback,color)
-    submit!(app,plan)
+function _ParametricCurve(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _tStart = 0,
+                         _tEnd = 1,
+                         _tNum = 1000,
+                         _col= (0.6,0.6,0.9)
+                         )::ParametricCurvePlan
+    plan = ParametricCurvePlan(_call,_deps,_tStart,_tEnd,_tNum,_col)
+    submit!(_app,plan)
     return plan
 end
 
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd)
 
-ParametricCurve(tStart,tEnd,tNum,callback::Function,app::App)::ParametricCurvePlan =
-ParametricCurve(tStart,tEnd,tNum,Vector{PlanDNA}(),callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,app::App)::ParametricCurvePlan = 
-ParametricCurve(tStart,tEnd,tNum,Vector{PlanDNA}(),callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT,app::App)::ParametricCurvePlan = 
-ParametricCurve(tStart,tEnd,tNum,dependents,callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT,app::App)::ParametricCurvePlan = 
-ParametricCurve(tStart,tEnd,CURVE_DETAIL_LEVEL,dependents,callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
-ParametricCurve(callback,tStart,tEnd,tNum,dependents,implicitApp)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT,color)::ParametricCurvePlan =
-ParametricCurve(tStart,tEnd,tNum,dependents,callback,implicitApp,color)
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Real)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum)
 
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT)::ParametricCurvePlan =
-ParametricCurve(callback,tStart,tEnd,dependents,implicitApp)
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_deps=dependents)
 
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
-ParametricCurve(callback,tStart,tEnd,Vector{PlanDNA}(),implicitApp)
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_deps=dependents)
 
-ParametricCurve(callback::Function,dependents::DependentsT,app::App)::ParametricCurvePlan = 
-ParametricCurve(CURVE_DEFULT_START,CURVE_DEFULT_END,CURVE_DETAIL_LEVEL,dependents,callback,app)
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,dependents::DependentsT,)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_deps=dependents)  
 
 # ? ---------------------------------
 # ! Segment

@@ -8,7 +8,7 @@ mutable struct Plan
     _graphParents::Vector{PlanDNA}
     _callback::Function
 
-    function Plan(graphParents::Vector{T},callback::Function) where T<:PlanDNA
+    function Plan(callback::Function,graphParents::Vector{T},) where T<:PlanDNA
         new(nothing,graphParents,callback)
     end
 end
@@ -23,8 +23,8 @@ mutable struct RenderedPlan <: PlanDNA
     _renderer::Union{Nothing,RendererDNA}
     _plan::Plan
     
-    function RenderedPlan(graphParents::Vector{T},callback::Function) where T<:PlanDNA
-        plan = Plan(graphParents,callback)
+    function RenderedPlan(callback::Function, graphParents::Vector{T},) where T<:PlanDNA
+        plan = Plan(callback,graphParents)
         new(nothing,plan)
     end
 end

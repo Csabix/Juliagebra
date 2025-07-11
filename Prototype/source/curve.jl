@@ -1,3 +1,27 @@
+# ? ---------------------------------
+# ! ParametricCurvePlan
+# ? ---------------------------------
+
+mutable struct ParametricCurvePlan <: RenderedPlanDNA
+    _plan::RenderedPlan
+
+    _tStart::Float64
+    _tEnd::Float64
+    _tNum::Int
+    _color::Vec3F
+    
+    function ParametricCurvePlan(callback::Function,plans::Vector{T},tStart,tEnd,tNum,color) where {T<:PlanDNA}
+
+        r = Float32(color[1])
+        g = Float32(color[2])
+        b = Float32(color[3])
+
+        new(RenderedPlan(callback,plans),tStart,tEnd,tNum,Vec3F(r,g,b))
+    end
+end
+
+Base.string(self::PointPlan)::String = return "Curve"
+_RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
 
 # ? ---------------------------------
 # ! ParametricCurveAlgebra
@@ -9,18 +33,28 @@ mutable struct ParametricCurveAlgebra <: RenderedAlgebraDNA
     _tStart::Float64
     _tEnd::Float64
     _tNum::Int
-    
+    _color::Vec3F
+
     _startIndex::Int
     _endIndex::Int
     _tValues::Vector{Vec3F}
 
-    _color::Vec3F
+    
 
-    function ParametricCurveAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function,color::Vec3F)
-        a = RenderedAlgebra(renderer,dependents,callback)
-        
-        new(a,0,0,0,0,0,[],Vec3FNan)
+    function ParametricCurveAlgebra(plan::ParametricCurvePlan)
+        a = RenderedAlgebra(plan)
+        tStart = plan._tStart
+        tEnd = plan._tEnd
+        tNum = plan._tNum
+        color = plan._color
+
+        new(a,tStart,tEnd,tNum,color,0,0,[])
     end
+end
+
+# ! Must have
+function Plan2Algebra(plan::ParametricCurvePlan)::ParametricCurveAlgebra
+    return ParametricCurveAlgebra(plan)
 end
 
 Base.string(self::ParametricCurveAlgebra)::String =  return "ParametricCurve: $(self._startIndex) - $(self._endIndex) - $(self._tNum)"
@@ -46,32 +80,6 @@ function onGraphEval(self::ParametricCurveAlgebra)
     runCallbacks(self)
     flag!(self)
 end
-
-# ? ---------------------------------
-# ! ParametricCurvePlan
-# ? ---------------------------------
-
-mutable struct ParametricCurvePlan <: PlanDNA
-    _tStart::Float64
-    _tEnd::Float64
-    _tNum::Int
-    
-    _plan::Plan
-    _plans::Vector{PlanDNA}
-    _color::Vec3F
-    _callback::Function
-
-    function ParametricCurvePlan(tStart,tEnd,tNum,plans::Vector{T},callback::Function,color) where {T<:PlanDNA}
-
-        r = Float32(color[1])
-        g = Float32(color[2])
-        b = Float32(color[3])
-
-        new(tStart,tEnd,tNum,Plan(),plans,Vec3F(r,g,b),callback)
-    end
-end
-
-_Plan_(self::ParametricCurvePlan)::Plan = return self._plan
 
 # ? ---------------------------------
 # ! CurveRenderer
@@ -108,6 +116,7 @@ end
 _Renderer_(self::CurveRenderer) = return self._renderer
 Base.string(self::CurveRenderer) = return "CurveRenderer[$(length(self._coords))]"
 
+# ! Must have
 function added!(self::CurveRenderer,curve::ParametricCurveAlgebra)
     curve._startIndex = length(self._coords) + 1
     
@@ -127,20 +136,24 @@ function added!(self::CurveRenderer,curve::ParametricCurveAlgebra)
     println("Added Curve as: $(curve._startIndex) - $(curve._endIndex) - $(curve._tNum)")
 end
 
+# ! Must have
 function addedUpload!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._colors,GL_STATIC_DRAW)
 
 end
 
+# ! Must have
 function sync!(self::CurveRenderer,curve::ParametricCurveAlgebra)
     println("Synced Curve!")
 end
 
+# ! Must have
 function syncUpload!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
 end
 
+# ! Must have
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     vp,v,p = getMat(cam,shrd._width,shrd._height)
     
@@ -149,28 +162,13 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     draw(self._buffer,GL_LINE_STRIP)
 end
 
+# ! Must have
 function destroy!(self::CurveRenderer)
     destroy!(self._shader)
     destroy!(self._buffer)
 end
 
-function plan2Algebra(self::CurveRenderer,plan::ParametricCurvePlan)::ParametricCurveAlgebra
-    curve = ParametricCurveAlgebra(self,plan._plans,plan._callback,plan._color)
-    
-    curve._tStart   = plan._tStart
-    curve._tEnd     = plan._tEnd
-    curve._tNum     = plan._tNum
-    curve._color    = plan._color
-
-    return curve
-end
-
-function recruit!(self::OpenGLData,plan::ParametricCurvePlan)::ParametricCurveAlgebra
-    myVector = get!(self._renderOffices,CurveRenderer,Vector{CurveRenderer}())
-    if(length(myVector)!=1)
-        push!(myVector,CurveRenderer(self))
-    end
-
-    curve = assignPlan!(myVector[1],plan)
-    return curve
+# ! Must have
+function Plan2Renderer(self::OpenGLData,plan::ParametricCurvePlan)
+    return SingleRendererTactic(self,CurveRenderer)
 end

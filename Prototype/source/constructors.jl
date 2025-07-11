@@ -5,30 +5,27 @@ const DependentsT = Vector{T} where T <: PlanDNA
 # ! Point
 # ? ---------------------------------
 
-POINT_DEFAULT_X = 0
-POINT_DEFAULT_Y = 0
-POINT_DEFAULT_Z = 0
-
-function Point(x, y, z,dependents::DependentsT, callback::Function, app::App)::PointPlan
-    plan = PointPlan(x,y,z,dependents,callback)
-    submit!(app,plan)
+function _Point(;
+                _call::Function = () -> (),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _x = 0,
+                _y = 0,
+                _z = 0,
+                _app::App = implicitApp
+                )::PointPlan
+    plan = PointPlan(_call,_deps,_x,_y,_z)
+    submit!(_app,plan)
     return plan
 end
 
-Point(x::Real,y::Real,z::Real,app::App) = 
-Point(x,y,z,Vector{PlanDNA}(), () -> () ,app)
-
 Point(x::Real,y::Real,z::Real) = 
-Point(x,y,z,implicitApp)
+_Point(_x=x,_y=y,_z=z)
 
 Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT) = 
-Point(x,y,z,dependents,callback,implicitApp)
+_Point(_call=callback,_x=x,_y=y,_z=z,_deps=dependents)
 
-Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT,app::App) = 
-Point(x,y,z,dependents,callback,app)
-
-Point(callback::Function,dependents::DependentsT,app::App) = 
-Point(POINT_DEFAULT_X,POINT_DEFAULT_Y,POINT_DEFAULT_Z,dependents,callback,app)
+Point(callback::Function,dependents::DependentsT) = 
+_Point(_call=callback,_deps=dependents)
 
 
 # ? ---------------------------------

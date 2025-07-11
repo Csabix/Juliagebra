@@ -4,13 +4,16 @@
 # ? ---------------------------------
 
 mutable struct PointPlan <: RenderedPlanDNA
-    x::Float64
-    y::Float64
-    z::Float64
     _plan::RenderedPlan
+    
+    _x::Float64
+    _y::Float64
+    _z::Float64
+    
 
-    function PointPlan(x,y,z,plans::Vector{T},callback::Function) where {T<:PlanDNA}
-        new(x,y,z,RenderedPlan(plans,callback))
+    function PointPlan(callback::Function,plans::Vector{T},x,y,z) where {T<:PlanDNA}
+        new(RenderedPlan(callback,plans),
+            x,y,z)
     end
 end
 
@@ -29,16 +32,16 @@ mutable struct PointAlgebra <:RenderedAlgebraDNA
 
     function PointAlgebra(plan::PointPlan)
         a = RenderedAlgebra(plan)
-        x = plan.x
-        y = plan.y
-        z = plan.z
+        x = plan._x
+        y = plan._y
+        z = plan._z
         new(a,x,y,z)
     end
 end
 
 
 # ! Must have
-function Plan2Algebra(plan::PointPlan,renderer)::PointAlgebra
+function Plan2Algebra(plan::PointPlan)::PointAlgebra
     return PointAlgebra(plan)
 end
 

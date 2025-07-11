@@ -1,43 +1,45 @@
 include("Prototype/juliagebra.jl")
 using .JuliAgebra
 
-context = App()
+App()
 
-Center = Point(0,0,0,context)
+Center = Point(0,0,0)
 
-ax1(Center) = return (x(Center)+5,y(Center),z(Center))
-Axis1 = Point(5,0,0,[Center],ax1,context)
+Axis1 = Point(5,0,0,[Center]) do c
+    return c[:x,:y,:z] .+ (5.0,0.0,0.0)
+end
 
-ax2(Center) = return (x(Center),y(Center)+5,z(Center))
-Axis2 = Point(0,5,0,[Center],ax2,context)
+Axis2 = Point(0,5,0,[Center]) do c
+    return c[:x,:y,:z] .+ (0.0,5.0,0.0)
+end
 
-function circle(t,xRad,yRad)
-    x = cos(t)*xRad
-    y = sin(t)*yRad
+Axis3 = Point(0,0,5,[Center]) do c
+    return c[:x,:y,:z] .+ (0.0,0.0,5.0)
+end
+
+function dCircle(t,xRadius,yRadius)
+    x = cos(t)*xRadius
+    y = sin(t)*yRadius
     z = 0
-    
     return (x,y,z)
 end
 
-function depCircle1(t,p1,p2,p3)
-    xRad = abs(x(p1) - x(p2))
-    yRad = abs(y(p1) - y(p3))
-    xx,yy,zz = circle(t,xRad,yRad)
-    return (xx + x(p1),yy + y(p1),zz + z(p1))
+ParametricCurve(0,2*pi,51,[Center,Axis1,Axis2]) do t, c, a1, a2
+    xR = abs.(c[:x] .- a1[:x])
+    yR = abs.(c[:y] .- a2[:y]) 
+    
+    coords = dCircle(t,xR,yR)
+    
+    return coords .+ c[:x,:y,:z]
 end
 
-crv1 = ParametricCurve(0,2*pi,51,[Center,Axis1,Axis2],depCircle1,context)
+ParametricCurve(0,2*pi,51,[Center,Axis2,Axis3]) do t, c, a2, a3
+    yRad = abs(c[:y] - a2[:y])
+    zRad = abs(c[:z] - a3[:z])
 
-ax3(Center) = return (x(Center),y(Center),z(Center)+5)
-Axis3 = Point(0,0,5,[Center],ax3,context)
+    y,z,x = dCircle(t,yRad,zRad)
 
-function depCircle2(t,p1,p2,p3)
-    yRad = abs(y(p1) - y(p2))
-    zRad = abs(z(p1) - z(p3))
-    yy,zz,xx = circle(t,yRad,zRad)
-    return (xx + x(p1),yy + y(p1),zz + z(p1))
+    return (x,y,z) .+ c[:x,:y,:z]
 end
 
-crv2 = ParametricCurve(0,2*pi,51,[Center,Axis2,Axis3],depCircle2,context)
-
-play!(context)
+play!()

@@ -83,3 +83,5 @@ function Base.iterate(self::TrianglesOf,uvs = (1,1,1))
     
     return nothing
 end
+
+const EMPTY_FlatMatrix = FlatMatrix{0,Vec3F}(FlatMatrixManager{Vec3F}())

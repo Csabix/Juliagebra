@@ -1,3 +1,39 @@
+
+# ? ---------------------------------
+# ! ParametricSurfacePlan
+# ? ---------------------------------
+
+mutable struct ParametricSurfacePlan <:RenderedPlanDNA
+    _plan::RenderedPlan
+     
+    _width::Int
+    _height::Int
+    
+    _uStart::Float64
+    _uEnd::Float64
+    
+    _vStart::Float64
+    _vEnd::Float64
+
+    _color::Vec3F
+    
+    function ParametricSurfacePlan(callback::Function,plans::Vector{T},width,height,uStart,uEnd,vStart,vEnd,color) where {T<:PlanDNA}
+        
+        r = Float32(color[1])
+        g = Float32(color[2])
+        b = Float32(color[3])
+        
+        new(RenderedPlan(callback,plans),
+            width,height,
+            uStart,uEnd,
+            vStart,vEnd,
+            Vec3F(r,g,b))
+    end
+end
+
+_RenderedPlan_(self::ParametricSurfacePlan)::RenderedPlan = return self._plan
+Base.string(self::ParametricSurfacePlan)::String = return "Surface"
+
 # ? ---------------------------------
 # ! ParametricSurfaceAlgebra
 # ? ---------------------------------
@@ -5,6 +41,9 @@
 mutable struct ParametricSurfaceAlgebra <: RenderedAlgebraDNA
     _renderedAlgebra::RenderedAlgebra
     
+    _uvValues::FlatMatrix
+    _uvNormals::FlatMatrix
+
     _unmanagedWidth::Int
     _unmanagedHeight::Int
 
@@ -14,25 +53,35 @@ mutable struct ParametricSurfaceAlgebra <: RenderedAlgebraDNA
     _vStart::Float64
     _vEnd::Float64
 
-    _uvValues::FlatMatrix
-    _uvNormals::FlatMatrix
-
     _color::Vec3F
 
-    function ParametricSurfaceAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function)
-        renderedAlgebra = RenderedAlgebra(renderer,dependents,callback)
+    function ParametricSurfaceAlgebra(plan::ParametricSurfacePlan)
+        renderedAlgebra = RenderedAlgebra(plan)
+                
+        unmanagedWidth = plan._width
+        unmanagedHeight = plan._height
         
-        # TODO Heavy refactoring needed, to mitigate this solution!
-        emptyStuff = FlatMatrix{0,Vec3F}(FlatMatrixManager{Vec3F}())
+        uStart = plan._uStart
+        uEnd = plan._uEnd
         
+        vStart = plan._vStart
+        vEnd = plan._vEnd
+        
+        color = plan._color
+
         new(renderedAlgebra,
-            0,0,
-            0,0,
-            0,0,
-            emptyStuff,
-            emptyStuff,
-            Vec3FNan)
+            EMPTY_FlatMatrix,
+            EMPTY_FlatMatrix,
+            unmanagedWidth,unmanagedHeight,
+            uStart,uEnd,
+            vStart,vEnd,
+            color)
     end
+end
+
+# ! Must have
+function Plan2Algebra(plan::ParametricSurfacePlan)::ParametricSurfaceAlgebra
+    return ParametricSurfaceAlgebra(plan)
 end
 
 _RenderedAlgebra_(self::ParametricSurfaceAlgebra)::RenderedAlgebra = return self._renderedAlgebra
@@ -48,7 +97,7 @@ function evalCallback(self::ParametricSurfaceAlgebra,u,v)
 
     #println("uf:$(uf) - vf:$(vf)")
 
-    return _Algebra_(self)._callback(uf,vf,_Algebra_(self)._dependents...)
+    return _Algebra_(self)._callback(uf,vf,_Algebra_(self)._graphParents...)
 end
 
 function dpCallbackReturn(self::ParametricSurfaceAlgebra,u,v,value::Tuple)
@@ -149,43 +198,6 @@ function onGraphEval(self::ParametricSurfaceAlgebra)
 end
 
 # ? ---------------------------------
-# ! ParametricSurfacePlan
-# ? ---------------------------------
-
-mutable struct ParametricSurfacePlan <:PlanDNA
-    _plan::Plan
-    
-    _plans::Vector{PlanDNA}
-    _callback::Function
-    
-    _width::Int
-    _height::Int
-    
-    _uStart::Float64
-    _uEnd::Float64
-    
-    _vStart::Float64
-    _vEnd::Float64
-
-    _color::Vec3F
-    
-    function ParametricSurfacePlan(plans::Vector{T},callback::Function,width,height,uStart,uEnd,vStart,vEnd,color) where {T<:PlanDNA}
-        
-        r = Float32(color[1])
-        g = Float32(color[2])
-        b = Float32(color[3])
-        
-        new(Plan(),plans,callback,
-            width,height,
-            uStart,uEnd,
-            vStart,vEnd,
-            Vec3F(r,g,b))
-    end
-end
-
-_Plan_(self::ParametricSurfacePlan)::Plan = return self._plan
-
-# ? ---------------------------------
 # ! ParametricSurfaceRenderer
 # ? ---------------------------------
 
@@ -219,17 +231,12 @@ end
 _Renderer_(self::ParametricSurfaceRenderer) = return self._renderer
 Base.string(self::ParametricSurfaceRenderer) = "ParametricSurfaceRenderer - [$(length(self._buffer))]"
 
-function destroy!(self::ParametricSurfaceRenderer)
-    destroy!(self._shader)
-    destroy!(self._buffer)
-end
-
+# ! Must have
 function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceAlgebra)
-    
-    color = surface._color
     
     width = surface._unmanagedWidth
     height = surface._unmanagedHeight
+    color = surface._color
 
     initMatrix(self._vertexes,width,height,Vec3FNan)
     initMatrix(self._normals,width,height,Vec3FNan)
@@ -240,11 +247,10 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceAlgebr
 
     runCallbacks(surface)
 
-    #println("$(self._indexes)")
-
     println("ParametricSurface added!")
 end
 
+# ! Must have
 function addedUpload!(self::ParametricSurfaceRenderer)
     upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
@@ -252,15 +258,18 @@ function addedUpload!(self::ParametricSurfaceRenderer)
     uploadIndexes!(self._buffer,self._indexes,GL_STATIC_DRAW)
 end
 
+# ! Must have
 function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceAlgebra)
     println("Synced ParametricSurface!")
 end
 
+# ! Must have
 function syncUpload!(self::ParametricSurfaceRenderer)
     upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
 end
 
+# ! Must have
 function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
     glDisable(GL_CULL_FACE)
     
@@ -272,26 +281,13 @@ function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
     glEnable(GL_CULL_FACE)
 end
 
-function plan2Algebra(self::ParametricSurfaceRenderer,plan::ParametricSurfacePlan)::ParametricSurfaceAlgebra
-    surface = ParametricSurfaceAlgebra(self,plan._plans,plan._callback)
-
-    surface._color = plan._color
-    surface._unmanagedWidth = plan._width
-    surface._unmanagedHeight = plan._height
-    surface._uStart = plan._uStart
-    surface._uEnd = plan._uEnd
-    surface._vStart = plan._vStart
-    surface._vEnd = plan._vEnd
-    
-    return surface
+# ! Must have
+function destroy!(self::ParametricSurfaceRenderer)
+    destroy!(self._shader)
+    destroy!(self._buffer)
 end
 
-function recruit!(self::OpenGLData,plan::ParametricSurfacePlan)::ParametricSurfaceAlgebra
-    myVector = get!(self._renderOffices,ParametricSurfaceRenderer,Vector{ParametricSurfaceRenderer}())
-    if(length(myVector)!=1)
-        push!(myVector,ParametricSurfaceRenderer(self))
-    end
-
-    surface = assignPlan!(myVector[1],plan)
-    return surface
+# ! Must have
+function Plan2Renderer(self::OpenGLData,plan::ParametricSurfacePlan)
+    return SingleRendererTactic(self,ParametricSurfaceRenderer)
 end

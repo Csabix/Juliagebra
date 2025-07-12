@@ -5,13 +5,13 @@ App()
 
 a = Point(0,0,0)
 
-wave = ParametricSurface([a],10,10,-10.0,10.0,-10.0,10.0) do u,v,p1
+wave = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0,[a]) do u,v,p1
 
-    xx = u
-    yy = v
-    zz = sin(u + x(p1))
+    x = u
+    y = v
+    z = sin(u + p1[:x])
 
-    return (xx,yy,zz)
+    return (x,y,z)
 end
 
 play!()

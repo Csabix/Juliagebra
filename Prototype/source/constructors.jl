@@ -32,11 +32,6 @@ _Point(_call=callback,_deps=dependents)
 # ! ParametricCurve
 # ? ---------------------------------
 
-CURVE_DETAIL_LEVEL  = 1000
-CURVE_DEFULT_START  = 0
-CURVE_DEFULT_END    = 1
-CURVE_DEFAULT_COLOR = (0.6,0.6,0.9)
-
 function _ParametricCurve(;
                          _app::App = implicitApp,
                          _call::Function = () -> (),
@@ -126,16 +121,28 @@ Mesh(vertexes,normals,color,implicitApp)
 # ! ParametricSurface
 # ? ---------------------------------
 
-SURFACE_DEFAULT_COLOR = (0.8,0.0,0.3)
-
-function ParametricSurface(callback::Function,dependents::DependentsT,width,height,uStart,uEnd,vStart,vEnd,color=SURFACE_DEFAULT_COLOR, app::App=implicitApp)::ParametricSurfacePlan
-    plan = ParametricSurfacePlan(dependents,callback,width,height,uStart,uEnd,vStart,vEnd,color)
-    submit!(app,plan)
+function _ParametricSurface(;
+                           _app::App = implicitApp,
+                           _call::Function = () -> (),
+                           _deps::DependentsT = Vector{PlanDNA}(),
+                           _width = 50,
+                           _height = 50,
+                           _uStart = 0.0,
+                           _uEnd = 1.0,
+                           _vStart = 0.0,
+                           _vEnd = 0.0,
+                           _color = (0.8,0.0,0.3)
+                           )::ParametricSurfacePlan
+    plan = ParametricSurfacePlan(_call,_deps,_width,_height,_uStart,_uEnd,_vStart,_vEnd,_color)
+    submit!(_app,plan)
     return plan
 end
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,color=SURFACE_DEFAULT_COLOR, app::App=implicitApp) =
-ParametricSurface(callback,Vector{PlanDNA}(),width,height,uStart,uEnd,vStart,vEnd,color,app)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents)
+
+ParametricSurface(callback::Function,dependents,width,height,uStart,uEnd,vStart,vEnd) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd)
 
 export Point
 export ParametricCurve

@@ -141,7 +141,7 @@ end
 ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT) =
 _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents)
 
-ParametricSurface(callback::Function,dependents,width,height,uStart,uEnd,vStart,vEnd) =
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd) =
 _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd)
 
 export Point

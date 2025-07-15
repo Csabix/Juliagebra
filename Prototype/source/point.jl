@@ -59,10 +59,14 @@ function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
 
 end
 
+getPointField(self::PointAlgebra,fieldVal) = error("Unrecognized Symbol for Point's field!")
+
 getPointField(self::PointAlgebra,fieldVal::Val{:x}) = return self._x
 getPointField(self::PointAlgebra,fieldVal::Val{:y}) = return self._y
 getPointField(self::PointAlgebra,fieldVal::Val{:z}) = return self._z
-getPointField(self::PointAlgebra,fieldVal) = error("Unrecognized Symbol for Point's field!")
+
+getPointField(self::PointAlgebra,fieldVal::Val{:xyz}) = return (self._x,self._y,self._z)
+
 Base.getindex(self::PointAlgebra,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
 
 function Base.getindex(self::PointAlgebra,fieldSymbols...)

@@ -4,27 +4,23 @@ using .JuliAgebra
 App()
 
 tMax = (2*pi)*5
-
+radius = 5
 a = Point(-tMax-10,0,0)
 
-
-radius = 5
-
-curve = ParametricCurve(0,tMax,55,[a],(0.3,0.8,0.3)) do t,p1
-    zz = cos(t) * radius
-    yy = sin(t) * radius
-    xx = t
+curve = ParametricCurve(0,tMax,55,(0.3,0.8,0.3),[a]) do t,p1
+    z = cos(t) * radius
+    y = sin(t) * radius
+    x = t
     
-    return (x(p1) + xx, y(p1) + yy, z(p1) + zz)
+    return p1[:xyz] .+ (x,y,z)
 end
 
 surface = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0) do u,v
+    x = u
+    y = v
+    z = (u^2 + v^2) * -0.05
 
-    xx = u
-    yy = v
-    zz = (u^2 + v^2) * -0.05
-
-    return (xx,yy,zz)
+    return (x,y,z)
 end
 
 it = Intersection(curve,surface,6)

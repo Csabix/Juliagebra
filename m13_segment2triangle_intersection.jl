@@ -30,27 +30,23 @@ normals = [
     (0,0,0),
     (0,0,0)
 ]
-triangle = ParametricSurface([ta,tb,tc],3,3,0.0,1.0,0.0,1.0) do u,v,a,b,c
+triangle = ParametricSurface(3,3,0.0,1.0,0.0,1.0,[ta,tb,tc]) do u,v,a,b,c
     
     if (u>=0.5 && v>=0.5)
         u = 0.5
         v = 0.5
     end
 
-    xx = (1-u-v) * x(a) + u * x(b) + v * x(c)
-    yy = (1-u-v) * y(a) + u * y(b) + v * y(c)
-    zz = (1-u-v) * z(a) + u * z(b) + v * z(c)
-
-    return (xx,yy,zz)
+    return (1-u-v) .* a[:xyz] .+ u .* b[:xyz] .+ v .* c[:xyz]
 end
 
 intersectPoint = Point(-999,-999,-999,[sp1,sp2,ta,tb,tc]) do p1,p2,a,b,c
-    p1 = collect((x(p1),y(p1),z(p1)))
-    p2 = collect((x(p2),y(p2),z(p2)))
+    p1 = collect(p1[:xyz])
+    p2 = collect(p2[:xyz])
     
-    a = collect((x(a),y(a),z(a)))
-    b = collect((x(b),y(b),z(b)))
-    c = collect((x(c),y(c),z(c)))
+    a = collect(a[:xyz])
+    b = collect(b[:xyz])
+    c = collect(c[:xyz])
 
     p0 = p1
     v = p2 - p1
@@ -68,8 +64,5 @@ intersectPoint = Point(-999,-999,-999,[sp1,sp2,ta,tb,tc]) do p1,p2,a,b,c
 
     return (intersection[1],intersection[2],intersection[3])
 end
-
-
-#triangle = Mesh(coords,normals,(0.8,0.6,0.0))
 
 play!()

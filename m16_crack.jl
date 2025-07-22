@@ -11,11 +11,11 @@ a = Point(0,0,2)
 phase = 5*3.14
 
 crv1 = ParametricCurve(-phase,phase,250,[a]) do t, p
-    xx = t
-    yy = 0
-    zz = sin(t)*5
+    x = t
+    y = 0
+    z = sin(t)*5
 
-    return (x(p) + xx, y(p) + yy, z(p) + zz)
+    return p[:xyz] .+ (x,y,z)
 end
 
 it = Intersection(crv1,srfc1,10)
@@ -30,7 +30,7 @@ ParametricCurve(1,10,10,[it]) do t,itt
     return itt[Int(t)]
 end
 
-ParametricSurface([it],10,10,1,10,11,15) do u,v,itt
+ParametricSurface(10,10,1,10,11,15,[it]) do u,v,itt
     result = itt[Int(u)]
     if(isa(result,Undef))
         return result

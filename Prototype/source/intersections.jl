@@ -1,4 +1,21 @@
 # ? ---------------------------------
+# ! Curve2CurveIntersectionPlan
+# ? ---------------------------------
+
+mutable struct Curve2CurveIntersectionPlan <: PlanDNA
+    _plan::Plan
+    _curve1::ParametricCurvePlan
+    _curve2::ParametricCurvePlan
+    _intersectNum::UInt
+
+    function Curve2CurveIntersectionPlan(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectNum::UInt)
+        new(Plan(() -> (), [curve1,curve2]),curve1,curve2,intersectNum)
+    end
+end
+
+_Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
+
+# ? ---------------------------------
 # ! Curve2CurveIntersectionAlgebra
 # ? ---------------------------------
 
@@ -6,22 +23,27 @@
 
 EPSILON = 0.1
 
-
 mutable struct Curve2CurveIntersectionAlgebra <: AlgebraDNA
     _algebra::Algebra
-    _intersections::Vector{Vec3F}
     _intersectionNum::Int
-
-    function Curve2CurveIntersectionAlgebra(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectNum::UInt)
-        algebra = Algebra(Vector{PlanDNA}([curve1,curve2]),() -> ())
-        intersections = Vector{Vec3F}(undef,intersectNum)
-        new(algebra,intersections,Int(intersectNum))
+    _intersections::Vector{Vec3F}
+    
+    function Curve2CurveIntersectionAlgebra(plan::Curve2CurveIntersectionPlan)
+        dependent = Algebra(plan)
+        intersectionNum = plan._intersectNum
+        intersections = Vector{Vec3F}(undef,intersectionNum)
+        
+        new(dependent,Int(intersectionNum),intersections)
     end
 end
 
 _Algebra_(self::Curve2CurveIntersectionAlgebra)::Algebra = return self._algebra
-curve1(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return _Algebra_(self)._dependents[1]
-curve2(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return _Algebra_(self)._dependents[2]
+curve1(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return self._algebra._graphParents[1]
+curve2(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return self._algebra._graphParents[2]
+
+function Plan2Algebra(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersectionAlgebra
+    return Curve2CurveIntersectionAlgebra(plan)
+end
 
 # TODO: Undef 2 Nothing
 # TODO: Optional keyword
@@ -106,34 +128,21 @@ function Segment2SegmentIntersection(a1::Vec3F,b1::Vec3F,a2::Vec3F,b2::Vec3F)::U
 end
 
 # ? ---------------------------------
-# ! Curve2CurveIntersectionPlan
+# ! Curve2SurfaceIntersectionPlan
 # ? ---------------------------------
 
-mutable struct Curve2CurveIntersectionPlan <: PlanDNA
+mutable struct Curve2SurfaceIntersectionPlan <: PlanDNA
     _plan::Plan
-    _curve1::ParametricCurvePlan
-    _curve2::ParametricCurvePlan
+    _curve::ParametricCurvePlan
+    _surface::ParametricSurfacePlan
     _intersectNum::UInt
 
-    function Curve2CurveIntersectionPlan(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectNum::UInt)
-        new(Plan(),curve1,curve2,intersectNum)
+    function Curve2SurfaceIntersectionPlan(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectNum::UInt)
+        new(Plan(() -> (), [curve,surface]),curve,surface,intersectNum)
     end
 end
 
-_Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
-
-function recruit!(self::OpenGLData, plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersectionAlgebra
-    curve1 = plan._curve1
-    curve2 = plan._curve2
-    intersectNum = plan._intersectNum
-
-
-    a = Curve2CurveIntersectionAlgebra(curve1,curve2,intersectNum)
-    _Plan_(plan)._algebra = a
-    return a
-end
-
-
+_Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
 
 # ? ---------------------------------
 # ! Curve2SurfaceIntersectionAlgebra
@@ -144,16 +153,20 @@ mutable struct Curve2SurfaceIntersectionAlgebra <: AlgebraDNA
     _intersections::Vector{Vec3F}
     _foundIntersectionNum::Int
 
-    function Curve2SurfaceIntersectionAlgebra(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectNum)
-        algebra = Algebra(Vector{PlanDNA}([curve,surface]),() -> ())
-        intersections = Vector{Vec3F}(undef,intersectNum)
+    function Curve2SurfaceIntersectionAlgebra(plan::Curve2SurfaceIntersectionPlan)
+        algebra = Algebra(plan)
+        intersections = Vector{Vec3F}(undef,plan._intersectNum)
         new(algebra,intersections,0)
     end
 end
 
 _Algebra_(self::Curve2SurfaceIntersectionAlgebra)::Algebra = return self._algebra
-curve(self::Curve2SurfaceIntersectionAlgebra)::ParametricCurveAlgebra = return _Algebra_(self)._dependents[1]
-surface(self::Curve2SurfaceIntersectionAlgebra)::ParametricSurfaceAlgebra = return _Algebra_(self)._dependents[2]
+curve(self::Curve2SurfaceIntersectionAlgebra)::ParametricCurveAlgebra     = return self._algebra._graphParents[1]
+surface(self::Curve2SurfaceIntersectionAlgebra)::ParametricSurfaceAlgebra = return self._algebra._graphParents[2]
+
+function Plan2Algebra(plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceIntersectionAlgebra
+    return Curve2SurfaceIntersectionAlgebra(plan)
+end
 
 function Base.getindex(self::Curve2SurfaceIntersectionAlgebra,index)::Union{Tuple{Float32,Float32,Float32},Undef}
     if (index > self._foundIntersectionNum || index < 1)
@@ -214,32 +227,4 @@ function Segment2TriangleIntersection(p1::Vec3F,p2::Vec3F,a::Vec3F,b::Vec3F,c::V
     tuv = (1/dot(f,ab)) * [dot(g,ac),dot(f,ap),dot(g,v)]
     
     return tuv
-end
-
-# ? ---------------------------------
-# ! Curve2SurfaceIntersectionPlan
-# ? ---------------------------------
-
-mutable struct Curve2SurfaceIntersectionPlan <: PlanDNA
-    _plan::Plan
-    _curve::ParametricCurvePlan
-    _surface::ParametricSurfacePlan
-    _intersectNum::UInt
-
-    function Curve2SurfaceIntersectionPlan(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectNum)
-        new(Plan(),curve,surface,UInt(intersectNum))
-    end
-end
-
-_Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
-
-function recruit!(self::OpenGLData, plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceIntersectionAlgebra
-    curve = plan._curve
-    surface = plan._surface
-    intersectNum = plan._intersectNum
-
-
-    a = Curve2SurfaceIntersectionAlgebra(curve,surface,intersectNum)
-    _Plan_(plan)._algebra = a
-    return a
 end

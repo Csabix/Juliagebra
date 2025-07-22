@@ -68,11 +68,8 @@ _ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,
 DEFAULT_SEGMENT_COLOR = (0.6,0.0,1.0)
 
 function Segment(fst::PointPlan,snd::PointPlan,color)::ParametricCurvePlan
-    return ParametricCurve(0,1,2,[fst,snd],color) do t,a,b
-        xx = t * x(a) + (1-t) * x(b) 
-        yy = t * y(a) + (1-t) * y(b)
-        zz = t * z(a) + (1-t) * z(b)
-        return (xx,yy,zz)
+    return ParametricCurve(0,1,2,color,[fst,snd]) do t,a,b
+        return a[:xyz] .* t .+ (1-t) .* b[:xyz]
     end
 end
 
@@ -86,23 +83,33 @@ Segment(fst,snd,DEFAULT_SEGMENT_COLOR)
 # ! Intersections
 # ? ---------------------------------
 
-function Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum,app::App)::Curve2CurveIntersectionPlan
-    plan = Curve2CurveIntersectionPlan(curve1,curve2,UInt(intersectionNum))
-    submit!(app,plan)
+function _Curve2CurveIntersection(;
+                                 _app::App = implicitApp,                
+                                 _curve1::ParametricCurvePlan,
+                                 _curve2::ParametricCurvePlan,
+                                 _intersectNum
+                                 )::Curve2CurveIntersectionPlan
+    plan = Curve2CurveIntersectionPlan(_curve1,_curve2,UInt(_intersectNum))
+    submit!(_app,plan)
     return plan
 end
 
 Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum) =
-Intersection(curve1,curve2,intersectionNum,implicitApp)
+_Curve2CurveIntersection(_curve1=curve1,_curve2=curve2,_intersectNum=intersectionNum)
 
-function Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum,app::App)::Curve2SurfaceIntersectionPlan
-    plan = Curve2SurfaceIntersectionPlan(curve,surface,UInt(intersectionNum))
-    submit!(app,plan)
+function _Curve2SurfaceIntersection(;
+                                   _app::App = implicitApp,
+                                   _curve::ParametricCurvePlan,
+                                   _surface::ParametricSurfacePlan,
+                                   _intersectNum
+                                   )::Curve2SurfaceIntersectionPlan
+    plan = Curve2SurfaceIntersectionPlan(_curve,_surface,UInt(_intersectNum))
+    submit!(_app,plan)
     return plan
 end
 
 Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum) =
-Intersection(curve,surface,intersectionNum,implicitApp)
+_Curve2SurfaceIntersection(_curve=curve,_surface=surface,_intersectNum=intersectionNum)
 
 # ? ---------------------------------
 # ! Mesh

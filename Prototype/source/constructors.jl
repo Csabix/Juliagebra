@@ -76,9 +76,6 @@ end
 Segment(fst::PointPlan,snd::PointPlan) =
 Segment(fst,snd,DEFAULT_SEGMENT_COLOR)
 
-
-
-
 # ? ---------------------------------
 # ! Intersections
 # ? ---------------------------------

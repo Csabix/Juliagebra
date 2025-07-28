@@ -1,5 +1,5 @@
 
-abstract type AlgebraObject end
+abstract type DependentObject end
 
 abstract type Plans end
 

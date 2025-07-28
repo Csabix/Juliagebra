@@ -112,8 +112,8 @@ _Curve2SurfaceIntersection(_curve=curve,_surface=surface,_intersectNum=intersect
 # ! Mesh
 # ? ---------------------------------
 
-function Mesh(vertexes,normals,color,app::App)::MeshAlgebraPlan
-    plan = MeshAlgebraPlan(vertexes,normals,color)
+function Mesh(vertexes,normals,color,app::App)::MeshDependentPlan
+    plan = MeshDependentPlan(vertexes,normals,color)
     submit!(app,plan)
     return plan
 end

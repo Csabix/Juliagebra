@@ -18,20 +18,20 @@ mutable struct PointPlan <: RenderedPlanDNA
 end
 
 _RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
-Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._algebra))"
+Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._dependent))"
 
 # ? ---------------------------------
-# ! PointAlgebra
+# ! PointDependent
 # ? ---------------------------------
 
-mutable struct PointAlgebra <:RenderedAlgebraDNA
-    _renderedAlgebra::RenderedAlgebra
+mutable struct PointDependent <:RenderedDependentDNA
+    _renderedDependent::RenderedDependent
     _x::Float64
     _y::Float64
     _z::Float64    
 
-    function PointAlgebra(plan::PointPlan)
-        a = RenderedAlgebra(plan)
+    function PointDependent(plan::PointPlan)
+        a = RenderedDependent(plan)
         x = plan._x
         y = plan._y
         z = plan._z
@@ -41,14 +41,14 @@ end
 
 
 # ! Must have
-function Plan2Algebra(plan::PointPlan)::PointAlgebra
-    return PointAlgebra(plan)
+function Plan2Dependent(plan::PointPlan)::PointDependent
+    return PointDependent(plan)
 end
 
-_RenderedAlgebra_(self::PointAlgebra)::RenderedAlgebra = return self._renderedAlgebra
-Base.string(self::PointAlgebra) = "Point[$(_Algebra_(self)._graphID) - $(string(length(_Algebra_(self)._graphParents))) - $(string(length(_Algebra_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
+_RenderedDependent_(self::PointDependent)::RenderedDependent = return self._renderedDependent
+Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
 
-function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
+function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     self._x = x
     self._y = y
     self._z = z
@@ -59,17 +59,17 @@ function set(self::PointAlgebra,x::Float64,y::Float64,z::Float64)
 
 end
 
-getPointField(self::PointAlgebra,fieldVal) = error("Unrecognized Symbol for Point's field!")
+getPointField(self::PointDependent,fieldVal) = error("Unrecognized Symbol for Point's field!")
 
-getPointField(self::PointAlgebra,fieldVal::Val{:x}) = return self._x
-getPointField(self::PointAlgebra,fieldVal::Val{:y}) = return self._y
-getPointField(self::PointAlgebra,fieldVal::Val{:z}) = return self._z
+getPointField(self::PointDependent,fieldVal::Val{:x}) = return self._x
+getPointField(self::PointDependent,fieldVal::Val{:y}) = return self._y
+getPointField(self::PointDependent,fieldVal::Val{:z}) = return self._z
 
-getPointField(self::PointAlgebra,fieldVal::Val{:xyz}) = return (self._x,self._y,self._z)
+getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return (self._x,self._y,self._z)
 
-Base.getindex(self::PointAlgebra,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
+Base.getindex(self::PointDependent,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
 
-function Base.getindex(self::PointAlgebra,fieldSymbols...)
+function Base.getindex(self::PointDependent,fieldSymbols...)
     
     fieldValues = []
 
@@ -80,11 +80,11 @@ function Base.getindex(self::PointAlgebra,fieldSymbols...)
     return tuple(fieldValues...)
 end
 
-function evalCallback(self::PointAlgebra)
-    return _Algebra_(self)._callback(_Algebra_(self)._graphParents...)
+function evalCallback(self::PointDependent)
+    return _Dependent_(self)._callback(_Dependent_(self)._graphParents...)
 end
 
-function dpCallbackReturn(self::PointAlgebra,v)
+function dpCallbackReturn(self::PointDependent,v)
     x,y,z = v
     self._x = Float64(x)
     self._y = Float64(y)
@@ -93,7 +93,7 @@ function dpCallbackReturn(self::PointAlgebra,v)
     flag!(self)
 end
 
-function dpCallbackReturn(self::PointAlgebra,undef::Undef)
+function dpCallbackReturn(self::PointDependent,undef::Undef)
     
     self._x = NaN64
     self._y = NaN64
@@ -102,14 +102,14 @@ function dpCallbackReturn(self::PointAlgebra,undef::Undef)
     flag!(self)
 end
 
-onGraphEval(self::PointAlgebra) = dpEvalCallback(self)
+onGraphEval(self::PointDependent) = dpEvalCallback(self)
 
 # ? ---------------------------------
 # ! PointRenderer
 # ? ---------------------------------
 
-mutable struct PointRenderer <:RendererDNA{PointAlgebra}
-    _renderer::Renderer{PointAlgebra}
+mutable struct PointRenderer <:RendererDNA{PointDependent}
+    _renderer::Renderer{PointDependent}
 
     _shader::ShaderProgram
     _buffer::TypedBufferArray    
@@ -120,7 +120,7 @@ mutable struct PointRenderer <:RendererDNA{PointAlgebra}
     function PointRenderer(context::OpenGLData) 
         
         shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID"])
-        renderer = Renderer{PointAlgebra}(context)
+        renderer = Renderer{PointDependent}(context)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
         coords = Vector{Vec3F}()
@@ -139,8 +139,8 @@ _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
 # ! Must have
-function added!(self::PointRenderer,point::PointAlgebra)
-    aID = _Algebra_(point)._graphID
+function added!(self::PointRenderer,point::PointDependent)
+    aID = _Dependent_(point)._graphID
 
     x = point._x
     y = point._y
@@ -149,7 +149,7 @@ function added!(self::PointRenderer,point::PointAlgebra)
     push!(self._coords,Vec3F(x,y,z))
     push!(self._ids,Float32(aID))
 
-    println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedAlgebra_(point)._rendererID)\taID: $(aID)")
+    println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedDependent_(point)._rendererID)\taID: $(aID)")
 end
 
 # ! Must have
@@ -159,8 +159,8 @@ function addedUpload!(self::PointRenderer)
 end
 
 # ! Must have
-function sync!(self::PointRenderer,point::PointAlgebra)
-    id = point._renderedAlgebra._rendererID
+function sync!(self::PointRenderer,point::PointDependent)
+    id = point._renderedDependent._rendererID
     x = point._x
     y = point._y
     z = point._z

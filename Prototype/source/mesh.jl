@@ -1,9 +1,9 @@
 # ? ---------------------------------
-# ! MeshAlgebra
+# ! MeshDependent
 # ? ---------------------------------
 
-mutable struct MeshAlgebra <: RenderedAlgebraDNA
-    _renderedAlgebra::RenderedAlgebra
+mutable struct MeshDependent <: RenderedDependentDNA
+    _renderedDependent::RenderedDependent
     
     _vertexes::Vector{Vec3F}
     _normals::Vector{Vec3F}
@@ -11,13 +11,13 @@ mutable struct MeshAlgebra <: RenderedAlgebraDNA
 
     # TODO: make vectoring dynamic like in ParametricCurve
 
-    function MeshAlgebra(renderer,dependents::Vector{PlanDNA},callback::Function)
-        renderedAlgebra = RenderedAlgebra(renderer,dependents,callback)
-        new(renderedAlgebra,[],[],Vec3FNan)
+    function MeshDependent(renderer,dependents::Vector{PlanDNA},callback::Function)
+        renderedDependent= RenderedDependent(renderer,dependents,callback)
+        new(renderedDependent,[],[],Vec3FNan)
     end
 end
 
-_RenderedAlgebra_(self::MeshAlgebra) = self._renderedAlgebra
+_RenderedDependent_(self::MeshAlgebra) = self._renderedAlgebra
 Base.string(self::MeshAlgebra)::String = "MeshAlgebra - [$(length(self._positions))]"
 
 onGraphEval(self::MeshAlgebra) = nothing

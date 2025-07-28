@@ -1,21 +1,21 @@
 # ? ---------------------------------
-# ! RenderedAlgebraDNA
+# ! RenderedDependentDNA
 # ? ---------------------------------
 
-mutable struct RenderedAlgebra <:AlgebraDNA
-    _algebra::Algebra
+mutable struct RenderedDependent <:DependentDNA
+    _dependent::Dependent
     _queueLock::QueueLock
     _renderer::RendererDNA
     _rendererID::Int
 
-    function RenderedAlgebra(plan::RenderedPlanDNA)
-        algebra = Algebra(plan)
+    function RenderedDependent(plan::RenderedPlanDNA)
+        dependent = Dependent(plan)
         renderedPlan = _RenderedPlan_(plan)
-        new(algebra,QueueLock(),renderedPlan._renderer,0)
+        new(dependent,QueueLock(),renderedPlan._renderer,0)
     end
 
 end
 
-_RenderedAlgebra_(self::RenderedAlgebraDNA)::RenderedAlgebra = error("Missing \"_RenderedAlgebra_\" func for instance of RenderedAlgebraDNA")
-_Algebra_(self::RenderedAlgebraDNA)::Algebra     = _RenderedAlgebra_(self)._algebra
-_QueueLock_(self::RenderedAlgebraDNA)::QueueLock = _RenderedAlgebra_(self)._queueLock
+_RenderedDependent_(self::RenderedDependentDNA)::RenderedDependent = error("Missing \"_RenderedDependent_\" func for instance of RenderedDependentDNA")
+_Dependent_(self::RenderedDependentDNA)::Dependent     = _RenderedDependent_(self)._dependent
+_QueueLock_(self::RenderedDependentDNA)::QueueLock = _RenderedDependent_(self)._queueLock

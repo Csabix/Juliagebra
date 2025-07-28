@@ -16,20 +16,20 @@ end
 _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 
 # ? ---------------------------------
-# ! Curve2CurveIntersectionAlgebra
+# ! Curve2CurveIntersectionDependent
 # ? ---------------------------------
 
 # TODO: Rename LineStrip, LineSeq
 
 EPSILON = 0.1
 
-mutable struct Curve2CurveIntersectionAlgebra <: AlgebraDNA
-    _algebra::Algebra
+mutable struct Curve2CurveIntersectionDependent <: DependentDNA
+    _dependent::Dependent
     _intersectionNum::Int
     _intersections::Vector{Vec3F}
     
-    function Curve2CurveIntersectionAlgebra(plan::Curve2CurveIntersectionPlan)
-        dependent = Algebra(plan)
+    function Curve2CurveIntersectionDependent(plan::Curve2CurveIntersectionPlan)
+        dependent = Dependent(plan)
         intersectionNum = plan._intersectNum
         intersections = Vector{Vec3F}(undef,intersectionNum)
         
@@ -37,18 +37,18 @@ mutable struct Curve2CurveIntersectionAlgebra <: AlgebraDNA
     end
 end
 
-_Algebra_(self::Curve2CurveIntersectionAlgebra)::Algebra = return self._algebra
-curve1(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return self._algebra._graphParents[1]
-curve2(self::Curve2CurveIntersectionAlgebra)::ParametricCurveAlgebra = return self._algebra._graphParents[2]
+_Dependent_(self::Curve2CurveIntersectionDependent)::Dependent = return self._dependent
+curve1(self::Curve2CurveIntersectionDependent)::ParametricCurveDependent = return self._dependent._graphParents[1]
+curve2(self::Curve2CurveIntersectionDependent)::ParametricCurveDependent = return self._dependent._graphParents[2]
 
-function Plan2Algebra(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersectionAlgebra
-    return Curve2CurveIntersectionAlgebra(plan)
+function Plan2Dependent(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersectionDependent
+    return Curve2CurveIntersectionDependent(plan)
 end
 
 # TODO: Undef 2 Nothing
 # TODO: Optional keyword
 
-function Base.getindex(self::Curve2CurveIntersectionAlgebra,index)::Union{Tuple{Float32,Float32,Float32},Undef}
+function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Undef}
     if (index > self._intersectionNum || index < 1)
         return Undef()
     end
@@ -58,7 +58,7 @@ function Base.getindex(self::Curve2CurveIntersectionAlgebra,index)::Union{Tuple{
     return (v[1],v[2],v[3])
 end
 
-function onGraphEval(self::Curve2CurveIntersectionAlgebra)
+function onGraphEval(self::Curve2CurveIntersectionDependent)
     intersectNum = length(self._intersections)
     intersectIndex = 1
 
@@ -145,30 +145,30 @@ end
 _Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
 
 # ? ---------------------------------
-# ! Curve2SurfaceIntersectionAlgebra
+# ! Curve2SurfaceIntersectionDependent
 # ? ---------------------------------
 
-mutable struct Curve2SurfaceIntersectionAlgebra <: AlgebraDNA
-    _algebra::Algebra
+mutable struct Curve2SurfaceIntersectionDependent <: DependentDNA
+    _dependent::Dependent
     _intersections::Vector{Vec3F}
     _foundIntersectionNum::Int
 
-    function Curve2SurfaceIntersectionAlgebra(plan::Curve2SurfaceIntersectionPlan)
-        algebra = Algebra(plan)
+    function Curve2SurfaceIntersectionDependent(plan::Curve2SurfaceIntersectionPlan)
+        dependent = Dependent(plan)
         intersections = Vector{Vec3F}(undef,plan._intersectNum)
-        new(algebra,intersections,0)
+        new(dependent,intersections,0)
     end
 end
 
-_Algebra_(self::Curve2SurfaceIntersectionAlgebra)::Algebra = return self._algebra
-curve(self::Curve2SurfaceIntersectionAlgebra)::ParametricCurveAlgebra     = return self._algebra._graphParents[1]
-surface(self::Curve2SurfaceIntersectionAlgebra)::ParametricSurfaceAlgebra = return self._algebra._graphParents[2]
+_Dependent_(self::Curve2SurfaceIntersectionDependent)::Dependent = return self._dependent
+curve(self::Curve2SurfaceIntersectionDependent)::ParametricCurveDependent     = return self._dependent._graphParents[1]
+surface(self::Curve2SurfaceIntersectionDependent)::ParametricSurfaceDependent = return self._dependent._graphParents[2]
 
-function Plan2Algebra(plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceIntersectionAlgebra
-    return Curve2SurfaceIntersectionAlgebra(plan)
+function Plan2Dependent(plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceIntersectionDependent
+    return Curve2SurfaceIntersectionDependent(plan)
 end
 
-function Base.getindex(self::Curve2SurfaceIntersectionAlgebra,index)::Union{Tuple{Float32,Float32,Float32},Undef}
+function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Undef}
     if (index > self._foundIntersectionNum || index < 1)
         return Undef()
     end
@@ -178,7 +178,7 @@ function Base.getindex(self::Curve2SurfaceIntersectionAlgebra,index)::Union{Tupl
     return (v[1],v[2],v[3])
 end
 
-function onGraphEval(self::Curve2SurfaceIntersectionAlgebra)
+function onGraphEval(self::Curve2SurfaceIntersectionDependent)
     maxIntersectNum = length(self._intersections)
     self._foundIntersectionNum = 0
 

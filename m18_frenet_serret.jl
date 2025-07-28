@@ -55,7 +55,7 @@ function FrenetCurve(K,T,tspan,pos0,e0,n0,b0)
 end
 
 frenetSolution = nothing
-tspan = (0.0,4*pi)
+tspan = (0.0,sqrt(2*pi))
 
 calcFrenetP = Point(-999,-999,-999,[startP,forwP,bendP,upP]) do s,f,b,u
 
@@ -72,10 +72,10 @@ calcFrenetP = Point(-999,-999,-999,[startP,forwP,bendP,upP]) do s,f,b,u
     println("b0: $(b0)")
     println("")
 
-    K(t) = 1
+    K(t) = t
     #T(t) = cos(t)
     #T(t) = sin(t)
-    T(t) = 1
+    T(t) = 0
 
 
     global frenetSolution = FrenetCurve(K,T,tspan,pos0,e0,n0,b0)
@@ -91,5 +91,20 @@ approximatedFrenetCurve = ParametricCurve(tspan[1],tspan[2],500,[calcFrenetP]) d
     xyz = frenetSolution(t)
     return (xyz[1],xyz[2],xyz[3])
 end
+
+pp = Point(-999,-999,-999,[calcFrenetP]) do cfp
+    xyz = frenetSolution(tspan[2])
+    return (xyz[1],xyz[2],xyz[3])
+end
+
+sussP = Segment(startP,pp)
+
+ppss = Point(-999,-999,-999,[calcFrenetP,pp]) do cfp, ppppp
+    xyz = frenetSolution(tspan[2])
+    ee = (xyz[4],xyz[5],xyz[6])
+    return ee .+ ppppp[:xyz]
+end
+
+ssss = Segment(ppss,pp)
 
 play!()

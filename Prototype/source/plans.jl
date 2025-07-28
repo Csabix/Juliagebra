@@ -4,7 +4,7 @@
 
 mutable struct Plan
 
-    _algebra::Union{Nothing,AlgebraDNA}
+    _dependent::Union{Nothing,DependentDNA}
     _graphParents::Vector{PlanDNA}
     _callback::Function
 

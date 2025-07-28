@@ -1,38 +1,38 @@
 # ? ---------------------------------
-# ! AlgebraDNA
+# ! DependentDNA
 # ? ---------------------------------
 
-mutable struct Algebra
-    _graphID::Int                       # ? was algebraID
-    _graphParents::Vector{AlgebraDNA}   # ? was dependents
-    _graphChain::Vector{AlgebraDNA}     # ? was graph
+mutable struct Dependent
+    _graphID::Int                       
+    _graphParents::Vector{DependentDNA}   
+    _graphChain::Vector{DependentDNA}
     _callback::Function
 
-    function Algebra(plan::PlanDNA)
+    function Dependent(plan::PlanDNA)
         
-        graphParents = Vector{AlgebraDNA}()
-        graphChain = Vector{AlgebraDNA}()
+        graphParents = Vector{DependentDNA}()
+        graphChain = Vector{DependentDNA}()
         callback = _Plan_(plan)._callback
 
         for parent in _Plan_(plan)._graphParents
-            push!(graphParents,_Plan_(parent)._algebra)
+            push!(graphParents,_Plan_(parent)._dependent)
         end
         
         new(0,graphParents,graphChain,callback)
     end
 end
 
-_Algebra_(self::AlgebraDNA)::Algebra = error("Missing \"_Algebra_\" for subclass of AlgebraDNA")
+_Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
-evalCallback(self::AlgebraDNA,params...) = error("Missing \"evalCallback\" for subclass of AlgebraDNA")
-dpCallbackReturn(self::AlgebraDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of AlgebraDNA")
-dpCallbackReturn(self::AlgebraDNA,undef::Undef) = error("Missing \"dispatchCallbackReturn\" for subclass of AlgebraDNA (on Undef)")
-dpEvalCallback(self::AlgebraDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
+evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")
+dpCallbackReturn(self::DependentDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA")
+dpCallbackReturn(self::DependentDNA,undef::Undef) = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA (on Undef)")
+dpEvalCallback(self::DependentDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
 
-onGraphEval(self::AlgebraDNA) =  error("Missing \"onGraphEval\" for subclass of AlgebraDNA")
+onGraphEval(self::DependentDNA) =  error("Missing \"onGraphEval\" for subclass of DependentDNA")
 
-function evalGraph(self::AlgebraDNA)
-    for item in _Algebra_(self)._graphChain
+function evalGraph(self::DependentDNA)
+    for item in _Dependent_(self)._graphChain
         onGraphEval(item)
     end
 end

@@ -35,11 +35,11 @@ _RenderedPlan_(self::ParametricSurfacePlan)::RenderedPlan = return self._plan
 Base.string(self::ParametricSurfacePlan)::String = return "Surface"
 
 # ? ---------------------------------
-# ! ParametricSurfaceAlgebra
+# ! ParametricSurfaceDependent
 # ? ---------------------------------
 
-mutable struct ParametricSurfaceAlgebra <: RenderedAlgebraDNA
-    _renderedAlgebra::RenderedAlgebra
+mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
+    _renderedDependent::RenderedDependent
     
     _uvValues::FlatMatrix
     _uvNormals::FlatMatrix
@@ -55,8 +55,8 @@ mutable struct ParametricSurfaceAlgebra <: RenderedAlgebraDNA
 
     _color::Vec3F
 
-    function ParametricSurfaceAlgebra(plan::ParametricSurfacePlan)
-        renderedAlgebra = RenderedAlgebra(plan)
+    function ParametricSurfaceDependent(plan::ParametricSurfacePlan)
+        renderedDependent = RenderedDependent(plan)
                 
         unmanagedWidth = plan._width
         unmanagedHeight = plan._height
@@ -69,7 +69,7 @@ mutable struct ParametricSurfaceAlgebra <: RenderedAlgebraDNA
         
         color = plan._color
 
-        new(renderedAlgebra,
+        new(renderedDependent,
             EMPTY_FlatMatrix,
             EMPTY_FlatMatrix,
             unmanagedWidth,unmanagedHeight,
@@ -80,14 +80,14 @@ mutable struct ParametricSurfaceAlgebra <: RenderedAlgebraDNA
 end
 
 # ! Must have
-function Plan2Algebra(plan::ParametricSurfacePlan)::ParametricSurfaceAlgebra
-    return ParametricSurfaceAlgebra(plan)
+function Plan2Dependent(plan::ParametricSurfacePlan)::ParametricSurfaceDependent
+    return ParametricSurfaceDependent(plan)
 end
 
-_RenderedAlgebra_(self::ParametricSurfaceAlgebra)::RenderedAlgebra = return self._renderedAlgebra
-Base.string(self::ParametricSurfaceAlgebra) = return "ParametricSurface"
+_RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return self._renderedDependent
+Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
 
-function evalCallback(self::ParametricSurfaceAlgebra,u,v)
+function evalCallback(self::ParametricSurfaceDependent,u,v)
    
     uf = Float64(u-1) / Float64(width(self._uvValues)-1)
     vf = Float64(v-1) / Float64(height(self._uvValues)-1)
@@ -97,29 +97,29 @@ function evalCallback(self::ParametricSurfaceAlgebra,u,v)
 
     #println("uf:$(uf) - vf:$(vf)")
 
-    return _Algebra_(self)._callback(uf,vf,_Algebra_(self)._graphParents...)
+    return _Dependent_(self)._callback(uf,vf,_Dependent_(self)._graphParents...)
 end
 
-function dpCallbackReturn(self::ParametricSurfaceAlgebra,u,v,value::Tuple)
+function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Tuple)
     (x,y,z)=value
     self._uvValues[u,v] = Vec3F(x,y,z)
 end
 
-function dpCallbackReturn(self::ParametricSurfaceAlgebra,u,v,undef::Undef)
+function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,undef::Undef)
     self._uvValues[u,v] = Vec3FNan
 end
 
-function setInlandNormal(self::ParametricSurfaceAlgebra,u,v)
+function setInlandNormal(self::ParametricSurfaceDependent,u,v)
     uVec = self._uvValues[u+1,v  ] - self._uvValues[u-1,v  ]
     vVec = self._uvValues[u  ,v+1] - self._uvValues[u  ,v-1]
     self._uvNormals[u,v] = normalize(cross(uVec,vVec))
 end
 
-function setEdgeNormal(self::ParametricSurfaceAlgebra,u,v)
+function setEdgeNormal(self::ParametricSurfaceDependent,u,v)
     self._uvNormals[u,v] = Vec3F(0,0,0)
 end
 
-function setNormal(self::ParametricSurfaceAlgebra,u,v;
+function setNormal(self::ParametricSurfaceDependent,u,v;
     right=self._uvValues[u+1,v  ],
     left =self._uvValues[u-1,v  ],
     down =self._uvValues[u  ,v+1],
@@ -133,7 +133,7 @@ function setNormal(self::ParametricSurfaceAlgebra,u,v;
     self._uvNormals[u,v] = normalize(cross(uVec,vVec))
 end
 
-function runCallbacks(self::ParametricSurfaceAlgebra)
+function runCallbacks(self::ParametricSurfaceDependent)
     for v in 1:height(self._uvValues)
         for u in 1:width(self._uvValues)
             dpEvalCallback(self,u,v)
@@ -192,7 +192,7 @@ function runCallbacks(self::ParametricSurfaceAlgebra)
 
 end
 
-function onGraphEval(self::ParametricSurfaceAlgebra)
+function onGraphEval(self::ParametricSurfaceDependent)
     runCallbacks(self)
     flag!(self)
 end
@@ -201,8 +201,8 @@ end
 # ! ParametricSurfaceRenderer
 # ? ---------------------------------
 
-mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceAlgebra}
-    _renderer::Renderer{ParametricSurfaceAlgebra}
+mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDependent}
+    _renderer::Renderer{ParametricSurfaceDependent}
 
     _shader::ShaderProgram
     _buffer::IndexedTypedBufferArray
@@ -213,7 +213,7 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceAlgebra
     _colors::FlatMatrixManager{Vec3F}
 
     function ParametricSurfaceRenderer(context::OpenGLData)
-        renderer = Renderer{ParametricSurfaceAlgebra}(context)
+        renderer = Renderer{ParametricSurfaceDependent}(context)
         
         shader = ShaderProgram(sp("mesh_direction.vert"),sp("mesh_direction.frag"),["VP","lightDir"])
         buffer = IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}()
@@ -232,7 +232,7 @@ _Renderer_(self::ParametricSurfaceRenderer) = return self._renderer
 Base.string(self::ParametricSurfaceRenderer) = "ParametricSurfaceRenderer - [$(length(self._buffer))]"
 
 # ! Must have
-function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceAlgebra)
+function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
     
     width = surface._unmanagedWidth
     height = surface._unmanagedHeight
@@ -259,7 +259,7 @@ function addedUpload!(self::ParametricSurfaceRenderer)
 end
 
 # ! Must have
-function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceAlgebra)
+function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
     println("Synced ParametricSurface!")
 end
 

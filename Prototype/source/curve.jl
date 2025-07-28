@@ -25,11 +25,11 @@ Base.string(self::ParametricCurvePlan)::String = return "Curve"
 
 
 # ? ---------------------------------
-# ! ParametricCurveAlgebra
+# ! ParametricCurveDependent
 # ? ---------------------------------
 
-mutable struct ParametricCurveAlgebra <: RenderedAlgebraDNA
-    _renderedAlgebra::RenderedAlgebra
+mutable struct ParametricCurveDependent <: RenderedDependentDNA
+    _renderedDependent::RenderedDependent
     
     _tStart::Float64
     _tEnd::Float64
@@ -42,8 +42,8 @@ mutable struct ParametricCurveAlgebra <: RenderedAlgebraDNA
 
     
 
-    function ParametricCurveAlgebra(plan::ParametricCurvePlan)
-        a = RenderedAlgebra(plan)
+    function ParametricCurveDependent(plan::ParametricCurvePlan)
+        a = RenderedDependent(plan)
         tStart = plan._tStart
         tEnd = plan._tEnd
         tNum = plan._tNum
@@ -54,21 +54,21 @@ mutable struct ParametricCurveAlgebra <: RenderedAlgebraDNA
 end
 
 # ! Must have
-function Plan2Algebra(plan::ParametricCurvePlan)::ParametricCurveAlgebra
-    return ParametricCurveAlgebra(plan)
+function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
+    return ParametricCurveDependent(plan)
 end
 
-Base.string(self::ParametricCurveAlgebra)::String =  return "ParametricCurve: $(self._startIndex) - $(self._endIndex) - $(self._tNum)"
-_RenderedAlgebra_(self::ParametricCurveAlgebra)::RenderedAlgebra = return self._renderedAlgebra
+Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(self._startIndex) - $(self._endIndex) - $(self._tNum)"
+_RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
 
-function evalCallback(self::ParametricCurveAlgebra,t,index)
-    return _Algebra_(self)._callback(t,_Algebra_(self)._graphParents...)
+function evalCallback(self::ParametricCurveDependent,t,index)
+    return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
 
-dpCallbackReturn(self::ParametricCurveAlgebra,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
-dpCallbackReturn(self::ParametricCurveAlgebra,t,index,undef::Undef) = self._tValues[index] = Vec3FNan
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,undef::Undef) = self._tValues[index] = Vec3FNan
 
-function runCallbacks(self::ParametricCurveAlgebra)
+function runCallbacks(self::ParametricCurveDependent)
     for index in self._startIndex:self._endIndex
         t1 = Float64(index - self._startIndex)
         t2 = Float64(self._endIndex - self._startIndex)
@@ -77,7 +77,7 @@ function runCallbacks(self::ParametricCurveAlgebra)
     end
 end
 
-function onGraphEval(self::ParametricCurveAlgebra)
+function onGraphEval(self::ParametricCurveDependent)
     runCallbacks(self)
     flag!(self)
 end
@@ -86,8 +86,8 @@ end
 # ! CurveRenderer
 # ? ---------------------------------
 
-mutable struct CurveRenderer <: RendererDNA{ParametricCurveAlgebra}
-    _renderer::Renderer{ParametricCurveAlgebra}
+mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
+    _renderer::Renderer{ParametricCurveDependent}
 
     _shader::ShaderProgram
     _buffer::TypedBufferArray
@@ -97,7 +97,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveAlgebra}
 
     function CurveRenderer(context::OpenGLData)
         
-        renderer = Renderer{ParametricCurveAlgebra}(context)
+        renderer = Renderer{ParametricCurveDependent}(context)
 
         shader = ShaderProgram(sp("rounded_curve_colored.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["VP"])
         buffer = TypedBufferArray{Tuple{Vec3F,Vec3F}}()
@@ -118,7 +118,7 @@ _Renderer_(self::CurveRenderer) = return self._renderer
 Base.string(self::CurveRenderer) = return "CurveRenderer[$(length(self._coords))]"
 
 # ! Must have
-function added!(self::CurveRenderer,curve::ParametricCurveAlgebra)
+function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     curve._startIndex = length(self._coords) + 1
     
     for i in 1:curve._tNum
@@ -144,7 +144,7 @@ function addedUpload!(self::CurveRenderer)
 end
 
 # ! Must have
-function sync!(self::CurveRenderer,curve::ParametricCurveAlgebra)
+function sync!(self::CurveRenderer,curve::ParametricCurveDependent)
     println("Synced Curve!")
 end
 

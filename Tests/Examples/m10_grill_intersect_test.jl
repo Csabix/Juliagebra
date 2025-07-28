@@ -1,4 +1,4 @@
-include("Prototype/juliagebra.jl")
+include("../../Prototype/juliagebra.jl")
 using .JuliAgebra
 
 App()

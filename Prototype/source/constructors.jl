@@ -1,3 +1,4 @@
+# ! All exported constructors should be defined, and exported from here.
 
 const DependentsT = Vector{T} where T <: PlanDNA
 
@@ -5,74 +6,61 @@ const DependentsT = Vector{T} where T <: PlanDNA
 # ! Point
 # ? ---------------------------------
 
-POINT_DEFAULT_X = 0
-POINT_DEFAULT_Y = 0
-POINT_DEFAULT_Z = 0
-
-function Point(x, y, z,dependents::DependentsT, callback::Function, app::App)::PointPlan
-    plan = PointPlan(x,y,z,dependents,callback)
-    submit!(app,plan)
+function _Point(;
+                _app::App = implicitApp,
+                _call::Function = () -> (),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _x = 0,
+                _y = 0,
+                _z = 0,
+                )::PointPlan
+    plan = PointPlan(_call,_deps,_x,_y,_z)
+    submit!(_app,plan)
     return plan
 end
 
-Point(x::Real,y::Real,z::Real,app::App) = 
-Point(x,y,z,Vector{PlanDNA}(), () -> () ,app)
-
 Point(x::Real,y::Real,z::Real) = 
-Point(x,y,z,implicitApp)
+_Point(_x=x,_y=y,_z=z)
 
 Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT) = 
-Point(x,y,z,dependents,callback,implicitApp)
+_Point(_call=callback,_x=x,_y=y,_z=z,_deps=dependents)
 
-Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT,app::App) = 
-Point(x,y,z,dependents,callback,app)
-
-Point(callback::Function,dependents::DependentsT,app::App) = 
-Point(POINT_DEFAULT_X,POINT_DEFAULT_Y,POINT_DEFAULT_Z,dependents,callback,app)
+Point(callback::Function,dependents::DependentsT) = 
+_Point(_call=callback,_deps=dependents)
 
 
 # ? ---------------------------------
 # ! ParametricCurve
 # ? ---------------------------------
 
-CURVE_DETAIL_LEVEL  = 1000
-CURVE_DEFULT_START  = 0
-CURVE_DEFULT_END    = 1
-CURVE_DEFAULT_COLOR = (0.6,0.6,0.9)
-
-function ParametricCurve(tStart,tEnd,tNum,dependents::DependentsT, callback::Function, app::App, color=CURVE_DEFAULT_COLOR)::ParametricCurvePlan
-    plan = ParametricCurvePlan(tStart,tEnd,tNum,dependents,callback,color)
-    submit!(app,plan)
+function _ParametricCurve(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _tStart = 0,
+                         _tEnd = 1,
+                         _tNum = 1000,
+                         _col= (0.6,0.6,0.9)
+                         )::ParametricCurvePlan
+    plan = ParametricCurvePlan(_call,_deps,_tStart,_tEnd,_tNum,_col)
+    submit!(_app,plan)
     return plan
 end
 
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd)
 
-ParametricCurve(tStart,tEnd,tNum,callback::Function,app::App)::ParametricCurvePlan =
-ParametricCurve(tStart,tEnd,tNum,Vector{PlanDNA}(),callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,app::App)::ParametricCurvePlan = 
-ParametricCurve(tStart,tEnd,tNum,Vector{PlanDNA}(),callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT,app::App)::ParametricCurvePlan = 
-ParametricCurve(tStart,tEnd,tNum,dependents,callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT,app::App)::ParametricCurvePlan = 
-ParametricCurve(tStart,tEnd,CURVE_DETAIL_LEVEL,dependents,callback,app)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
-ParametricCurve(callback,tStart,tEnd,tNum,dependents,implicitApp)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT,color)::ParametricCurvePlan =
-ParametricCurve(tStart,tEnd,tNum,dependents,callback,implicitApp,color)
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Real)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum)
 
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT)::ParametricCurvePlan =
-ParametricCurve(callback,tStart,tEnd,dependents,implicitApp)
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_deps=dependents)
 
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
-ParametricCurve(callback,tStart,tEnd,Vector{PlanDNA}(),implicitApp)
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_deps=dependents)
 
-ParametricCurve(callback::Function,dependents::DependentsT,app::App)::ParametricCurvePlan = 
-ParametricCurve(CURVE_DEFULT_START,CURVE_DEFULT_END,CURVE_DETAIL_LEVEL,dependents,callback,app)
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,dependents::DependentsT,)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_deps=dependents)  
 
 # ? ---------------------------------
 # ! Segment
@@ -81,48 +69,52 @@ ParametricCurve(CURVE_DEFULT_START,CURVE_DEFULT_END,CURVE_DETAIL_LEVEL,dependent
 DEFAULT_SEGMENT_COLOR = (0.6,0.0,1.0)
 
 function Segment(fst::PointPlan,snd::PointPlan,color)::ParametricCurvePlan
-    return ParametricCurve(0,1,2,[fst,snd],color) do t,a,b
-        xx = t * x(a) + (1-t) * x(b) 
-        yy = t * y(a) + (1-t) * y(b)
-        zz = t * z(a) + (1-t) * z(b)
-        return (xx,yy,zz)
+    return ParametricCurve(0,1,2,color,[fst,snd]) do t,a,b
+        return a[:xyz] .* t .+ (1-t) .* b[:xyz]
     end
 end
 
 Segment(fst::PointPlan,snd::PointPlan) =
 Segment(fst,snd,DEFAULT_SEGMENT_COLOR)
 
-
-
-
 # ? ---------------------------------
 # ! Intersections
 # ? ---------------------------------
 
-function Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum,app::App)::Curve2CurveIntersectionPlan
-    plan = Curve2CurveIntersectionPlan(curve1,curve2,UInt(intersectionNum))
-    submit!(app,plan)
+function _Curve2CurveIntersection(;
+                                 _app::App = implicitApp,                
+                                 _curve1::ParametricCurvePlan,
+                                 _curve2::ParametricCurvePlan,
+                                 _intersectNum
+                                 )::Curve2CurveIntersectionPlan
+    plan = Curve2CurveIntersectionPlan(_curve1,_curve2,UInt(_intersectNum))
+    submit!(_app,plan)
     return plan
 end
 
 Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum) =
-Intersection(curve1,curve2,intersectionNum,implicitApp)
+_Curve2CurveIntersection(_curve1=curve1,_curve2=curve2,_intersectNum=intersectionNum)
 
-function Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum,app::App)::Curve2SurfaceIntersectionPlan
-    plan = Curve2SurfaceIntersectionPlan(curve,surface,UInt(intersectionNum))
-    submit!(app,plan)
+function _Curve2SurfaceIntersection(;
+                                   _app::App = implicitApp,
+                                   _curve::ParametricCurvePlan,
+                                   _surface::ParametricSurfacePlan,
+                                   _intersectNum
+                                   )::Curve2SurfaceIntersectionPlan
+    plan = Curve2SurfaceIntersectionPlan(_curve,_surface,UInt(_intersectNum))
+    submit!(_app,plan)
     return plan
 end
 
 Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum) =
-Intersection(curve,surface,intersectionNum,implicitApp)
+_Curve2SurfaceIntersection(_curve=curve,_surface=surface,_intersectNum=intersectionNum)
 
 # ? ---------------------------------
 # ! Mesh
 # ? ---------------------------------
 
-function Mesh(vertexes,normals,color,app::App)::MeshAlgebraPlan
-    plan = MeshAlgebraPlan(vertexes,normals,color)
+function Mesh(vertexes,normals,color,app::App)::MeshDependentPlan
+    plan = MeshDependentPlan(vertexes,normals,color)
     submit!(app,plan)
     return plan
 end
@@ -134,16 +126,28 @@ Mesh(vertexes,normals,color,implicitApp)
 # ! ParametricSurface
 # ? ---------------------------------
 
-SURFACE_DEFAULT_COLOR = (0.8,0.0,0.3)
-
-function ParametricSurface(callback::Function,dependents::DependentsT,width,height,uStart,uEnd,vStart,vEnd,color=SURFACE_DEFAULT_COLOR, app::App=implicitApp)::ParametricSurfacePlan
-    plan = ParametricSurfacePlan(dependents,callback,width,height,uStart,uEnd,vStart,vEnd,color)
-    submit!(app,plan)
+function _ParametricSurface(;
+                           _app::App = implicitApp,
+                           _call::Function = () -> (),
+                           _deps::DependentsT = Vector{PlanDNA}(),
+                           _width = 50,
+                           _height = 50,
+                           _uStart = 0.0,
+                           _uEnd = 1.0,
+                           _vStart = 0.0,
+                           _vEnd = 0.0,
+                           _color = (0.8,0.0,0.3)
+                           )::ParametricSurfacePlan
+    plan = ParametricSurfacePlan(_call,_deps,_width,_height,_uStart,_uEnd,_vStart,_vEnd,_color)
+    submit!(_app,plan)
     return plan
 end
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,color=SURFACE_DEFAULT_COLOR, app::App=implicitApp) =
-ParametricSurface(callback,Vector{PlanDNA}(),width,height,uStart,uEnd,vStart,vEnd,color,app)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents)
+
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd)
 
 export Point
 export ParametricCurve
@@ -151,4 +155,3 @@ export Segment
 export Intersection
 export Mesh
 export ParametricSurface
-export Undef

@@ -22,7 +22,7 @@ mutable struct ImGuiData
     end
 end
 
-function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam::Camera)
+function update!(self::ImGuiData,openglD::OpenGLData,dependentL::DependentGraph,cam::Camera)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
@@ -51,8 +51,8 @@ function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam:
             CImGui.EndTabItem()
         end
         
-        if CImGui.BeginTabItem("RenderedAlgebra Items")
-            _display!(self,algebraL)
+        if CImGui.BeginTabItem("RenderedDependent Items")
+            _display!(self,dependentL)
             CImGui.EndTabItem()
         end
 
@@ -60,6 +60,7 @@ function update!(self::ImGuiData,openglD::OpenGLData,algebraL::AlgebraLogic,cam:
             _display!(self,cam)
             CImGui.EndTabItem()
         end
+        CImGui.EndTabBar()
     end
     
     CImGui.End()
@@ -97,11 +98,11 @@ function _display!(self::ImGuiData,cam::Camera)
     cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
 end
 
-function _display!(self::ImGuiData,algebraL::AlgebraLogic)
-    CImGui.Text("Stored RenderedAlgebra Objects:")
+function _display!(self::ImGuiData,dependentL::DependentGraph)
+    CImGui.Text("Stored RenderedDependent Objects:")
     i = 1
-    for (algebraObject) in algebraL._algebraObjects
-        CImGui.Text("$(i) - $(string(algebraObject))")
+    for (dependentObject) in dependentL._dependentObjects
+        CImGui.Text("$(i) - $(string(dependentObject))")
         #if CImGui.TreeNode()        
         #    CImGui.TreePop()
         #end

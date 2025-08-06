@@ -1,4 +1,4 @@
-#All files are imported here to prevent circle includes.
+# ! All files should be imported here to prevent circular includes.
 
 module JuliAgebra
 
@@ -18,45 +18,54 @@ include("source/commons.jl")
 
 include("source/abstracts.jl")
 
+# ? ---------------------------------
+# ! Helpers
+# ? ---------------------------------
+
+include("source/Helpers/flat_matrix_manager.jl")
+include("source/Helpers/flat_matrix.jl")
+include("source/Helpers/queuelock.jl")
+
 ID_LOWER_BOUND = 3
 
 include("source/shared_data.jl")
+
 include("source/glfw_data.jl")
+
 include("source/peripherals.jl")
+
 include("source/camera.jl")
-include("source/gizmo.jl")
-include("source/ortho_gizmo.jl")
-include("source/algebra_logic.jl")
+
+# ? ---------------------------------
+# ! Widgets
+# ? ---------------------------------
+
+include("source/Widgets/gizmo.jl")
+include("source/Widgets/ortho_gizmo.jl")
+
+include("source/dependent_graph.jl")
+
 include("source/opengl_data.jl")
+
 include("source/imgui_data.jl")
-
-include("source/flat_matrix_manager.jl")
-
-include("source/flat_matrix.jl")
 
 include("source/plans.jl")
 
-include("source/undef.jl")
-
-include("source/algebra.jl")
-
-include("source/queuelock.jl")
+include("source/dependent.jl")
 
 include("source/renderers.jl")
 
 include("source/rendered_algebra.jl")
 
-include("source/point.jl")
+# ? ---------------------------------
+# ! Dependents
+# ? ---------------------------------
 
-include("source/curve.jl")
-
-include("source/mesh.jl")
-
-include("source/surface.jl")
-
-include("source/intersections.jl")
-
-include("source/base.jl")
+include("source/Dependents/point.jl")
+include("source/Dependents/curve.jl")
+# include("source/Dependents/mesh.jl")
+include("source/Dependents/surface.jl")
+include("source/Dependents/intersections.jl")
 
 include("source/app.jl")
 

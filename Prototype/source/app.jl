@@ -9,7 +9,7 @@ mutable struct App
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
-    _algebra::AlgebraLogic
+    _graph::DependentGraph
     _plans::Queue{PlanDNA}
     _peripherals::Peripherals
     _cam::Camera
@@ -25,11 +25,11 @@ mutable struct App
         opengl = nothing
         imgui = nothing
         windowCreated = false
-        algebra = AlgebraLogic(shrd)
+        graph = DependentGraph(shrd)
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = Camera()
-        self = new(shrd,glfw,opengl,imgui,windowCreated,algebra,plans,peripherals,cam)
+        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,peripherals,cam)
 
         global implicitApp
         implicitApp = self
@@ -84,12 +84,28 @@ handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_ke
 
 function handlePlans!(self::App)
     while(!isempty(self._plans))
-        
-        # TODO: refactor algebra to its plan assignment here.
-        
-        asset = recruit!(self._opengl,dequeue!(self._plans))
-        fuse!(self._algebra,asset)
+        build!(self,dequeue!(self._plans)) 
     end
+end
+
+function build!(self::App,plan::PlanDNA)
+    dependent = Plan2Dependent(plan)
+    
+    add!!(self._graph,dependent)
+
+    _Plan_(plan)._dependent = dependent
+end
+
+function build!(self::App,plan::RenderedPlanDNA)
+    renderer  = Plan2Renderer(self._opengl,plan) 
+    _RenderedPlan_(plan)._renderer = renderer
+    
+    dependent = Plan2Dependent(plan)
+    
+    add!!(self._graph,dependent)
+    add!!(renderer,dependent)
+
+    _Plan_(plan)._dependent = dependent
 end
 
 function updateDeltaTime!(self::App)
@@ -140,7 +156,7 @@ function updateGizmo!(self::App)
         self._shrd._pickedID = id
         if(id>3)
             self._shrd._gizmoEnabled = true
-            p = fetch(self._algebra,self._shrd._pickedID)
+            p = fetch(self._graph,self._shrd._pickedID)
             self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
         else
             self._shrd._gizmoEnabled = false  
@@ -160,7 +176,7 @@ function updateGizmo!(self::App)
             setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                         self._shrd,
                         self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-            p = fetch(self._algebra,self._shrd._pickedID)      
+            p = fetch(self._graph,self._shrd._pickedID)      
             set(
                 p,
                 Float64(self._opengl._gizmoGL._pos.x),
@@ -181,9 +197,8 @@ function play!(self::App)
         handlePlans!(self)
         updateCam!(self)
         
-        update!(self._algebra)
         update!(self._opengl,self._cam)
-        update!(self._imgui,self._opengl,self._algebra,self._cam)
+        update!(self._imgui,self._opengl,self._graph,self._cam)
         update!(self._shrd)
         updateGizmo!(self)
        
@@ -208,7 +223,6 @@ function init!(self::App)
     self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd)
     self._windowCreated = true
 
-    init!(self._algebra)
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
 end
@@ -221,7 +235,6 @@ function destroy!(self::App)
     destroy!(self._imgui)
     destroy!(self._opengl)
     destroy!(self._glfw)
-    destroy!(self._algebra)
 end
 
 export App

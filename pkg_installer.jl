@@ -7,3 +7,5 @@ Pkg.add("BitFlags")
 Pkg.add("GLFW")
 Pkg.add("CImGui")
 Pkg.add("BenchmarkTools")
+
+Pkg.add("DifferentialEquations")

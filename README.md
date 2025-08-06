@@ -4,7 +4,7 @@ Geogebra like 3D interactive plotting libary written in Julia and OpenGL.
 
 ## Used Packages
 
-Every package used by Juliagebra and the usage examples can be found in the **"pkg_installer.jl"** file.
+Every package used by Juliagebra and the usage examples can be found in the [pkg_installer.jl](pkg_installer.jl) file.
 
 ## Examples
 
@@ -28,3 +28,14 @@ Highly suggested steps for creating a Dependent:
 ## (OutDated) Diagrams
 
 [Drawio](https://drive.google.com/file/d/1fkfQfxXt0IOKQ_Q8ngE1mU21Ua7204yd/view?usp=sharing)
+
+## Hardware Issues
+
+Currently Juliagebra works best, without issues on Debian 12 Linux with Xorg GNOME, using NVIDIA GPUs with NVIDIA's proprietary drivers.
+Other hardware and software configurations are mostly untested.
+
+### Some known Windows 11 specific issues
+
+- Distant lines can appear fuzzy on AMD GPUs under windows 11.
+- Mouse movement feels sluggish, inconsistent, and lumpy.
+- Mouse scrolling also feels sluggish, inconsistent, and lumpy.

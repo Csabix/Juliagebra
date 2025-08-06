@@ -10,6 +10,11 @@ Every package used by Juliagebra and the usage examples can be found in the [pkg
 
 Scripts which showcase the use of the library can be found inside [Tests/Examples/](Tests/Examples/).
 
+Camera movement is just like in Blender:
+- Look around by holding down the scroll wheel, and moving the mouse.
+- Pan the camera by doing the same, but holding down the shift key.
+- Scroll to zoom in-and-out.
+
 ## Creating dependents
 
 For how a Non-Rendered/Rendered Dependent can be created, a good place to start is [intersections.jl](Prototype/source/Dependents/intersections.jl) and [point.jl](Prototype/source/Dependents/point.jl).
@@ -31,7 +36,7 @@ Highly suggested steps for creating a Dependent:
 
 ## Hardware Issues
 
-Currently Juliagebra works best, without issues on Debian 12 Linux with Xorg GNOME, using NVIDIA GPUs with NVIDIA's proprietary drivers.
+Currently Juliagebra works best, without issues on Debian 12 or Ubuntu 24.04 LTS Linux with Xorg GNOME, using NVIDIA GPUs with NVIDIA's proprietary drivers.
 Other hardware and software configurations are mostly untested.
 
 ### Some known Windows 11 specific issues

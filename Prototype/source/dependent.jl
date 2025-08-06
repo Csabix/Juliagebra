@@ -26,7 +26,7 @@ _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for 
 
 evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")
 dpCallbackReturn(self::DependentDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA")
-dpCallbackReturn(self::DependentDNA,undef::Undef) = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA (on Undef)")
+dpCallbackReturn(self::DependentDNA,::Nothing) = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA (on Nothing)")
 dpEvalCallback(self::DependentDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
 
 onGraphEval(self::DependentDNA) =  error("Missing \"onGraphEval\" for subclass of DependentDNA")

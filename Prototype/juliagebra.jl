@@ -1,4 +1,4 @@
-#All files are imported here to prevent circle includes.
+# ! All files should be imported here to prevent circular includes.
 
 module JuliAgebra
 
@@ -50,8 +50,6 @@ include("source/opengl_data.jl")
 include("source/imgui_data.jl")
 
 include("source/plans.jl")
-
-include("source/undef.jl")
 
 include("source/dependent.jl")
 

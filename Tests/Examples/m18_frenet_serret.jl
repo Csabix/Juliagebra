@@ -86,7 +86,7 @@ end
 approximatedFrenetCurve = ParametricCurve(tspan[1],tspan[2],500,[calcFrenetP]) do t, cFP
     
     if(isnothing(frenetSolution))
-        return Undef()
+        return nothing
     end
     xyz = frenetSolution(t)
     return (xyz[1],xyz[2],xyz[3])

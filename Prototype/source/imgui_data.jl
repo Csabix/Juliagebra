@@ -60,6 +60,7 @@ function update!(self::ImGuiData,openglD::OpenGLData,dependentL::DependentGraph,
             _display!(self,cam)
             CImGui.EndTabItem()
         end
+        CImGui.EndTabBar()
     end
     
     CImGui.End()

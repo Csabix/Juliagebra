@@ -1,7 +1,16 @@
+# ? This file contains the code of some Intersection Dependables.
+# ? It is a very good starting point to understand how one can create
+# ? a Dependent, which is not Rendered.
+
 # ? ---------------------------------
 # ! Curve2CurveIntersectionPlan
 # ? ---------------------------------
 
+# ? Firstly, for creating a Dependent, we have to design a Plan for it.
+# ? The main purpose of a Plan is, to have an objects, which is in the memory space, of the
+# ? user's script.
+# ? Also, the data, which is required for constructing a dependent should go here.
+# ? A Plan for a Dependentent must inherit from PlanDNA.
 mutable struct Curve2CurveIntersectionPlan <: PlanDNA
     _plan::Plan
     _curve1::ParametricCurvePlan
@@ -13,6 +22,8 @@ mutable struct Curve2CurveIntersectionPlan <: PlanDNA
     end
 end
 
+# ? To complete the DNA inheritance, we need to define the acces for the compositional Plan struct in
+# ? the "_Plan_" function.
 _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 
 # ? ---------------------------------
@@ -23,6 +34,9 @@ _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 
 EPSILON = 0.1
 
+# ? After we've defined a Plan, we need the Dependent itself.
+# ? This struct will sit in the dependent graph as a node.
+# ? It should inherit from DependentDNA.
 mutable struct Curve2CurveIntersectionDependent <: DependentDNA
     _dependent::Dependent
     _intersectionNum::Int
@@ -38,19 +52,22 @@ mutable struct Curve2CurveIntersectionDependent <: DependentDNA
 end
 
 _Dependent_(self::Curve2CurveIntersectionDependent)::Dependent = return self._dependent
+
+# ? Some easy to access getters.
 curve1(self::Curve2CurveIntersectionDependent)::ParametricCurveDependent = return self._dependent._graphParents[1]
 curve2(self::Curve2CurveIntersectionDependent)::ParametricCurveDependent = return self._dependent._graphParents[2]
 
+# ? Every Dependent needs a "Plan2Dependent" function, which connects the above defined Dependent to the
+# ? Plan We've defined at the beggining of the file. The function must be able to construct a Dependent from a Plan.
+# ! Must have
 function Plan2Dependent(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersectionDependent
     return Curve2CurveIntersectionDependent(plan)
 end
 
-# TODO: Undef 2 Nothing
-# TODO: Optional keyword
-
-function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Undef}
+# ? Some user accessible indexing getter. 
+function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
     if (index > self._intersectionNum || index < 1)
-        return Undef()
+        return nothing
     end
     
     v = self._intersections[index]
@@ -58,6 +75,11 @@ function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tupl
     return (v[1],v[2],v[3])
 end
 
+# ? Now we need to define, how the Dependent should act, when everything it depends on changes.
+# ? Note that for every Dependent, the "onGraphEval" only gets called once and in a way, where everything
+# ? it depends on is up-to date.
+# ? in the case of curve-to-curve intersecting, we here do an iterative intersection between segments of the curves.
+# ! Must have
 function onGraphEval(self::Curve2CurveIntersectionDependent)
     intersectNum = length(self._intersections)
     intersectIndex = 1
@@ -89,6 +111,7 @@ function onGraphEval(self::Curve2CurveIntersectionDependent)
     self._intersectionNum = intersectIndex-1
 end
 
+# ? helper intersection function
 function Segment2SegmentIntersection(a1::Vec3F,b1::Vec3F,a2::Vec3F,b2::Vec3F)::Union{Vec3F,Nothing}
     v1 = b1 - a1
     v2 = b2 - a2
@@ -126,6 +149,8 @@ function Segment2SegmentIntersection(a1::Vec3F,b1::Vec3F,a2::Vec3F,b2::Vec3F)::U
 
     return hit
 end
+
+# ? Here we can see that curve-to-surface intersection is done in a very similar manner.
 
 # ? ---------------------------------
 # ! Curve2SurfaceIntersectionPlan
@@ -168,9 +193,9 @@ function Plan2Dependent(plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceInter
     return Curve2SurfaceIntersectionDependent(plan)
 end
 
-function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Undef}
+function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
     if (index > self._foundIntersectionNum || index < 1)
-        return Undef()
+        return nothing
     end
     
     v = self._intersections[index]

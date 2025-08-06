@@ -105,7 +105,7 @@ function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Tuple)
     self._uvValues[u,v] = Vec3F(x,y,z)
 end
 
-function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,undef::Undef)
+function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,::Nothing)
     self._uvValues[u,v] = Vec3FNan
 end
 

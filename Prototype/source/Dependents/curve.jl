@@ -66,7 +66,7 @@ function evalCallback(self::ParametricCurveDependent,t,index)
 end
 
 dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
-dpCallbackReturn(self::ParametricCurveDependent,t,index,undef::Undef) = self._tValues[index] = Vec3FNan
+dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)
     for index in self._startIndex:self._endIndex

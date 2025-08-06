@@ -32,8 +32,8 @@ end
 
 ParametricSurface(10,10,1,10,11,15,[it]) do u,v,itt
     result = itt[Int(u)]
-    if(isa(result,Undef))
-        return result
+    if(isnothing(result))
+        return nothing
     end
 
     rx,ry,rz = result

@@ -1,8 +1,16 @@
+# ? This file contains the code of the Point Dependable.
+# ? It is a very good starting point to understand how one can create
+# ? a Dependent, which is Rendered.
 
 # ? ---------------------------------
 # ! PointPlan
 # ? ---------------------------------
 
+# ? Firstly, for creating a Dependent, we have to design a Plan for it.
+# ? The main purpose of a Plan is, to have an objects, which is in the memory space, of the
+# ? user's script.
+# ? Also, the data, which is required for constructing a dependent should go here.
+# ? A Plan for a Rendered Dependentent must inherit from RenderedPlanDNA.
 mutable struct PointPlan <: RenderedPlanDNA
     _plan::RenderedPlan
     
@@ -17,6 +25,8 @@ mutable struct PointPlan <: RenderedPlanDNA
     end
 end
 
+# ? To complete the DNA inheritance, we need to define the acces for the compositional RenderedPlan struct in
+# ? the "_RenderedPlan_" function.
 _RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
 Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._dependent))"
 
@@ -24,6 +34,8 @@ Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._p
 # ! PointDependent
 # ? ---------------------------------
 
+# ? After we've defined a Plan, we need the Dependent itself.
+# ? Since it's a rendered dependent, it should inherit from RenderedDependentDNA.
 mutable struct PointDependent <:RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _x::Float64
@@ -40,6 +52,8 @@ mutable struct PointDependent <:RenderedDependentDNA
 end
 
 
+# ? Every Dependent needs a "Plan2Dependent" function, which connects the above defined Dependent to the
+# ? Plan We've defined at the beggining of the file. The function must be able to construct a Dependent from a Plan.
 # ! Must have
 function Plan2Dependent(plan::PointPlan)::PointDependent
     return PointDependent(plan)
@@ -58,6 +72,8 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     evalGraph(self)
 
 end
+
+# ? Below are some fancy getter functions, enabling the "[:xyz]" syntax and so on.
 
 getPointField(self::PointDependent,fieldVal) = error("Unrecognized Symbol for Point's field!")
 
@@ -80,20 +96,38 @@ function Base.getindex(self::PointDependent,fieldSymbols...)
     return tuple(fieldValues...)
 end
 
+# ? Now we need to define, how the Dependent should act, when everything it depends on changes.
+# ? Note that for every Dependent, the "onGraphEval" only gets called once and in a way, where everything
+# ? it depends on is up-to date.
+# ? Since Point is a Dependent, for it to be able to depend on other objects, we have to define
+# ? what will it do, when it should be evaluated in the graph, that's what
+# ? "onGraphEval" does.
+# ? dpEvalCallback is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
+# ! Must have
+onGraphEval(self::PointDependent) = dpEvalCallback(self)
+
+# ? So for a Point we want to evaluate the User's callback once, then dispatch on the returned value
+# ? (this is why "onGraphEval" is just a call to dpEvalCallback).
+# ? now we must define how, with what parameters should the callback be called, and what modifications
+# ? (in this case nothing) we should do on the return, before dispatching onto it.
 function evalCallback(self::PointDependent)
     return _Dependent_(self)._callback(_Dependent_(self)._graphParents...)
 end
 
+# ? if "dpCallbackReturn" is defined for input types, then the returned value of "evalCallback" will be sipatched into this
+# ? function, as the name suggests.
 function dpCallbackReturn(self::PointDependent,v)
     x,y,z = v
     self._x = Float64(x)
     self._y = Float64(y)
     self._z = Float64(z)
     
+    # ! flag should always be called, when data in RenderedDependents change, so that the Renderer
+    # ! assigned to this dependent knows, to update data on the GPU.
     flag!(self)
 end
 
-function dpCallbackReturn(self::PointDependent,undef::Undef)
+function dpCallbackReturn(self::PointDependent,::Nothing)
     
     self._x = NaN64
     self._y = NaN64
@@ -102,12 +136,13 @@ function dpCallbackReturn(self::PointDependent,undef::Undef)
     flag!(self)
 end
 
-onGraphEval(self::PointDependent) = dpEvalCallback(self)
+# ? Note that fancier callback evaluation can be seen in other Dependents than Point, that is why this system is needed.
 
 # ? ---------------------------------
 # ! PointRenderer
 # ? ---------------------------------
 
+# ? Now we can move on to creating a renderer, which uses GPU resources to render RenderedDependents.
 mutable struct PointRenderer <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
 
@@ -138,6 +173,9 @@ end
 _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
+# ? We need a function, which gets called, when a Dependent is assigned to this renderer.
+# ? this "added!" function gets called every time a dependent is added.
+# ? The function should be used to copy data to CPU datastructures used for GPU parsing.
 # ! Must have
 function added!(self::PointRenderer,point::PointDependent)
     aID = _Dependent_(point)._graphID
@@ -152,12 +190,17 @@ function added!(self::PointRenderer,point::PointDependent)
     println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedDependent_(point)._rendererID)\taID: $(aID)")
 end
 
+# ? This function gets called if there was at least 1 or more Dependent which got assigned to this Renderer.
+# ? Actual Data Transfer to GPU VRAM should happen here.
 # ! Must have
 function addedUpload!(self::PointRenderer)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
     println("Uploaded ID buffer!")
 end
 
+# ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
+# ? So the function is used to copy Dependent data into CPU datastructures. 
+# ? The function is called only once after change happens in that frame for every changed Dependent.
 # ! Must have
 function sync!(self::PointRenderer,point::PointDependent)
     id = point._renderedDependent._rendererID
@@ -168,12 +211,17 @@ function sync!(self::PointRenderer,point::PointDependent)
     println("Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)")
 end
 
+# ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,
+# ? but when 1 or more "flag!" happens
+# ? Actual CPU to GPU data transfer happens here.
 # ! Must have
 function syncUpload!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     println("Uploaded Coordinate buffer!")
 end
 
+# ? Function to specify how a Renderer should render.
+# ? Gets called every frame no matter what happens or not. 
 # ! Must have
 function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd) 
     activate(self._shader)
@@ -183,13 +231,24 @@ function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd)
     draw(self._buffer,GL_POINTS)
 end
 
+# ? Free GPU resources here.
 # ! Must have
 function destroy!(self::PointRenderer) 
     destroy!(self._shader)
     destroy!(self._buffer)
 end
 
+# ? And finally, connect the plan to a rendered with a function, so the library knows
+# ? which Plan is connected to which Dependent and Renderer, and thus
+# ? which Renderer renders which Dependents.
+# ? Here we can also specify, when a plan arrives, if we should create a new renderer to manage it,
+# ? or use an existing one.
+# ? "SingleRendererTactic" basically allows only 1 Renderer to manage every type of Dependent
+# ? constructed from the incoming Plan. 
 # ! Must have
 function Plan2Renderer(self::OpenGLData,plan::PointPlan)
     return SingleRendererTactic(self,PointRenderer)
 end
+
+# ? Of course, in the case of renderers using views passed to Dependents is a very fast way to handee things,
+# ? for that, see examples in the "curve.jl" and "surface.jl" files.

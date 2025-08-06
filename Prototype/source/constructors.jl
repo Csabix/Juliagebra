@@ -1,3 +1,4 @@
+# ! All exported constructors should be defined, and exported from here.
 
 const DependentsT = Vector{T} where T <: PlanDNA
 
@@ -154,4 +155,3 @@ export Segment
 export Intersection
 export Mesh
 export ParametricSurface
-export Undef

@@ -1,7 +1,7 @@
 using DataStructures, BitFlags, GLFW
 
 Base.:⊻(  x::T, y::T) where {T<:BitFlag} = T(Integer(x) ⊻ Integer(y))
-Base.:xor(x::T, y::T) where {T<:BitFlag} = T(xor(Integer(x),Integer(y)))
+#Base.:xor(x::T, y::T) where {T<:BitFlag} = T(xor(Integer(x),Integer(y)))
 
 @bitflag MouseButtonState :: UInt8 begin
     MOUSE_BUTTON_NONE   = 0

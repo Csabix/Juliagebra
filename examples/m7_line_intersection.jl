@@ -1,6 +1,5 @@
-include("../../Prototype/juliagebra.jl")
-using .JuliAgebra
-using .JuliAgebra.LinearAlgebra
+using Juliagebra
+using LinearAlgebra
 
 context = App()
 
@@ -17,10 +16,10 @@ ip = Point(-50,-50,-50,[a1,b1,a2,b2]) do a1,b1,a2,b2
     no_intersect = (-50,-50,-50)
     epsilon = 0.1
 
-    a1v = collect((x(a1),y(a1),z(a1)))
-    b1v = collect((x(b1),y(b1),z(b1)))
-    a2v = collect((x(a2),y(a2),z(a2)))
-    b2v = collect((x(b2),y(b2),z(b2)))
+    a1v = collect((a1[:xyz]))
+    b1v = collect((b1[:xyz]))
+    a2v = collect((a2[:xyz]))
+    b2v = collect((b2[:xyz]))
 
     v1v = b1v - a1v
     v2v = b2v - a2v

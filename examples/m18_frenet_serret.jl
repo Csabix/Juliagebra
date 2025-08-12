@@ -1,6 +1,5 @@
-include("../../Prototype/juliagebra.jl")
-using .JuliAgebra
-using .JuliAgebra.LinearAlgebra
+using Juliagebra
+using LinearAlgebra
 using DifferentialEquations
 
 App()

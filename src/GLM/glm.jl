@@ -1,8 +1,7 @@
-module Glm
 
-export Vec2T, Vec3T, Vec4T, VecTN, VecNT
-export MatNxMT, MatTNxM, MatNT, MatTN
-export lookat, perspective
+#export Vec2T, Vec3T, Vec4T, VecTN, VecNT
+#export MatNxMT, MatTNxM, MatNT, MatTN
+#export lookat, perspective
 
 """
 # exports types     `Vec{2,3,4}[T]`       and  `Mat{2,3,4}[x{2,3,4}][T]`
@@ -36,10 +35,9 @@ const StaticNumber   = Union{StaticReal,Complex{<:StaticReal}}
 
 using StaticArrays
 using LinearAlgebra
-using Test
 
-include("Vec.jl")
-include("Mat.jl")
+include("vec.jl")
+include("mat.jl")
 
 # custom SHOW
 import StaticArrays.show
@@ -67,7 +65,4 @@ show(io::IO,v::MatNxMT) = print(io,type_to_str(v),value_to_str(v))
 show(io::IO,::MIME{Symbol("text/plain")},v::VecNT) = show(io,v)
 show(io::IO,::MIME{Symbol("text/plain")},v::MatNxMT) = show(io,v)
 
-export show
-
-
-end
+#export show

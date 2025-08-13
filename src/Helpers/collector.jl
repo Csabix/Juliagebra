@@ -1,4 +1,3 @@
-
 mutable struct Collector{T<:CollectedDNA}
     _collection::Vector{T}
     _addedQueue::Queue{T}
@@ -14,12 +13,12 @@ end
 
 mutable struct Collected <: QueueLockDNA
     _queueLock::QueueLock
-    _collector::CollectorDNA
+    _collector::Union{CollectorDNA,Nothing}
     _collectorID::Int
 
-    function Collected(collector::CollectorDNA)
+    function Collected()
         queueLock = QueueLock()
-        new(queueLock,collector,0)
+        new(queueLock,nothing,0)
     end
 end
 
@@ -28,11 +27,11 @@ _Collector_(self::CollectorDNA)::Collector = error("Missing \"_Collector_\" func
 
 _QueueLock_(self::CollectedDNA)::QueueLock = return _Collected_(self)._queueLock
 
-function isFullyConstructed(self::CollectedDNA)
+function hasCollector(self::CollectedDNA)
     collected = _Collected_(self)
-    collector = _Collector_(collected._collector)
-    return collected._collectorID != 0 && 
-           collector._collection[collected._collectorID] === self
+    id = collected._collectorID
+    return id != 0 && 
+           _Collector_(collected._collector)._collection[id] === self
 end
 
 function add!!(itemCollector::CollectorDNA,item::CollectedDNA)
@@ -40,12 +39,13 @@ function add!!(itemCollector::CollectorDNA,item::CollectedDNA)
     collected = _Collected_(item)
     
     push!(collector._collection,item)
+    collected._collector = itemCollector
     collected._collectorID = length(collector._collection)
 
-    flag4Add!!(item)
+    _flag4Add!!(item)
 end
 
-function flag4Add!!(self::CollectedDNA)
+function _flag4Add!!(self::CollectedDNA)
     collected = _Collected_(self)
     collector = _Collector_(collected._collector)
     senqueue!(collector._addedQueue,self)
@@ -62,7 +62,7 @@ function update!!(self::CollectorDNA)
     
     if !isempty(collector._addedQueue)
         while !isempty(collector._addedQueue)
-            item = sdequeue!(r._addedQueue)
+            item = sdequeue!(collector._addedQueue)
             added!(self,item)
         end
         addedAll!(self)

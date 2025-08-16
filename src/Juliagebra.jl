@@ -12,7 +12,6 @@ using GLFW
 using ModernGL
 using CImGui
 using DataStructures
-# using StaticArrays
 
 include("commons.jl")
 
@@ -44,7 +43,7 @@ include("camera.jl")
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
-include("dependent_graph.jl")
+include("Dependents/dependent_graph.jl")
 
 include("opengl_data.jl")
 
@@ -52,11 +51,11 @@ include("imgui_data.jl")
 
 include("plans.jl")
 
-include("dependent.jl")
+include("Dependents/dependent.jl")
 
-include("renderers.jl")
+include("Dependents/dependent_renderer.jl")
 
-include("rendered_algebra.jl")
+include("Dependents/rendered_dependent.jl")
 
 # ? ---------------------------------
 # ! Dependents

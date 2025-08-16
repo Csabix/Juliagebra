@@ -9,6 +9,7 @@ mutable struct DependentGraph
 end
 
 # TODO: idotol valo fugges, timestep alapu osszefesulessel
+# TODO: Renderers should be placed at the fixed end of the graph, for safe and single renderupdate.
 
 function add!!(self::DependentGraph,asset::T) where T<:DependentDNA
     

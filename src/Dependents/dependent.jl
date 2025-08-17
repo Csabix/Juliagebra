@@ -8,18 +8,22 @@ mutable struct Dependent
     _graphChain::Vector{DependentDNA}
     _callback::Function
 
-    function Dependent(plan::PlanDNA)
-        
-        graphParents = Vector{DependentDNA}()
+    function Dependent(callback::Function,graphParents::Vector{DependentDNA})
         graphChain = Vector{DependentDNA}()
-        callback = _Plan_(plan)._callback
-
-        for parent in _Plan_(plan)._graphParents
-            push!(graphParents,_Plan_(parent)._dependent)
-        end
-        
         new(0,graphParents,graphChain,callback)
     end
+end
+
+function Dependent(plan::PlanDNA)
+    
+    graphParents = Vector{DependentDNA}()
+    callback = _Plan_(plan)._callback
+
+    for parent in _Plan_(plan)._graphParents
+        push!(graphParents,_Plan_(parent)._dependent)
+    end
+    
+    return Dependent(callback,graphParents)
 end
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")

@@ -25,7 +25,7 @@ mutable struct App
         opengl = nothing
         imgui = nothing
         windowCreated = false
-        graph = DependentGraph(shrd)
+        graph = DependentGraph()
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = Camera()

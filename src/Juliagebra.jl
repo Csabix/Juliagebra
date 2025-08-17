@@ -43,24 +43,20 @@ include("camera.jl")
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
-include("Dependents/dependent_graph.jl")
-
 include("opengl_data.jl")
 
 include("imgui_data.jl")
 
 include("plans.jl")
 
-include("Dependents/dependent.jl")
-
-include("Dependents/dependent_renderer.jl")
-
-include("Dependents/rendered_dependent.jl")
-
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
 
+include("Dependents/dependent_graph.jl")
+include("Dependents/dependent.jl")
+include("Dependents/dependent_renderer.jl")
+include("Dependents/rendered_dependent.jl")
 include("Dependents/point.jl")
 include("Dependents/curve.jl")
 # include("Dependents/mesh.jl")

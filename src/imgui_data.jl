@@ -22,7 +22,7 @@ mutable struct ImGuiData
     end
 end
 
-function update!(self::ImGuiData,openglD::OpenGLData,dependentL::DependentGraph,cam::Camera)
+function update!(self::ImGuiData,openglD::OpenGLData,dependentL::DependentGraphDNA,cam::Camera)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
@@ -98,10 +98,10 @@ function _display!(self::ImGuiData,cam::Camera)
     cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
 end
 
-function _display!(self::ImGuiData,dependentL::DependentGraph)
+function _display!(self::ImGuiData,dependentL::DependentGraphDNA)
     CImGui.Text("Stored RenderedDependent Objects:")
     i = 1
-    for (dependentObject) in dependentL._dependentObjects
+    for (dependentObject) in _DependentGraph(dependentL)._dependentObjects
         CImGui.Text("$(i) - $(string(dependentObject))")
         #if CImGui.TreeNode()        
         #    CImGui.TreePop()

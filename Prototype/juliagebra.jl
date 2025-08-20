@@ -71,4 +71,8 @@ include("source/app.jl")
 
 include("source/constructors.jl")
 
+include("source/LBVH/aabb.jl")
+#include("source/LBVH/morton_codes.jl")
+include("source/LBVH/lbvh.jl")
+
 end

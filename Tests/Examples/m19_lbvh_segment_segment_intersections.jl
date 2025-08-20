@@ -22,7 +22,7 @@ function CrossProduct2D(a::SVector{2, Float32}, b::SVector{2, Float32})::Float32
     return ((a[1] * b[2]) - (a[2] * b[1]))
 end
 
-function Intersection(line_segment_a::LineSegment2D, line_segment_b::LineSegment2D)::Tuple{Bool, SVector{2, Float32}}
+function Segment2SegmentIntersection(line_segment_a::LineSegment2D, line_segment_b::LineSegment2D)::Tuple{Bool, SVector{2, Float32}}
     va::SVector{2, Float32} = line_segment_a.p2 .- line_segment_a.p1
     vb::SVector{2, Float32} = line_segment_b.p2 .- line_segment_b.p1
 
@@ -77,7 +77,7 @@ for i in 0:(length(segments) - 1)
         number_of_leafs,
         segments[i + 1],
         GetAABBLineSegment2D(segments[i + 1]),
-        Intersection,
+        Segment2SegmentIntersection,
         onIntersection
     )
 end

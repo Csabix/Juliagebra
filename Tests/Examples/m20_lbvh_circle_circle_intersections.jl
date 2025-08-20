@@ -2,6 +2,7 @@ include("../../Prototype/juliagebra.jl")
 using .JuliAgebra
 using .JuliAgebra.LinearAlgebra
 using StaticArrays
+using LinearAlgebra
 
 App()
 
@@ -79,7 +80,6 @@ end
 lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(GetAABBCircle.(circles), UInt32)
 
 for i in 0:(length(circles) - 1)
-    println(GetAABBCircle(circles[i + 1]), "  ", origins[2 * i + 1], " ", origins[2 * i + 1 + 1], "   ", radiuses[i + 1])
     LBVHToPrimitiveIntersection(
         lbvh_nodes,
         circles,

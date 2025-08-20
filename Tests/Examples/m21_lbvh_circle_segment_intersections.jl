@@ -2,6 +2,7 @@ include("../../Prototype/juliagebra.jl")
 using .JuliAgebra
 using .JuliAgebra.LinearAlgebra
 using StaticArrays
+using LinearAlgebra
 
 App()
 

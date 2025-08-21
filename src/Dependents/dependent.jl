@@ -26,6 +26,11 @@ function Dependent(plan::PlanDNA)
     return Dependent(callback,graphParents)
 end
 
+function onGraphAdd(parent::DependentDNA,child::DependentDNA)
+    parentChain = _Dependent_(parent)._graphChain
+    push!(parentChain,child)
+end
+
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
 evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")

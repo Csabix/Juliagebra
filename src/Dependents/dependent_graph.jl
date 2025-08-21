@@ -19,7 +19,7 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
         graphItemChain = _Dependent_(graphItem)._graphChain
         for assetParent in assetDependent._graphParents
             if (assetParent in graphItemChain) || assetParent === graphItem
-                push!(graphItemChain,asset)
+                onGraphAdd(graphItem,asset)
                 break
             end
         end

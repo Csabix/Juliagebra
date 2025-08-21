@@ -4,10 +4,13 @@ module Juliagebra
 
 include("GL/gl.jl")
 
-include("GLM/glm.jl")
+#include("GLM/glm.jl")
+
+using JuliaGLM
 
 include("events.jl")
 
+using LinearAlgebra
 using GLFW
 using ModernGL
 using CImGui

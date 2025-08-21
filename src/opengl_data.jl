@@ -29,7 +29,7 @@ mutable struct OpenGLData
 
     _index :: Int
 
-    _backgroundCol::Vec3
+    _backgroundCol::Vec3F
 
     _vp::Mat4T
     _v::Mat4T
@@ -51,8 +51,8 @@ mutable struct OpenGLData
         mainAttachements[GL_DEPTH_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
         mainFBO = FrameBuffer(mainAttachements)
         
-        dummyBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,getAPlane())
-        centerBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
+        dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
+        centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
         gizmoGL = GizmoGL()
         orthoGizmoGL = OrthoGizmoGL()
 
@@ -83,7 +83,7 @@ mutable struct OpenGLData
             mainFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             0,
-            Vec3(0.73,0.73,0.73),
+            Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
     end
 end

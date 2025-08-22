@@ -58,6 +58,8 @@ include("plans.jl")
 
 include("Dependents/dependent_graph.jl")
 include("Dependents/dependent.jl")
+include("Dependents/dependent_observer.jl")
+include("Dependents/observed_dependent.jl")
 include("Dependents/dependent_renderer.jl")
 include("Dependents/rendered_dependent.jl")
 include("Dependents/point.jl")

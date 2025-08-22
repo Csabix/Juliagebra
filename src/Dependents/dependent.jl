@@ -26,7 +26,9 @@ function Dependent(plan::PlanDNA)
     return Dependent(callback,graphParents)
 end
 
-function onGraphAdd(parent::DependentDNA,child::DependentDNA)
+onGraphAdd(parent::DependentDNA,child::DependentDNA) = Dependent_onGraphAdd(parent,child)
+
+function Dependent_onGraphAdd(parent::DependentDNA,child::DependentDNA)
     parentChain = _Dependent_(parent)._graphChain
     push!(parentChain,child)
 end
@@ -39,9 +41,13 @@ dpCallbackReturn(self::DependentDNA,::Nothing) = error("Missing \"dispatchCallba
 dpEvalCallback(self::DependentDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
 
 onGraphEval(self::DependentDNA) =  error("Missing \"onGraphEval\" for subclass of DependentDNA")
+postGraphEval(self::DependentDNA) = nothing
+afterGraphEval(self::DependentDNA) = nothing
 
 function evalGraph(self::DependentDNA)
     for item in _Dependent_(self)._graphChain
         onGraphEval(item)
+        afterGraphEval(item)
     end
+    postGraphEval(self)
 end

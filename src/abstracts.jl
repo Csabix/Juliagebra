@@ -4,6 +4,10 @@ abstract type QueueLockDNA end
 
 abstract type DependentDNA end 
 abstract type DependentGraphDNA end
+
+abstract type ObservedDNA <: DependentDNA end
+abstract type ObserverDNA{T<:ObservedDNA} end
+
 abstract type RenderedDependentDNA  <: DependentDNA end
 abstract type RendererDNA{T<:RenderedDependentDNA} <: QueueLockDNA end
 

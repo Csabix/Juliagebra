@@ -89,7 +89,7 @@
     end
 
     clearState(self::TestObserver) = _clearState(self)
-    function _clearState(seld::SUT.ObserverDNA)
+    function _clearState(self::SUT.ObserverDNA)
         self._addedCalled = 0
         self._syncCalled = 0
         self._syncAllCalled = 0
@@ -253,6 +253,12 @@
         end
     end
 
+    function clear_observers(observers)
+        for observer in observers
+            clearState(observer)
+        end
+    end
+
     function test_eval_totalCallCount(graph,dependents,jsonGraph)
         for testPath in jsonGraph["test_paths"]
             testPathEvalNodeIndex = parse(Int,testPath[1])
@@ -372,20 +378,95 @@
         end
     end
 
-    function test_sync_totalCallCount()
+    function test_sync_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+        observerConfigs = jsonGraph["observer_configs"][observerConfigName]
+        
+        for testPath in jsonGraph["test_paths"]
+            testPathEvalNodeIndex = parse(Int,testPath[1])
+            testPathNodeIndexes = testPath[2]
 
+            SUT.evalGraph(observed[testPathEvalNodeIndex])
+
+            for observerConfigIndex in eachindex(observerConfigs)
+                observerConfig = observerConfigs[observerConfigIndex]
+                
+                observedInPathCount = 0
+                for observedIndex in observerConfig
+                    if observedIndex in testPathNodeIndexes
+                        observedInPathCount += 1
+                    end
+                end
+                
+                @test observers[observerConfigIndex]._syncCalled == observedInPathCount
+
+            end
+
+            clear_observers(observers)
+            clear_dependents(observed)
+        end
     end
 
-    function test_sync_observedCalledOnly()
+    function test_sync_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+        observerConfigs = jsonGraph["observer_configs"][observerConfigName]
+        
+        for testPath in jsonGraph["test_paths"]
+            testPathEvalNodeIndex = parse(Int,testPath[1])
+            testPathNodeIndexes = testPath[2]
 
+            SUT.evalGraph(observed[testPathEvalNodeIndex])
+
+            for observerConfigIndex in eachindex(observerConfigs)
+                observerConfig = observerConfigs[observerConfigIndex]
+                
+                observedInPath = []
+                for observedIndex in observerConfig
+                    if observedIndex in testPathNodeIndexes
+                        push!(observedInPath,observed[observedIndex])
+                    end
+                end
+                
+                @test length(observers[observerConfigIndex]._syncItems) == length(observedInPath)
+
+                for observed in observedInPath
+                    @test observed in observers[observerConfigIndex]._syncItems
+                end
+            end
+
+            clear_observers(observers)
+            clear_dependents(observed)
+        end
     end
 
-    function test_syncAll_totalCallCount()
+    function test_syncAll_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+        observerConfigs = jsonGraph["observer_configs"][observerConfigName]
+        
+        for testPath in jsonGraph["test_paths"]
+            testPathEvalNodeIndex = parse(Int,testPath[1])
+            testPathNodeIndexes = testPath[2]
 
-    end
+            SUT.evalGraph(observed[testPathEvalNodeIndex])
 
-    function test_syncAll_observedCalledOnly()
+            for observerConfigIndex in eachindex(observerConfigs)
+                observerConfig = observerConfigs[observerConfigIndex]
+                
+                observerInPath = false
+                for observedIndex in observerConfig
+                    if observedIndex in testPathNodeIndexes
+                        observerInPath = true
+                        break
+                    end
+                end
 
+                if observerInPath
+                    @test observers[observerConfigIndex]._syncAllCalled == 1
+                else
+                    @test observers[observerConfigIndex]._syncAllCalled == 0
+                end
+            end
+
+            clear_observers(observers)
+            clear_dependents(observed)
+        end
     end
 
     @testset verbose=true "DependentGraph - Dependent children test" begin 
@@ -471,6 +552,24 @@
                 observerConfigName,observerConfigData = observerConfig
                 graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
                 test_added_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+            end
+
+            @testset "sync call count is correct on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
+                observerConfigName,observerConfigData = observerConfig
+                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
+                test_sync_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+            end
+
+            @testset "sync calls only on correct observed in observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
+                observerConfigName,observerConfigData = observerConfig
+                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
+                test_sync_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+            end
+
+            @testset "syncAll call count is correct on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
+                observerConfigName,observerConfigData = observerConfig
+                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
+                test_syncAll_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
             end
         end
     end

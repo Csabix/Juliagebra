@@ -35,6 +35,9 @@ end
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
+getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
+getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
+
 evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")
 dpCallbackReturn(self::DependentDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA")
 dpCallbackReturn(self::DependentDNA,::Nothing) = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA (on Nothing)")
@@ -50,4 +53,18 @@ function evalGraph(self::DependentDNA)
         afterGraphEval(item)
     end
     postGraphEval(self)
+end
+
+function to_string(self::DependentDNA)
+    outStr = ""
+
+    outStr *= "$(getGraphID(self))"
+    outStr *= "\t: ["
+    for parent in getGraphParents(self)
+        outStr *= "$(getGraphID(parent)), "
+    end
+    outStr = outStr[1:end-2]
+    outStr *= "]"
+
+    return outStr
 end

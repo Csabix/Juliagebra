@@ -36,3 +36,16 @@ end
 
 _DependentGraph_(self::DependentGraphDNA)::DependentGraph = error("Missing \"_DependentGraph_\" func for type of \"$(typeof(self))\"!")
 _DependentGraph_(self::DependentGraph)::DependentGraph = return self
+
+function to_string(self::DependentGraphDNA)
+    graph = _DependentGraph_(self)
+    outStr = ""
+
+    for dependent in graph._dependentObjects
+        outStr *= "$(to_string(dependent))\n"
+    end
+
+    outStr = outStr[1:end-1]
+
+    return outStr
+end

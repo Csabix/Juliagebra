@@ -28,6 +28,7 @@ include("Helpers/flat_matrix_manager.jl")
 include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/collector.jl")
+include("Helpers/imgui_helpers.jl")
 
 ID_LOWER_BOUND = 3
 
@@ -42,6 +43,15 @@ include("camera.jl")
 # ? ---------------------------------
 # ! Widgets
 # ? ---------------------------------
+
+include("Widgets/widget.jl")
+include("Widgets/imgui_widget.jl")
+include("Widgets/dock.jl")
+include("Widgets/window.jl")
+include("Widgets/gui_dependents_window.jl")
+include("Widgets/data_peeker.jl")
+include("Widgets/console.jl")
+include("Widgets/named_window.jl")
 
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")

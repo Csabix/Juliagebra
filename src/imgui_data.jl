@@ -7,6 +7,8 @@ mutable struct ImGuiData
     _pos_x::Int
     _pos_y::Int
 
+    _widgets::Vector{ImGuiWidgetDNA}
+
     function ImGuiData(glfwD::GLFWData,openglD::OpenGLData,shrd::SharedData)
         imgui_context = CImGui.CreateContext()
         
@@ -15,7 +17,21 @@ mutable struct ImGuiData
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
         
-        self = new(shrd,0,0,0,0)
+        widgets = Vector{ImGuiWidgetDNA}()
+        
+        dock = Dock(shrd._width,shrd._height)
+        
+        add!(dock,GuiDependentsWindow())
+        add!(dock,DataPeeker(shrd))
+        add!(dock,Console())
+
+        for i in 1:10
+            add!(dock,NamedWindow("NamedWindow$(i)"))
+        end
+
+        push!(widgets,dock)
+
+        self = new(shrd,0,0,0,0,widgets)
         resize!(self)
 
         return self
@@ -28,62 +44,47 @@ function update!(self::ImGuiData,openglD::OpenGLData,dependentL::DependentGraphD
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
     
-    CImGui.SetNextWindowSize((self._width,self._height))
-    
+    #CImGui.SetNextWindowSize((self._width,self._height))
+    #CImGui.Begin("Data Peeker",C_NULL,CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove)
+    #
+    #if (CImGui.IsWindowCollapsed())
+    #    CImGui.SetWindowPos((0,self._shrd._height))
+    #else
+    #    CImGui.SetWindowPos((self._pos_x,self._pos_y))
+    #end
+    #
+    #
+    #if CImGui.BeginTabBar("Places")
+    #    if CImGui.BeginTabItem("Shared Data")
+    #        _display!(self,self._shrd)
+    #        CImGui.EndTabItem()
+    #    end
+    #    
+    #    if CImGui.BeginTabItem("Render Items")
+    #        _display!(self,openglD)
+    #        CImGui.EndTabItem()
+    #    end
+    #    
+    #    if CImGui.BeginTabItem("RenderedDependent Items")
+    #        _display!(self,dependentL)
+    #        CImGui.EndTabItem()
+    #    end
+    #
+    #    if CImGui.BeginTabItem("Camera")
+    #        _display!(self,cam)
+    #        CImGui.EndTabItem()
+    #    end
+    #    CImGui.EndTabBar()
+    #end
+    #
+    #CImGui.End()
 
-    CImGui.Begin("Data Peeker",C_NULL,CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove)
-    
-    if (CImGui.IsWindowCollapsed())
-        CImGui.SetWindowPos((0,self._shrd._height))
-    else
-        CImGui.SetWindowPos((self._pos_x,self._pos_y))
+    for widget in self._widgets
+        render(widget)
     end
-    
-    
-    if CImGui.BeginTabBar("Places")
-        if CImGui.BeginTabItem("Shared Data")
-            _display!(self,self._shrd)
-            CImGui.EndTabItem()
-        end
-        
-        if CImGui.BeginTabItem("Render Items")
-            _display!(self,openglD)
-            CImGui.EndTabItem()
-        end
-        
-        if CImGui.BeginTabItem("RenderedDependent Items")
-            _display!(self,dependentL)
-            CImGui.EndTabItem()
-        end
 
-        if CImGui.BeginTabItem("Camera")
-            _display!(self,cam)
-            CImGui.EndTabItem()
-        end
-        CImGui.EndTabBar()
-    end
-    
-    CImGui.End()
     CImGui.Render()
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
-end
-
-function slider1(self::T,text::String,min::AbstractFloat,max::AbstractFloat)::T where T
-    self_ref = Ref(self)
-    CImGui.SliderFloat(text,self_ref,min,max)
-    return self_ref[]
-end
-
-function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)::Vec3T
-    self_ref = Ref(self)
-    CImGui.SliderFloat3(text,self_ref,min,max)
-    return self_ref[]
-end
-
-function slider1i(self,text::String,min::Integer,max::Integer)
-    self_ref = Ref(self)
-    CImGui.SliderInt(text,self_ref,min,max)
-    return self_ref[]
 end
 
 function _display!(self::ImGuiData,cam::Camera)
@@ -108,24 +109,6 @@ function _display!(self::ImGuiData,dependentL::DependentGraphDNA)
         #end
         i+=1
     end
-end
-
-
-
-function _display!(self::ImGuiData,shrd::SharedData)
-    CImGui.Text("Selected ID: $(shrd._selectedID)")
-    CImGui.Text("Cursor Pos: ($(shrd._mouseX),$(shrd._mouseY))")
-    CImGui.Text("Relative cursor: ($(shrd._relMouseX),$(shrd._relMouseY))")
-    CImGui.Text("Cursor moved: $(shrd._mouseMoved)")
-    CImGui.Text("Window Dimensions: ($(shrd._width),$(shrd._height))")
-    CImGui.Text("Delta Time: $(shrd._deltaTime)")
-
-    fpsApprx = 1.0/shrd._deltaTime
-
-    CImGui.Text("FPS approx: $(fpsApprx)")
-
-    #shrd._selectedGizmo = slider1i(shrd._selectedGizmo,"GizmoID",1,3)
-
 end
 
 function _display!(self::ImGuiData,openglD::OpenGLData)
@@ -161,6 +144,10 @@ function resize!(self::ImGuiData)
     self._width = self._shrd._width
     self._height = floor(self._shrd._height * 0.3)
     self._pos_y = self._shrd._height - self._height
+
+    for widget in self._widgets
+        resize!(widget,self._shrd._width,self._shrd._height)
+    end
 end
 
 function destroy!(self::ImGuiData)

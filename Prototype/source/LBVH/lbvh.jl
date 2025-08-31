@@ -626,7 +626,7 @@ function LBVHToPrimitiveIntersection(
             current_node = lbvh_nodes[current_node.right_child_index_or_primitive_index + 1]
         else
             if (!is_node_internal)
-                intersection = primitive_lbvh_primitive_intersection(primitive, lbvh_primitives[current_node.right_child_index_or_primitive_index + 1])
+                intersection = primitive_lbvh_primitive_intersection(primitive, lbvh_primitives[UInt(current_node.right_child_index_or_primitive_index + 1)])
                 if ((intersection !== nothing) && buffer_current_index < length(buffer))
                     buffer[buffer_current_index + 1] = intersection
                     buffer_current_index += 1

@@ -65,6 +65,8 @@ include("source/Dependents/point.jl")
 include("source/Dependents/curve.jl")
 # include("source/Dependents/mesh.jl")
 include("source/Dependents/surface.jl")
+include("source/Dependents/primitives.jl")
+include("source/Dependents/primitive_intersections.jl")
 include("source/Dependents/intersections.jl")
 
 include("source/app.jl")

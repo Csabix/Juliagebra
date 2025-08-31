@@ -37,7 +37,7 @@ function Base.iterate(self::TrianglesOf,uvs = (1,1,1))
         a = self._vertexes[u  ,v  ]
         b = self._vertexes[u  ,v+1]
         c = self._vertexes[u+1,v  ]
-        abc = (a,b,c)
+        abc = Triangle(a,b,c)
 
         if (u==width(self._vertexes)-1)
             if (v==height(self._vertexes)-1)
@@ -63,7 +63,7 @@ function Base.iterate(self::TrianglesOf,uvs = (1,1,1))
         a = self._vertexes[u  ,v  ]
         b = self._vertexes[u+1,v  ]
         c = self._vertexes[u+1,v-1]
-        abc = (a,b,c)
+        abc = Triangle(a,b,c)
 
         if (u==width(self._vertexes)-1)
             if (v==height(self._vertexes))
@@ -86,7 +86,7 @@ end
 
 Base.length(self::TrianglesOf) = 2 * (width(self._vertexes) - 1) * (height(self._vertexes) - 1)
 
-function Base.getindex(self::TrianglesOf,index)::Union{Nothing, Tuple{Vec3F, Vec3F, Vec3F}}
+function Base.getindex(self::TrianglesOf, index::UInt)::Union{Nothing, Triangle}
     w = width(self._vertexes) - 1
     h = height(self._vertexes) - 1
     number_of_quads = w * h
@@ -101,13 +101,11 @@ function Base.getindex(self::TrianglesOf,index)::Union{Nothing, Tuple{Vec3F, Vec
         u = ((index - 1) % w) + 1
         v = div((index - 1), w) + 1
 
-        #println("u: ", u, "  v: ", v, "  w: ", w, "  h: ", h)
-        
         a = self._vertexes[u  ,v  ]
         b = self._vertexes[u  ,v+1]
         c = self._vertexes[u+1,v  ]
 
-        return (a,b,c)
+        return Triangle(a,b,c)
     elseif (index <= 2 * number_of_quads)
         # ! *---3---4   u:->+ 
         # ! |  /|  /|      
@@ -122,7 +120,7 @@ function Base.getindex(self::TrianglesOf,index)::Union{Nothing, Tuple{Vec3F, Vec
         b = self._vertexes[u+1,v  ]
         c = self._vertexes[u+1,v-1]
         
-        return (a,b,c)
+        return Triangle(a,b,c)
     else
         return nothing
     end

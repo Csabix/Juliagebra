@@ -53,11 +53,11 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     end
 end
 
-Base.length(self::ParametricCurveDependent) = (self._endIndex - self._startIndex)
+Base.length(self::ParametricCurveDependent) = (self._endIndex - self._startIndex - 1) # -1 because start is inclusive and is exclusive ( [start, end) )and they are storing points but we want line segments
 
 function Base.getindex(self::ParametricCurveDependent, index::UInt)::Union{Nothing, LineSegment}
-    if (index < length(self._tValues))
-        return LineSegment(self._tValues[index], self._tValues[index + 1])
+    if ((self._startIndex + index) < self._endIndex)
+        return LineSegment(self._tValues[(self._startIndex - 1) + index], self._tValues[(self._startIndex - 1) + index + 1])
     else
         return nothing 
     end

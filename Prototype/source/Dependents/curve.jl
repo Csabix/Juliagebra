@@ -53,6 +53,14 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     end
 end
 
+function Base.getindex(self::ParametricCurveDependent, index::UInt)::Union{Nothing, LineSegment}
+    if (index < length(self._tValues))
+        return LineSegment(self._tValues[index], self._tValues[index + 1])
+    else
+        return nothing 
+    end
+end
+
 # ! Must have
 function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
     return ParametricCurveDependent(plan)

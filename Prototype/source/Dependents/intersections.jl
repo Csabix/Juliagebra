@@ -204,7 +204,6 @@ function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tu
 end
 
 function onGraphEval(self::Curve2SurfaceIntersectionDependent)
-    maxIntersectNum = length(self._intersections)
     self._foundIntersectionNum = 0
 
     crv = curve(self)
@@ -212,46 +211,19 @@ function onGraphEval(self::Curve2SurfaceIntersectionDependent)
 
     for triangle in TrianglesOf(srfc._uvValues)
         for i in crv._startIndex:(crv._endIndex-1)
-            p1 = crv._tValues[i]
-            p2 = crv._tValues[i+1]
-            a,b,c = triangle
+            line_segment = crv[UInt(i)]
 
-            tuv = Segment2TriangleIntersection(p1,p2,a,b,c)
-            t = tuv[1]
-            u = tuv[2]
-            v = tuv[3]
-            w = 1-u-v
-
-            if (0.0<=t && t<=1.0 &&
-                0.0<=u &&
-                0.0<=v &&
-                0.0<=w)
-
-                self._foundIntersectionNum+=1
-                intersectionPoint = p1 + t*(p2-p1)
-                self._intersections[self._foundIntersectionNum] = intersectionPoint
-                
-                if (self._foundIntersectionNum == maxIntersectNum)
+            intersection = Segment2TriangleIntersection(line_segment, triangle)
+            if (intersection !== nothing)
+                if (self._foundIntersectionNum < length(self._intersections))
+                    self._intersections[self._foundIntersectionNum + 1] = intersection
+                    self._foundIntersectionNum += 1
+                else
                     return
                 end
             end
         end
     end
-end
-
-function Segment2TriangleIntersection(p1::Vec3F,p2::Vec3F,a::Vec3F,b::Vec3F,c::Vec3F)
-    p0 = p1
-    v = p2 - p1
-
-    ab = b - a
-    ac = c - a
-    ap = p0 - a
-    f = cross(v,ac)
-    g = cross(ap,ab)
-
-    tuv = (1/dot(f,ab)) * [dot(g,ac),dot(f,ap),dot(g,v)]
-    
-    return tuv
 end
 
 mutable struct Surface2SurfaceIntersectionPlan <: PlanDNA

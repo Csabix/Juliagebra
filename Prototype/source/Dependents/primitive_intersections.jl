@@ -62,6 +62,10 @@ function Segment2TriangleIntersection(line_segment::LineSegment, triangle::Trian
     end
 end
 
+function Segment2TriangleIntersection(triangle::Triangle, line_segment::LineSegment)::Union{Nothing, Vec3F}
+    return Segment2TriangleIntersection(line_segment, triangle)
+end
+
 function Isect2(
     VTX0::Vec3F,
     VTX1::Vec3F,

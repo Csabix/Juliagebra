@@ -39,15 +39,15 @@ EPSILON = 0.1
 # ? It should inherit from DependentDNA.
 mutable struct Curve2CurveIntersectionDependent <: DependentDNA
     _dependent::Dependent
-    _intersectionNum::Int
+    _foundIntersectionNum::UInt
     _intersections::Vector{Vec3F}
     
     function Curve2CurveIntersectionDependent(plan::Curve2CurveIntersectionPlan)
         dependent = Dependent(plan)
-        intersectionNum = plan._intersectNum
-        intersections = Vector{Vec3F}(undef,intersectionNum)
+        foundIntersectionNum = plan._intersectNum
+        intersections = Vector{Vec3F}(undef,foundIntersectionNum)
         
-        new(dependent,Int(intersectionNum),intersections)
+        new(dependent,foundIntersectionNum,intersections)
     end
 end
 
@@ -66,7 +66,7 @@ end
 
 # ? Some user accessible indexing getter. 
 function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
-    if (index > self._intersectionNum || index < 1)
+    if (index > self._foundIntersectionNum || index < 1)
         return nothing
     end
     
@@ -81,73 +81,27 @@ end
 # ? in the case of curve-to-curve intersecting, we here do an iterative intersection between segments of the curves.
 # ! Must have
 function onGraphEval(self::Curve2CurveIntersectionDependent)
-    intersectNum = length(self._intersections)
-    intersectIndex = 1
+    self._foundIntersectionNum = 0
 
     c1 = curve1(self)
     c2 = curve2(self)
 
     for i1 in c1._startIndex:(c1._endIndex-1)
         for i2 in c2._startIndex:(c2._endIndex-1)
-            
-            a1 = c1._tValues[i1]
-            b1 = c1._tValues[i1+1]
-            a2 = c2._tValues[i2]
-            b2 = c2._tValues[i2+1]
+            line_segment1 = c1[UInt(i1)]
+            line_segment2 = c2[UInt(i2)]
 
-            result = Segment2SegmentIntersection(a1,b1,a2,b2)
-
-            if result !== nothing
-                self._intersections[intersectIndex] = result
-                intersectIndex+=1
-                if intersectIndex > intersectNum
-                    self._intersectionNum = intersectNum
+            intersection = Segment2SegmentIntersection(line_segment1, line_segment2)
+            if (intersection !== nothing)
+                if (self._foundIntersectionNum < length(self._intersections))
+                    self._intersections[self._foundIntersectionNum + 1] = intersection
+                    self._foundIntersectionNum += 1
+                else
                     return
                 end
             end
         end
     end
-
-    self._intersectionNum = intersectIndex-1
-end
-
-# ? helper intersection function
-function Segment2SegmentIntersection(a1::Vec3F,b1::Vec3F,a2::Vec3F,b2::Vec3F)::Union{Vec3F,Nothing}
-    v1 = b1 - a1
-    v2 = b2 - a2
-
-    n_up = normalize(cross(v1,v2))
-    
-    d = abs(dot(a2-a1,n_up))
-    if( d > EPSILON)
-        return nothing
-    end
-
-    plane_n  = normalize(cross(v1,n_up))    
-    plane_q0 = a1
-    ray_p0 = a2
-    ray_v  = v2
-    t = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)
-    if (t > 1.0 || t<0.0)
-        return nothing
-    end
-
-    hit1 = ray_p0 + t * ray_v
-
-    plane_n  = normalize(cross(v2,n_up))    
-    plane_q0 = a2
-    ray_p0 = a1
-    ray_v  = v1
-    s = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)
-    if (s > 1.0 || s<0.0)
-        return nothing
-    end
-
-    hit2 = ray_p0 + s * ray_v
-
-    hit = (hit1 + hit2) ./ 2
-
-    return hit
 end
 
 # ? Here we can see that curve-to-surface intersection is done in a very similar manner.
@@ -176,7 +130,7 @@ _Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
 mutable struct Curve2SurfaceIntersectionDependent <: DependentDNA
     _dependent::Dependent
     _intersections::Vector{Vec3F}
-    _foundIntersectionNum::Int
+    _foundIntersectionNum::UInt
 
     function Curve2SurfaceIntersectionDependent(plan::Curve2SurfaceIntersectionPlan)
         dependent = Dependent(plan)

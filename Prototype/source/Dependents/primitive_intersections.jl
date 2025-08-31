@@ -1,19 +1,19 @@
 EPSILON = 0.1
 
 function Segment2SegmentIntersection(line_segment_a::LineSegment, line_segment_b::LineSegment)::Union{Nothing, Vec3F}
-    v1 = line_segment_b.p0 - line_segment_a.p0
-    v2 = line_segment_b.p1 - line_segment_a.p1
+    v1 = line_segment_a.p1 - line_segment_a.p0
+    v2 = line_segment_b.p1 - line_segment_b.p0
 
     n_up = normalize(cross(v1,v2))
     
-    d = abs(dot(line_segment_a2-line_segment_a1,n_up))
+    d = abs(dot(line_segment_b.p0-line_segment_a.p0,n_up))
     if( d > EPSILON)
         return nothing
     end
 
     plane_n  = normalize(cross(v1,n_up))    
     plane_q0 = line_segment_a.p0
-    ray_p0 = line_segment_a.p1
+    ray_p0 = line_segment_b.p0
     ray_v  = v2
     t = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)
     if (t > 1.0 || t<0.0)
@@ -23,7 +23,7 @@ function Segment2SegmentIntersection(line_segment_a::LineSegment, line_segment_b
     hit1 = ray_p0 + t * ray_v
 
     plane_n  = normalize(cross(v2,n_up))    
-    plane_q0 = line_segment_a.p1
+    plane_q0 = line_segment_b.p0
     ray_p0 = line_segment_a.p0
     ray_v  = v1
     s = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)

@@ -84,4 +84,48 @@ function Base.iterate(self::TrianglesOf,uvs = (1,1,1))
     return nothing
 end
 
+Base.length(self::TrianglesOf) = 2 * (width(self._vertexes) - 1) * (height(self._vertexes) - 1)
+
+function Base.getindex(self::TrianglesOf,index)::Union{Nothing, Tuple{Vec3F, Vec3F, Vec3F}}
+    w = width(self._vertexes) - 1
+    h = height(self._vertexes) - 1
+    number_of_quads = w * h
+
+    if (index <= number_of_quads)
+        # ! 1---3---5   u:->+ 
+        # ! |##/|##/|      
+        # ! |#/ |#/ |   v:|
+        # ! |/  |/  |     V
+        # ! 2---4---*     +
+
+        u = ((index - 1) % w) + 1
+        v = div((index - 1), w) + 1
+
+        #println("u: ", u, "  v: ", v, "  w: ", w, "  h: ", h)
+        
+        a = self._vertexes[u  ,v  ]
+        b = self._vertexes[u  ,v+1]
+        c = self._vertexes[u+1,v  ]
+
+        return (a,b,c)
+    elseif (index <= 2 * number_of_quads)
+        # ! *---3---4   u:->+ 
+        # ! |  /|  /|      
+        # ! | /#| /#|   v:|
+        # ! |/##|/##|     V
+        # ! 1---2---3     +
+
+        u = ((index - 1) % w) + 1
+        v = (div((index - 1), w) - h) + 1 + 1
+
+        a = self._vertexes[u  ,v  ]
+        b = self._vertexes[u+1,v  ]
+        c = self._vertexes[u+1,v-1]
+        
+        return (a,b,c)
+    else
+        return nothing
+    end
+end
+
 const EMPTY_FlatMatrix = FlatMatrix{0,Vec3F}(FlatMatrixManager{Vec3F}())

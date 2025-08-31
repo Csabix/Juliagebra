@@ -109,6 +109,20 @@ end
 Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum) =
 _Curve2SurfaceIntersection(_curve=curve,_surface=surface,_intersectNum=intersectionNum)
 
+function _Surface2SurfaceIntersection(;
+                                   _app::App = implicitApp,
+                                   _surface1::ParametricSurfacePlan,
+                                   _surface2::ParametricSurfacePlan,
+                                   _intersectNum
+                                   )::Surface2SurfaceIntersectionPlan
+    plan = Surface2SurfaceIntersectionPlan(_surface1,_surface2,UInt(_intersectNum))
+    submit!(_app,plan)
+    return plan
+end
+
+Intersection(surface1::ParametricSurfacePlan,surface2::ParametricSurfacePlan,intersectionNum) =
+_Surface2SurfaceIntersection(_surface1=surface1,_surface2=surface2,_intersectNum=intersectionNum)
+
 # ? ---------------------------------
 # ! Mesh
 # ? ---------------------------------

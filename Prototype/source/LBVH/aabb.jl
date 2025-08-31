@@ -3,8 +3,8 @@ using StaticArrays
 
 
 struct AABB{N}
-    min::MVector{N, Float32}
-    max::MVector{N, Float32}
+    min::SVector{N, Float32}
+    max::SVector{N, Float32}
 end
 
 const AABB2D = AABB{2}

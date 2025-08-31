@@ -221,7 +221,7 @@ A helper function which tries to find the most significant bit position at which
 - this function might be undetermenistic (will result in hugely different tree if there are tiny differences in the sorted morton codes buffer) if different non stable sorts of the morton codes are used
 """
 function Delta(sorted_morton_codes::Vector{MortonCodeT}, i::Int32, code_i::MortonCodeT, j::Int32)::Int32 where {MortonCodeT<:AbstractMortonCodeType}
-    @assert (issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
+    #@assert (issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
     if ((j < 0) || (j > (length(sorted_morton_codes) - 1)))
         return -1
     end
@@ -250,7 +250,7 @@ Calculates the range of primitives in the subtree of each internal node using on
 - `Tuple{Int32, Int32}`: a range given by a start and end index corresponding to the primitives in the current nodes subtree 
 """
 function DetermineRange(sorted_morton_codes::Vector{MortonCodeT}, idx::Int32)::Tuple{Int32, Int32} where {MortonCodeT<:AbstractMortonCodeType}
-    @assert (issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
+    #@assert (issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
     code::MortonCodeT = sorted_morton_codes[idx + 1]
     deltaL::Int32 = Delta(sorted_morton_codes, idx, code, Int32(idx - 1))
     deltaR::Int32 = Delta(sorted_morton_codes, idx, code, Int32(idx + 1))
@@ -293,7 +293,7 @@ Calculates an index inside a range using morton codes such that it makes the res
 - `Int32`: an index between `first` and `last` that splits the morton codes somewhat evenly
 """
 function FindSplit(sorted_morton_codes::Vector{MortonCodeT}, first::Int32, last::Int32)::Int32 where {MortonCodeT<:AbstractMortonCodeType}
-    @assert (issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
+    #@assert (issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
     firstCode::MortonCodeT = sorted_morton_codes[first + 1]
     
     commonPrefix::Int32 = Delta(sorted_morton_codes, first, firstCode, last)

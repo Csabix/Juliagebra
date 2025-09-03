@@ -1,8 +1,3 @@
-include("aabb.jl")
-include("morton_codes.jl")
-
-
-
 const INVALID_CHILD_POINTER::UInt32 = 0 # 0 is the root thus it can't be a child pointer
 
 mutable struct LBVHNode{N}

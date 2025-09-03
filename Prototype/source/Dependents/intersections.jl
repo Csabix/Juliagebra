@@ -2,6 +2,62 @@
 # ? It is a very good starting point to understand how one can create
 # ? a Dependent, which is not Rendered.
 
+const BRUTE_FORCE_LBVH_THRESHOLD = 100
+const MORTON_CODE_TYPE = UInt64
+
+function BruteForceIntersections(shapes_a, shapes_b, self::DependentDNA)
+    for primitive_a in shapes_a
+        for primitive_b in shapes_b
+            intersection = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
+            if (intersection !== nothing)
+                if (self._foundIntersectionNum < length(self._intersections))
+                    self._intersections[self._foundIntersectionNum + 1] = intersection
+                    self._foundIntersectionNum += 1
+                else
+                    return
+                end
+            end
+        end
+    end
+end
+
+function LBVHIntersections(shapes_lbvh, shapes_b, self::DependentDNA)
+    lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABB, shapes_lbvh), MORTON_CODE_TYPE)
+            
+    for primitive_b in shapes_b
+        number_of_intersections = LBVHToPrimitiveIntersection(
+            lbvh_nodes,
+            shapes_lbvh,
+            number_of_internal_nodes,
+            number_of_leafs,
+            primitive_b,
+            GetAABB(primitive_b),
+            PrimitiveToPrimitiveIntersection,
+            self._intersections,
+            self._foundIntersectionNum
+        )
+        self._foundIntersectionNum += number_of_intersections
+
+        if (self._foundIntersectionNum >= length(self._intersections)) # the > is not necesseary its just for extra safety
+            return
+        end
+    end
+end
+
+function FindIntersections(shapes_a, shapes_b, self::DependentDNA)
+    self._foundIntersectionNum = 0
+
+    if ((length(shapes_a) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b) < BRUTE_FORCE_LBVH_THRESHOLD))
+        BruteForceIntersections(shapes_a, shapes_b, self)
+    else
+        if (length(shapes_a) <= length(shapes_b))
+            LBVHIntersections(shapes_a, shapes_b, self)
+        else
+            LBVHIntersections(shapes_b, shapes_a, self)
+        end
+    end
+end
+
 # ? ---------------------------------
 # ! Curve2CurveIntersectionPlan
 # ? ---------------------------------
@@ -31,10 +87,6 @@ _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 # ? ---------------------------------
 
 # TODO: Rename LineStrip, LineSeq
-
-EPSILON = 0.1
-
-const BRUTE_FORCE_LBVH_THRESHOLD = 100
 
 # ? After we've defined a Plan, we need the Dependent itself.
 # ? This struct will sit in the dependent graph as a node.
@@ -83,77 +135,7 @@ end
 # ? in the case of curve-to-curve intersecting, we here do an iterative intersection between segments of the curves.
 # ! Must have
 function onGraphEval(self::Curve2CurveIntersectionDependent)
-    self._foundIntersectionNum = 0
-
-    c1 = curve1(self)
-    c2 = curve2(self)
-
-    if ((length(c1) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(c2) < BRUTE_FORCE_LBVH_THRESHOLD))
-        for i1 in 1:length(c1)
-            for i2 in 1:length(c2)
-                line_segment1 = c1[UInt(i1)]
-                line_segment2 = c2[UInt(i2)]
-    
-                intersection = Segment2SegmentIntersection(line_segment1, line_segment2)
-                if (intersection !== nothing)
-                    if (self._foundIntersectionNum < length(self._intersections))
-                        self._intersections[self._foundIntersectionNum + 1] = intersection
-                        self._foundIntersectionNum += 1
-                    else
-                        return
-                    end
-                end
-            end
-        end
-    else
-        if (length(c1) >= length(c2))
-            lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH([GetAABBLineSegment(c1[UInt(i1)]) for i1 in 1:length(c1)], UInt32)
-            
-            for i2 in 1:length(c2)
-                line_segment2 = c2[UInt(i2)]
-
-                number_of_intersections = LBVHToPrimitiveIntersection(
-                    lbvh_nodes,
-                    c1,
-                    number_of_internal_nodes, 
-                    number_of_leafs,
-                    line_segment2,
-                    GetAABBLineSegment(line_segment2),
-                    Segment2SegmentIntersection,
-                    self._intersections,
-                    self._foundIntersectionNum
-                )
-                self._foundIntersectionNum += number_of_intersections
-
-                if (self._foundIntersectionNum == length(self._intersections))
-                    return
-                end
-            end
-        else
-            lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH([GetAABBLineSegment(c2[UInt(i2)]) for i2 in 1:length(c2)], UInt32)
-            
-            for i1 in 1:length(c1)
-                line_segment1 = c1[UInt(i1)]
-
-                number_of_intersections = LBVHToPrimitiveIntersection(
-                    lbvh_nodes,
-                    c2,
-                    number_of_internal_nodes, 
-                    number_of_leafs,
-                    line_segment1,
-                    GetAABBLineSegment(line_segment1),
-                    Segment2SegmentIntersection,
-                    self._intersections,
-                    self._foundIntersectionNum
-                )
-                self._foundIntersectionNum += number_of_intersections
-
-                if (self._foundIntersectionNum == length(self._intersections))
-                    return
-                end
-            end
-        end
-    end
+    FindIntersections(curve1(self), curve2(self), self)
 end
 
 # ? Here we can see that curve-to-surface intersection is done in a very similar manner.
@@ -210,75 +192,7 @@ function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tu
 end
 
 function onGraphEval(self::Curve2SurfaceIntersectionDependent)
-    self._foundIntersectionNum = 0
-
-    crv = curve(self)
-    triangles = TrianglesOf(surface(self)._uvValues)
-
-    if ((length(crv) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(triangles) < BRUTE_FORCE_LBVH_THRESHOLD))
-        for triangle in triangles
-            for i in 1:length(crv)
-                line_segment = crv[UInt(i)]
-    
-                intersection = Segment2TriangleIntersection(line_segment, triangle)
-                if (intersection !== nothing)
-                    if (self._foundIntersectionNum < length(self._intersections))
-                        self._intersections[self._foundIntersectionNum + 1] = intersection
-                        self._foundIntersectionNum += 1
-                    else
-                        return
-                    end
-                end
-            end
-        end
-    else
-        if (length(crv) >= length(triangles))
-            lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH([GetAABBLineSegment(crv[UInt(i)]) for i in 1:length(crv)], UInt32)
-
-            for triangle in triangles
-                number_of_intersections = LBVHToPrimitiveIntersection(
-                    lbvh_nodes,
-                    crv,
-                    number_of_internal_nodes, 
-                    number_of_leafs,
-                    triangle,
-                    GetAABBTriangle(triangle),
-                    Segment2TriangleIntersection,
-                    self._intersections,
-                    self._foundIntersectionNum
-                )
-                self._foundIntersectionNum += number_of_intersections
-
-                if (self._foundIntersectionNum == length(self._intersections))
-                    return
-                end
-            end
-        else
-            lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABBTriangle, triangles), UInt32)
-        
-            for i in 1:length(crv)
-                line_segment = crv[UInt(i)]
-
-                number_of_intersections = LBVHToPrimitiveIntersection(
-                    lbvh_nodes,
-                    triangles,
-                    number_of_internal_nodes, 
-                    number_of_leafs,
-                    line_segment,
-                    GetAABBLineSegment(line_segment),
-                    Segment2TriangleIntersection,
-                    self._intersections,
-                    self._foundIntersectionNum
-                )
-                self._foundIntersectionNum += number_of_intersections
-
-                if (self._foundIntersectionNum == length(self._intersections))
-                    return
-                end
-            end
-        end
-    end
-    
+    FindIntersections(curve(self), TrianglesOf(surface(self)._uvValues), self)
 end
 
 mutable struct Surface2SurfaceIntersectionPlan <: PlanDNA
@@ -332,69 +246,5 @@ function Base.getindex(self::Surface2SurfaceIntersectionDependent, index)::Union
 end
 
 function onGraphEval(self::Surface2SurfaceIntersectionDependent)
-    self._foundIntersectionNum = 0
-
-    triangles1 = TrianglesOf(surface1(self)._uvValues)
-    triangles2 = TrianglesOf(surface2(self)._uvValues)
-
-    if ((length(triangles1) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(triangles2) < BRUTE_FORCE_LBVH_THRESHOLD))
-        for t1 in triangles1
-            for t2 in triangles2
-                intersection = Triangle2TriangleIntersection(t1, t2)
-
-                if (intersection !== nothing)
-                    if (self._foundIntersectionNum < length(self._intersections))
-                        self._intersections[self._foundIntersectionNum + 1] = intersection
-                        self._foundIntersectionNum += 1
-                    else
-                        return
-                    end
-                end
-            end
-        end
-    else
-        if (length(triangles1) >= length(triangles2))
-            lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABBTriangle, triangles1), UInt32)
-
-            for t2 in triangles2
-                number_of_intersections = LBVHToPrimitiveIntersection(
-                    lbvh_nodes,
-                    triangles1,
-                    number_of_internal_nodes, 
-                    number_of_leafs,
-                    t2,
-                    GetAABBTriangle(t2),
-                    Triangle2TriangleIntersection,
-                    self._intersections,
-                    self._foundIntersectionNum
-                )
-                self._foundIntersectionNum += number_of_intersections
-                
-                if (self._foundIntersectionNum == length(self._intersections))
-                    return
-                end
-            end
-        else
-            lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABBTriangle, triangles2), UInt32)
-
-            for t1 in triangles1
-                number_of_intersections = LBVHToPrimitiveIntersection(
-                    lbvh_nodes,
-                    triangles2,
-                    number_of_internal_nodes, 
-                    number_of_leafs,
-                    t1,
-                    GetAABBTriangle(t1),
-                    Triangle2TriangleIntersection,
-                    self._intersections,
-                    self._foundIntersectionNum
-                )
-                self._foundIntersectionNum += number_of_intersections
-                
-                if (self._foundIntersectionNum == length(self._intersections))
-                    return
-                end
-            end
-        end
-    end
+    FindIntersections(TrianglesOf(surface1(self)._uvValues), TrianglesOf(surface2(self)._uvValues), self)
 end

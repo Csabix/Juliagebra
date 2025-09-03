@@ -1,6 +1,6 @@
 EPSILON = 0.1
 
-function Segment2SegmentIntersection(line_segment_a::LineSegment, line_segment_b::LineSegment)::Union{Nothing, Vec3F}
+function PrimitiveToPrimitiveIntersection(line_segment_a::LineSegment, line_segment_b::LineSegment)::Union{Nothing, Vec3F}
     v1 = line_segment_a.p1 - line_segment_a.p0
     v2 = line_segment_b.p1 - line_segment_b.p0
 
@@ -38,7 +38,7 @@ function Segment2SegmentIntersection(line_segment_a::LineSegment, line_segment_b
     return hit
 end
 
-function Segment2TriangleIntersection(line_segment::LineSegment, triangle::Triangle)::Union{Nothing, Vec3F}
+function PrimitiveToPrimitiveIntersection(line_segment::LineSegment, triangle::Triangle)::Union{Nothing, Vec3F}
     p0 = line_segment.p0
     v = line_segment.p1 - line_segment.p0
 
@@ -62,8 +62,8 @@ function Segment2TriangleIntersection(line_segment::LineSegment, triangle::Trian
     end
 end
 
-function Segment2TriangleIntersection(triangle::Triangle, line_segment::LineSegment)::Union{Nothing, Vec3F}
-    return Segment2TriangleIntersection(line_segment, triangle)
+function PrimitiveToPrimitiveIntersection(triangle::Triangle, line_segment::LineSegment)::Union{Nothing, Vec3F}
+    return PrimitiveToPrimitiveIntersection(line_segment, triangle)
 end
 
 function Isect2(
@@ -131,7 +131,7 @@ end
 
 
 #from https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tritri_isectline.txt
-function Triangle2TriangleIntersection(triangle_a::Triangle, triangle_b::Triangle)::Union{Nothing, LineSegment}
+function PrimitiveToPrimitiveIntersection(triangle_a::Triangle, triangle_b::Triangle)::Union{Nothing, LineSegment}
     N1::Vec3F = cross((triangle_a.v1 .- triangle_a.v0), (triangle_a.v2 .- triangle_a.v0))
     du0::Float32, du1::Float32, du2::Float32 = EpsilonTest(N1, triangle_a.v0, triangle_b)
     if (((du0 * du1) > 0.0) && ((du0 * du2) > 0.0))

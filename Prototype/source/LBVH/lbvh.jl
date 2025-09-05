@@ -15,6 +15,7 @@ struct PrimitiveIndexWithMortonCode{MortonCodeT<:AbstractMortonCodeType}
 end
 
 const STACK_SIZE = 100
+const CONTAINER_EPSILON = 0.00001 # this is in case one of the extents of the container is 0
 
 
 
@@ -71,7 +72,7 @@ julia> GetScaledAABBCenter(AABB3D(SVector(0.7f0, 0.8f0, 1.8f0), SVector(0.7f0, 0
 function GetScaledAABBCenter(aabb::AABB{N}, container_aabb::AABB{N})::SVector{N, Float32} where {N}
     @assert AABBValid(aabb) "Error, invalid AABB provided"
     @assert AABBValid(container_aabb) "Error, invalid container AABB provided"
-    return ((aabb.min .+ 0.5 .* (aabb.max .- aabb.min) .- container_aabb.min) ./ (container_aabb.max .- container_aabb.min))
+    return ((0.5 .* (aabb.min .+ aabb.max) .- container_aabb.min) ./ ((container_aabb.max .- container_aabb.min) .+ CONTAINER_EPSILON))
 end
 
 """

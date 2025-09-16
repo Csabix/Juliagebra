@@ -53,6 +53,24 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     end
 end
 
+function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
+    if ((index >= 1) && (index <= length(self)))
+        return (self[index], (index + 1))
+    else
+        return nothing
+    end
+end
+
+Base.length(self::ParametricCurveDependent) = (self._endIndex - self._startIndex)
+
+function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, LineSegment}
+    if ((index >= 1) && ((self._startIndex + index) <= self._endIndex))
+        return LineSegment(self._tValues[(self._startIndex - 1) + index], self._tValues[(self._startIndex - 1) + index + 1])
+    else
+        return nothing 
+    end
+end
+
 # ! Must have
 function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
     return ParametricCurveDependent(plan)
@@ -134,7 +152,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
 
     runCallbacks(curve)
 
-    println("Added Curve as: $(curve._startIndex) - $(curve._endIndex) - $(curve._tNum)")
+    #println("Added Curve as: $(curve._startIndex) - $(curve._endIndex) - $(curve._tNum)")
 end
 
 # ! Must have
@@ -145,7 +163,7 @@ end
 
 # ! Must have
 function sync!(self::CurveRenderer,curve::ParametricCurveDependent)
-    println("Synced Curve!")
+    #println("Synced Curve!")
 end
 
 # ! Must have

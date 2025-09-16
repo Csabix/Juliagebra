@@ -2,6 +2,62 @@
 # ? It is a very good starting point to understand how one can create
 # ? a Dependent, which is not Rendered.
 
+const BRUTE_FORCE_LBVH_THRESHOLD = 100
+const MORTON_CODE_TYPE = UInt64
+
+function BruteForceIntersections(shapes_a, shapes_b, self::DependentDNA)
+    for primitive_a in shapes_a
+        for primitive_b in shapes_b
+            intersection = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
+            if (intersection !== nothing)
+                if (self._foundIntersectionNum < length(self._intersections))
+                    self._intersections[self._foundIntersectionNum + 1] = intersection
+                    self._foundIntersectionNum += 1
+                else
+                    return
+                end
+            end
+        end
+    end
+end
+
+function LBVHIntersections(shapes_lbvh, shapes_b, self::DependentDNA)
+    lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABB, shapes_lbvh), MORTON_CODE_TYPE)
+            
+    for primitive_b in shapes_b
+        number_of_intersections = LBVHToPrimitiveIntersection(
+            lbvh_nodes,
+            shapes_lbvh,
+            number_of_internal_nodes,
+            number_of_leafs,
+            primitive_b,
+            GetAABB(primitive_b),
+            PrimitiveToPrimitiveIntersection,
+            self._intersections,
+            self._foundIntersectionNum
+        )
+        self._foundIntersectionNum += number_of_intersections
+
+        if (self._foundIntersectionNum >= length(self._intersections)) # the > is not necesseary its just for extra safety
+            return
+        end
+    end
+end
+
+function FindIntersections(shapes_a, shapes_b, self::DependentDNA)
+    self._foundIntersectionNum = 0
+
+    if ((length(shapes_a) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b) < BRUTE_FORCE_LBVH_THRESHOLD))
+        BruteForceIntersections(shapes_a, shapes_b, self)
+    else
+        if (length(shapes_a) <= length(shapes_b))
+            LBVHIntersections(shapes_a, shapes_b, self)
+        else
+            LBVHIntersections(shapes_b, shapes_a, self)
+        end
+    end
+end
+
 # ? ---------------------------------
 # ! Curve2CurveIntersectionPlan
 # ? ---------------------------------
@@ -32,22 +88,20 @@ _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 
 # TODO: Rename LineStrip, LineSeq
 
-EPSILON = 0.1
-
 # ? After we've defined a Plan, we need the Dependent itself.
 # ? This struct will sit in the dependent graph as a node.
 # ? It should inherit from DependentDNA.
 mutable struct Curve2CurveIntersectionDependent <: DependentDNA
     _dependent::Dependent
-    _intersectionNum::Int
+    _foundIntersectionNum::UInt
     _intersections::Vector{Vec3F}
     
     function Curve2CurveIntersectionDependent(plan::Curve2CurveIntersectionPlan)
         dependent = Dependent(plan)
-        intersectionNum = plan._intersectNum
-        intersections = Vector{Vec3F}(undef,intersectionNum)
+        foundIntersectionNum = plan._intersectNum
+        intersections = Vector{Vec3F}(undef,foundIntersectionNum)
         
-        new(dependent,Int(intersectionNum),intersections)
+        new(dependent,foundIntersectionNum,intersections)
     end
 end
 
@@ -66,7 +120,7 @@ end
 
 # ? Some user accessible indexing getter. 
 function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
-    if (index > self._intersectionNum || index < 1)
+    if (index > self._foundIntersectionNum || index < 1)
         return nothing
     end
     
@@ -81,73 +135,7 @@ end
 # ? in the case of curve-to-curve intersecting, we here do an iterative intersection between segments of the curves.
 # ! Must have
 function onGraphEval(self::Curve2CurveIntersectionDependent)
-    intersectNum = length(self._intersections)
-    intersectIndex = 1
-
-    c1 = curve1(self)
-    c2 = curve2(self)
-
-    for i1 in c1._startIndex:(c1._endIndex-1)
-        for i2 in c2._startIndex:(c2._endIndex-1)
-            
-            a1 = c1._tValues[i1]
-            b1 = c1._tValues[i1+1]
-            a2 = c2._tValues[i2]
-            b2 = c2._tValues[i2+1]
-
-            result = Segment2SegmentIntersection(a1,b1,a2,b2)
-
-            if result !== nothing
-                self._intersections[intersectIndex] = result
-                intersectIndex+=1
-                if intersectIndex > intersectNum
-                    self._intersectionNum = intersectNum
-                    return
-                end
-            end
-        end
-    end
-
-    self._intersectionNum = intersectIndex-1
-end
-
-# ? helper intersection function
-function Segment2SegmentIntersection(a1::Vec3F,b1::Vec3F,a2::Vec3F,b2::Vec3F)::Union{Vec3F,Nothing}
-    v1 = b1 - a1
-    v2 = b2 - a2
-
-    n_up = normalize(cross(v1,v2))
-    
-    d = abs(dot(a2-a1,n_up))
-    if( d > EPSILON)
-        return nothing
-    end
-
-    plane_n  = normalize(cross(v1,n_up))    
-    plane_q0 = a1
-    ray_p0 = a2
-    ray_v  = v2
-    t = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)
-    if (t > 1.0 || t<0.0)
-        return nothing
-    end
-
-    hit1 = ray_p0 + t * ray_v
-
-    plane_n  = normalize(cross(v2,n_up))    
-    plane_q0 = a2
-    ray_p0 = a1
-    ray_v  = v1
-    s = dot(plane_q0-ray_p0,plane_n)/dot(ray_v,plane_n)
-    if (s > 1.0 || s<0.0)
-        return nothing
-    end
-
-    hit2 = ray_p0 + s * ray_v
-
-    hit = (hit1 + hit2) ./ 2
-
-    return hit
+    FindIntersections(curve1(self), curve2(self), self)
 end
 
 # ? Here we can see that curve-to-surface intersection is done in a very similar manner.
@@ -176,7 +164,7 @@ _Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
 mutable struct Curve2SurfaceIntersectionDependent <: DependentDNA
     _dependent::Dependent
     _intersections::Vector{Vec3F}
-    _foundIntersectionNum::Int
+    _foundIntersectionNum::UInt
 
     function Curve2SurfaceIntersectionDependent(plan::Curve2SurfaceIntersectionPlan)
         dependent = Dependent(plan)
@@ -204,52 +192,59 @@ function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tu
 end
 
 function onGraphEval(self::Curve2SurfaceIntersectionDependent)
-    maxIntersectNum = length(self._intersections)
-    self._foundIntersectionNum = 0
+    FindIntersections(curve(self), TrianglesOf(surface(self)._uvValues), self)
+end
 
-    crv = curve(self)
-    srfc = surface(self)
+mutable struct Surface2SurfaceIntersectionPlan <: PlanDNA
+    _plan::Plan
+    _surface1::ParametricSurfacePlan
+    _surface2::ParametricSurfacePlan
+    _intersectNum::UInt
 
-    for triangle in TrianglesOf(srfc._uvValues)
-        for i in crv._startIndex:(crv._endIndex-1)
-            p1 = crv._tValues[i]
-            p2 = crv._tValues[i+1]
-            a,b,c = triangle
-
-            tuv = Segment2TriangleIntersection(p1,p2,a,b,c)
-            t = tuv[1]
-            u = tuv[2]
-            v = tuv[3]
-            w = 1-u-v
-
-            if (0.0<=t && t<=1.0 &&
-                0.0<=u &&
-                0.0<=v &&
-                0.0<=w)
-
-                self._foundIntersectionNum+=1
-                intersectionPoint = p1 + t*(p2-p1)
-                self._intersections[self._foundIntersectionNum] = intersectionPoint
-                
-                if (self._foundIntersectionNum == maxIntersectNum)
-                    return
-                end
-            end
-        end
+    function Surface2SurfaceIntersectionPlan(surface1::ParametricSurfacePlan, surface2::ParametricSurfacePlan, intersectNum::UInt)
+        new(Plan(() -> (), [surface1, surface2]), surface1, surface2, intersectNum)
     end
 end
 
-function Segment2TriangleIntersection(p1::Vec3F,p2::Vec3F,a::Vec3F,b::Vec3F,c::Vec3F)
-    p0 = p1
-    v = p2 - p1
+_Plan_(self::Surface2SurfaceIntersectionPlan)::Plan = return self._plan
 
-    ab = b - a
-    ac = c - a
-    ap = p0 - a
-    f = cross(v,ac)
-    g = cross(ap,ab)
+# ? ---------------------------------
+# ! Surface2SurfaceIntersectionDependent
+# ? ---------------------------------
 
-    tuv = (1/dot(f,ab)) * [dot(g,ac),dot(f,ap),dot(g,v)]
+mutable struct Surface2SurfaceIntersectionDependent <: DependentDNA
+    _dependent::Dependent
+    _intersections::Vector{LineSegment}
+    _foundIntersectionNum::UInt
+
+    function Surface2SurfaceIntersectionDependent(plan::Surface2SurfaceIntersectionPlan)
+        dependent = Dependent(plan)
+        intersections = Vector{LineSegment}(undef, plan._intersectNum)
+        new(dependent, intersections, 0)
+    end
+end
+
+_Dependent_(self::Surface2SurfaceIntersectionDependent)::Dependent = return self._dependent
+surface1(self::Surface2SurfaceIntersectionDependent)::ParametricSurfaceDependent = return self._dependent._graphParents[1]
+surface2(self::Surface2SurfaceIntersectionDependent)::ParametricSurfaceDependent = return self._dependent._graphParents[2]
+
+function Plan2Dependent(plan::Surface2SurfaceIntersectionPlan)::Surface2SurfaceIntersectionDependent
+    return Surface2SurfaceIntersectionDependent(plan)
+end
+
+function Base.getindex(self::Surface2SurfaceIntersectionDependent, index)::Union{Nothing, Tuple{Tuple{Float32, Float32, Float32}, Tuple{Float32, Float32, Float32}}}
+    if ((index > self._foundIntersectionNum) || (index < 1))
+        return nothing
+    end
+
+    s::LineSegment = self._intersections[index]
     
-    return tuv
+    a::Tuple{Float32, Float32, Float32} = (s.p0.x, s.p0.y, s.p0.z)
+    b::Tuple{Float32, Float32, Float32} = (s.p1.x, s.p1.y, s.p1.z)
+    
+    return a, b
+end
+
+function onGraphEval(self::Surface2SurfaceIntersectionDependent)
+    FindIntersections(TrianglesOf(surface1(self)._uvValues), TrianglesOf(surface2(self)._uvValues), self)
 end

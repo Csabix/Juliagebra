@@ -16,9 +16,9 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     assetDependent = _Dependent_(asset)
 
     for graphItem in graph._dependentObjects
-        graphItemChain = _Dependent_(graphItem)._graphChain
+        graphItemChain = getChain(graphItem)
         for assetParent in assetDependent._graphParents
-            if (assetParent in graphItemChain) || assetParent === graphItem
+            if (assetParent in dependentsOf(graphItemChain)) || assetParent === graphItem
                 onGraphAdd(graphItem,asset)
                 break
             end

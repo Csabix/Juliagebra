@@ -66,6 +66,7 @@ include("plans.jl")
 # ! Dependents
 # ? ---------------------------------
 
+include("Dependents/dependent_chain.jl")
 include("Dependents/dependent_graph.jl")
 include("Dependents/dependent.jl")
 include("Dependents/dependent_observer.jl")

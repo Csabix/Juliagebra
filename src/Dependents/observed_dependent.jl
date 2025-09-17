@@ -1,16 +1,21 @@
+# ? ---------------------------------
+# ! ObservedDNA
+# ? ---------------------------------
+
 mutable struct Observed <: DependentDNA
     _dependent::Dependent
     _observer::Union{ObserverDNA,Nothing}
     _observerID::Int
-    _childObserverSet::Set{ObserverDNA}
 end
+
+_Dependent_(self::ObservedDNA)::Dependent = return _Observed_(self)._dependent
+_Observed_(self::ObservedDNA)::Observed = error("Missing func!")
 
 function Observed(callback::Function,graphParents::Vector{DependentDNA})::Observed
     dependent = Dependent(callback,graphParents)
     observer = nothing
     observerID = 0
-    childObserverSet = Set{ObserverDNA}()
-    return Observed(dependent,observer,observerID,childObserverSet)
+    return Observed(dependent,observer,observerID)
 end
 
 function add!!(collector::ObserverDNA,collected::ObservedDNA)
@@ -25,26 +30,8 @@ function add!!(collector::ObserverDNA,collected::ObservedDNA)
     added!(collector,collected)
 end
 
-_Dependent_(self::ObservedDNA)::Dependent = return _Observed_(self)._dependent
-_Observed_(self::ObservedDNA)::Observed = error("Missing func!")
-
-function onGraphAdd(parent::ObservedDNA, child::ObservedDNA)
-    Dependent_onGraphAdd(parent,child)
-    
-    parentChildObserverSet = _Observed_(parent)._childObserverSet
-    childObserver = _Observed_(child)._observer
-    
-    push!(parentChildObserverSet,childObserver)
-end
-
 function afterGraphEval(self::ObservedDNA)
     sync!(_Observed_(self)._observer,self)
-end
-
-function postGraphEval(self::ObservedDNA)
-    for childObserver in _Observed_(self)._childObserverSet
-        syncAll!(childObserver)
-    end
 end
 
 function hasObserver(self::ObservedDNA)

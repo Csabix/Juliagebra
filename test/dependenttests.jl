@@ -115,7 +115,7 @@
         while !isempty(parentsToCheck)
             newParentsToCheck = Set()
             for parent in parentsToCheck
-                @test count(item -> item===asset,SUT._Dependent_(parent)._graphChain) == 1
+                @test count(item -> item===asset,SUT.dependentsOf(SUT.getChain(parent))) == 1
                 for item in SUT._Dependent_(parent)._graphParents
                     push!(newParentsToCheck,item)
                 end

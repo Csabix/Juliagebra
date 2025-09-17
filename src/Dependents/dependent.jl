@@ -5,13 +5,15 @@
 mutable struct Dependent
     _graphID::Int                       
     _graphParents::Vector{DependentDNA}   
-    _graphChain::Vector{DependentDNA}
+    _dependentChain::DependentChain
     _callback::Function
+end
 
-    function Dependent(callback::Function,graphParents::Vector{DependentDNA})
-        graphChain = Vector{DependentDNA}()
-        new(0,graphParents,graphChain,callback)
-    end
+_Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
+
+function Dependent(callback::Function,graphParents::Vector{DependentDNA})
+    dependentChain = DependentChain()
+    return Dependent(0,graphParents,dependentChain,callback)
 end
 
 function Dependent(plan::PlanDNA)
@@ -26,33 +28,30 @@ function Dependent(plan::PlanDNA)
     return Dependent(callback,graphParents)
 end
 
-onGraphAdd(parent::DependentDNA,child::DependentDNA) = Dependent_onGraphAdd(parent,child)
-
-function Dependent_onGraphAdd(parent::DependentDNA,child::DependentDNA)
-    parentChain = _Dependent_(parent)._graphChain
-    push!(parentChain,child)
-end
-
-_Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
-
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
+getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
 
 evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")
 dpCallbackReturn(self::DependentDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA")
 dpCallbackReturn(self::DependentDNA,::Nothing) = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA (on Nothing)")
 dpEvalCallback(self::DependentDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
 
+onGraphAdd(parent::DependentDNA,child) = chain!(getChain(parent),child)
 onGraphEval(self::DependentDNA) =  error("Missing \"onGraphEval\" for subclass of DependentDNA")
-postGraphEval(self::DependentDNA) = nothing
 afterGraphEval(self::DependentDNA) = nothing
 
 function evalGraph(self::DependentDNA)
-    for item in _Dependent_(self)._graphChain
+    dependentChain = getChain(self)
+    
+    for item in dependentsOf(dependentChain)
         onGraphEval(item)
         afterGraphEval(item)
     end
-    postGraphEval(self)
+    
+    for item in observersOf(dependentChain)
+        postGraphEval(item)
+    end
 end
 
 function to_string(self::DependentDNA)

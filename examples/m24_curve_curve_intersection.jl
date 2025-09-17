@@ -1,5 +1,4 @@
-include("../../Prototype/juliagebra.jl")
-using .JuliAgebra
+using Juliagebra
 
 App()
 

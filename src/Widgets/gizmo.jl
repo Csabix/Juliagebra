@@ -1,4 +1,6 @@
-mutable struct GizmoGL     
+mutable struct GizmoGL <: OpenGLWidgetDNA 
+    _widget::OpenGLWidget
+    
     _lineShader::ShaderProgram
     _lineBuffer::TypedBufferArray
     
@@ -8,6 +10,8 @@ mutable struct GizmoGL
     _size::Float32
 
     function GizmoGL()
+        widget = OpenGLWidget()
+        
         lineShader = ShaderProgram(
             sp("move_gizmo.vert"),
             sp("rounded_curve.geom"),
@@ -43,11 +47,14 @@ mutable struct GizmoGL
         activate(lineShader)
         setUniform!(lineShader,"nanVal",NaN32) 
 
-        new(lineShader,lineBuffer,
+        new(widget,
+            lineShader,lineBuffer,
             id2Axis,
             Vec3F(0.0,0.0,0.0),0.085)
     end
 end
+
+_OpenGLWidget_(self::GizmoGL)::OpenGLWidget = return self._widget
 
 function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
     

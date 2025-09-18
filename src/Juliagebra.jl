@@ -45,6 +45,7 @@ include("camera.jl")
 # ? ---------------------------------
 
 include("Widgets/widget.jl")
+include("Widgets/opengl_widget.jl")
 include("Widgets/imgui_widget.jl")
 include("Widgets/dock.jl")
 include("Widgets/window.jl")

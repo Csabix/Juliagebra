@@ -38,47 +38,12 @@ mutable struct ImGuiData
     end
 end
 
-function update!(self::ImGuiData,openglD::OpenGLData,dependentL::DependentGraphDNA,cam::Camera)
+function update!(self::ImGuiData)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
     
-    #CImGui.SetNextWindowSize((self._width,self._height))
-    #CImGui.Begin("Data Peeker",C_NULL,CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove)
-    #
-    #if (CImGui.IsWindowCollapsed())
-    #    CImGui.SetWindowPos((0,self._shrd._height))
-    #else
-    #    CImGui.SetWindowPos((self._pos_x,self._pos_y))
-    #end
-    #
-    #
-    #if CImGui.BeginTabBar("Places")
-    #    if CImGui.BeginTabItem("Shared Data")
-    #        _display!(self,self._shrd)
-    #        CImGui.EndTabItem()
-    #    end
-    #    
-    #    if CImGui.BeginTabItem("Render Items")
-    #        _display!(self,openglD)
-    #        CImGui.EndTabItem()
-    #    end
-    #    
-    #    if CImGui.BeginTabItem("RenderedDependent Items")
-    #        _display!(self,dependentL)
-    #        CImGui.EndTabItem()
-    #    end
-    #
-    #    if CImGui.BeginTabItem("Camera")
-    #        _display!(self,cam)
-    #        CImGui.EndTabItem()
-    #    end
-    #    CImGui.EndTabBar()
-    #end
-    #
-    #CImGui.End()
-
     for widget in self._widgets
         render(widget)
     end

@@ -1,5 +1,6 @@
-mutable struct OrthoGizmoGL
-    
+mutable struct OrthoGizmoGL <: OpenGLWidgetDNA
+    _widget::OpenGLWidget
+
     _lineShader::ShaderProgram
     _lineBuffer::TypedBufferArray
     
@@ -11,7 +12,8 @@ mutable struct OrthoGizmoGL
     #_pointVec::Vector
     
     function OrthoGizmoGL()
-        
+        widget = OpenGLWidget()
+
         lineShader = ShaderProgram(
             sp("ortho_gizmo.vert"),
             sp("rounded_curve.geom"),
@@ -35,7 +37,9 @@ mutable struct OrthoGizmoGL
         upload!(lineBuffer,1,linePosVec,GL_STATIC_DRAW)
         upload!(lineBuffer,2,lineColVec,GL_STATIC_DRAW)
 
-        new(lineShader,lineBuffer,linePosVec,lineColVec)
+        new(widget,
+            lineShader,lineBuffer,
+            linePosVec,lineColVec)
     end
 end
 

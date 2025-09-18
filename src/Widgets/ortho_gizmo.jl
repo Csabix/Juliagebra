@@ -43,6 +43,8 @@ mutable struct OrthoGizmoGL <: OpenGLWidgetDNA
     end
 end
 
+_OpenGLWidget_(self::OrthoGizmoGL)::OpenGLWidget = return self._widget
+
 function draw(self::OrthoGizmoGL,cam::Camera,width,height)
     vp,v,p = getMat(cam,width,height,3)
     activate(self._lineShader)

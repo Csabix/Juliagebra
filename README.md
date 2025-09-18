@@ -8,6 +8,10 @@ Every package used by Juliagebra can be found in the [Project.toml](Project.toml
 
 For some examples **DifferentialEquations** package is needed, which may downgrade your **DataStructures** package.
 
+Juliagebra depends on a package called [JuliaGLM](https://github.com/Csabix/JuliaGLM), which is currently not available in the official Julia package repository.
+
+Because of this, it is recommended, that you clone [JuliaGLM](https://github.com/Csabix/JuliaGLM) from it's official repository, then by ``` develop ```-ing it, you tell Julia, where this package is.
+
 ## Examples
 
 Scripts which showcase the use of the library can be found inside [examples/](examples/).
@@ -46,9 +50,11 @@ Highly suggested steps for creating a Dependent:
 8. Once done, create a User accessible (exported) constructor function in [constructors.jl](src/constructors.jl).
 9. Create usage examples in [examples/](examples/).
 
-For adding or removing packages Juliagebra depends on, run theese commands while you're cd-d into the root of this project:
+## Package commands
 
-Add Dependent Packages:
+For adding or removing packages Juliagebra depends on, run theese commands while you're cd-d into the root of this project, but try to keep the versions of the packages as free as possible in the [Project.toml](Project.toml) file.
+
+### Add Dependent Packages:
 ```
 julia
 ]
@@ -56,15 +62,23 @@ activate .
 add PackageName
 ```
 
-Remove Dependent Packages:
+### Add Local Packages:
+```
+julia
+]
+activate .
+develop path/to/package/relative/to/Juliagebra/root/folder
+```
+
+After adding local packages, it is reccomended, to run a ``` resolve ``` and ``` instantiate ``` command in both the global package scope, and in the Juliagebra package scope.
+
+### Remove Dependent Packages:
 ```
 julia
 ]
 activate .
 rm PackageName
 ```
-
-But try to keep the versions of the packages as free as possible in the [Project.toml](Project.toml) file.
 
 ## Tests
 
@@ -78,17 +92,10 @@ activate .
 test
 ```
 
-## (OutDated) Diagrams
+## Diagrams
 
 [Drawio](https://drive.google.com/file/d/1fkfQfxXt0IOKQ_Q8ngE1mU21Ua7204yd/view?usp=sharing)
 
-## Hardware Issues
+## Most Stable Hardware
 
-Currently Juliagebra works best, without issues on Debian 12 or Ubuntu 24.04 LTS Linux with Xorg GNOME, using NVIDIA GPUs with NVIDIA's proprietary drivers.
-Other hardware and software configurations are mostly untested.
-
-### Some known Windows 11 specific issues
-
-- Distant lines can appear fuzzy on AMD GPUs under windows 11.
-- Mouse movement feels sluggish, inconsistent, and lumpy.
-- Mouse scrolling also feels sluggish, inconsistent, and lumpy.
+Currently Juliagebra works best, without issues on Debian 12/13 or Ubuntu 24.04 LTS Linux with Xorg GNOME, using NVIDIA GPUs with NVIDIA's proprietary drivers.

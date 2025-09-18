@@ -25,10 +25,6 @@ mutable struct ImGuiData
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
 
-        for i in 1:10
-            add!(dock,NamedWindow("NamedWindow$(i)"))
-        end
-
         push!(widgets,dock)
 
         self = new(shrd,0,0,0,0,widgets)

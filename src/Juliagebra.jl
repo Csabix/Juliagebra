@@ -4,15 +4,17 @@ module Juliagebra
 
 include("GL/gl.jl")
 
-include("GLM/glm.jl")
+#include("GLM/glm.jl")
+
+using JuliaGLM
 
 include("events.jl")
 
+using LinearAlgebra
 using GLFW
 using ModernGL
 using CImGui
 using DataStructures
-# using StaticArrays
 
 include("commons.jl")
 
@@ -26,6 +28,7 @@ include("Helpers/flat_matrix_manager.jl")
 include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/collector.jl")
+include("Helpers/imgui_helpers.jl")
 
 ID_LOWER_BOUND = 3
 
@@ -41,10 +44,18 @@ include("camera.jl")
 # ! Widgets
 # ? ---------------------------------
 
+include("Widgets/widget.jl")
+include("Widgets/opengl_widget.jl")
+include("Widgets/imgui_widget.jl")
+include("Widgets/dock.jl")
+include("Widgets/window.jl")
+include("Widgets/gui_dependents_window.jl")
+include("Widgets/data_peeker.jl")
+include("Widgets/console.jl")
+include("Widgets/named_window.jl")
+
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
-
-include("dependent_graph.jl")
 
 include("opengl_data.jl")
 
@@ -52,16 +63,17 @@ include("imgui_data.jl")
 
 include("plans.jl")
 
-include("dependent.jl")
-
-include("renderers.jl")
-
-include("rendered_algebra.jl")
-
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
 
+include("Dependents/dependent_chain.jl")
+include("Dependents/dependent_graph.jl")
+include("Dependents/dependent.jl")
+include("Dependents/dependent_observer.jl")
+include("Dependents/observed_dependent.jl")
+include("Dependents/dependent_renderer.jl")
+include("Dependents/rendered_dependent.jl")
 include("Dependents/point.jl")
 include("Dependents/curve.jl")
 # include("Dependents/mesh.jl")

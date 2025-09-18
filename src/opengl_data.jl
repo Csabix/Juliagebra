@@ -4,6 +4,7 @@
 
 mutable struct OpenGLData
     _shrd::SharedData
+    _widgets::Vector{OpenGLWidgetDNA}
 
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
     _renderOffices::Dict{<:DataType,Vector{<:RendererDNA}}
@@ -29,7 +30,7 @@ mutable struct OpenGLData
 
     _index :: Int
 
-    _backgroundCol::Vec3
+    _backgroundCol::Vec3F
 
     _vp::Mat4T
     _v::Mat4T
@@ -39,7 +40,14 @@ mutable struct OpenGLData
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearColor(1.0,0.0,1.0,1.0)
-                
+        
+        widgets = Vector{OpenGLWidgetDNA}()
+        gizmoGL = GizmoGL()
+        orthoGizmoGL = OrthoGizmoGL()
+
+        push!(widgets,gizmoGL)
+        push!(widgets,orthoGizmoGL)
+
         backgroundShader= ShaderProgram(sp("dflt_bckg.vert")    ,sp("dflt_bckg.frag"),["bCol"])
         combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"))
         bodyShader      = ShaderProgram(sp("body_3D.vert")      ,sp("body_3D.frag"),["VP"])
@@ -51,10 +59,8 @@ mutable struct OpenGLData
         mainAttachements[GL_DEPTH_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
         mainFBO = FrameBuffer(mainAttachements)
         
-        dummyBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,getAPlane())
-        centerBufferArray = BufferArray(Vec3,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
-        gizmoGL = GizmoGL()
-        orthoGizmoGL = OrthoGizmoGL()
+        dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
+        centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
 
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
@@ -76,14 +82,14 @@ mutable struct OpenGLData
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        new(shrd,renderOffices,updateMeQueue,
+        new(shrd,widgets,renderOffices,updateMeQueue,
             combinerShader,backgroundShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             0,
-            Vec3(0.73,0.73,0.73),
+            Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
     end
 end
@@ -151,6 +157,11 @@ function update!(self::OpenGLData,cam::Camera)
             draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
     end
+
+    # TODO: refactor theese opengl widgets draw commands to something like this:
+    # TODO: for widget in self._widgets
+    # TODO:     render(widget)
+    # TODO: end
 
     if(self._shrd._gizmoEnabled)
         draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo)

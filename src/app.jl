@@ -25,7 +25,7 @@ mutable struct App
         opengl = nothing
         imgui = nothing
         windowCreated = false
-        graph = DependentGraph(shrd)
+        graph = DependentGraph()
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = Camera()
@@ -198,7 +198,7 @@ function play!(self::App)
         updateCam!(self)
         
         update!(self._opengl,self._cam)
-        update!(self._imgui,self._opengl,self._graph,self._cam)
+        update!(self._imgui)
         update!(self._shrd)
         updateGizmo!(self)
        

@@ -1,5 +1,5 @@
 using Test
 
-include("collectedtests.jl")
-
+#include("collectedtests.jl")
+include("dependenttests.jl")
 

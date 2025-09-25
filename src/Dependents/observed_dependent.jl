@@ -18,6 +18,13 @@ function Observed(callback::Function,graphParents::Vector{DependentDNA})::Observ
     return Observed(dependent,observer,observerID)
 end
 
+function Observed(plan::PlanDNA)::Observed
+    dependent = Dependent(plan)
+    observer = nothing
+    observerID = 0
+    return Observed(dependent,observer,observerID)
+end
+
 function add!!(collector::ObserverDNA,collected::ObservedDNA)
     observer = _Observer_(collector)
     observed = _Observed_(collected)

@@ -96,6 +96,17 @@ function build!(self::App,plan::PlanDNA)
     _Plan_(plan)._dependent = dependent
 end
 
+# TODO: Generalize this build! method for all Observed - Observer pairs.
+function build!(self::App,plan::GuiPlanDNA)
+    observer = Plan2Observer(self._imgui,plan)
+    observed = Plan2Dependent(plan) 
+
+    add!!(observer,observed)
+    add!!(self._graph,observed)
+    
+    _Plan_(plan)._dependent = observed
+end
+
 function build!(self::App,plan::RenderedPlanDNA)
     renderer  = Plan2Renderer(self._opengl,plan) 
     _RenderedPlan_(plan)._renderer = renderer

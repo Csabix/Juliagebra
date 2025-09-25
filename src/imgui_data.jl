@@ -8,6 +8,8 @@ mutable struct ImGuiData
     _pos_y::Int
 
     _widgets::Vector{ImGuiWidgetDNA}
+    _dock::Dock
+    _guiDependentsWindow::GuiDependentsWindow
 
     function ImGuiData(glfwD::GLFWData,openglD::OpenGLData,shrd::SharedData)
         imgui_context = CImGui.CreateContext()
@@ -20,18 +22,31 @@ mutable struct ImGuiData
         widgets = Vector{ImGuiWidgetDNA}()
         
         dock = Dock(shrd._width,shrd._height)
-        
-        add!(dock,GuiDependentsWindow())
+        guiDependentsWindow = GuiDependentsWindow()
+
+        add!(dock,guiDependentsWindow)
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
 
         push!(widgets,dock)
 
-        self = new(shrd,0,0,0,0,widgets)
+        self = new(shrd,0,0,0,0,widgets,
+                   dock,guiDependentsWindow)
+        
         resize!(self)
 
         return self
     end
+end
+
+function SingleGuiRendererByGuiDependentsWindow(self::ImGuiData,t::Type{T})::T where T<:GuiRendererDNA
+    myVector = get!(self._guiDependentsWindow._guiRenderers,T,Vector{T}())
+
+    if(length(myVector)!=1)
+        push!(myVector,T())
+    end
+
+    return myVector[1]
 end
 
 function update!(self::ImGuiData)

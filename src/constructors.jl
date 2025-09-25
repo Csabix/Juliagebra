@@ -163,9 +163,30 @@ _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uE
 ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd) =
 _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd)
 
+# ? ---------------------------------
+# ! Toggle
+# ? ---------------------------------
+
+function _Toggle(;
+                _app::App = implicitApp,
+                _call::Function = () -> (),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                )::TogglePlan
+    plan = TogglePlan(_call,_deps)
+    submit!(_app,plan)
+    return plan
+end
+
+Toggle() =
+_Toggle()
+
+Toggle(callback::Function,dependents::DependentsT) =
+_Toggle(_call = callback, _deps=dependents)
+
 export Point
 export ParametricCurve
 export Segment
 export Intersection
 export Mesh
 export ParametricSurface
+export Toggle

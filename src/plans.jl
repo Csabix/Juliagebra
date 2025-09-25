@@ -31,3 +31,14 @@ end
 
 _Plan_(self::RenderedPlanDNA) = return _RenderedPlan_(self)._plan
 _RenderedPlan_(self::RenderedPlanDNA)::RenderedPlan = error("Missing func!")
+
+mutable struct GuiPlan <: PlanDNA
+    _plan::Plan
+
+    function GuiPlan(callback::Function,graphParents::Vector{T}) where T<:PlanDNA
+        new(Plan(callback,graphParents))
+    end
+end
+
+_Plan_(self::GuiPlanDNA) = return _GuiPlan_(self)._plan
+_GuiPlan_(self::GuiPlanDNA)::GuiPlan = error("Missing func!")

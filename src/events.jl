@@ -138,7 +138,7 @@ function mouse_button(window::GLFW.Window, key::GLFW.MouseButton, action::GLFW.A
     enqueue!(glfwEQ._queue,ev); return nothing
 end
 function mouse_wheel(window::GLFW.Window, xoffset::Float64, yoffset::Float64,glfwEQ::GLFWEventQueue)
-    ev = MouseWheelEvent(xoffset, yoffset, glfwEQ._mouseX, glfwEQ._mouseY,glfwEQ._mouse_btn,glfwEQ._key_mods)
+    ev = MouseWheelEvent(ceil(xoffset), ceil(yoffset), glfwEQ._mouseX, glfwEQ._mouseY,glfwEQ._mouse_btn,glfwEQ._key_mods)
     enqueue!(glfwEQ._queue,ev)
 end
 function key_event(window::GLFW.Window, key::GLFW.Key, scancode::Int32, action::GLFW.Action, mods::Int32,glfwEQ::GLFWEventQueue)

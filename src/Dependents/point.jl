@@ -187,7 +187,7 @@ function added!(self::PointRenderer,point::PointDependent)
     push!(self._coords,Vec3F(x,y,z))
     push!(self._ids,Float32(aID))
 
-    println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedDependent_(point)._rendererID)\taID: $(aID)")
+    @log "Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedDependent_(point)._rendererID)\taID: $(aID)" INFO
 end
 
 # ? This function gets called if there was at least 1 or more Dependent which got assigned to this Renderer.
@@ -195,7 +195,7 @@ end
 # ! Must have
 function addedUpload!(self::PointRenderer)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
-    println("Uploaded ID buffer!")
+    @log "Uploaded ID buffer!" INFO
 end
 
 # ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
@@ -208,7 +208,7 @@ function sync!(self::PointRenderer,point::PointDependent)
     y = point._y
     z = point._z
     self._coords[id] = Vec3F(x,y,z)
-    println("Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)")
+    @log "Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)" INFO
 end
 
 # ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,
@@ -217,7 +217,7 @@ end
 # ! Must have
 function syncUpload!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
-    println("Uploaded Coordinate buffer!")
+    @log "Uploaded Coordinate buffer!" INFO
 end
 
 # ? Function to specify how a Renderer should render.

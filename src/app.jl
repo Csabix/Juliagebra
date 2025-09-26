@@ -52,7 +52,7 @@ function handleEvents!(self::App)
     end
 end
 
-handleEvent!(self::App,ev::T where T<:Event) = println(string(ev))
+handleEvent!(self::App,ev::T where T<:Event) = log(string(ev), INFO)
 
 function handleEvent!(self::App,ev::ResizeEvent)
     self._shrd._width = ev.width

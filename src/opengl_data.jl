@@ -99,7 +99,7 @@ function checkErrors(self::OpenGLData)
     opengl_error = glGetError()
     if opengl_error != GL_NO_ERROR
         while (opengl_error != GL_NO_ERROR)
-            println(string(opengl_error))
+            @log string(opengl_error) ERR
             opengl_error = glGetError()
         end
     error("OpenGL error(s) occured!")
@@ -135,7 +135,7 @@ function update!(self::OpenGLData,cam::Camera)
     
     while !isempty(self._updateMeQueue)
         renderer = sdequeue!(self._updateMeQueue)
-        println("($(string(self._index))) Updating renderer -> $(string(renderer))")
+        @log "($(string(self._index))) Updating renderer -> $(string(renderer))" INFO
         update!(renderer)
     end
     #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)

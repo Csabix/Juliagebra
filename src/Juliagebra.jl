@@ -2,6 +2,8 @@
 
 module Juliagebra
 
+include("logger.jl")
+
 include("GL/gl.jl")
 
 #include("GLM/glm.jl")

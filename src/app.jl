@@ -42,48 +42,7 @@ end
 function submit!(self::App,plan::PlanDNA)
     enqueue!(self._plans,plan)    
 end
-#=
-function handleEvents!(self::App)
-    GLFW.PollEvents()
-    ev = poll_event!(self._glfw._glfwEQ)
-    # TODO: Lusta esemenykuldes
-    while(!isnothing(ev))
-        handleEvent!(self,ev)
-        ev = poll_event!(self._glfw._glfwEQ)
-        
-    end
-end
 
-handleEvent!(self::App,ev::T where T<:Event) = log(string(ev), INFO)
-
-function handleEvent!(self::App,ev::ResizeEvent)
-    self._shrd._width = ev.width
-    self._shrd._height = ev.height
-    resize!(self._opengl)
-    resize!(self._imgui)
-end
-
-function handleEvent!(self::App,ev::MouseMotionEvent)
-    self._shrd._mouseX = ev.mouseX
-    self._shrd._mouseY = self._shrd._height - ev.mouseY
-    self._shrd._relMouseX += ev.xrel
-    self._shrd._relMouseY += ev.yrel
-    self._shrd._mouseMoved = true
-end
-
-function handleEvent!(self::App,ev::MouseWheelEvent)
-    self._shrd._wheelUpDown = -ev.wheelY
-    self._shrd._wheelMoved = true
-end
-
-handleEvent!(self::App,ev::MouseDownEvent) = flip!(self._peripherals,ev.glfw_key)
-
-handleEvent!(self::App,ev::MouseUpEvent) = flip!(self._peripherals,ev.glfw_key)
-
-handleEvent!(self::App,ev::KeyboardDownEvent) = flip!(self._peripherals,ev.glfw_key)
-
-handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_key)
-=#
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
 
@@ -130,7 +89,7 @@ function framebuffer_resize_event(width::Cint,height::Cint,self::App)::Nothing
 end
 
 function can_capture_keys(self::App)::Bool
-    return !captures_keyboard(self.imgui)
+    return !captures_keyboard(self._imgui)
 end
 function can_capture_mouse(self::App)::Bool
     return !captures_mouse(self._imgui)
@@ -163,7 +122,6 @@ function build!(self::App,plan::RenderedPlanDNA)
 end
 
 function updateDeltaTime!(self::App)
-    
     currentTime = time()    
     self._shrd._deltaTime =  currentTime - self._shrd._oldTime
     self._shrd._oldTime   =  currentTime
@@ -236,7 +194,6 @@ function play!(self::App)
         update!(self._shrd)
         updateGizmo!(self)
        
-        #handleEvents!(self)
         
         GLFW.SwapBuffers(self._glfw._window)
         GLFW.PollEvents()

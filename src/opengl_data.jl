@@ -164,7 +164,7 @@ function update!(self::OpenGLData,cam::Camera)
     # TODO: end
 
     if(self._shrd._gizmoEnabled)
-        draw(self._gizmoGL,vp,cam,self._shrd._selectedGizmo)
+        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo)
     end
     
     draw(self._orthoGizmoGL,cam,self._shrd._width,self._shrd._height)

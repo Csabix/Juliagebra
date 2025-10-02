@@ -13,6 +13,7 @@ mutable struct App
     _plans::Queue{PlanDNA}
     _peripherals::Peripherals
     _cam::Camera
+    _manipulator::CameraManipulator
 
     function App(
         name::String="Juliagebra",
@@ -28,8 +29,9 @@ mutable struct App
         graph = DependentGraph()
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
-        cam = Camera()
-        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,peripherals,cam)
+        cam = defaultCamera()
+        manipulator = create_orbital_manipulator(cam)
+        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,peripherals,cam,manipulator)
 
         global implicitApp
         implicitApp = self
@@ -40,7 +42,7 @@ end
 function submit!(self::App,plan::PlanDNA)
     enqueue!(self._plans,plan)    
 end
-
+#=
 function handleEvents!(self::App)
     GLFW.PollEvents()
     ev = poll_event!(self._glfw._glfwEQ)
@@ -81,6 +83,58 @@ handleEvent!(self::App,ev::MouseUpEvent) = flip!(self._peripherals,ev.glfw_key)
 handleEvent!(self::App,ev::KeyboardDownEvent) = flip!(self._peripherals,ev.glfw_key)
 
 handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_key)
+=#
+function keyboard_event(event::KeyboardEvent,self::App)::Nothing
+    flip!(self._peripherals, event.key)
+
+    if event.action == GLFW.PRESS
+        keyboard_down!(self._manipulator,event)
+    elseif event.action == GLFW.RELEASE
+        keyboard_up!(self._manipulator,event)
+    end
+
+    return nothing
+end
+function mouse_motion_event(event::MouseMotionEvent,self::App)::Nothing
+    self._shrd._mouseX = event.x
+    self._shrd._mouseY = self._shrd._height - event.y
+    self._shrd._relMouseX += event.xrel
+    self._shrd._relMouseY += event.yrel
+    self._shrd._mouseMoved = true
+
+
+    self._peripherals._aHeld      = (event.state & MOUSE_BUTTON_LEFT) == MOUSE_BUTTON_LEFT
+    self._peripherals._bHeld      = (event.state & MOUSE_BUTTON_RIGHT) == MOUSE_BUTTON_RIGHT
+    self._peripherals._middleHeld = (event.state & MOUSE_BUTTON_MIDDLE) == MOUSE_BUTTON_MIDDLE
+
+
+    mouse_motion!(self._manipulator,event)
+    return nothing
+end
+function mouse_wheel_event(event::MouseWheelEvent,self::App)::Nothing
+    self._shrd._wheelUpDown = -event.yoffset
+    self._shrd._wheelMoved = true
+
+    mouse_wheel!(self._manipulator,event)
+    return nothing
+end
+function window_resize_event(width::Cint,height::Cint,self::App)::Nothing
+    self._shrd._width = width
+    self._shrd._height = height
+    resize!(self._opengl)
+    resize!(self._imgui)
+    set_aspect(self._cam,width,height)
+end
+function framebuffer_resize_event(width::Cint,height::Cint,self::App)::Nothing
+    
+end
+
+function can_capture_keys(self::App)::Bool
+    return !captures_keyboard(self.imgui)
+end
+function can_capture_mouse(self::App)::Bool
+    return !captures_mouse(self._imgui)
+end
 
 function handlePlans!(self::App)
     while(!isempty(self._plans))
@@ -117,29 +171,9 @@ function updateDeltaTime!(self::App)
 end
 
 function updateCam!(self::App)
-    dt = self._shrd._deltaTime
-    if self._peripherals._middleHeld && self._shrd._mouseMoved
-        lr = self._shrd._relMouseX
-        ud = self._shrd._relMouseY
-        if self._peripherals._mod1Held
-            moveAt!(self._cam,Float32(0.0),Float32(lr),Float32(-ud),dt)
-        else
-            sensitivityRot!(self._cam,Float32(lr),Float32(ud),dt)
-        end
-    end
-
-        
-
-    if self._shrd._wheelMoved
-        sensitivityZoom(self._cam,Float32(self._shrd._wheelUpDown),dt)
-    end
-
-    if self._peripherals._forwardHeld
-        moveAt!(self._cam,Float32(1.0),Float32(0.0),Float32(0.0),dt)
-    end
-    
+    update!(self._manipulator, self._shrd._deltaTime)
     self._opengl._camPos = self._cam._eye
-    vp,v,p = getMat(self._cam,self._shrd._width,self._shrd._height)
+    vp,v,p = get_matrices(self._cam)
     
     self._opengl._vp = vp
     self._opengl._v  = v
@@ -202,9 +236,10 @@ function play!(self::App)
         update!(self._shrd)
         updateGizmo!(self)
        
-        handleEvents!(self)
+        #handleEvents!(self)
         
         GLFW.SwapBuffers(self._glfw._window)
+        GLFW.PollEvents()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
     end
     destroy!(self)
@@ -220,7 +255,8 @@ function init!(self::App)
     
     self._glfw = GLFWData(self._shrd)
     self._opengl = OpenGLData(self._glfw,self._shrd)
-    self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd)
+    setInputEvents(self._glfw._window,self) # Before call to ImGUI
+    self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd) # After setInputEvents call
     self._windowCreated = true
 
     # ! Needed for first deltaTime to be accurate!

@@ -1,5 +1,6 @@
 mutable struct ImGuiData
     _shrd::SharedData
+    _io::Ptr{CImGui.lib.ImGuiIO}
 
     _width::Int
     _height::Int
@@ -13,7 +14,7 @@ mutable struct ImGuiData
         imgui_context = CImGui.CreateContext()
         
         CImGui.StyleColorsDark()
-        CImGui.GetIO()
+        io = CImGui.GetIO()
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
         
@@ -27,11 +28,21 @@ mutable struct ImGuiData
 
         push!(widgets,dock)
 
-        self = new(shrd,0,0,0,0,widgets)
+        self = new(shrd,io,0,0,0,0,widgets)
         resize!(self)
 
         return self
     end
+end
+
+@inline function captures_mouse(self::ImGuiData)
+    io = unsafe_load(self._io)
+    return io.WantCaptureMouse
+end
+
+@inline function captures_keyboard(self::ImGuiData)
+    io = unsafe_load(self._io)
+    return io.WantCaptureKeyboard
 end
 
 function update!(self::ImGuiData)

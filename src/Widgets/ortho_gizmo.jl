@@ -46,7 +46,8 @@ end
 _OpenGLWidget_(self::OrthoGizmoGL)::OpenGLWidget = return self._widget
 
 function draw(self::OrthoGizmoGL,cam::Camera,width,height)
-    vp,v,p = getMat(cam,width,height,3)
+    #vp,v,p = getMat(cam,width,height,3)
+    vp,v,p = get_matrices(cam,3)
     activate(self._lineShader)
     setUniform!(self._lineShader,"VP",vp)
     draw(self._lineBuffer,GL_LINE_STRIP)

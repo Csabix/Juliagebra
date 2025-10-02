@@ -58,7 +58,7 @@ _OpenGLWidget_(self::GizmoGL)::OpenGLWidget = return self._widget
 
 function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
     
-    gs = Float32((exp(cam._zoom)-1.0) * self._size)
+    gs = Float32(length(cam._at - cam._eye) * self._size)
 
     glClear(GL_DEPTH_BUFFER_BIT)
     activate(self._lineShader)

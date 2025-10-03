@@ -46,22 +46,22 @@ function set_proj!(self::Camera,fov,width,height,zn,zf)
     self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
     return nothing
 end
-function set_fov(self::Camera,fov)
+function set_fov!(self::Camera,fov)
 	self._fov = Float32(fov)
 	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
     return nothing
 end
-function set_aspect(self::Camera,width,height)
+function set_aspect!(self::Camera,width,height)
     self._aspect = Float32(width/height)
 	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
     return nothing
 end
-function set_znear(self::Camera,zn)
+function set_znear!(self::Camera,zn)
 	self._zNear = Float32(zn)
 	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
     return nothing
 end
-function set_zfar(self::Camera,zf)
+function set_zfar!(self::Camera,zf)
 	self._zFar = Float32(zf)
 	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
     return nothing
@@ -128,6 +128,10 @@ function keyboard_down!(self::OrbitalCamera,ev::KeyboardEvent)
         self._right = -1.0f0
     elseif ev.key == GLFW.KEY_S
         self._forward = -1.0f0
+    elseif ev.key == GLFW.KEY_Q
+        self._up = -1.0f0
+    elseif ev.key == GLFW.KEY_E
+        self._up = 1.0f0
     end
 end
 
@@ -140,6 +144,10 @@ function keyboard_up!(self::OrbitalCamera,ev::KeyboardEvent)
         self._right = 0.0f0
     elseif ev.key == GLFW.KEY_S
         self._forward = 0.0f0
+    elseif ev.key == GLFW.KEY_Q
+        self._up = 0.0f0
+    elseif ev.key == GLFW.KEY_E
+        self._up = 0.0f0
     end
 end
 

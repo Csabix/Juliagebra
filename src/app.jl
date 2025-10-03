@@ -30,6 +30,7 @@ mutable struct App
         plans = Queue{PlanDNA}()
         peripherals = Peripherals()
         cam = defaultCamera()
+        set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
         self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,peripherals,cam,manipulator)
 
@@ -82,7 +83,7 @@ function window_resize_event(width::Cint,height::Cint,self::App)::Nothing
     self._shrd._height = height
     resize!(self._opengl)
     resize!(self._imgui)
-    set_aspect(self._cam,width,height)
+    set_aspect!(self._cam,width,height)
 end
 function framebuffer_resize_event(width::Cint,height::Cint,self::App)::Nothing
     

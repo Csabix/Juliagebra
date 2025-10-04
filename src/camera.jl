@@ -92,7 +92,7 @@ end
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     to_aim = camera._at - camera._eye
-    distance = Float32(length(to_aim))
+    distance = Float32(glm_distance(to_aim))
 
     u = atan(to_aim.y, to_aim.x)
     v = acos(to_aim.z / distance)

@@ -58,7 +58,7 @@ _OpenGLWidget_(self::GizmoGL)::OpenGLWidget = return self._widget
 
 function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
     
-    gs = length(cam._at - cam._eye) * self._size
+    gs = glm_distance(cam._at - cam._eye) * self._size
 
     glClear(GL_DEPTH_BUFFER_BIT)
     activate(self._lineShader)
@@ -119,7 +119,7 @@ end
 function getAxisVecs(self,shrd,cam,selectedAxis)
     mouse = Vec2F(shrd._mouseX,shrd._mouseY)
     origin = self._pos
-    eye = normalize(cam._at - cam._eye) * Float32(-(exp(3.0)-1.0))
+    eye = normalize(cam._at - cam._eye - cam._at) * Float32(-(exp(3.0)-1.0))
     gs = norm(eye - self._pos) * self._size
     axis = self._id2Axis[selectedAxis] * gs  + origin
 

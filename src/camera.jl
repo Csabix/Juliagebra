@@ -23,9 +23,9 @@ end
 function get_matrices(self::Camera)
     return self._view_proj, self._view, self._proj
 end
-
+# TODO getting rid of get_matrices(self::Camera,zoom)
 function get_matrices(self::Camera,zoom)
-    eye = normalize(self._eye - self._at) * Float32(-(exp(zoom)-1.0))
+    eye = -normalize(self._eye - self._at) * Float32(-(exp(zoom)-1.0))
     p = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
     l = lookat(eye,Vec3F(0,0,0),self._up)
     return p * l,l,p

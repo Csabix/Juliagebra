@@ -27,7 +27,7 @@ macro log(msg, type=:(LOG))
     )
 end
 
-function log(msg,type=LOG)
+function c_log(msg,type=LOG)
     if _filters[type]
         push!(_messages, msg)
     end

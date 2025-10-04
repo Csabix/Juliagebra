@@ -2,10 +2,12 @@ mutable struct GLFWData
 
     _shrd::SharedData
     _window::GLFW.Window
-    _glfwEQ::GLFWEventQueue
 
     function GLFWData(shrd::SharedData)
-        
+        GLFW.WindowHint(GLFW.DOUBLEBUFFER , 1);
+        GLFW.WindowHint(GLFW.DEPTH_BITS, 24);
+        GLFW.WindowHint(GLFW.STENCIL_BITS, 8);
+
         GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3)
         GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 0)
         
@@ -16,11 +18,10 @@ mutable struct GLFWData
         end
         
         GLFW.MakeContextCurrent(window)
-        glfwEQ = GLFWEventQueue(window)
+        GLFW.SwapInterval(1)
 
-        new(shrd,window,glfwEQ)
+        new(shrd,window)
     end
 end
-
 
 destroy!(glfw::GLFWData) = GLFW.DestroyWindow(glfw._window)

@@ -183,6 +183,32 @@ _Toggle()
 Toggle(callback::Function,dependents::DependentsT) =
 _Toggle(_call = callback, _deps=dependents)
 
+# ? ---------------------------------
+# ! Slider
+# ? ---------------------------------
+
+function _Slider(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _minVal = 0.0,
+                _startVal = 0.5,
+                _maxVal = 1.0
+                )::SliderPlan
+    plan = SliderPlan(_call,_deps,_minVal,_startVal,_maxVal)
+    submit!(_app,plan)
+    return plan
+end
+
+Slider() =
+_Slider()
+
+Slider(minVal,maxVal) =
+_Slider(_minVal = minVal, _startVal = ((maxVal - minVal)*0.5) + minVal ,_maxVal = maxVal)
+
+Slider(callback::Function,minVal,maxVal,dependents::DependentsT) =
+_Slider(_call = callback, _minVal = minVal ,_maxVal = maxVal, _deps=dependents)
+
 export Point
 export ParametricCurve
 export Segment
@@ -190,3 +216,4 @@ export Intersection
 export Mesh
 export ParametricSurface
 export Toggle
+export Slider

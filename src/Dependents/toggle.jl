@@ -24,10 +24,9 @@ mutable struct ToggleDependent <: GuiDependentDNA
     function ToggleDependent(plan::TogglePlan)
         dependent = GuiDependent(plan)
         toggled = false
+
         toggle = new(dependent,toggled)
-
         onGraphEval(toggle)
-
         return toggle
     end
 end
@@ -35,17 +34,16 @@ end
 _GuiDependent_(self::ToggleDependent) = return self._dependent
 
 isToggled(self::ToggleDependent) = return self._toggled
+getToggleField(self::ToggleDependent,fieldVal::Val{:state}) = return self._toggled
+Base.getindex(self::ToggleDependent,fieldSymbol::Symbol) = return getToggleField(self,Val(fieldSymbol))
+
 flip!(self::ToggleDependent) = self._toggled = !self._toggled
 
-export isToggled
- 
+onGraphEval(self::ToggleDependent) = dpEvalCallback(self)
 evalCallback(self::ToggleDependent) = getCallback(self)(getGraphParents(self)...)
 dpCallbackReturn(self::ToggleDependent, val::Bool) = self._toggled = val
 dpCallbackReturn(self::ToggleDependent, ::Nothing) = return nothing
 
-function onGraphEval(self::ToggleDependent)
-    dpEvalCallback(self)
-end
 
 
 # ? ---------------------------------
@@ -70,13 +68,18 @@ syncAll!(self::ToggleRenderer) = return nothing
 addedAll!(self::ToggleRenderer) = return nothing
 
 function render!(self::ToggleRenderer)
+    CImGui.Text("ToggleDependents:")
+    CImGui.Separator()
+
     for toggleIdx in eachindex(getObservedItems(self))
         toggle = self[toggleIdx]
 
-        toggleVal = isToggled(toggle)
+        toggleVal = toggle[:state]
         toggleValRef = Ref(toggleVal)
 
         if(CImGui.Checkbox("Toggle[$(toggleIdx)]",toggleValRef))
+            # ! Take into note, that the user can only click on one element at every frame,
+            # ! so multiple evalGraph calls under a single frame can't happen!
             flip!(toggle)
             evalGraph(toggle)
         end

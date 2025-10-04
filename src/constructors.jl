@@ -169,7 +169,7 @@ _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uE
 
 function _Toggle(;
                 _app::App = implicitApp,
-                _call::Function = () -> (),
+                _call::Function = () -> (return nothing),
                 _deps::DependentsT = Vector{PlanDNA}(),
                 )::TogglePlan
     plan = TogglePlan(_call,_deps)

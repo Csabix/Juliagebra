@@ -31,9 +31,11 @@ end
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
 getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
+getCallback(self::DependentDNA) = return _Dependent_(self)._callback
+
 
 evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")
-dpCallbackReturn(self::DependentDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA")
+dpCallbackReturn(self::DependentDNA,others...)    = error("Missing \"dispatchCallbackReturn\" for subclass of $(typeof(self)) for $(typeof(others...))")
 dpCallbackReturn(self::DependentDNA,::Nothing) = error("Missing \"dispatchCallbackReturn\" for subclass of DependentDNA (on Nothing)")
 dpEvalCallback(self::DependentDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
 
@@ -41,18 +43,7 @@ onGraphAdd(parent::DependentDNA,child) = chain!(getChain(parent),child)
 onGraphEval(self::DependentDNA) =  error("Missing \"onGraphEval\" for subclass of DependentDNA")
 afterGraphEval(self::DependentDNA) = nothing
 
-function evalGraph(self::DependentDNA)
-    dependentChain = getChain(self)
-    
-    for item in dependentsOf(dependentChain)
-        onGraphEval(item)
-        afterGraphEval(item)
-    end
-    
-    for item in observersOf(dependentChain)
-        postGraphEval(item)
-    end
-end
+evalGraph(self::DependentDNA) = evalChain(getChain(self))
 
 function to_string(self::DependentDNA)
     outStr = ""

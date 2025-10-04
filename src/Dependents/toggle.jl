@@ -24,7 +24,11 @@ mutable struct ToggleDependent <: GuiDependentDNA
     function ToggleDependent(plan::TogglePlan)
         dependent = GuiDependent(plan)
         toggled = false
-        new(dependent,toggled)
+        toggle = new(dependent,toggled)
+
+        onGraphEval(toggle)
+
+        return toggle
     end
 end
 
@@ -33,10 +37,15 @@ _GuiDependent_(self::ToggleDependent) = return self._dependent
 isToggled(self::ToggleDependent) = return self._toggled
 flip!(self::ToggleDependent) = self._toggled = !self._toggled
 
-# TODO: Finish theese functions 
-evalCallback(self::ToggleDependent,params...) = error("TODO - Finish this!")
-dpCallbackReturn(self::ToggleDependent,::Nothing) = error("TODO - Finish this!")
-onGraphEval(self::ToggleDependent) =  error("TODO - Finish this!")
+export isToggled
+ 
+evalCallback(self::ToggleDependent) = getCallback(self)(getGraphParents(self)...)
+dpCallbackReturn(self::ToggleDependent, val::Bool) = self._toggled = val
+dpCallbackReturn(self::ToggleDependent, ::Nothing) = return nothing
+
+function onGraphEval(self::ToggleDependent)
+    dpEvalCallback(self)
+end
 
 
 # ? ---------------------------------
@@ -64,7 +73,13 @@ function render!(self::ToggleRenderer)
     for toggleIdx in eachindex(getObservedItems(self))
         toggle = self[toggleIdx]
 
-        CImGui.Button("Toggle[$(toggleIdx)]")
+        toggleVal = isToggled(toggle)
+        toggleValRef = Ref(toggleVal)
+
+        if(CImGui.Checkbox("Toggle[$(toggleIdx)]",toggleValRef))
+            flip!(toggle)
+            evalGraph(toggle)
+        end
 
     end
 end

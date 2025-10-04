@@ -25,3 +25,14 @@ end
 function observersOf(self::DependentChain)
     return self._set
 end
+
+function evalChain(self::DependentChain)
+    for item in dependentsOf(self)
+        onGraphEval(item)
+        afterGraphEval(item)
+    end
+    
+    for item in observersOf(self)
+        postGraphEval(item)
+    end
+end

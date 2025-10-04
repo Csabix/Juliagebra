@@ -16,5 +16,14 @@ else
     s2 = Slider()
 end
 
+txt1 = TextBox()
+txt2 = TextBox("A sample text\n" *
+               "to see how this looks."
+)
+txt3 = TextBox("Another sample text\n" *
+               "to see how this looks."
+)
+txt4 = TextBox("Small sample text.")
+
 
 play!()

@@ -209,6 +209,30 @@ _Slider(_minVal = minVal, _startVal = ((maxVal - minVal)*0.5) + minVal ,_maxVal 
 Slider(callback::Function,minVal,maxVal,dependents::DependentsT) =
 _Slider(_call = callback, _minVal = minVal ,_maxVal = maxVal, _deps=dependents)
 
+# ? ---------------------------------
+# ! TextBox
+# ? ---------------------------------
+
+function _TextBox(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _text::String = ""
+                )::TextBoxPlan
+    plan = TextBoxPlan(_call,_deps,_text)
+    submit!(_app,plan)
+    return plan
+end
+
+TextBox() =
+_TextBox()
+
+TextBox(text) =
+_TextBox(_text = text)
+
+TextBox(callback::Function,dependents::DependentsT) =
+_TextBox(_call = callback, _deps = dependents)
+
 export Point
 export ParametricCurve
 export Segment
@@ -217,3 +241,4 @@ export Mesh
 export ParametricSurface
 export Toggle
 export Slider
+export TextBox

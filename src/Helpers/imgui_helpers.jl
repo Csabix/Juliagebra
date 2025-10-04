@@ -35,3 +35,23 @@ function getButtonSize(text::String)
 
     return (size_x,size_y)
 end
+
+# ? Could microoptimize this by not creating buffers everytime if necessary
+function txtbox(name::String,text::String,buf_size=1024)::Union{String,Nothing}
+    
+    if (length(text)>= buf_size)
+        text = text[1:buf_size-1]
+    end
+    
+    buf = Vector{UInt8}(undef,buf_size)
+    fill!(buf,0)
+
+    textAsUint8s = codeunits(text)
+    copyto!(buf,textAsUint8s)
+    
+    if (CImGui.InputTextMultiline(name,buf,length(buf)))
+        return unsafe_string(pointer(buf))
+    end
+
+    return nothing
+end

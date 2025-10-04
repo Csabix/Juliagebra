@@ -85,6 +85,7 @@ include("Dependents/primitive_intersections.jl")
 include("Dependents/intersections.jl")
 include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
+include("Dependents/textbox.jl")
 
 include("app.jl")
 

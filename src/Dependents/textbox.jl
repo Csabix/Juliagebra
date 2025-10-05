@@ -76,8 +76,9 @@ function render!(self::TextBoxRenderer)
 
     for textBoxIdx in eachindex(getObservedItems(self))
         textBox = self[textBoxIdx]
-
-        proposedText = txtbox("TextBox[$(textBoxIdx)]",textBox._text)
+        
+        CImGui.Text("TextBox[$(textBoxIdx)]:")
+        proposedText = txtbox("##TextBox[$(textBoxIdx)]",textBox._text)
 
         if (!isnothing(proposedText))
             textBox._text = proposedText

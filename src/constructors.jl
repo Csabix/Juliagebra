@@ -3,6 +3,35 @@
 const DependentsT = Vector{T} where T <: PlanDNA
 
 # ? ---------------------------------
+# ! GenericDependent
+# ? ---------------------------------
+
+function _GenericDependent(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _startT::T
+)::GenericDependentPlan{T} where {T}
+    plan = GenericDependentPlan{T}(_call,_deps,_startT)
+    submit!(_app,plan)
+    return plan
+end
+
+GenericDependent(startT::T) where {T} = 
+_GenericDependent(_startT = startT)
+
+# ? Works, because Julia can figure out I'm just changing the syntax
+# ? and T can be inferred in _GenericDependent
+GenericDependent{T}(startT) where {T} = 
+_GenericDependent(_startT = T(startT))
+
+GenericDependent(callback::Function,startT::T,dependents::DependentsT) where {T} = 
+_GenericDependent(_call = callback, _startT = startT, _deps = dependents)
+
+GenericDependent{T}(callback::Function,startT,dependents::DependentsT) where {T} = 
+_GenericDependent(_call = callback, _startT = T(startT), _deps = dependents)
+
+# ? ---------------------------------
 # ! Point
 # ? ---------------------------------
 
@@ -233,6 +262,7 @@ _TextBox(_text = text)
 TextBox(callback::Function,dependents::DependentsT) =
 _TextBox(_call = callback, _deps = dependents)
 
+export GenericDependent
 export Point
 export ParametricCurve
 export Segment

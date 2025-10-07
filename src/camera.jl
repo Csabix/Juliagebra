@@ -106,8 +106,9 @@ function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)
         du = ev.xrel / Float32(100.0)
         dv = ev.yrel / Float32(100.0)
         if (ev.mods & KEY_MOD_SHIFT) == KEY_MOD_SHIFT
-            up = self._cam._up
-            right = normalize(cross(self._cam._at - self._cam._eye, up))
+            lookat = normalize(self._cam._at - self._cam._eye)
+            right = normalize(cross(lookat, self._cam._up))
+            up = normalize(cross(right, lookat));
             delta = up * dv + right * du
             delta *= (exp(self._zoom)-1) / Float32(15.0) # good enough for now
 

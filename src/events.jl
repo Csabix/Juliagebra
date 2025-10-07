@@ -44,6 +44,11 @@ struct MouseWheelEvent
 end
 
 global _mouse_state::MouseMotionEvent = MouseMotionEvent(MOUSE_BUTTON_NONE,KEY_MOD_NONE,0,0,0,0)
+global _window_size::Tuple{Cint, Cint} = (0,0)
+
+function get_mouse_position_relative()::Tuple{Cdouble, Cdouble}
+    return (_mouse_state.x / Cdouble(_window_size[1]),_mouse_state.y / Cdouble(_window_size[2]))
+end
 
 #
 # Implement these functions before calling setInputEvents
@@ -101,6 +106,7 @@ function _scroll_callback(xoffset::Cdouble, yoffset::Cdouble, data::T)::Nothing 
 end
 
 function _window_size_callback(width::Cint, height::Cint, data::T)::Nothing where {T}
+    global _window_size=(width,height)
     window_resize_event(width,height,data)
 end
 function _framebuffer_size_callback(width::Cint, height::Cint, data::T)::Nothing where {T}
@@ -108,6 +114,8 @@ function _framebuffer_size_callback(width::Cint, height::Cint, data::T)::Nothing
 end
 
 function setInputEvents(window::GLFW.Window, data::T)::Nothing where {T}
+    global _window_size = values(GLFW.GetWindowSize(window))
+
     GLFW.SetKeyCallback(window,(_,key,scancode,action,mods) -> _key_callback(key,scancode,action,mods,data))
     GLFW.SetCursorPosCallback(window,(_,x,y) -> _cursor_position_callback(x,y,data))
     GLFW.SetMouseButtonCallback(window,(_,button,action,mods) -> _mouse_button_callback(button,action,mods,data))

@@ -62,13 +62,27 @@ function mouse_motion_event(event::MouseMotionEvent,self::App)::Nothing
     self._shrd._relMouseY += event.yrel
     self._shrd._mouseMoved = true
 
-
-    self._peripherals._aHeld      = (event.state & MOUSE_BUTTON_LEFT) == MOUSE_BUTTON_LEFT
-    self._peripherals._bHeld      = (event.state & MOUSE_BUTTON_RIGHT) == MOUSE_BUTTON_RIGHT
-    self._peripherals._middleHeld = (event.state & MOUSE_BUTTON_MIDDLE) == MOUSE_BUTTON_MIDDLE
-
-
     mouse_motion!(self._manipulator,event)
+    return nothing
+end
+function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing 
+    if event.press
+        if event.button == MOUSE_BUTTON_LEFT
+            self._peripherals._aHeld = true
+        elseif event.button == MOUSE_BUTTON_RIGHT
+            self._peripherals._bHeld = true
+        elseif event.button == MOUSE_BUTTON_MIDDLE
+            self._peripherals._middleHeld = true
+        end
+    else
+        if event.button == MOUSE_BUTTON_LEFT
+            self._peripherals._aHeld = false
+        elseif event.button == MOUSE_BUTTON_RIGHT
+            self._peripherals._bHeld = false
+        elseif event.button == MOUSE_BUTTON_MIDDLE
+            self._peripherals._middleHeld = false
+        end
+    end
     return nothing
 end
 function mouse_wheel_event(event::MouseWheelEvent,self::App)::Nothing
@@ -197,7 +211,7 @@ function play!(self::App)
        
         
         GLFW.SwapBuffers(self._glfw._window)
-        GLFW.PollEvents()
+        poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
     end
     destroy!(self)

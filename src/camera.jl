@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 @kwdef mutable struct Camera
     _eye::Vec3F= Vec3F(0.0,-5.0,0.0)
     _up::Vec3F = Vec3F(0.0,0.0,1.0)
@@ -72,8 +74,14 @@ abstract type CameraManipulator end
 function keyboard_down!(self::CameraManipulator,ev::KeyboardEvent) end
 function keyboard_up!(self::CameraManipulator,ev::KeyboardEvent) end
 function mouse_motion!(self::CameraManipulator,ev::MouseMotionEvent) end
+function mouse_button!(self::CameraManipulator,ev::MouseButtonEvent,id::UInt32) end
 function mouse_wheel!(self::CameraManipulator,ev::MouseWheelEvent) end
 function update!(self::CameraManipulator,deltaTime) end
+
+const _ORBITAL_NONE::Int8 = 0
+const _ORBITAL_ORBIT::Int8 = 1
+const _ORBITAL_PAN::Int8 = 2
+const _ORBITAL_LOOK::Int8 = 3
 
 mutable struct OrbitalCamera <: CameraManipulator
     _cam::Camera
@@ -92,7 +100,7 @@ end
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     to_aim = camera._at - camera._eye
-    distance = Float32(glm_distance(to_aim))
+    distance = Float32(norm(to_aim))
 
     u = atan(to_aim.y, to_aim.x)
     v = acos(to_aim.z / distance)
@@ -101,21 +109,45 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
 end
 
 function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)
-    if (ev.state & MOUSE_BUTTON_MIDDLE) == MOUSE_BUTTON_MIDDLE && (ev.xrel != 0.0 || ev.yrel != 0.0)
-        du = ev.xrel / Float32(100.0)
-        dv = ev.yrel / Float32(100.0)
-        if (ev.mods & KEY_MOD_SHIFT) == KEY_MOD_SHIFT
-            lookat = normalize(self._cam._at - self._cam._eye)
-            right = normalize(cross(lookat, self._cam._up))
-            up = normalize(cross(right, lookat));
-            delta = up * dv + right * du
-            delta *= (exp(self._zoom)-1) / Float32(15.0) # good enough for now
+    du = ev.xrel / Float32(100.0)
+    dv = ev.yrel / Float32(100.0)
 
-            self._cam._eye += delta
-            self._cam._at += delta
+    if self._move_state == _ORBITAL_ORBIT || self._move_state == _ORBITAL_LOOK
+        self._u += du
+        self._v = clamp(self._v + dv, Float32(0.1), Float32(3.1))
+    elseif self._move_state == _ORBITAL_PAN
+        lookat = normalize(self._cam._at - self._cam._eye)
+        right = normalize(cross(lookat, self._cam._up))
+        up = normalize(cross(right, lookat));
+        delta = up * dv + right * du
+        delta *= (exp(self._zoom)-1) / Float32(15.0) # good enough for now
+
+        self._cam._eye += delta
+        self._cam._at += delta
+    end
+end
+
+function mouse_button!(self::OrbitalCamera,ev::MouseButtonEvent,id::UInt32)
+    if ev.button == MOUSE_BUTTON_MIDDLE
+        if ev.press
+            self._move_state = _ORBITAL_LOOK
         else
-            self._u += du
-            self._v = clamp(self._v + dv, Float32(0.1), Float32(3.1))
+            self._move_state = self._move_state ==_ORBITAL_LOOK ? _ORBITAL_NONE : self._move_state
+        end
+        return
+    end
+
+    if ev.press && id == 0
+        if ev.button == MOUSE_BUTTON_LEFT
+            self._move_state = _ORBITAL_ORBIT
+        elseif ev.button == MOUSE_BUTTON_RIGHT
+            self._move_state = _ORBITAL_PAN
+        end
+    elseif !ev.press
+        if ev.button == MOUSE_BUTTON_LEFT
+            self._move_state = (self._move_state ==_ORBITAL_ORBIT) ? _ORBITAL_NONE : self._move_state
+        elseif ev.button == MOUSE_BUTTON_RIGHT
+            self._move_state = (self._move_state ==_ORBITAL_PAN) ? _ORBITAL_NONE : self._move_state
         end
     end
 end
@@ -156,20 +188,29 @@ function mouse_wheel!(self::OrbitalCamera,ev::MouseWheelEvent)
     self._zoom = max(self._zoom + -ev.yoffset / Float32(10.0), 0.01)
 end
 
+
 function update!(self::OrbitalCamera,deltaTime)
+    # Required vectors + distance
     lookDirection = Vec3F(cos(self._u) * sin(self._v),
                           sin(self._u) * sin(self._v),
                           cos(self._v))
-
-    distance = exp(self._zoom)-1.0f0
-    eye = self._cam._at - distance * lookDirection;
+                          
     up = self._cam._up
     right = normalize(cross(lookDirection, up))
     forward = cross(up, right)
     d_position = (self._forward * forward + self._right * right + self._up * up) * self._speed * Float32(deltaTime) * distance
 
-    eye += d_position
-    at = self._cam._at + d_position
-    set_view!(self._cam,eye,at,up)
+    # Mouse movement
+    eye, at = if self._move_state != _ORBITAL_LOOK
+        eye = self._cam._at - distance * lookDirection
+        at = self._cam._at
+        eye, at
+    else
+        at = self._cam._eye + distance * lookDirection
+        eye = self._cam._eye
+        eye, at
+    end
+    
+    set_view!(self._cam,eye + d_position,at + d_position,up)
     self._cam._view_proj = self._cam._proj * self._cam._view
 end

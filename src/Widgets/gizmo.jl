@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 mutable struct GizmoGL <: OpenGLWidgetDNA 
     _widget::OpenGLWidget
     
@@ -33,7 +35,7 @@ _OpenGLWidget_(self::GizmoGL)::OpenGLWidget = return self._widget
 
 function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32,wh::Vec2F)
     
-    gs = glm_distance(cam._at - cam._eye) * self._size
+    gs = norm(cam._at - cam._eye) * self._size
 
     activate(self._lineShader)
     setUniform!(self._lineShader,"VP",vp)

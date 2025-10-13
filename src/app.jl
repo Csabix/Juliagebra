@@ -66,6 +66,8 @@ function mouse_motion_event(event::MouseMotionEvent,self::App)::Nothing
     return nothing
 end
 function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing 
+    id = readID(self._opengl, event.x, event.y)
+    mouse_button!(self._manipulator,event,id)
     if event.press
         if event.button == MOUSE_BUTTON_LEFT
             self._peripherals._aHeld = true

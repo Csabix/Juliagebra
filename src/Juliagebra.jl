@@ -31,7 +31,6 @@ include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/collector.jl")
 include("Helpers/imgui_helpers.jl")
-include("Helpers/glm_helpers.jl")
 
 ID_LOWER_BOUND = 3
 

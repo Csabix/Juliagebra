@@ -99,7 +99,7 @@ function checkErrors(self::OpenGLData)
     opengl_error = glGetError()
     if opengl_error != GL_NO_ERROR
         while (opengl_error != GL_NO_ERROR)
-            @log string(opengl_error) ERR
+            println(string(opengl_error))
             opengl_error = glGetError()
         end
     error("OpenGL error(s) occured!")
@@ -127,6 +127,24 @@ function readID(self::OpenGLData)
         glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
         self._shrd._selectedID = num[1]
     end
+end
+
+function readID(self::OpenGLData,x,y)::UInt32
+    width = self._shrd._width
+    height = self._shrd._height
+    y = self._shrd._height - y
+    if x >= width || y >= height
+        return 0
+    end
+
+    # TODO handling window size != buffer size
+
+    activate(self._mainFBO)
+    glReadBuffer(GL_COLOR_ATTACHMENT1)
+    num = Array{UInt32}(undef,1)
+    glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
+    disable(self._mainFBO)
+    return num[1]
 end
 
 function update!(self::OpenGLData,cam::Camera)

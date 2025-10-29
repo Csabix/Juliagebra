@@ -194,7 +194,6 @@ end
 
 function onGraphEval(self::ParametricSurfaceDependent)
     runCallbacks(self)
-    flag!(self)
 end
 
 # ? ---------------------------------
@@ -250,8 +249,10 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     println("ParametricSurface added!")
 end
 
+setRenderedID!(renderer::ParametricSurfaceRenderer,dependent::ParametricSurfaceDependent,id) = return nothing
+
 # ! Must have
-function addedUpload!(self::ParametricSurfaceRenderer)
+function addedAll!(self::ParametricSurfaceRenderer)
     upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
     upload!(self._buffer,3,data(self._colors),GL_STATIC_DRAW)
@@ -264,7 +265,7 @@ function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepende
 end
 
 # ! Must have
-function syncUpload!(self::ParametricSurfaceRenderer)
+function syncAll!(self::ParametricSurfaceRenderer)
     upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
 end

@@ -35,6 +35,8 @@ function add!!(collector::ObserverDNA,collected::ObservedDNA)
     observed._observerID = length(observer._observedItems)
 
     added!(collector,collected)
+
+    push!(getChain(collected)._set,collector)
 end
 
 function afterGraphEval(self::ObservedDNA)
@@ -48,4 +50,10 @@ function hasObserver(self::ObservedDNA)
            _Observer_(observed._observer)._observedItems[id] === self
 end
 
+getObserverID(self::ObservedDNA) = return _Observed_(self)._observerID
+getObserver(self::ObservedDNA) = return _Observed_(self)._observer
 
+function evalGraph(self::ObservedDNA)
+    afterGraphEval(self)
+    evalChain(getChain(self))
+end

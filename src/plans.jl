@@ -20,23 +20,27 @@ _Plan_(self::PlanDNA)::Plan = error("Missing func!")
 # ? ---------------------------------
 
 mutable struct RenderedPlan <: PlanDNA
-    _renderer::Union{Nothing,RendererDNA}
     _plan::Plan
     
     function RenderedPlan(callback::Function, graphParents::Vector{T},) where T<:PlanDNA
         plan = Plan(callback,graphParents)
-        new(nothing,plan)
+        new(plan)
     end
 end
 
 _Plan_(self::RenderedPlanDNA) = return _RenderedPlan_(self)._plan
 _RenderedPlan_(self::RenderedPlanDNA)::RenderedPlan = error("Missing func!")
 
+# ? ---------------------------------
+# ! GuiPlanDNA
+# ? ---------------------------------
+
 mutable struct GuiPlan <: PlanDNA
     _plan::Plan
 
     function GuiPlan(callback::Function,graphParents::Vector{T}) where T<:PlanDNA
-        new(Plan(callback,graphParents))
+        plan = Plan(callback,graphParents)
+        new(plan)
     end
 end
 

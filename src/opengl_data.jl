@@ -2,6 +2,8 @@
 # * iter on employees to check changes
 # * iter on opengldata for rendering
 
+global DEBUG_FRAME = 0
+
 mutable struct OpenGLData
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
@@ -94,6 +96,16 @@ mutable struct OpenGLData
     end
 end
 
+function SingleRendererTactic(self::OpenGLData,t::Type{T})::T where T<:RendererDNA
+    myVector = get!(self._renderOffices,T,Vector{T}())
+
+    if(length(myVector)!=1)
+        push!(myVector,T(self))
+    end
+
+    return myVector[1]
+end
+
 function checkErrors(self::OpenGLData)
     # TODO: Make checkErrors prettier
     opengl_error = glGetError()
@@ -131,13 +143,11 @@ end
 
 function update!(self::OpenGLData,cam::Camera)
     checkErrors(self)
-    self._index += 1
     
-    while !isempty(self._updateMeQueue)
-        renderer = sdequeue!(self._updateMeQueue)
-        println("($(string(self._index))) Updating renderer -> $(string(renderer))")
-        update!(renderer)
-    end
+    self._index += 1
+    global DEBUG_FRAME
+    DEBUG_FRAME = self._index
+    
     #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     # * All the buffers are up to date at this point.

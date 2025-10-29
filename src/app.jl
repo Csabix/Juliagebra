@@ -83,8 +83,19 @@ handleEvent!(self::App,ev::KeyboardDownEvent) = flip!(self._peripherals,ev.glfw_
 handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_key)
 
 function handlePlans!(self::App)
+    observers = Set{ObserverDNA}()
+    
     while(!isempty(self._plans))
-        build!(self,dequeue!(self._plans)) 
+        observer = build!(self,dequeue!(self._plans)) 
+        
+        if (!isnothing(observer))
+            push!(observers,observer)
+        end
+        
+    end
+
+    for observer in observers
+        addedAll!(observer)
     end
 end
 
@@ -94,6 +105,8 @@ function build!(self::App,plan::PlanDNA)
     add!!(self._graph,dependent)
 
     _Plan_(plan)._dependent = dependent
+
+    return nothing
 end
 
 # TODO: Generalize this build! method for all Observed - Observer pairs.
@@ -105,18 +118,22 @@ function build!(self::App,plan::GuiPlanDNA)
     add!!(self._graph,observed)
     
     _Plan_(plan)._dependent = observed
+
+    return observer
 end
 
 function build!(self::App,plan::RenderedPlanDNA)
-    renderer  = Plan2Renderer(self._opengl,plan) 
-    _RenderedPlan_(plan)._renderer = renderer
-    
+    renderer  = Plan2Renderer(self._opengl,plan)     
     dependent = Plan2Dependent(plan)
     
-    add!!(self._graph,dependent)
     add!!(renderer,dependent)
+    add!!(self._graph,dependent)
+    
+    setRenderedID!(renderer,dependent,getGraphID(dependent) + ID_LOWER_BOUND)
 
     _Plan_(plan)._dependent = dependent
+
+    return renderer
 end
 
 function updateDeltaTime!(self::App)

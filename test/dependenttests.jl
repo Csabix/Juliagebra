@@ -385,7 +385,8 @@
             testPathEvalNodeIndex = parse(Int,testPath[1])
             testPathNodeIndexes = testPath[2]
 
-            SUT.evalGraph(observed[testPathEvalNodeIndex])
+            evaledDependent = observed[testPathEvalNodeIndex]
+            SUT.evalGraph(evaledDependent)
 
             for observerConfigIndex in eachindex(observerConfigs)
                 observerConfig = observerConfigs[observerConfigIndex]
@@ -397,8 +398,13 @@
                     end
                 end
                 
-                @test observers[observerConfigIndex]._syncCalled == observedInPathCount
+                observer = observers[observerConfigIndex]
 
+                if (evaledDependent isa SUT.ObservedDNA && SUT.getObserver(evaledDependent) === observer)
+                    @test observer._syncCalled == observedInPathCount + 1
+                else
+                    @test observer._syncCalled == observedInPathCount
+                end
             end
 
             clear_observers(observers)
@@ -413,7 +419,8 @@
             testPathEvalNodeIndex = parse(Int,testPath[1])
             testPathNodeIndexes = testPath[2]
 
-            SUT.evalGraph(observed[testPathEvalNodeIndex])
+            evaledDependent = observed[testPathEvalNodeIndex]
+            SUT.evalGraph(evaledDependent)
 
             for observerConfigIndex in eachindex(observerConfigs)
                 observerConfig = observerConfigs[observerConfigIndex]
@@ -425,7 +432,15 @@
                     end
                 end
                 
-                @test length(observers[observerConfigIndex]._syncItems) == length(observedInPath)
+                observer = observers[observerConfigIndex]
+
+                if (evaledDependent isa SUT.ObservedDNA && SUT.getObserver(evaledDependent) === observer)
+                    @test length(observer._syncItems) == length(observedInPath) + 1
+                    @test evaledDependent in observers[observerConfigIndex]._syncItems
+                else
+                    @test length(observer._syncItems) == length(observedInPath)
+                    
+                end
 
                 for observed in observedInPath
                     @test observed in observers[observerConfigIndex]._syncItems
@@ -444,7 +459,8 @@
             testPathEvalNodeIndex = parse(Int,testPath[1])
             testPathNodeIndexes = testPath[2]
 
-            SUT.evalGraph(observed[testPathEvalNodeIndex])
+            evaledDependent = observed[testPathEvalNodeIndex]
+            SUT.evalGraph(evaledDependent)
 
             for observerConfigIndex in eachindex(observerConfigs)
                 observerConfig = observerConfigs[observerConfigIndex]
@@ -457,7 +473,9 @@
                     end
                 end
 
-                if observerInPath
+                observer = observers[observerConfigIndex]
+                
+                if observerInPath || SUT.getObserver(evaledDependent) === observer
                     @test observers[observerConfigIndex]._syncAllCalled == 1
                 else
                     @test observers[observerConfigIndex]._syncAllCalled == 0

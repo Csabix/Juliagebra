@@ -97,7 +97,6 @@ end
 
 function onGraphEval(self::ParametricCurveDependent)
     runCallbacks(self)
-    flag!(self)
 end
 
 # ? ---------------------------------
@@ -155,8 +154,10 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     #println("Added Curve as: $(curve._startIndex) - $(curve._endIndex) - $(curve._tNum)")
 end
 
+setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) = return nothing
+
 # ! Must have
-function addedUpload!(self::CurveRenderer)
+function addedAll!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._colors,GL_STATIC_DRAW)
 end
@@ -167,7 +168,7 @@ function sync!(self::CurveRenderer,curve::ParametricCurveDependent)
 end
 
 # ! Must have
-function syncUpload!(self::CurveRenderer)
+function syncAll!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
 end
 

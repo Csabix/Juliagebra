@@ -4,7 +4,7 @@
 
 global DEBUG_FRAME = 0
 
-mutable struct OpenGLData
+mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 

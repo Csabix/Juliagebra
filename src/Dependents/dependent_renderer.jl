@@ -18,4 +18,4 @@ _Observer_(self::RendererDNA)::Observer = return _Renderer_(self)._observer
 draw!(self::RendererDNA,vp,selectedID,pickedID) = error("Missing func!")
 destroy!(self::RendererDNA) = error("Missing \"destroy!\" func for instance of RendererDNA")
 (plan2Dependent(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:RenderedDependentDNA} = error("Missing func for $(typeof(self)) - $(typeof(plan))!")
-recruit!(self::OpenGLData, plan::PlanDNA)::DependentDNA = error("Missing func!")
+addedAll!(self::RendererDNA) = error("Missing func!")

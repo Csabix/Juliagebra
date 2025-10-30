@@ -1,4 +1,4 @@
-mutable struct ImGuiData
+mutable struct ImGuiData <: ObserverBuilderDNA
     _shrd::SharedData
 
     _width::Int

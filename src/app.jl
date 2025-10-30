@@ -84,7 +84,7 @@ handleEvent!(self::App,ev::KeyboardUpEvent) = flip!(self._peripherals,ev.glfw_ke
 
 function handlePlans!(self::App)
     observers = Set{ObserverDNA}()
-    
+
     while(!isempty(self._plans))
         observer = build!(self,dequeue!(self._plans)) 
         
@@ -99,40 +99,21 @@ function handlePlans!(self::App)
     end
 end
 
-function build!(self::App,plan::PlanDNA)
-    dependent = Plan2Dependent(plan)
-    
-    add!!(self._graph,dependent)
 
-    _Plan_(plan)._dependent = dependent
-
-    return nothing
+function build!(self::App, plan::PlanDNA) 
+   dependent = buildFromPlan!(plan,self._graph)
+   return nothing
 end
 
-# TODO: Generalize this build! method for all Observed - Observer pairs.
-function build!(self::App,plan::GuiPlanDNA)
-    observer = Plan2Observer(self._imgui,plan)
-    observed = Plan2Dependent(plan) 
 
-    add!!(observer,observed)
-    add!!(self._graph,observed)
-    
-    _Plan_(plan)._dependent = observed
-
+function build!(self::App, plan::GuiPlanDNA)
+    observer,observed = buildFromPlan!(plan,self._graph,self._imgui)
     return observer
 end
 
-function build!(self::App,plan::RenderedPlanDNA)
-    renderer  = Plan2Renderer(self._opengl,plan)     
-    dependent = Plan2Dependent(plan)
-    
-    add!!(renderer,dependent)
-    add!!(self._graph,dependent)
-    
-    setRenderedID!(renderer,dependent,getGraphID(dependent) + ID_LOWER_BOUND)
-
-    _Plan_(plan)._dependent = dependent
-
+function build!(self::App, plan::RenderedPlanDNA)
+    renderer,observed = buildFromPlan!(plan,self._graph,self._opengl)
+    setRenderedID!(renderer,observed,getGraphID(observed) + ID_LOWER_BOUND)
     return renderer
 end
 

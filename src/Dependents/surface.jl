@@ -289,6 +289,6 @@ function destroy!(self::ParametricSurfaceRenderer)
 end
 
 # ! Must have
-function Plan2Renderer(self::OpenGLData,plan::ParametricSurfacePlan)
+function Plan2Observer(self::OpenGLData,plan::ParametricSurfacePlan)
     return SingleRendererTactic(self,ParametricSurfaceRenderer)
 end

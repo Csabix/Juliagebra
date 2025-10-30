@@ -188,6 +188,6 @@ function destroy!(self::CurveRenderer)
 end
 
 # ! Must have
-function Plan2Renderer(self::OpenGLData,plan::ParametricCurvePlan)
+function Plan2Observer(self::OpenGLData,plan::ParametricCurvePlan)
     return SingleRendererTactic(self,CurveRenderer)
 end

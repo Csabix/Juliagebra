@@ -1,12 +1,14 @@
 abstract type PlanDNA end
-abstract type RenderedPlanDNA <: PlanDNA end
-abstract type GuiPlanDNA <: PlanDNA end
+abstract type ObservedPlanDNA <: PlanDNA end
+abstract type RenderedPlanDNA <: ObservedPlanDNA end
+abstract type GuiPlanDNA <: ObservedPlanDNA end
 abstract type QueueLockDNA end
 
 abstract type DependentDNA end 
 abstract type DependentGraphDNA end
 
 abstract type ObservedDNA <: DependentDNA end
+abstract type ObserverBuilderDNA end
 abstract type ObserverDNA{T<:ObservedDNA} end
 
 abstract type RenderedDependentDNA  <: ObservedDNA end

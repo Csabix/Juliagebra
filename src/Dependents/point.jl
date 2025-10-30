@@ -244,7 +244,7 @@ end
 # ? "SingleRendererTactic" basically allows only 1 Renderer to manage every type of Dependent
 # ? constructed from the incoming Plan. 
 # ! Must have
-function Plan2Renderer(self::OpenGLData,plan::PointPlan)
+function Plan2Observer(self::OpenGLData,plan::PointPlan)
     return SingleRendererTactic(self,PointRenderer)
 end
 

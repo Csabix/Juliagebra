@@ -2,7 +2,6 @@ mutable struct GizmoGL <: OpenGLWidgetDNA
     _widget::OpenGLWidget
     
     _lineShader::ShaderProgram
-    _lineBuffer::TypedBufferArray
     
     _id2Axis::Vector
     
@@ -18,37 +17,13 @@ mutable struct GizmoGL <: OpenGLWidgetDNA
             sp("rounded_curve.frag"),
             ["VP","gizmoCenter","gizmoScale","selectedID","nanVal"])
         
-        lineBuffer = TypedBufferArray{Tuple{Vec3F,Vec3F,Float32}}()
-
-        linePosVec = Vector{Vec3F}([
-            Vec3F(1,0,0),Vec3F(-1,0,0),Vec3FNan,
-            Vec3F(0,1,0),Vec3F(0,-1,0),Vec3FNan,
-            Vec3F(0,0,1),Vec3F(0,0,-1)
-        ])
-        
-        lineColVec = Vector{Vec3F}([
-            Vec3F(1,0,0),Vec3F(1,0,0),Vec3FNan,
-            Vec3F(0,1,0),Vec3F(0,1,0),Vec3FNan,
-            Vec3F(0,0,1),Vec3F(0,0,1)
-        ])
-        
-        lineIDVec = Vector{Float32}([
-            Float32(1),Float32(1),NaN32,
-            Float32(2),Float32(2),NaN32,
-            Float32(3),Float32(3)
-        ])
-
         id2Axis = [Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1)]
 
-        upload!(lineBuffer,1,linePosVec,GL_STATIC_DRAW)
-        upload!(lineBuffer,2,lineColVec,GL_STATIC_DRAW)
-        upload!(lineBuffer,3,lineIDVec,GL_STATIC_DRAW)
-        
         activate(lineShader)
         setUniform!(lineShader,"nanVal",NaN32) 
 
         new(widget,
-            lineShader,lineBuffer,
+            lineShader,
             id2Axis,
             Vec3F(0.0,0.0,0.0),0.085)
     end
@@ -60,14 +35,13 @@ function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
     
     gs = glm_distance(cam._at - cam._eye) * self._size
 
-    glClear(GL_DEPTH_BUFFER_BIT)
     activate(self._lineShader)
     setUniform!(self._lineShader,"VP",vp)
 
     setUniform!(self._lineShader,"gizmoCenter",self._pos)
     setUniform!(self._lineShader,"gizmoScale",gs)
     setUniform!(self._lineShader,"selectedID",gID)
-    draw(self._lineBuffer,GL_LINE_STRIP)
+    glDrawArrays(GL_LINES, 0, 12)
 end
 
 function _getAxisClampedT(axis::Vec2F,mouse::Vec2F)::Float32
@@ -145,5 +119,4 @@ end
 
 function destroy!(self::GizmoGL)
     destroy!(self._lineShader)
-    destroy!(self._lineBuffer)
 end

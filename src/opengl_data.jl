@@ -163,11 +163,16 @@ function update!(self::OpenGLData,cam::Camera)
     # TODO:     render(widget)
     # TODO: end
 
+    glDepthFunc(GL_ALWAYS)
+    # Gizmo here
+
     if(self._shrd._gizmoEnabled)
         draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo)
     end
     
     draw(self._orthoGizmoGL,cam)
+
+    glDepthFunc(GL_LEQUAL)
 
     readID(self)
     #activate(self._centerShader)

@@ -151,7 +151,6 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
 
     runCallbacks(curve)
 
-    #println("Added Curve as: $(curve._startIndex) - $(curve._endIndex) - $(curve._tNum)")
 end
 
 setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) = return nothing
@@ -164,7 +163,7 @@ end
 
 # ! Must have
 function sync!(self::CurveRenderer,curve::ParametricCurveDependent)
-    #println("Synced Curve!")
+    
 end
 
 # ! Must have
@@ -174,7 +173,7 @@ end
 
 # ! Must have
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
-    vp,v,p = getMat(cam,shrd._width,shrd._height)
+    # ? vp,v,p = getMat(cam,shrd._width,shrd._height)
     
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)

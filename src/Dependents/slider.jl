@@ -74,7 +74,7 @@ end
 _GuiRenderer_(self::SliderRenderer) = return self._guiRenderer
 
 added!(self::SliderRenderer,item::SliderDependent) = return nothing
-sync!(self::SliderRenderer,item::SliderDependent) = println("Synced slider!")
+sync!(self::SliderRenderer,item::SliderDependent) = @log "Synced slider!" INFO
 syncAll!(self::SliderRenderer) = return nothing
 addedAll!(self::SliderRenderer) = return nothing
 

@@ -31,10 +31,9 @@ mutable struct ImGuiData <: ObserverBuilderDNA
 
         push!(widgets,dock)
 
-        self = new(shrd,0,0,0,0,widgets,
+        self = new(shrd,io,0,0,0,0,widgets,
                    dock,guiDependentsWindow)
         
-        self = new(shrd,io,0,0,0,0,widgets)
         resize!(self)
 
         return self
@@ -49,6 +48,9 @@ function SingleGuiRendererByGuiDependentsWindow(self::ImGuiData,t::Type{T})::T w
     end
 
     return myVector[1]
+
+end
+
 @inline function captures_mouse(self::ImGuiData)
     io = unsafe_load(self._io)
     return io.WantCaptureMouse

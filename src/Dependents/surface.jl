@@ -95,7 +95,7 @@ function evalCallback(self::ParametricSurfaceDependent,u,v)
     uf = uf * (self._uEnd - self._uStart) + self._uStart
     vf = vf * (self._vEnd - self._vStart) + self._vStart
 
-    #println("uf:$(uf) - vf:$(vf)")
+    
 
     return _Dependent_(self)._callback(uf,vf,_Dependent_(self)._graphParents...)
 end

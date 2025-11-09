@@ -167,7 +167,6 @@ Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
 function setRenderedID!(self::PointRenderer,item::PointDependent,id)
     self._ids[getObserverID(item)] = Float32(id)
-    # println("Adjusted id to: $(Float32(id))")
 end
 
 # ? We need a function, which gets called, when a Dependent is assigned to this renderer.
@@ -183,8 +182,6 @@ function added!(self::PointRenderer,point::PointDependent)
 
     push!(self._coords,Vec3F(x,y,z))
     push!(self._ids,Float32(aID))
-
-    # println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(getObserverID(point))\taID: $(aID)")
 end
 
 # ? This function gets called if there was at least 1 or more Dependent which got assigned to this Renderer.
@@ -193,7 +190,6 @@ end
 function addedAll!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
-    # println("Uploaded ID buffer!")
 end
 
 # ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
@@ -206,7 +202,6 @@ function sync!(self::PointRenderer,point::PointDependent)
     y = point._y
     z = point._z
     self._coords[id] = Vec3F(x,y,z)
-    # println("$(DEBUG_FRAME) - Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)")
 end
 
 # ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,

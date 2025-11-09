@@ -215,7 +215,7 @@ end
 # ! Must have
 function syncAll!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
-    println("$(DEBUG_FRAME) - Uploaded Coordinate buffer!")
+    @log "Uploaded Coordinate buffer!" INFO
 end
 
 # ? Function to specify how a Renderer should render.

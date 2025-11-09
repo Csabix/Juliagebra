@@ -547,7 +547,7 @@ function LBVHToPrimitiveIntersection(
                     stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
                     stack_size += 1
                 else
-                    println("Warning, dropped node because stack is too small")
+                    @log "Warning, dropped node because stack is too small" WARN
                 end
             end
             current_node_index = current_node.left_child_index
@@ -612,7 +612,7 @@ function LBVHToPrimitiveIntersection(
                     stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
                     stack_size += 1
                 else
-                    println("Warning, dropped node because stack is too small")
+                    @log "Warning, dropped node because stack is too small" WARN
                 end
             end
             current_node_index = current_node.left_child_index

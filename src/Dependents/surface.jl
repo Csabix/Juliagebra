@@ -246,7 +246,7 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
 
     runCallbacks(surface)
 
-    println("ParametricSurface added!")
+    @log "ParametricSurface added!" INFO
 end
 
 setRenderedID!(renderer::ParametricSurfaceRenderer,dependent::ParametricSurfaceDependent,id) = return nothing
@@ -261,7 +261,7 @@ end
 
 # ! Must have
 function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
-    println("Synced ParametricSurface!")
+    @log "Synced ParametricSurface!" INFO
 end
 
 # ! Must have

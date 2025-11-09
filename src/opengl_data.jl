@@ -111,7 +111,7 @@ function checkErrors(self::OpenGLData)
     opengl_error = glGetError()
     if opengl_error != GL_NO_ERROR
         while (opengl_error != GL_NO_ERROR)
-            println(string(opengl_error))
+            @log string(opengl_error) ERR
             opengl_error = glGetError()
         end
     error("OpenGL error(s) occured!")
@@ -177,7 +177,7 @@ function update!(self::OpenGLData,cam::Camera)
         draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo)
     end
     
-    draw(self._orthoGizmoGL,cam,self._shrd._width,self._shrd._height)
+    draw(self._orthoGizmoGL,cam)
 
     readID(self)
     #activate(self._centerShader)

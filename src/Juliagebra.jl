@@ -2,6 +2,8 @@
 
 module Juliagebra
 
+include("logger.jl")
+
 include("GL/gl.jl")
 
 using JuliaGLM
@@ -26,6 +28,7 @@ include("Helpers/flat_matrix_manager.jl")
 include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
+include("Helpers/glm_helpers.jl")
 
 ID_LOWER_BOUND = 3
 

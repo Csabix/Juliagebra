@@ -19,6 +19,7 @@ function renderContent(self::DataPeeker)
             _display!(self,self._shrd)
             CImGui.EndTabItem()
         end
+        CImGui.EndTabBar()
     end
 
 end

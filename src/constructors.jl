@@ -3,6 +3,35 @@
 const DependentsT = Vector{T} where T <: PlanDNA
 
 # ? ---------------------------------
+# ! GenericDependent
+# ? ---------------------------------
+
+function _GenericDependent(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _startT::T
+)::GenericDependentPlan{T} where {T}
+    plan = GenericDependentPlan{T}(_call,_deps,_startT)
+    submit!(_app,plan)
+    return plan
+end
+
+GenericDependent(startT::T) where {T} = 
+_GenericDependent(_startT = startT)
+
+# ? Works, because Julia can figure out I'm just changing the syntax
+# ? and T can be inferred in _GenericDependent
+GenericDependent{T}(startT) where {T} = 
+_GenericDependent(_startT = T(startT))
+
+GenericDependent(callback::Function,startT::T,dependents::DependentsT) where {T} = 
+_GenericDependent(_call = callback, _startT = startT, _deps = dependents)
+
+GenericDependent{T}(callback::Function,startT,dependents::DependentsT) where {T} = 
+_GenericDependent(_call = callback, _startT = T(startT), _deps = dependents)
+
+# ? ---------------------------------
 # ! Point
 # ? ---------------------------------
 
@@ -163,9 +192,83 @@ _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uE
 ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd) =
 _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd)
 
+# ? ---------------------------------
+# ! Toggle
+# ? ---------------------------------
+
+function _Toggle(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                )::TogglePlan
+    plan = TogglePlan(_call,_deps)
+    submit!(_app,plan)
+    return plan
+end
+
+Toggle() =
+_Toggle()
+
+Toggle(callback::Function,dependents::DependentsT) =
+_Toggle(_call = callback, _deps=dependents)
+
+# ? ---------------------------------
+# ! Slider
+# ? ---------------------------------
+
+function _Slider(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _minVal = 0.0,
+                _startVal = 0.5,
+                _maxVal = 1.0
+                )::SliderPlan
+    plan = SliderPlan(_call,_deps,_minVal,_startVal,_maxVal)
+    submit!(_app,plan)
+    return plan
+end
+
+Slider() =
+_Slider()
+
+Slider(minVal,maxVal) =
+_Slider(_minVal = minVal, _startVal = ((maxVal - minVal)*0.5) + minVal ,_maxVal = maxVal)
+
+Slider(callback::Function,minVal,maxVal,dependents::DependentsT) =
+_Slider(_call = callback, _minVal = minVal ,_maxVal = maxVal, _deps=dependents)
+
+# ? ---------------------------------
+# ! TextBox
+# ? ---------------------------------
+
+function _TextBox(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _text::String = ""
+                )::TextBoxPlan
+    plan = TextBoxPlan(_call,_deps,_text)
+    submit!(_app,plan)
+    return plan
+end
+
+TextBox() =
+_TextBox()
+
+TextBox(text) =
+_TextBox(_text = text)
+
+TextBox(callback::Function,dependents::DependentsT) =
+_TextBox(_call = callback, _deps = dependents)
+
+export GenericDependent
 export Point
 export ParametricCurve
 export Segment
 export Intersection
 export Mesh
 export ParametricSurface
+export Toggle
+export Slider
+export TextBox

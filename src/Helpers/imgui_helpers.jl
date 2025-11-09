@@ -1,8 +1,11 @@
 
-function slider1(self::T,text::String,min::AbstractFloat,max::AbstractFloat)::T where T
+function slider1(self::T,text::String,min::AbstractFloat,max::AbstractFloat)::Union{T,Nothing} where T
     self_ref = Ref(self)
-    CImGui.SliderFloat(text,self_ref,min,max)
-    return self_ref[]
+    if (CImGui.SliderFloat(text,self_ref,min,max))
+        return self_ref[]
+    end
+
+    return nothing
 end
 
 function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)::Vec3T
@@ -31,4 +34,24 @@ function getButtonSize(text::String)
     size_y += padding_y * 2
 
     return (size_x,size_y)
+end
+
+# ? Could microoptimize this by not creating buffers everytime if necessary
+function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::Union{String,Nothing}
+    
+    if (length(text)>= buf_size)
+        text = text[1:buf_size-1]
+    end
+    
+    buf = Vector{UInt8}(undef,buf_size)
+    fill!(buf,0)
+
+    textAsUint8s = codeunits(text)
+    copyto!(buf,textAsUint8s)
+
+    if (CImGui.InputTextMultiline(name,buf,length(buf),size))
+        return unsafe_string(pointer(buf))
+    end
+
+    return nothing
 end

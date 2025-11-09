@@ -6,8 +6,6 @@ include("logger.jl")
 
 include("GL/gl.jl")
 
-#include("GLM/glm.jl")
-
 using JuliaGLM
 
 include("events.jl")
@@ -29,7 +27,6 @@ include("abstracts.jl")
 include("Helpers/flat_matrix_manager.jl")
 include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
-include("Helpers/collector.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/glm_helpers.jl")
 
@@ -64,26 +61,34 @@ include("opengl_data.jl")
 
 include("imgui_data.jl")
 
-include("plans.jl")
+
 
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
 
-include("Dependents/dependent_chain.jl")
-include("Dependents/dependent_graph.jl")
-include("Dependents/dependent.jl")
-include("Dependents/dependent_observer.jl")
-include("Dependents/observed_dependent.jl")
+include("GraphCore/dependent_chain.jl")
+include("GraphCore/dependent_graph.jl")
+include("GraphCore/plan.jl")
+include("GraphCore/dependent.jl")
+include("GraphCore/dependent_observer.jl")
+include("GraphCore/observed_dependent.jl")
+
+include("Dependents/plans.jl")
+include("Dependents/generic_dependent.jl")
 include("Dependents/dependent_renderer.jl")
 include("Dependents/rendered_dependent.jl")
+include("Dependents/gui_renderer.jl")
+include("Dependents/gui_dependent.jl")
 include("Dependents/point.jl")
 include("Dependents/curve.jl")
-# include("Dependents/mesh.jl")
 include("Dependents/surface.jl")
 include("Dependents/primitives.jl")
 include("Dependents/primitive_intersections.jl")
 include("Dependents/intersections.jl")
+include("Dependents/toggle.jl")
+include("Dependents/slider.jl")
+include("Dependents/textbox.jl")
 
 include("app.jl")
 

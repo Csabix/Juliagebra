@@ -111,29 +111,38 @@ function can_capture_mouse(self::App)::Bool
 end
 
 function handlePlans!(self::App)
+    observers = Set{ObserverDNA}()
+
     while(!isempty(self._plans))
-        build!(self,dequeue!(self._plans)) 
+        observer = build!(self,dequeue!(self._plans)) 
+        
+        if (!isnothing(observer))
+            push!(observers,observer)
+        end
+        
+    end
+
+    for observer in observers
+        addedAll!(observer)
     end
 end
 
-function build!(self::App,plan::PlanDNA)
-    dependent = Plan2Dependent(plan)
-    
-    add!!(self._graph,dependent)
 
-    _Plan_(plan)._dependent = dependent
+function build!(self::App, plan::PlanDNA) 
+   dependent = buildFromPlan!(plan,self._graph)
+   return nothing
 end
 
-function build!(self::App,plan::RenderedPlanDNA)
-    renderer  = Plan2Renderer(self._opengl,plan) 
-    _RenderedPlan_(plan)._renderer = renderer
-    
-    dependent = Plan2Dependent(plan)
-    
-    add!!(self._graph,dependent)
-    add!!(renderer,dependent)
 
-    _Plan_(plan)._dependent = dependent
+function build!(self::App, plan::GuiPlanDNA)
+    observer,observed = buildFromPlan!(plan,self._graph,self._imgui)
+    return observer
+end
+
+function build!(self::App, plan::RenderedPlanDNA)
+    renderer,observed = buildFromPlan!(plan,self._graph,self._opengl)
+    setRenderedID!(renderer,observed,getGraphID(observed) + ID_LOWER_BOUND)
+    return renderer
 end
 
 function updateDeltaTime!(self::App)

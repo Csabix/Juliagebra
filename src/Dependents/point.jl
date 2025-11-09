@@ -18,7 +18,6 @@ mutable struct PointPlan <: RenderedPlanDNA
     _y::Float64
     _z::Float64
     
-
     function PointPlan(callback::Function,plans::Vector{T},x,y,z) where {T<:PlanDNA}
         new(RenderedPlan(callback,plans),
             x,y,z)
@@ -67,10 +66,7 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     self._y = y
     self._z = z
     
-    flag!(self)
-    
     evalGraph(self)
-
 end
 
 # ? Below are some fancy getter functions, enabling the "[:xyz]" syntax and so on.
@@ -122,9 +118,6 @@ function dpCallbackReturn(self::PointDependent,v)
     self._y = Float64(y)
     self._z = Float64(z)
     
-    # ! flag should always be called, when data in RenderedDependents change, so that the Renderer
-    # ! assigned to this dependent knows, to update data on the GPU.
-    flag!(self)
 end
 
 function dpCallbackReturn(self::PointDependent,::Nothing)
@@ -133,7 +126,6 @@ function dpCallbackReturn(self::PointDependent,::Nothing)
     self._y = NaN64
     self._z = NaN64
     
-    flag!(self)
 end
 
 # ? Note that fancier callback evaluation can be seen in other Dependents than Point, that is why this system is needed.
@@ -173,12 +165,17 @@ end
 _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
+function setRenderedID!(self::PointRenderer,item::PointDependent,id)
+    self._ids[getObserverID(item)] = Float32(id)
+    # println("Adjusted id to: $(Float32(id))")
+end
+
 # ? We need a function, which gets called, when a Dependent is assigned to this renderer.
 # ? this "added!" function gets called every time a dependent is added.
 # ? The function should be used to copy data to CPU datastructures used for GPU parsing.
 # ! Must have
 function added!(self::PointRenderer,point::PointDependent)
-    aID = _Dependent_(point)._graphID
+    aID = 0
 
     x = point._x
     y = point._y
@@ -187,15 +184,16 @@ function added!(self::PointRenderer,point::PointDependent)
     push!(self._coords,Vec3F(x,y,z))
     push!(self._ids,Float32(aID))
 
-    @log "Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(_RenderedDependent_(point)._rendererID)\taID: $(aID)" INFO
+    # println("Added point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(getObserverID(point))\taID: $(aID)")
 end
 
 # ? This function gets called if there was at least 1 or more Dependent which got assigned to this Renderer.
 # ? Actual Data Transfer to GPU VRAM should happen here.
 # ! Must have
-function addedUpload!(self::PointRenderer)
+function addedAll!(self::PointRenderer)
+    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
-    @log "Uploaded ID buffer!" INFO
+    # println("Uploaded ID buffer!")
 end
 
 # ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
@@ -203,19 +201,19 @@ end
 # ? The function is called only once after change happens in that frame for every changed Dependent.
 # ! Must have
 function sync!(self::PointRenderer,point::PointDependent)
-    id = point._renderedDependent._rendererID
+    id = getObserverID(point)
     x = point._x
     y = point._y
     z = point._z
     self._coords[id] = Vec3F(x,y,z)
-    @log "Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)" INFO
+    # println("$(DEBUG_FRAME) - Synced point as: x: $(x)\ty: $(y)\tz: $(z)\trID: $(id)")
 end
 
 # ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,
 # ? but when 1 or more "flag!" happens
 # ? Actual CPU to GPU data transfer happens here.
 # ! Must have
-function syncUpload!(self::PointRenderer)
+function syncAll!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     @log "Uploaded Coordinate buffer!" INFO
 end
@@ -246,7 +244,7 @@ end
 # ? "SingleRendererTactic" basically allows only 1 Renderer to manage every type of Dependent
 # ? constructed from the incoming Plan. 
 # ! Must have
-function Plan2Renderer(self::OpenGLData,plan::PointPlan)
+function Plan2Observer(self::OpenGLData,plan::PointPlan)
     return SingleRendererTactic(self,PointRenderer)
 end
 

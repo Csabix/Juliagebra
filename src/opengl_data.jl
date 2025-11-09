@@ -69,6 +69,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
+
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
         
         #glPolygonMode(GL_BACK,GL_LINE)
 
@@ -173,11 +175,19 @@ function update!(self::OpenGLData,cam::Camera)
     # TODO:     render(widget)
     # TODO: end
 
+    glDepthFunc(GL_ALWAYS)
+    glEnable(GL_BLEND);
+    # Gizmo here
+    wh = Vec2F(self._shrd._width,self._shrd._height)
+    
     if(self._shrd._gizmoEnabled)
-        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo)
+        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh)
     end
     
-    draw(self._orthoGizmoGL,cam)
+    draw(self._orthoGizmoGL,cam,wh)
+
+    glDisable(GL_BLEND);
+    glDepthFunc(GL_LEQUAL)
 
     readID(self)
     #activate(self._centerShader)

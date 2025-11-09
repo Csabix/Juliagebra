@@ -1,0 +1,69 @@
+#version 330 core
+
+layout (lines) in;
+layout (triangle_strip, max_vertices = 4) out;
+
+flat in vec3 color_v_out[];
+flat in uint id_v_out[];
+
+noperspective out vec4 segment_SDF_field_g_out; // x,y,lenX,lenY; x in [-lenX,lenX] y in [0,lenY]
+flat          out vec3 color_g_out;
+flat          out uint id_g_out;
+
+uniform vec2 WH;
+uniform float WIDTH = 5.5;
+
+void main() {
+    color_g_out = color_v_out[0];
+    id_g_out    = id_v_out[0];
+
+    vec4 A4 = gl_in[0].gl_Position;
+    vec4 B4 = gl_in[1].gl_Position;
+
+    float t0 = A4.z + A4.w;
+    float t1 = B4.z + B4.w;
+    if(t0 < 0.0){
+        if(t1 < 0.0) return;
+        A4 = mix(A4, B4, (0 - t0) / (t1 - t0));
+    } if(t1 < 0.0){
+        B4 = mix(B4, A4, (0 - t1) / (t0 - t1));
+    }
+
+    A4 /= A4.w;
+    B4 /= B4.w;
+
+    vec2 A = (A4.xy * 0.5 + 0.5) * WH;
+    vec2 B = (B4.xy * 0.5 + 0.5) * WH;
+
+
+    float segment_len = length(B - A);
+    vec2 AB_dir = normalize(B - A);
+    vec2 AB_N = vec2(-AB_dir.y, AB_dir.x);
+
+
+    float len_X = WIDTH +  WIDTH;
+    float len_Y = segment_len + WIDTH + WIDTH;
+
+
+    vec2 length_conversion = 2.0 / WH * WIDTH;
+    AB_dir *= length_conversion;
+    AB_N *= length_conversion;
+
+    segment_SDF_field_g_out = vec4(len_X,len_Y,len_X,segment_len);
+    gl_Position = vec4(A4.xy - AB_dir + AB_N, 0.0, 1.0);
+    EmitVertex();
+
+    segment_SDF_field_g_out.x = -len_X;
+    gl_Position = vec4(A4.xy - AB_dir - AB_N, 0.0, 1.0);
+    EmitVertex();
+
+    segment_SDF_field_g_out.xy = vec2(len_X,0);
+    gl_Position = vec4(B4.xy + AB_N, 0.0, 1.0);
+    EmitVertex();
+
+    segment_SDF_field_g_out.x = -len_X;
+    gl_Position = vec4(B4.xy - AB_N, 0.0, 1.0);
+    EmitVertex();
+
+    EndPrimitive();
+}

@@ -10,8 +10,8 @@ const vec3 vertices[6] = vec3[](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0
 const uint ids[6] = uint[](1,1,2,2,3,3);
 uint indices[6] = uint[](0,1,2,3,4,5);
 
-out vec3 color;
-flat out uint vertID;
+flat out vec3 color_v_out;
+flat out uint id_v_out;
 
 void main(){
     float z_values[6];
@@ -34,11 +34,11 @@ void main(){
     }
 
     uint current_index = indices[gl_VertexID / 2];
-    color = abs(vertices[current_index]);
+    color_v_out = abs(vertices[current_index]);
     vec3 position = gl_VertexID % 2 == 0 ? vertices[current_index] : vec3(0);
-    vertID = ids[current_index];
-    if (selectedID != uint(0) && selectedID != vertID) {
+    id_v_out = ids[current_index];
+    if (selectedID != uint(0) && selectedID != id_v_out) {
         position = vec3(nanVal);
     }
-    gl_Position = VP * vec4(position*gizmoScale + gizmoCenter, 1.0); 
+    gl_Position = VP * vec4(position*gizmoScale + gizmoCenter, 1.0);
 }

@@ -1,7 +1,7 @@
 #version 330 core
 
-out vec3 color;
-flat out uint vertID;
+flat out vec3 color_v_out;
+flat out uint id_v_out;
 
 uniform mat4 VP;
 
@@ -30,8 +30,8 @@ void main(){
     }
 
     uint current_index = indices[gl_VertexID / 2];
-    vertID = 0u;
-    color = abs(vertices[current_index]);
+    id_v_out = 0u;
+    color_v_out = abs(vertices[current_index]);
     vec3 position = gl_VertexID % 2 == 0 ? vertices[current_index] : vec3(0);
 
     vec4 out_position = VP * vec4(position,1.0);

@@ -13,9 +13,9 @@ mutable struct GizmoGL <: OpenGLWidgetDNA
         
         lineShader = ShaderProgram(
             sp("move_gizmo.vert"),
-            sp("rounded_curve.geom"),
-            sp("rounded_curve.frag"),
-            ["VP","gizmoCenter","gizmoScale","selectedID","nanVal"])
+            sp("gizmo.geom"),
+            sp("gizmo.frag"),
+            ["VP","gizmoCenter","gizmoScale","selectedID","nanVal","WH"])
         
         id2Axis = [Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1)]
 
@@ -31,7 +31,7 @@ end
 
 _OpenGLWidget_(self::GizmoGL)::OpenGLWidget = return self._widget
 
-function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
+function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32,wh::Vec2F)
     
     gs = glm_distance(cam._at - cam._eye) * self._size
 
@@ -41,6 +41,7 @@ function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32)
     setUniform!(self._lineShader,"gizmoCenter",self._pos)
     setUniform!(self._lineShader,"gizmoScale",gs)
     setUniform!(self._lineShader,"selectedID",gID)
+    setUniform!(self._lineShader,"WH",wh)
     glDrawArrays(GL_LINES, 0, 12)
 end
 

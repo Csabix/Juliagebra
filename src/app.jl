@@ -48,6 +48,8 @@ function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
     if event.key == GLFW.KEY_ESCAPE && self._shrd._gizmoEnabled
         self._shrd._gizmoEnabled = false
+        self._shrd._selectedGizmo = 0
+        self._shrd._pickedID = 0
         return nothing
     end
 

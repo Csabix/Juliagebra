@@ -73,8 +73,8 @@ abstract type CameraManipulator end
 
 function keyboard_down!(self::CameraManipulator,ev::KeyboardEvent) end
 function keyboard_up!(self::CameraManipulator,ev::KeyboardEvent) end
-function mouse_motion!(self::CameraManipulator,ev::MouseMotionEvent) end
-function mouse_button!(self::CameraManipulator,ev::MouseButtonEvent,id::UInt32) end
+function mouse_motion!(self::CameraManipulator,ev::MouseMotionEvent)::Bool end
+function mouse_button!(self::CameraManipulator,ev::MouseButtonEvent)::Bool end
 function mouse_wheel!(self::CameraManipulator,ev::MouseWheelEvent) end
 function update!(self::CameraManipulator,deltaTime) end
 
@@ -99,6 +99,8 @@ mutable struct OrbitalCamera <: CameraManipulator
     _down::Int8
 
     _move_state::Int8
+    _capture_mouse::Bool
+    _mouse_hidden::Bool
 end
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
@@ -108,10 +110,10 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     u = atan(to_aim.y, to_aim.x)
     v = acos(to_aim.z / distance)
 
-    return OrbitalCamera(camera,u,v,log(distance),Float32(0.5),0,0,0,0,0,0,_ORBITAL_NONE)
+    return OrbitalCamera(camera,u,v,log(distance),Float32(0.5),0,0,0,0,0,0,_ORBITAL_NONE,false,false)
 end
 
-function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)
+function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)::Bool
     du = ev.xrel / Float32(100.0)
     dv = ev.yrel / Float32(100.0)
 
@@ -128,19 +130,17 @@ function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)
         self._cam._eye += delta
         self._cam._at += delta
     end
+    return self._capture_mouse
 end
 
-function mouse_button!(self::OrbitalCamera,ev::MouseButtonEvent,id::UInt32)
+function mouse_button!(self::OrbitalCamera,ev::MouseButtonEvent)::Bool
     if ev.button == MOUSE_BUTTON_MIDDLE
         if ev.press
             self._move_state = _ORBITAL_LOOK
         else
             self._move_state = self._move_state ==_ORBITAL_LOOK ? _ORBITAL_NONE : self._move_state
         end
-        return
-    end
-
-    if ev.press && id == 0
+    elseif ev.press
         if ev.button == MOUSE_BUTTON_LEFT
             self._move_state = _ORBITAL_ORBIT
         elseif ev.button == MOUSE_BUTTON_RIGHT
@@ -153,6 +153,8 @@ function mouse_button!(self::OrbitalCamera,ev::MouseButtonEvent,id::UInt32)
             self._move_state = (self._move_state ==_ORBITAL_PAN) ? _ORBITAL_NONE : self._move_state
         end
     end
+    self._capture_mouse = self._move_state != _ORBITAL_NONE
+    return self._capture_mouse
 end
 
 function keyboard_down!(self::OrbitalCamera,ev::KeyboardEvent)
@@ -213,7 +215,16 @@ function mouse_wheel!(self::OrbitalCamera,ev::MouseWheelEvent)
 end
 
 
-function update!(self::OrbitalCamera,deltaTime)
+function update!(self::OrbitalCamera,deltaTime,glfw::GLFWData)
+    if self._capture_mouse && !self._mouse_hidden
+        disable_mouse(glfw)
+        self._mouse_hidden = true
+    elseif !self._capture_mouse && self._mouse_hidden
+        enable_mouse(glfw)
+        self._mouse_hidden = false
+    end
+
+
     # Required vectors + distance
     lookDirection = Vec3F(cos(self._u) * sin(self._v),
                           sin(self._u) * sin(self._v),
@@ -243,7 +254,6 @@ function update!(self::OrbitalCamera,deltaTime)
     set_view!(self._cam,eye + d_position,at + d_position,up)
     self._cam._view_proj = self._cam._proj * self._cam._view
 end
-
 
 mutable struct FPS_Camera <: CameraManipulator
     _cam::Camera

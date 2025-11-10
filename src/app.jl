@@ -46,6 +46,10 @@ end
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
+    if event.key == GLFW.KEY_ESCAPE && self._shrd._gizmoEnabled
+        self._shrd._gizmoEnabled = false
+        return nothing
+    end
 
     if event.action == GLFW.PRESS
         keyboard_down!(self._manipulator,event)
@@ -56,18 +60,20 @@ function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     return nothing
 end
 function mouse_motion_event(event::MouseMotionEvent,self::App)::Nothing
+    if mouse_motion!(self._manipulator,event) return nothing end
     self._shrd._mouseX = event.x
     self._shrd._mouseY = self._shrd._height - event.y
     self._shrd._relMouseX += event.xrel
     self._shrd._relMouseY += event.yrel
     self._shrd._mouseMoved = true
 
-    mouse_motion!(self._manipulator,event)
     return nothing
 end
 function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing 
     id = readID(self._opengl, event.x, event.y)
-    mouse_button!(self._manipulator,event,id)
+    if gizmoSelect!(self,event,id) return nothing end
+    if mouse_button!(self._manipulator,event) return nothing end
+
     if event.press
         if event.button == MOUSE_BUTTON_LEFT
             self._peripherals._aHeld = true
@@ -155,54 +161,49 @@ function updateDeltaTime!(self::App)
 end
 
 function updateCam!(self::App)
-    update!(self._manipulator, self._shrd._deltaTime)
+    update!(self._manipulator, self._shrd._deltaTime, self._glfw)
     self._opengl._camPos = self._cam._eye
     vp,v,p = get_matrices(self._cam)
     
     self._opengl._vp = vp
     self._opengl._v  = v
     self._opengl._p  = p
+end
 
-
+function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
+    mouse_capture = false
+    if event.press
+        if event.button == MOUSE_BUTTON_RIGHT
+            self._shrd._pickedID = id
+            if id > 3
+                self._shrd._gizmoEnabled = true
+                mouse_capture = true
+                p = fetch(self._graph,self._shrd._pickedID)
+                self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
+            else
+                self._shrd._gizmoEnabled = false
+            end
+        elseif event.button == MOUSE_BUTTON_LEFT && self._shrd._gizmoEnabled && self._shrd._selectedGizmo == 0 && id > 0 && id<=3
+            self._shrd._selectedGizmo = id
+            mouse_capture = true
+        end
+    elseif event.button == MOUSE_BUTTON_LEFT
+        self._shrd._selectedGizmo = 0
+    end
+    return mouse_capture
 end
 
 function updateGizmo!(self::App)
-    
-    id = self._shrd._selectedID
-    
-    if(self._peripherals._bHeld)
-        self._shrd._pickedID = id
-        if(id>3)
-            self._shrd._gizmoEnabled = true
-            p = fetch(self._graph,self._shrd._pickedID)
-            self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
-        else
-            self._shrd._gizmoEnabled = false  
-        end
-    end
-
-    if(!self._shrd._gizmoEnabled)
-        return
-    end
-
-    if self._peripherals._aHeld
-        if self._shrd._selectedGizmo == 0
-            if (id > 0) && (id<=3)
-                self._shrd._selectedGizmo = id
-            end
-        else
-            setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
-                        self._shrd,
-                        self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-            p = fetch(self._graph,self._shrd._pickedID)      
-            set(
-                p,
-                Float64(self._opengl._gizmoGL._pos.x),
-                Float64(self._opengl._gizmoGL._pos.y),
-                Float64(self._opengl._gizmoGL._pos.z))
-        end
-    else
-       self._shrd._selectedGizmo = 0
+    if self._shrd._selectedGizmo != 0
+        setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
+                    self._shrd,
+                    self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
+        p = fetch(self._graph,self._shrd._pickedID)      
+        set(
+            p,
+            Float64(self._opengl._gizmoGL._pos.x),
+            Float64(self._opengl._gizmoGL._pos.y),
+            Float64(self._opengl._gizmoGL._pos.z))
     end
 end
 

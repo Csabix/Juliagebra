@@ -95,6 +95,28 @@ function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing
     end
     return nothing
 end
+function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing 
+    id = readID(self._opengl, event.x, event.y)
+    mouse_button!(self._manipulator,event,id)
+    if event.press
+        if event.button == MOUSE_BUTTON_LEFT
+            self._peripherals._aHeld = true
+        elseif event.button == MOUSE_BUTTON_RIGHT
+            self._peripherals._bHeld = true
+        elseif event.button == MOUSE_BUTTON_MIDDLE
+            self._peripherals._middleHeld = true
+        end
+    else
+        if event.button == MOUSE_BUTTON_LEFT
+            self._peripherals._aHeld = false
+        elseif event.button == MOUSE_BUTTON_RIGHT
+            self._peripherals._bHeld = false
+        elseif event.button == MOUSE_BUTTON_MIDDLE
+            self._peripherals._middleHeld = false
+        end
+    end
+    return nothing
+end
 function mouse_wheel_event(event::MouseWheelEvent,self::App)::Nothing
     self._shrd._wheelUpDown = -event.yoffset
     self._shrd._wheelMoved = true

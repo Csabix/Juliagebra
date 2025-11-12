@@ -51,7 +51,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,orthoGizmoGL)
 
         backgroundShader= ShaderProgram(sp("dflt_bckg.vert")    ,sp("dflt_bckg.frag"),["bCol"])
-        combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"))
+        combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"),["IVP","frameTex","depthTex","Eye","NEAR_FAR_DISTANCE_DISTANCE_LOG","At"])
         bodyShader      = ShaderProgram(sp("body_3D.vert")      ,sp("body_3D.frag"),["VP"])
         centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
 
@@ -176,7 +176,7 @@ function update!(self::OpenGLData,cam::Camera)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     
     activate(self._backgroundShader)
-    setUniform!(self._backgroundShader,"bCol",self._backgroundCol)  
+    setUniform!(self._backgroundShader,"bCol",self._backgroundCol)
     draw(self._dummyBufferArray,GL_TRIANGLES)
 
     activate(self._bodyShader)
@@ -212,8 +212,17 @@ function update!(self::OpenGLData,cam::Camera)
     #draw(self._centerBufferArray,GL_POINTS)
     disable(self._mainFBO)
 
+    distance = 10 ^ (floor(log10(norm(cam._at - cam._eye))) - 0)
+
     activate(self._combinerShader)
+    setUniform!(self._combinerShader,"IVP",inv(self._vp))
+    setUniform!(self._combinerShader,"frameTex",Int32(0))
+    setUniform!(self._combinerShader,"depthTex",Int32(1))
+    setUniform!(self._combinerShader,"Eye",self._camPos)
+    setUniform!(self._combinerShader,"At",cam._at)
+    setUniform!(self._combinerShader,"NEAR_FAR_DISTANCE_DISTANCE_LOG",Vec4F(0.01,999.0,norm(cam._at - cam._eye),1.0/distance))
     activate(self._mainRGBATexture,GL_TEXTURE0)
+    activate(self._mainDepthTexture,GL_TEXTURE1)
     draw(self._dummyBufferArray,GL_TRIANGLES)
 end
 

@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 @kwdef mutable struct Camera
     _eye::Vec3F= Vec3F(0.0,-5.0,0.0)
     _up::Vec3F = Vec3F(0.0,0.0,1.0)
@@ -71,9 +73,15 @@ abstract type CameraManipulator end
 
 function keyboard_down!(self::CameraManipulator,ev::KeyboardEvent) end
 function keyboard_up!(self::CameraManipulator,ev::KeyboardEvent) end
-function mouse_motion!(self::CameraManipulator,ev::MouseMotionEvent) end
+function mouse_motion!(self::CameraManipulator,ev::MouseMotionEvent)::Bool end
+function mouse_button!(self::CameraManipulator,ev::MouseButtonEvent)::Bool end
 function mouse_wheel!(self::CameraManipulator,ev::MouseWheelEvent) end
 function update!(self::CameraManipulator,deltaTime) end
+
+const _ORBITAL_NONE::Int8 = 0
+const _ORBITAL_ORBIT::Int8 = 1
+const _ORBITAL_PAN::Int8 = 2
+const _ORBITAL_LOOK::Int8 = 3
 
 mutable struct OrbitalCamera <: CameraManipulator
     _cam::Camera
@@ -83,92 +91,170 @@ mutable struct OrbitalCamera <: CameraManipulator
     _zoom::Float32
     _speed::Float32
 
-    _forward::Float32
-    _right::Float32
-    _up::Float32
+    _forward::Int8
+    _bacward::Int8
+    _right::Int8
+    _left::Int8
+    _up::Int8
+    _down::Int8
 
-    _tmp::Int
+    _move_state::Int8
+    _capture_mouse::Bool
+    _mouse_hidden::Bool
 end
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     to_aim = camera._at - camera._eye
-    distance = Float32(glm_distance(to_aim))
+    distance = Float32(norm(to_aim))
 
     u = atan(to_aim.y, to_aim.x)
     v = acos(to_aim.z / distance)
 
-    return OrbitalCamera(camera,u,v,log(distance),Float32(0.3),Float32(0),Float32(0),Float32(0),0)
+    return OrbitalCamera(camera,u,v,log(distance),Float32(0.5),0,0,0,0,0,0,_ORBITAL_NONE,false,false)
 end
 
-function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)
-    if (ev.state & MOUSE_BUTTON_MIDDLE) == MOUSE_BUTTON_MIDDLE && (ev.xrel != 0.0 || ev.yrel != 0.0)
-        du = ev.xrel / Float32(100.0)
-        dv = ev.yrel / Float32(100.0)
-        if (ev.mods & KEY_MOD_SHIFT) == KEY_MOD_SHIFT
-            up = self._cam._up
-            right = normalize(cross(self._cam._at - self._cam._eye, up))
-            delta = up * dv + right * du
-            delta *= (exp(self._zoom)-1) / Float32(15.0) # good enough for now
+function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)::Bool
+    du = ev.xrel / Float32(100.0)
+    dv = ev.yrel / Float32(100.0)
 
-            self._cam._eye += delta
-            self._cam._at += delta
+    if self._move_state == _ORBITAL_ORBIT || self._move_state == _ORBITAL_LOOK
+        self._u += du
+        self._v = clamp(self._v + dv, Float32(0.1), Float32(3.1))
+    elseif self._move_state == _ORBITAL_PAN
+        lookat = normalize(self._cam._at - self._cam._eye)
+        right = normalize(cross(lookat, self._cam._up))
+        up = normalize(cross(right, lookat));
+        delta = up * dv + right * du
+        delta *= (exp(self._zoom)-1) / Float32(15.0) # good enough for now
+
+        self._cam._eye += delta
+        self._cam._at += delta
+    end
+    return self._capture_mouse
+end
+
+function mouse_button!(self::OrbitalCamera,ev::MouseButtonEvent)::Bool
+    if ev.button == MOUSE_BUTTON_MIDDLE
+        if ev.press
+            self._move_state = _ORBITAL_LOOK
         else
-            self._u += du
-            self._v = clamp(self._v + dv, Float32(0.1), Float32(3.1))
+            self._move_state = self._move_state ==_ORBITAL_LOOK ? _ORBITAL_NONE : self._move_state
+        end
+    elseif ev.press
+        if ev.button == MOUSE_BUTTON_LEFT
+            self._move_state = _ORBITAL_ORBIT
+        elseif ev.button == MOUSE_BUTTON_RIGHT
+            self._move_state = _ORBITAL_PAN
+        end
+    elseif !ev.press
+        if ev.button == MOUSE_BUTTON_LEFT
+            self._move_state = (self._move_state ==_ORBITAL_ORBIT) ? _ORBITAL_NONE : self._move_state
+        elseif ev.button == MOUSE_BUTTON_RIGHT
+            self._move_state = (self._move_state ==_ORBITAL_PAN) ? _ORBITAL_NONE : self._move_state
         end
     end
+    self._capture_mouse = self._move_state != _ORBITAL_NONE
+    return self._capture_mouse
 end
 
 function keyboard_down!(self::OrbitalCamera,ev::KeyboardEvent)
-    if ev.key == GLFW.KEY_W
-        self._forward = 1.0f0
-    elseif ev.key == GLFW.KEY_A
-        self._right = 1.0f0
-    elseif ev.key == GLFW.KEY_D
-        self._right = -1.0f0
-    elseif ev.key == GLFW.KEY_S
-        self._forward = -1.0f0
+    if ev.key == GLFW.KEY_W || ev.key == GLFW.KEY_UP
+        self._forward = 1
+    elseif ev.key == GLFW.KEY_A || ev.key == GLFW.KEY_LEFT
+        self._left = 1
+    elseif ev.key == GLFW.KEY_D || ev.key == GLFW.KEY_RIGHT
+        self._right = -1
+    elseif ev.key == GLFW.KEY_S || ev.key == GLFW.KEY_DOWN
+        self._bacward = -1
     elseif ev.key == GLFW.KEY_Q
-        self._up = -1.0f0
+        self._down = -1
     elseif ev.key == GLFW.KEY_E
-        self._up = 1.0f0
+        self._up = 1
     end
 end
 
 function keyboard_up!(self::OrbitalCamera,ev::KeyboardEvent)
-    if ev.key == GLFW.KEY_W
-        self._forward = 0.0f0
-    elseif ev.key == GLFW.KEY_A
-        self._right = 0.0f0
-    elseif ev.key == GLFW.KEY_D
-        self._right = 0.0f0
-    elseif ev.key == GLFW.KEY_S
-        self._forward = 0.0f0
+    if ev.key == GLFW.KEY_W || ev.key == GLFW.KEY_UP
+        self._forward = 0
+    elseif ev.key == GLFW.KEY_A || ev.key == GLFW.KEY_LEFT
+        self._left = 0
+    elseif ev.key == GLFW.KEY_D || ev.key == GLFW.KEY_RIGHT
+        self._right = 0
+    elseif ev.key == GLFW.KEY_S || ev.key == GLFW.KEY_DOWN
+        self._bacward = 0
     elseif ev.key == GLFW.KEY_Q
-        self._up = 0.0f0
+        self._down = 0
     elseif ev.key == GLFW.KEY_E
-        self._up = 0.0f0
+        self._up = 0
     end
 end
 
 function mouse_wheel!(self::OrbitalCamera,ev::MouseWheelEvent)
+    old_distance = exp(self._zoom)-1.0f0
     self._zoom = max(self._zoom + -ev.yoffset / Float32(10.0), 0.01)
+    new_distance = exp(self._zoom)-1.0f0
+    delta_distance = new_distance - old_distance
+
+    lookat = normalize(self._cam._at - self._cam._eye)
+    right = normalize(cross(lookat, self._cam._up))
+    up = normalize(cross(right, lookat));
+
+    tan_half_fov_Y = tan(deg2rad(self._cam._fov / 2.0f0))
+    tan_half_fov_X = tan_half_fov_Y * self._cam._aspect
+    
+    
+    x,y = get_mouse_position_relative()
+    x = (x * 2f0 - 1f0)
+    y = (y * 2f0 - 1f0)
+    w = tan_half_fov_X * old_distance * (delta_distance / old_distance) * x
+    h = tan_half_fov_Y * old_distance * (delta_distance / old_distance) * y
+
+    offset = right * w + up * h
+    self._cam._at += offset
+    self._cam._eye += offset
 end
 
-function update!(self::OrbitalCamera,deltaTime)
+
+function update!(self::OrbitalCamera,deltaTime,glfw::GLFWData)
+    if self._capture_mouse && !self._mouse_hidden
+        disable_mouse(glfw)
+        self._mouse_hidden = true
+    elseif !self._capture_mouse && self._mouse_hidden
+        enable_mouse(glfw)
+        self._mouse_hidden = false
+    end
+
+
+    # Required vectors + distance
     lookDirection = Vec3F(cos(self._u) * sin(self._v),
                           sin(self._u) * sin(self._v),
                           cos(self._v))
-
-    distance = exp(self._zoom)-1.0f0
-    eye = self._cam._at - distance * lookDirection;
+                          
     up = self._cam._up
     right = normalize(cross(lookDirection, up))
     forward = cross(up, right)
-    d_position = (self._forward * forward + self._right * right + self._up * up) * self._speed * Float32(deltaTime) * distance
 
-    eye += d_position
-    at = self._cam._at + d_position
-    set_view!(self._cam,eye,at,up)
+    distance = exp(self._zoom)-1.0f0
+    # WASD movement
+    d_position = ((self._forward + self._bacward) * forward +
+                  (self._right + self._left) * right +
+                  (self._up + self._down) * up) * self._speed * Float32(deltaTime) * distance
+
+    # Mouse movement
+    eye, at = if self._move_state != _ORBITAL_LOOK
+        eye = self._cam._at - distance * lookDirection
+        at = self._cam._at
+        eye, at
+    else
+        at = self._cam._eye + distance * lookDirection
+        eye = self._cam._eye
+        eye, at
+    end
+    
+    set_view!(self._cam,eye + d_position,at + d_position,up)
     self._cam._view_proj = self._cam._proj * self._cam._view
+end
+
+mutable struct FPS_Camera <: CameraManipulator
+    _cam::Camera
 end

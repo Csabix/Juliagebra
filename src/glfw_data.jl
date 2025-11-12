@@ -25,3 +25,5 @@ mutable struct GLFWData
 end
 
 destroy!(glfw::GLFWData) = GLFW.DestroyWindow(glfw._window)
+disable_mouse(glfw::GLFWData) = GLFW.SetInputMode(glfw._window, GLFW.CURSOR, GLFW.CURSOR_DISABLED);
+enable_mouse(glfw::GLFWData) = GLFW.SetInputMode(glfw._window, GLFW.CURSOR, GLFW.CURSOR_NORMAL);

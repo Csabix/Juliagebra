@@ -6,9 +6,9 @@ uniform vec3 gizmoCenter = vec3(0.0,0.0,0.0);
 uniform float gizmoScale;
 uniform uint selectedID;
 
-const vec3 vertices[6] = vec3[](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0),vec3(0,0,1),vec3(0,0,-1));
-const uint ids[6] = uint[](1,1,2,2,3,3);
-uint indices[6] = uint[](0,1,2,3,4,5);
+const vec3 vertices[6] = vec3[6](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0),vec3(0,0,1),vec3(0,0,-1));
+const uint ids[6] = uint[6](uint(1),uint(1),uint(2),uint(2),uint(3),uint(3));
+uint indices[6] = uint[6](uint(0),uint(1),uint(2),uint(3),uint(4),uint(5));
 
 flat out vec3 color_v_out;
 flat out uint id_v_out;

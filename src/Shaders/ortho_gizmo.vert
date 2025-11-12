@@ -6,8 +6,8 @@ flat out uint id_v_out;
 uniform mat4 VP;
 
 const vec2 translation = vec2(0.85,0.8);
-const vec3 vertices[6] = vec3[](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0),vec3(0,0,1),vec3(0,0,-1));
-uint indices[6] = uint[](0,1,2,3,4,5);
+const vec3 vertices[6] = vec3[6](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0),vec3(0,0,1),vec3(0,0,-1));
+uint indices[6] = uint[6](uint(0),uint(1),uint(2),uint(3),uint(4),uint(5));
 
 void main(){
     float z_values[6];

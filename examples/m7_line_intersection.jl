@@ -16,10 +16,10 @@ ip = Point(-50,-50,-50,[a1,b1,a2,b2]) do a1,b1,a2,b2
     no_intersect = (-50,-50,-50)
     epsilon = 0.1
 
-    a1v = collect((a1[:xyz]))
-    b1v = collect((b1[:xyz]))
-    a2v = collect((a2[:xyz]))
-    b2v = collect((b2[:xyz]))
+    a1v = a1[:xyz]
+    b1v = b1[:xyz]
+    a2v = a2[:xyz]
+    b2v = b2[:xyz]
 
     v1v = b1v - a1v
     v2v = b2v - a2v
@@ -65,7 +65,7 @@ ip = Point(-50,-50,-50,[a1,b1,a2,b2]) do a1,b1,a2,b2
 
     hit = (hit1 + hit2) ./ 2
 
-    return(hit[1],hit[2],hit[3])
+    return hit
 end
 
 

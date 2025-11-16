@@ -83,7 +83,9 @@ function evalCallback(self::ParametricCurveDependent,t,index)
     return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
 
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3D) = self._tValues[index] = Vec3F(v)
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3F) = self._tValues[index] = v
 dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)

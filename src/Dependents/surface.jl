@@ -100,10 +100,14 @@ function evalCallback(self::ParametricSurfaceDependent,u,v)
     return _Dependent_(self)._callback(uf,vf,_Dependent_(self)._graphParents...)
 end
 
-function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Tuple)
+function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value)
     (x,y,z)=value
     self._uvValues[u,v] = Vec3F(x,y,z)
 end
+
+dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Vec3D) = self._uvValues[u,v] = Vec3F(value)
+dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Vec3F) = self._uvValues[u,v] = value
+
 
 function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,::Nothing)
     self._uvValues[u,v] = Vec3FNan

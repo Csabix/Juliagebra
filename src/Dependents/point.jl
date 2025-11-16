@@ -77,7 +77,7 @@ getPointField(self::PointDependent,fieldVal::Val{:x}) = return self._x
 getPointField(self::PointDependent,fieldVal::Val{:y}) = return self._y
 getPointField(self::PointDependent,fieldVal::Val{:z}) = return self._z
 
-getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return (self._x,self._y,self._z)
+getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return Vec3D(self._x,self._y,self._z)
 
 Base.getindex(self::PointDependent,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
 
@@ -89,7 +89,7 @@ function Base.getindex(self::PointDependent,fieldSymbols...)
         push!(fieldValues,self[fieldSymbol])
     end
 
-    return tuple(fieldValues...)
+    return fieldValues
 end
 
 # ? Now we need to define, how the Dependent should act, when everything it depends on changes.
@@ -107,7 +107,7 @@ onGraphEval(self::PointDependent) = dpEvalCallback(self)
 # ? now we must define how, with what parameters should the callback be called, and what modifications
 # ? (in this case nothing) we should do on the return, before dispatching onto it.
 function evalCallback(self::PointDependent)
-    return _Dependent_(self)._callback(_Dependent_(self)._graphParents...)
+    return getCallback(self)(getGraphParents(self)...)
 end
 
 # ? if "dpCallbackReturn" is defined for input types, then the returned value of "evalCallback" will be sipatched into this

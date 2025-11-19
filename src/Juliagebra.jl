@@ -88,6 +88,8 @@ include("Dependents/intersections.jl")
 include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
 include("Dependents/textbox.jl")
+include("Dependents/sphere.jl")
+
 
 include("app.jl")
 

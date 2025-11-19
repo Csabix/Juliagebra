@@ -262,6 +262,24 @@ _TextBox(_text = text)
 TextBox(callback::Function,dependents::DependentsT) =
 _TextBox(_call = callback, _deps = dependents)
 
+# ? ---------------------------------
+# ! Sphere
+# ? ---------------------------------
+
+function _Sphere(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                )::SpherePlan
+    plan = SpherePlan(_call,_deps)
+    submit!(_app,plan)
+    return plan
+end
+
+Sphere() =
+_Sphere()
+
+
 export GenericDependent
 export Point
 export ParametricCurve
@@ -272,3 +290,4 @@ export ParametricSurface
 export Toggle
 export Slider
 export TextBox
+export Sphere

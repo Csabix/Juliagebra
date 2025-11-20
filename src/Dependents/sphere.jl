@@ -61,7 +61,7 @@ end
 function SphereRenderer(context::OpenGLData)
     renderer = Renderer{SphereDependent}(context)
 
-    shader = ShaderProgram(sp("sphere.vert"),sp("sphere.geom"),sp("sphere.frag"),["VP"])
+    shader = ShaderProgram(sp("sphere.vert"),sp("sphere.geom"),sp("sphere.frag"),["VP","cam"])
 
     buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
 
@@ -105,6 +105,7 @@ function draw!(self::SphereRenderer,vp,selectedID,pickedID,cam,shrd)
     
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
+    setUniform!(self._shader,"cam",cam._eye)
     draw(self._buffer,GL_POINTS)
 
     glEnable(GL_CULL_FACE)

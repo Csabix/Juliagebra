@@ -270,8 +270,12 @@ function _Sphere(;
                 _app::App = implicitApp,
                 _call::Function = () -> (return nothing),
                 _deps::DependentsT = Vector{PlanDNA}(),
+                _x::Float64 = 0.0,
+                _y::Float64 = 0.0,
+                _z::Float64 = 0.0,
+                _r::Float64 = 1.0
                 )::SpherePlan
-    plan = SpherePlan(_call,_deps)
+    plan = SpherePlan(_call,_deps,_x,_y,_z,_r)
     submit!(_app,plan)
     return plan
 end

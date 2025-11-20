@@ -283,6 +283,8 @@ end
 Sphere() =
 _Sphere()
 
+Sphere(x,y,z,r) =
+_Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 
 export GenericDependent
 export Point

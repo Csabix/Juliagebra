@@ -5,6 +5,7 @@ layout(location = 1) out uint out_id;
 
 uniform vec3 cam;
 
+in float sphereRadius;
 in vec3 sphereCenter;
 in vec3 worldPos;
 
@@ -76,7 +77,7 @@ void main(){
                 v,
                 1000.0);
     
-    Sphere s = Sphere(sphereCenter,1.0); 
+    Sphere s = Sphere(sphereCenter,sphereRadius); 
     TraceResult rs = intersectSphere(r,s);
     
     vec3 spherePos = cam + v * rs.t;

@@ -1,8 +1,6 @@
 #version 330
 
 in vec2 tex_vs_out;
-in vec3 near_vs_out;
-in vec3 far_vs_out;
 
 out vec4 color_out;
 
@@ -11,6 +9,7 @@ uniform sampler2D depthTex;
 
 uniform vec4 NEAR_FAR_DISTANCE_DISTANCE_LOG;
 uniform vec3 Eye;
+uniform vec2 WH;
 uniform vec3 At;
 
 vec4 grid(vec3 position, float scale) {
@@ -40,18 +39,33 @@ float computeLinearDepth(float clip_space_depth) {
     return (NEAR * FAR) / (FAR + clip_space_depth * (NEAR - FAR));
 }
 
+vec3 rayDirection() {
+    vec3 look_dir = normalize(At - Eye);
+    vec3 right = -normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
+    vec3 up = -normalize(cross(right, look_dir));
+
+    float focal_length = 1.0 / tan(0.8726646 * 0.5);
+    vec2 screen_uv = tex_vs_out * 2.0 - 1.0; 
+    
+    float aspect = WH.x / WH.y;
+    screen_uv.x *= aspect;
+
+    return normalize(screen_uv.x * right + 
+                     screen_uv.y * up + 
+                     focal_length * look_dir);
+}
+
 void main() {
 	vec4 originalColor = texture(frameTex, tex_vs_out);
 	color_out = originalColor;
 
-    float t = -near_vs_out.z / (far_vs_out.z - near_vs_out.z);
-    vec3 frag_position = near_vs_out + t * (far_vs_out - near_vs_out);
+    vec3 ray_dir = rayDirection();
+    float t = -Eye.z / ray_dir.z;
+    vec3 frag_position = Eye + t * ray_dir;
 
-    float depth_frag = dot(Eye-frag_position,Eye-frag_position);
     float depth_origin = computeLinearDepth(texture(depthTex, tex_vs_out).x);
-    depth_origin *= depth_origin;
 
-    if(t > 0 && depth_frag < depth_origin){
+    if(t > 0 && (t < depth_origin + NEAR_FAR_DISTANCE_DISTANCE_LOG.x || t >= NEAR_FAR_DISTANCE_DISTANCE_LOG.y)){
         float DISTANCE_LOG = NEAR_FAR_DISTANCE_DISTANCE_LOG.w;
         float DISTANCE = NEAR_FAR_DISTANCE_DISTANCE_LOG.z;
         

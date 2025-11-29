@@ -50,6 +50,8 @@ function dpCallbackReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
     self._radius = cr[2]
 end
 
+dpCallbackReturn(self::SphereDependent,::Nothing) = return nothing
+
 # ? ---------------------------------
 # ! SphereRenderer
 # ? ---------------------------------
@@ -87,6 +89,9 @@ _Renderer_(self::SphereRenderer)::Renderer = return self._renderer
 setRenderedID!(self::SphereRenderer,_,_) = return nothing
 
 function added!(self::SphereRenderer,sphere::SphereDependent)
+    
+    dpEvalCallback(sphere)
+    
     push!(self._centers,Vec3F(sphere._center))
     push!(self._radiuses,Float32(sphere._radius))
     @log "Added Sphere as: $(sphere._center) ~ $(sphere._radius)" INFO

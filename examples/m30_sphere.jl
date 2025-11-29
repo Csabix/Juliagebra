@@ -7,7 +7,7 @@ App()
 #sphr3 = Sphere(0,0,5,3.0)
 
 c1 = Point(0.0,0.0,0.0)
-p1 = Point(2.0,0.0,0.0)
+p1 = Point(0.75,0.0,0.0)
 sphr1 = Sphere(c1,p1)
 
 play!()

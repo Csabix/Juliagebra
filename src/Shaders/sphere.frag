@@ -3,8 +3,10 @@
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out uint out_id;
 
+uniform mat4 VP;
 uniform vec3 cam;
 
+flat in int isOutside;
 in float sphereRadius;
 in vec3 sphereCenter;
 in vec3 worldPos;
@@ -80,18 +82,23 @@ void main(){
     Sphere s = Sphere(sphereCenter,sphereRadius); 
     TraceResult rs = intersectSphere(r,s);
     
+    if(rs.t == r.tmax){
+        discard;    
+    }
+    
     vec3 spherePos = cam + v * rs.t;
+    
+    vec4 vpPos = VP * vec4(spherePos,1.0); 
+    float depth = (vpPos.xyzw / vpPos.w).z;
+    depth = (depth + 1.0) / 2.0;
+    gl_FragDepth = depth;
 
-    if(gl_FrontFacing){
+    if(isOutside==1){
         float diffuse = dot(rs.n,-normalize(spherePos-cam));
-        out_color = vec4(diffuse,0.0,diffuse,1.0);
+        out_color = vec4(diffuse,0.0,diffuse,1.0);  
     }else{
         float diffuse = dot(-rs.n,-normalize(spherePos-cam));
         out_color = vec4(0.0,abs(rs.uv),1.0);
-    }
-    
-    if(rs.t == r.tmax){
-        discard;    
     }
 
     out_id = uint(0);

@@ -286,6 +286,16 @@ _Sphere()
 Sphere(x,y,z,r) =
 _Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 
+function Sphere(center::PointPlan,p1::PointPlan)::SpherePlan
+    deps = Vector{PlanDNA}([center,p1])
+    call = function (center,p1)
+        radius = norm(center[:xyz] - p1[:xyz]) 
+        return (center[:xyz],radius)
+    end
+
+    return _Sphere(_call = call, _deps = deps)
+end
+
 export GenericDependent
 export Point
 export ParametricCurve

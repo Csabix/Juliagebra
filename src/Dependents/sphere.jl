@@ -14,7 +14,6 @@ function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r) where {T<:PlanD
     center = Vec3D(x,y,z)
     radius = Float64(r)
     
-
     return SpherePlan(plan,center,radius)
 end
 
@@ -42,7 +41,14 @@ _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dep
 
 Plan2Dependent(plan::SpherePlan)::SphereDependent = return SphereDependent(plan)
 
-onGraphEval(self::SphereDependent) = return nothing
+onGraphEval(self::SphereDependent) = dpEvalCallback(self)
+
+evalCallback(self::SphereDependent) = return getCallback(self)(getGraphParents(self)...)
+
+function dpCallbackReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
+    self._center = cr[1]
+    self._radius = cr[2]
+end
 
 # ? ---------------------------------
 # ! SphereRenderer
@@ -93,11 +99,15 @@ function addedAll!(self::SphereRenderer)
 end
 
 function sync!(self::SphereRenderer,sphere::SphereDependent)
-    
+    self._centers[getObserverID(sphere)] = sphere._center
+    self._radiuses[getObserverID(sphere)] = sphere._radius    
+    @log "Synced Sphere[$(getObserverID(sphere))]!" INFO
 end
 
 function syncAll!(self::SphereRenderer)
-
+    upload!(self._buffer,1,self._centers,GL_DYNAMIC_DRAW)
+    upload!(self._buffer,2,self._radiuses,GL_DYNAMIC_DRAW)
+    @log "Synced all Spheres!" INFO
 end
 
 function draw!(self::SphereRenderer,vp,selectedID,pickedID,cam,shrd)

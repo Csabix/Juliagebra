@@ -297,6 +297,15 @@ function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306))::S
     return _Sphere(_call = call, _deps = deps, _col = color)
 end
 
+function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color = (0.031,0.337,0.412))
+    deps = Vector{PlanDNA}([center,radius])
+    call = function (center,radius)
+        return (center[:xyz],radius[:val])
+    end
+
+    return _Sphere(_call = call, _deps = deps, _col = color)
+end
+
 export GenericDependent
 export Point
 export ParametricCurve

@@ -10,6 +10,7 @@ flat in int isOutside;
 in float sphereRadius;
 in vec3 sphereCenter;
 in vec3 worldPos;
+flat in vec3 sphereColor;
 
 struct Ray {
 	vec3 p0; float tmin;
@@ -95,10 +96,11 @@ void main(){
 
     if(isOutside==1){
         float diffuse = dot(rs.n,-normalize(spherePos-cam));
-        out_color = vec4(diffuse,0.0,diffuse,1.0);  
+        out_color = vec4(sphereColor*diffuse,1.0);  
     }else{
         float diffuse = dot(-rs.n,-normalize(spherePos-cam));
-        out_color = vec4(0.0,abs(rs.uv),1.0);
+        //out_color = vec4(0.0,abs(rs.uv),1.0);
+        out_color = vec4(sphereColor*diffuse,1.0);
     }
 
     out_id = uint(0);

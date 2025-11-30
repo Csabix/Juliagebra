@@ -2,6 +2,7 @@
 
 layout (points) in;
 in float radius[];
+in vec3 color[];
 
 uniform mat4 VP;
 uniform vec3 cam;
@@ -46,12 +47,15 @@ flat out int isOutside;
 out float sphereRadius;
 out vec3 sphereCenter;
 out vec3 worldPos;
+flat out vec3 sphereColor;
 layout (triangle_strip, max_vertices = 36) out;
 
 void main(){
     vec3 center = gl_in[0].gl_Position.xyz;
     float r = radius[0];
-    
+    vec3 col = color[0];
+
+
     int isCamOutside = 1;
     
     vec3 corner1 = vec3(0.0);
@@ -87,6 +91,7 @@ void main(){
         sphereRadius = r;
         sphereCenter = center;
         worldPos = center + corner1 * r;
+        sphereColor = col;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
 
@@ -94,6 +99,7 @@ void main(){
         sphereRadius = r;
         sphereCenter = center;
         worldPos = center + corner2 * r;
+        sphereColor = col;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
 
@@ -101,6 +107,7 @@ void main(){
         sphereRadius = r;
         sphereCenter = center;
         worldPos = center + corner3 * r;
+        sphereColor = col;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
     

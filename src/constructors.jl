@@ -273,9 +273,10 @@ function _Sphere(;
                 _x::Float64 = 0.0,
                 _y::Float64 = 0.0,
                 _z::Float64 = 0.0,
-                _r::Float64 = 1.0
+                _r::Float64 = 1.0,
+                _col = (0.980,0.467,0.306)
                 )::SpherePlan
-    plan = SpherePlan(_call,_deps,_x,_y,_z,_r)
+    plan = SpherePlan(_call,_deps,_x,_y,_z,_r,_col)
     submit!(_app,plan)
     return plan
 end
@@ -286,14 +287,14 @@ _Sphere()
 Sphere(x,y,z,r) =
 _Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 
-function Sphere(center::PointPlan,p1::PointPlan)::SpherePlan
+function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306))::SpherePlan
     deps = Vector{PlanDNA}([center,p1])
     call = function (center,p1)
         radius = norm(center[:xyz] - p1[:xyz]) 
         return (center[:xyz],radius)
     end
 
-    return _Sphere(_call = call, _deps = deps)
+    return _Sphere(_call = call, _deps = deps, _col = color)
 end
 
 export GenericDependent

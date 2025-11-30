@@ -7,14 +7,21 @@ mutable struct SpherePlan <: RenderedPlanDNA
     _plan::RenderedPlan
     _center::Vec3D
     _radius::Float64
+    _color::Vec3F
 end
 
-function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r) where {T<:PlanDNA}
+function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r,col) where {T<:PlanDNA}
     plan = RenderedPlan(callback,plans)
     center = Vec3D(x,y,z)
     radius = Float64(r)
     
-    return SpherePlan(plan,center,radius)
+    r = Float32(col[1])
+    g = Float32(col[2])
+    b = Float32(col[3])
+
+    color = Vec3F(r,g,b)
+
+    return SpherePlan(plan,center,radius,color)
 end
 
 _RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan
@@ -27,14 +34,16 @@ mutable struct SphereDependent <: RenderedDependentDNA
     _dependent::RenderedDependent
     _center::Vec3D
     _radius::Float64
+    _color::Vec3F
 end
 
 function SphereDependent(plan::SpherePlan)
     dependent = RenderedDependent(plan)
     center  = plan._center
     radius = plan._radius
+    color = plan._color
 
-    return SphereDependent(dependent,center,radius)
+    return SphereDependent(dependent,center,radius,color)
 end
 
 _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dependent
@@ -64,6 +73,8 @@ mutable struct SphereRenderer <: RendererDNA{SphereDependent}
 
     _centers::Vector{Vec3F}
     _radiuses::Vector{Float32}
+    
+    _colors::Vector{Vec3F}
 end
 
 function SphereRenderer(context::OpenGLData)
@@ -71,17 +82,20 @@ function SphereRenderer(context::OpenGLData)
 
     shader = ShaderProgram(sp("sphere.vert"),sp("sphere.geom"),sp("sphere.frag"),["VP","cam"])
 
-    buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
+    buffer = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
 
     centers = Vector{Vec3F}()
     radiuses = Vector{Float32}()
+
+    colors = Vector{Vec3F}()
 
     return SphereRenderer(
         renderer,
         shader,
         buffer,
         centers,
-        radiuses)
+        radiuses,
+        colors)
 end
 
 _Renderer_(self::SphereRenderer)::Renderer = return self._renderer
@@ -94,12 +108,18 @@ function added!(self::SphereRenderer,sphere::SphereDependent)
     
     push!(self._centers,Vec3F(sphere._center))
     push!(self._radiuses,Float32(sphere._radius))
+
+    push!(self._colors,Vec3F(sphere._color))
+
     @log "Added Sphere as: $(sphere._center) ~ $(sphere._radius)" INFO
 end
 
 function addedAll!(self::SphereRenderer)
     upload!(self._buffer,1,self._centers,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._radiuses,GL_DYNAMIC_DRAW)
+    
+    upload!(self._buffer,3,self._colors,GL_STATIC_DRAW)
+
     @log "AddedAll Spheres!" INFO
 end
 

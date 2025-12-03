@@ -22,4 +22,11 @@ end
 
 sphr3 = Sphere(c3,g1)
 
+a = Point( 1.0, 1.0,-6.0)
+b = Point( 1.0,-1.0,-6.0)
+c = Point(-1.0,-1.0,-6.0)
+d = Point(-1.0, 1.0,-6.0)
+
+sphr4 = Sphere(a,b,c,d)
+
 play!()

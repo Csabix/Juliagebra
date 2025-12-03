@@ -262,6 +262,102 @@ _TextBox(_text = text)
 TextBox(callback::Function,dependents::DependentsT) =
 _TextBox(_call = callback, _deps = dependents)
 
+# ? ---------------------------------
+# ! Sphere
+# ? ---------------------------------
+
+function _Sphere(;
+                _app::App = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _x::Float64 = 0.0,
+                _y::Float64 = 0.0,
+                _z::Float64 = 0.0,
+                _r::Float64 = 1.0,
+                _col = (0.980,0.467,0.306)
+                )::SpherePlan
+    plan = SpherePlan(_call,_deps,_x,_y,_z,_r,_col)
+    submit!(_app,plan)
+    return plan
+end
+
+Sphere() =
+_Sphere()
+
+Sphere(x,y,z,r) =
+_Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
+
+function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306))::SpherePlan
+    deps = Vector{PlanDNA}([center,p1])
+    call = function (center,p1)
+        radius = norm(center[:xyz] - p1[:xyz]) 
+        return (center[:xyz],radius)
+    end
+
+    return _Sphere(_call = call, _deps = deps, _col = color)
+end
+
+function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color = (0.031,0.337,0.412))
+    deps = Vector{PlanDNA}([center,radius])
+    call = function (center,radius)
+        return (center[:xyz],radius[:val])
+    end
+
+    return _Sphere(_call = call, _deps = deps, _col = color)
+end
+
+function plane2planeIntersection(plane_n1,plane_n2,plane_p1,plane_p2)
+    
+    plane_d1 = dot(-plane_n1,plane_p1)
+    plane_d2 = dot(-plane_n2,plane_p2)
+
+    plane_n3 = cross(plane_n1,plane_n2)
+    
+    determinant = (norm(plane_n3))^2
+
+    line_p3 = Vec3D(NaN64,NaN64,NaN64)
+    if (determinant != 0.0)
+        line_p3 = (cross(plane_n3,plane_n2) * plane_d1 + cross(plane_n1,plane_n3) * plane_d2) / determinant
+    end
+
+    return (Vec3D(plane_n3),Vec3D(line_p3))
+end
+
+function line2PlaneIntersection(line_n,line_p,plane_n,plane_p)
+    t = dot(plane_p-line_p,plane_n) / dot(line_n,plane_n)
+    return line_p + t * line_n   
+end
+
+function sameDistancePlane(p1,p2)
+    plane_n = p2 - p1
+    plane_c = ((p2 - p1) / 2.0) + p1
+    return (plane_n,plane_c)
+end
+
+function sphereCenter(p1,p2,p3,p4)
+    plane_n12,plane_c12 = sameDistancePlane(p1,p2)
+    plane_n34,plane_c34 = sameDistancePlane(p3,p4)
+
+    line_n_12_34,line_p_12_34 = plane2planeIntersection(plane_n12,plane_n34,plane_c12,plane_c34)
+    
+    plane_n23,plane_c23 = sameDistancePlane(p2,p3)
+
+    c = line2PlaneIntersection(line_n_12_34,line_p_12_34,plane_n23,plane_c23)
+
+    return c
+end
+
+function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))
+    deps = [p1,p2,p3,p4]
+    call = function (p1,p2,p3,p4)
+        c = sphereCenter(p1[:xyz],p2[:xyz],p3[:xyz],p4[:xyz])
+        r = norm(p1[:xyz] - c)
+        return (c,r)
+    end
+
+    return _Sphere(_call = call, _deps = deps, _col = color)
+end
+
 export GenericDependent
 export Point
 export ParametricCurve
@@ -272,3 +368,4 @@ export ParametricSurface
 export Toggle
 export Slider
 export TextBox
+export Sphere

@@ -69,9 +69,10 @@ function _ParametricCurve(;
                          _tStart = 0,
                          _tEnd = 1,
                          _tNum = 1000,
-                         _col= (0.6,0.6,0.9)
+                         _col= (0.6,0.6,0.9),
+                         _type= CURVE_SOLID
                          )::ParametricCurvePlan
-    plan = ParametricCurvePlan(_call,_deps,_tStart,_tEnd,_tNum,_col)
+    plan = ParametricCurvePlan(_call,_deps,_tStart,_tEnd,_tNum,_col,_type)
     submit!(_app,plan)
     return plan
 end
@@ -89,7 +90,10 @@ ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents:
 _ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_deps=dependents)
 
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,dependents::DependentsT,)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_deps=dependents)  
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_deps=dependents)
+
+ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,type,dependents::DependentsT,)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_type=type,_deps=dependents)
 
 # ? ---------------------------------
 # ! Segment

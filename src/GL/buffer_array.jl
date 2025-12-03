@@ -60,6 +60,7 @@ end
 Base.length(self::TypedBufferArray)::Int = return length(self._typedBuffers[1])
 draw(self::TypedBufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,length(self)))
 upload!(self::TypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffers[index],data,usage)
+activate(self::TypedBufferArray) = activate(self._vertexArray)
 
 # ? ---------------------------------
 # ! IndexedTypedBufferArray
@@ -103,3 +104,5 @@ function draw(self::IndexedTypedBufferArray,mode::GLuint)
     #activate(self._indexBuffer)
     glDrawElements(mode, length(self._indexBuffer), GL_UNSIGNED_INT, C_NULL);
 end
+
+activate(self::IndexedTypedBufferArray) = activate(self._typedBuffer._vertexArray)

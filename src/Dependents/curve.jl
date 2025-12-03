@@ -9,6 +9,7 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
     _tEnd::Float64
     _tNum::Int
     _color::Vec3F
+    _type::Int
     
     function ParametricCurvePlan(callback::Function,plans::Vector{T},tStart,tEnd,tNum,color) where {T<:PlanDNA}
 
@@ -16,7 +17,7 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
         g = Float32(color[2])
         b = Float32(color[3])
 
-        new(RenderedPlan(callback,plans),tStart,tEnd,tNum,Vec3F(r,g,b))
+        new(RenderedPlan(callback,plans),tStart,tEnd,tNum,Vec3F(r,g,b),0)
     end
 end
 
@@ -35,10 +36,11 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _tEnd::Float64
     _tNum::Int
     _color::Vec3F
+    _type::Int
+    _typeLast::Int
 
-    _startIndex::Int
-    _endIndex::Int
-    _tValues::Vector{Vec3F}
+    _ref::Int
+    _tValues::Union{SubArray{Vec3F},Nothing}
 
     
 
@@ -48,8 +50,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
         tEnd = plan._tEnd
         tNum = plan._tNum
         color = plan._color
+        type = plan._type
 
-        new(a,tStart,tEnd,tNum,color,0,0,[])
+        new(a,tStart,tEnd,tNum,color,type,type,0,nothing)
     end
 end
 
@@ -61,15 +64,15 @@ function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
     end
 end
 
-Base.length(self::ParametricCurveDependent) = (self._endIndex - self._startIndex)
-
 function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, LineSegment}
-    if ((index >= 1) && ((self._startIndex + index) <= self._endIndex))
-        return LineSegment(self._tValues[(self._startIndex - 1) + index], self._tValues[(self._startIndex - 1) + index + 1])
+    if ((index >= 1) && (index <= length(self) - 1))
+        return LineSegment(self._tValues[index], self._tValues[index + 1])
     else
         return nothing 
     end
 end
+
+Base.length(self::ParametricCurveDependent) = self._tNum
 
 # ! Must have
 function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
@@ -83,21 +86,18 @@ function evalCallback(self::ParametricCurveDependent,t,index)
     return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
 
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)  = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
 dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)
-    for index in self._startIndex:self._endIndex
-        t1 = Float64(index - self._startIndex)
-        t2 = Float64(self._endIndex - self._startIndex)
+    for index in 1:self._tNum
+        t1 = Float64(index - 1)
+        t2 = Float64(self._tNum - 1)
         t = (t1 / t2) * (self._tEnd - self._tStart) + self._tStart
         dpEvalCallback(self,t,index)
     end
 end
 
-function onGraphEval(self::ParametricCurveDependent)
-    runCallbacks(self)
-end
 
 # ? ---------------------------------
 # ! CurveRenderer
@@ -109,8 +109,11 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _shader::ShaderProgram
     _buffer::TypedBufferArray
 
+    _ranges::Vector{Tuple{Int,Int,Int}}
+
     _coords::Vector{Vec3F}
     _colors::Vector{Vec3F}
+    _needMaintance::Bool
 
     function CurveRenderer(context::OpenGLData)
         
@@ -119,16 +122,52 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         shader = ShaderProgram(sp("rounded_curve_colored.vert"),sp("rounded_curve.geom"),sp("rounded_curve.frag"),["VP"])
         buffer = TypedBufferArray{Tuple{Vec3F,Vec3F}}()
 
+        ranges = Vector{Tuple{Int,Int,Int}}()
+
         coords = Vector{Vec3F}()
         colors = Vector{Vec3F}()
+
+        push!(coords, Vec3FNan)
+        push!(colors, Vec3FNan)
+
+        needMaintance = false
 
         new(
             renderer,
             shader,
             buffer,
+            ranges,
             coords,
-            colors)
+            colors,
+            needMaintance)
     end
+end
+
+function _maintainCurveRenderer(self::CurveRenderer)
+    range_groups = Dict{Int,Vector{Int}}()
+    for index = 1:length(self._ranges)
+        group = get!(range_groups, self._ranges[index][3],Vector{Int}())
+        push!(group, index)
+    end
+    ranges = Vector{Tuple{Int,Int,Int}}()
+    coords = Vector{Vec3F}()
+    colors = Vector{Vec3F}()
+    push!(coords, Vec3FNan)
+    push!(colors, Vec3FNan)
+
+    for (_,group) in range_groups
+        for range_ind in group
+            (first, last, type) = self._ranges[range_ind]
+            push!(ranges, (length(coords)+1,length(coords)+last-first,type))
+            append!(coords, self._coords[first:last])
+            append!(colors, self._colors[first:last])
+            push!(coords,Vec3FNan)
+            push!(colors,Vec3FNan)
+        end
+    end
+    self._coords = coords
+    self._colors = colors
+    self._needMaintance = false
 end
 
 _Renderer_(self::CurveRenderer) = return self._renderer
@@ -136,39 +175,49 @@ Base.string(self::CurveRenderer) = return "CurveRenderer[$(length(self._coords))
 
 # ! Must have
 function added!(self::CurveRenderer,curve::ParametricCurveDependent)
-    curve._startIndex = length(self._coords) + 1
-    
-    for i in 1:curve._tNum
+    push!(self._ranges, (length(self._coords)+1,length(self._coords)+curve._tNum,0))
+    curve._ref = length(self._ranges)
+
+    for _ in 1:curve._tNum
         push!(self._coords,Vec3F(0,0,0))
         push!(self._colors,curve._color)
     end
     push!(self._coords,Vec3FNan)
     push!(self._colors,Vec3FNan)
-
-    
-    curve._endIndex = length(self._coords) - 1
-    curve._tValues = self._coords
+    (first, last, _) = self._ranges[curve._ref]
+    curve._tValues = view(self._coords, first : last)
 
     runCallbacks(curve)
-
 end
 
 setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) = return nothing
 
 # ! Must have
 function addedAll!(self::CurveRenderer)
+    _maintainCurveRenderer(self)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._colors,GL_STATIC_DRAW)
 end
 
 # ! Must have
 function sync!(self::CurveRenderer,curve::ParametricCurveDependent)
-    
+    if curve._type != curve._typeLast
+        self._needMaintance = true
+        (first, last, _) = self._ranges[curve._ref]
+        self._ranges[curve._ref] = (first, last, curve._type)
+        curve._typeLast = curve._type
+    end
 end
 
 # ! Must have
 function syncAll!(self::CurveRenderer)
-    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    if self._needMaintance
+        _maintainCurveRenderer(self)
+        upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+        upload!(self._buffer,2,self._colors,GL_STATIC_DRAW)
+    else
+        upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    end
 end
 
 # ! Must have
@@ -189,4 +238,11 @@ end
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::ParametricCurvePlan)
     return SingleRendererTactic(self,CurveRenderer)
+end
+
+function onGraphEval(self::ParametricCurveDependent)
+    renderer::CurveRenderer = GetRenderer(CurveRenderer)
+    (first, last, _) = renderer._ranges[self._ref]
+    self._tValues = view(renderer._coords,first : last)
+    runCallbacks(self)
 end

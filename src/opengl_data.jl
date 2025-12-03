@@ -4,12 +4,13 @@
 
 global DEBUG_FRAME = 0
 
+const global _renderOffices::Dict{<:DataType,Vector{<:RendererDNA}} = Dict{DataType,Vector{<:RendererDNA}}()
+
 mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
     # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
-    _renderOffices::Dict{<:DataType,Vector{<:RendererDNA}}
     _updateMeQueue::Queue{RendererDNA}
     
     # ! Shaders
@@ -78,7 +79,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         #glDisable(GL_POINT_SMOOTH)
         glEnable(GL_POINT_SPRITE)
 
-        renderOffices = Dict{DataType,Vector{<:RendererDNA}}()
         updateMeQueue = Queue{RendererDNA}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
@@ -86,7 +86,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        new(shrd,widgets,renderOffices,updateMeQueue,
+        new(shrd,widgets,updateMeQueue,
             combinerShader,backgroundShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
@@ -99,13 +99,17 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 end
 
 function SingleRendererTactic(self::OpenGLData,t::Type{T})::T where T<:RendererDNA
-    myVector = get!(self._renderOffices,T,Vector{T}())
+    myVector = get!(_renderOffices,T,Vector{T}())
 
     if(length(myVector)!=1)
         push!(myVector,T(self))
     end
 
     return myVector[1]
+end
+
+function GetRenderer(t::Type{T})::T where T<:RendererDNA
+    get!(_renderOffices,T,Vector{T}())[1]
 end
 
 function checkErrors(self::OpenGLData)
@@ -182,7 +186,7 @@ function update!(self::OpenGLData,cam::Camera)
     activate(self._bodyShader)
     setUniform!(self._bodyShader,"VP",self._vp)  
     
-    for (_,office) in self._renderOffices
+    for (_,office) in _renderOffices
         for renderer in office
             draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
@@ -219,7 +223,7 @@ end
 
 
 function destroy!(self::OpenGLData)
-    for (_, office) in self._renderOffices
+    for (_, office) in _renderOffices
         for renderer in office
             destroy!(renderer) 
         end
@@ -244,7 +248,7 @@ function print_render_offices(self::OpenGLData)
     printstyled("Render Offices:\n";color=:yellow, bold=true)
     printstyled("---------------\n";color=:white, bold=true)
 
-    for (key,office) in self._renderOffices
+    for (key,office) in _renderOffices
         printstyled("- ";color=:red,bold=true)
         printstyled("$key:\n";color=:green)
         for employee in office

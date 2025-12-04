@@ -24,12 +24,12 @@ void main() {
     float lenY = segment_SDF_field_in.w;
     float d = sdCapsule(p,lenX,lenY);
 
-    float alpha = 1.0 - smoothstep(-1.0, 0.0, d);
+    float alpha = 1.0 - smoothstep(max(-0.2*lenX,-2.0), 0.0, d);
 
     float val = mix(0.0,PI,(segment_SDF_field_in.x * 0.5 + 0.5 * lenX)/segment_SDF_field_in.z);
     vec3 n = vec3(-cos(val),0,sin(val));
 
-    color_out = vec4( color_in*(max(0.0,dot(n,LIGHT_DIR))*0.70+0.30), alpha);
+    color_out = vec4(color_in*(max(0.0,dot(n,LIGHT_DIR))*0.70+0.30), alpha);
     index_out = uint(0);
     if (d > 0.0) discard;
 }

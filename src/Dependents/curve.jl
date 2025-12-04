@@ -233,7 +233,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     packed_color = pack_color(curve._color,false)
     for _ in 1:curve._tNum
         push!(self._coords, Vec3F(0,0,0))
-        push!(self._widths, 5.00f0)
+        push!(self._widths, 5.0f0)
         push!(self._colors, packed_color)
     end
     push!(self._coords, Vec3FNan)
@@ -295,6 +295,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     upload!(self._buffer,4,distances,GL_DYNAMIC_DRAW)
     
     activate(self._buffer)
+    glEnable(GL_BLEND)
     for type in 1:_CURVE_COUNT
         if self._drawRanges[type][1] == typemax(Int) continue end
         activate(self._shaders[type])
@@ -305,6 +306,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         count = self._drawRanges[type][2] - self._drawRanges[type][1] + 1
         glDrawArrays(GL_LINE_STRIP_ADJACENCY, self._drawRanges[type][1] - 1, count);
     end
+    glDisable(GL_BLEND)
 end
 
 # ! Must have

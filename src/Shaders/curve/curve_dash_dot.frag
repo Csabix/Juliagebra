@@ -31,7 +31,7 @@ void main() {
     d_dash_dot = min(d_dash_dot, mod(total_distance_in,lenX * 8.0) - lenX * 4.0);
     d = max(d,d_dash_dot);
 
-    float alpha = 1.0 - smoothstep(-1.0, 0.0, d);
+    float alpha = 1.0 - smoothstep(max(-0.2*lenX,-2.0), 0.0, d);
 
     float val = mix(0.0,PI,(segment_SDF_field_in.x * 0.5 + 0.5 * lenX)/segment_SDF_field_in.z);
     vec3 n = vec3(-cos(val),0,sin(val));

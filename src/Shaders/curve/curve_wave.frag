@@ -23,7 +23,7 @@ void main() {
     float lenX = segment_SDF_field_in.z;
     float lenY = segment_SDF_field_in.w;
     float d = sdCapsule(p,lenX,lenY);
-    d = max(d, distance(sin(total_distance_in / lenX * 2.0) * 0.5, p.x / lenX) - 1);
+    d = max(d,distance(sin(total_distance_in / lenX) * 0.5 * lenX, p.x) - lenX * 0.5);
 
     float alpha = 1.0 - smoothstep(-1.0, 0.0, d);
 

@@ -65,7 +65,7 @@ void main() {
 
     float depth_origin = computeLinearDepth(texture(depthTex, tex_vs_out).x);
 
-    if(t > 0 && (t < depth_origin + NEAR_FAR_DISTANCE_DISTANCE_LOG.x || t >= NEAR_FAR_DISTANCE_DISTANCE_LOG.y)){
+    if(t > 0 && (t < depth_origin || t >= NEAR_FAR_DISTANCE_DISTANCE_LOG.y)){
         float DISTANCE_LOG = NEAR_FAR_DISTANCE_DISTANCE_LOG.w;
         float DISTANCE = NEAR_FAR_DISTANCE_DISTANCE_LOG.z;
         

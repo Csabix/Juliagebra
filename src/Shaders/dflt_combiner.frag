@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 in vec2 tex_vs_out;
 
@@ -7,13 +7,13 @@ out vec4 color_out;
 uniform sampler2D frameTex;
 uniform sampler2D depthTex;
 
-uniform vec4 NEAR_FAR_DISTANCE_DISTANCE_LOG;
-uniform vec3 Eye;
-uniform vec2 WH;
-uniform vec3 At;
+uniform vec3 EYE;
+uniform vec3 AT;
+uniform vec2 ASPECT_FOV = vec2(1.0,0.8726646);
+uniform vec3 NEAR_FAR_DISTANCE_POWER; // near_z, far_z of the camera, nearest power of ten of the distance
 
 vec4 grid(vec3 position, float scale) {
-    vec2 coord = position.xy * scale;
+    vec2 coord = position.xy / scale;
     vec2 derivative = fwidth(coord);
     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
     float line = min(grid.x, grid.y);
@@ -23,57 +23,64 @@ vec4 grid(vec3 position, float scale) {
 
     vec4 color = vec4(0.2, 0.2, 0.2, 1.0 - min(line, 1.0));
 
-    if(position.x > -1.0/scale * minimum_x && position.x < 1.0/scale * minimum_x)
+    if(position.x > -scale * minimum_x && position.x < scale * minimum_x)
         color.y = 1.0;
     
-    if(position.y > -1.0/scale * minimum_y && position.y < 1.0/scale * minimum_y)
+    if(position.y > -scale * minimum_y && position.y < scale * minimum_y)
         color.x = 1.0;
     
     return color;
 }
 
 float computeLinearDepth(float clip_space_depth) {
-    float NEAR = NEAR_FAR_DISTANCE_DISTANCE_LOG.x;
-    float FAR = NEAR_FAR_DISTANCE_DISTANCE_LOG.y;
+    const float NEAR = NEAR_FAR_DISTANCE_POWER.x;
+    const float FAR  = NEAR_FAR_DISTANCE_POWER.y;
     clip_space_depth = 2.0 * clip_space_depth - 1.0;
     return (NEAR * FAR) / (FAR + clip_space_depth * (NEAR - FAR));
 }
 
 vec3 rayDirection() {
-    vec3 look_dir = normalize(At - Eye);
-    vec3 right = -normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
-    vec3 up = -normalize(cross(right, look_dir));
+    const float ASPECT = ASPECT_FOV.x;
+    const float FOV    = ASPECT_FOV.y;
 
-    float focal_length = 1.0 / tan(0.8726646 * 0.5);
+    vec3 look_dir = normalize(EYE - AT);
+    vec3 right = normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
+    vec3 up = normalize(cross(right, look_dir));
+
+    float focal_length = -1.0 / tan(FOV * 0.5);
     vec2 screen_uv = tex_vs_out * 2.0 - 1.0; 
     
-    float aspect = WH.x / WH.y;
-    screen_uv.x *= aspect;
+    screen_uv.x *= ASPECT;
 
-    return normalize(screen_uv.x * right + 
-                     screen_uv.y * up + 
+    return normalize(screen_uv.x  * right + 
+                     screen_uv.y  * up + 
                      focal_length * look_dir);
 }
 
 void main() {
-	vec4 originalColor = texture(frameTex, tex_vs_out);
-	color_out = originalColor;
+    const float NEAR           = NEAR_FAR_DISTANCE_POWER.x;
+    const float FAR            = NEAR_FAR_DISTANCE_POWER.y;
+    const float DISTANCE       = distance(EYE,AT);
+    const float DISTANCE_POWER = NEAR_FAR_DISTANCE_POWER.z;
+
+	color_out = texture(frameTex, tex_vs_out);
 
     vec3 ray_dir = rayDirection();
-    float t = -Eye.z / ray_dir.z;
-    vec3 frag_position = Eye + t * ray_dir;
+    float t = -EYE.z / ray_dir.z;
+    vec3 frag_position = EYE + t * ray_dir;
 
-    float depth_origin = computeLinearDepth(texture(depthTex, tex_vs_out).x);
+    float depth = texture(depthTex, tex_vs_out).x;
+    float depth_lin = computeLinearDepth(depth);
 
-    if(t > 0 && (t < depth_origin || t >= NEAR_FAR_DISTANCE_DISTANCE_LOG.y)){
-        float DISTANCE_LOG = NEAR_FAR_DISTANCE_DISTANCE_LOG.w;
-        float DISTANCE = NEAR_FAR_DISTANCE_DISTANCE_LOG.z;
-        
-        vec4 gridColor = grid(frag_position, DISTANCE_LOG*10);
-        gridColor = mix(gridColor,grid(frag_position, DISTANCE_LOG),smoothstep(1/DISTANCE_LOG,10/DISTANCE_LOG,DISTANCE));
-        float fade = max(0,((2.0*DISTANCE) - distance(At,frag_position)) / (2.0*DISTANCE));
-        
-        gridColor.w *= fade;
-        color_out = mix(originalColor,gridColor, gridColor.w);
+    vec4 gridColor = grid(frag_position, DISTANCE_POWER/10.0);
+    gridColor = mix(gridColor,grid(frag_position, DISTANCE_POWER),smoothstep(DISTANCE_POWER,10.0*DISTANCE_POWER,DISTANCE));
+    float fade = max(0,((2.0*DISTANCE) - distance(AT,frag_position)) / (2.0*DISTANCE));
+    gridColor.w *= fade;
+
+    bool hit_in_front_of_camera = t > 0;
+    bool hit_in_render_distance = t <= FAR && t < depth_lin;
+    bool outside_render_distance = depth == 1.0;
+    if(hit_in_front_of_camera && (hit_in_render_distance || outside_render_distance)){
+        color_out = mix(color_out, gridColor, gridColor.w);
     }
 }

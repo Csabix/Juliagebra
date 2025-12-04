@@ -8,8 +8,8 @@ mutable struct GLFWData
         GLFW.WindowHint(GLFW.DEPTH_BITS, 24);
         GLFW.WindowHint(GLFW.STENCIL_BITS, 8);
 
-        GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3)
-        GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 0)
+        GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 4)
+        GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 6)
         
         window = GLFW.CreateWindow(shrd._width,shrd._height,shrd._name)
 

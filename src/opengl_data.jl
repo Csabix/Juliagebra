@@ -14,7 +14,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     
     # ! Shaders
     _combinerShader::ShaderProgram
-    _backgroundShader::ShaderProgram
     _bodyShader::ShaderProgram
     _centerShader::ShaderProgram
 
@@ -41,7 +40,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
-        glClearColor(1.0,0.0,1.0,1.0)
+        glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
         
         widgets = Vector{OpenGLWidgetDNA}()
         gizmoGL = GizmoGL()
@@ -50,7 +49,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,gizmoGL)
         push!(widgets,orthoGizmoGL)
 
-        backgroundShader= ShaderProgram(sp("dflt_bckg.vert")    ,sp("dflt_bckg.frag"),["bCol"])
         combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"),["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
         bodyShader      = ShaderProgram(sp("body_3D.vert")      ,sp("body_3D.frag"),["VP"])
         centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
@@ -87,7 +85,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         camPos = Vec3F(0.0,0.0,0.0)
 
         new(shrd,widgets,renderOffices,updateMeQueue,
-            combinerShader,backgroundShader,bodyShader,centerShader,
+            combinerShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_ATTACHMENT],
             mainFBO,
@@ -168,16 +166,9 @@ function update!(self::OpenGLData,cam::Camera)
     global DEBUG_FRAME
     DEBUG_FRAME = self._index
     
-    #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    # * All the buffers are up to date at this point.
-    #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     activate(self._mainFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    
-    activate(self._backgroundShader)
-    setUniform!(self._backgroundShader,"bCol",self._backgroundCol)
-    draw(self._dummyBufferArray,GL_TRIANGLES)
+    glClearTexImage(self._mainIDTexture._id,0,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref(0x0))
 
     activate(self._bodyShader)
     setUniform!(self._bodyShader,"VP",self._vp)  

@@ -97,7 +97,7 @@ function runCallbacks(self::ParametricCurveDependent)
     end
 end
 
-function onGraphEval(self::ParametricCurveDependent)
+function onNodeEval(self::ParametricCurveDependent)
     runCallbacks(self)
 end
 

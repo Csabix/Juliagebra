@@ -5,8 +5,8 @@
 
     mutable struct TestDependent <: SUT.DependentDNA
         _dependent::SUT.Dependent
-        _onGraphEvalCalledNum::Int
-        _onGraphEvalParentNums::Vector
+        _onNodeEvalCalledNum::Int
+        _onNodeEvalParentNums::Vector
 
         function TestDependent(callback::Function,graphParents::Vector{SUT.DependentDNA})
             new(SUT.Dependent(callback,graphParents),0,[])
@@ -28,8 +28,8 @@
     
     mutable struct TestObserved <: SUT.ObservedDNA
         _observed::SUT.Observed
-        _onGraphEvalCalledNum::Int
-        _onGraphEvalParentNums::Vector
+        _onNodeEvalCalledNum::Int
+        _onNodeEvalParentNums::Vector
     end
 
     SUT._Observed_(self::TestObserved)::SUT.Observed = return self._observed
@@ -73,19 +73,19 @@
         return self
     end
 
-    SUT.onGraphEval(self::TestDependent) = _onGraphEval(self)
-    SUT.onGraphEval(self::TestObserved) = _onGraphEval(self)
-    function _onGraphEval(self) 
-        self._onGraphEvalCalledNum += 1
+    SUT.onNodeEval(self::TestDependent) = _onNodeEval(self)
+    SUT.onNodeEval(self::TestObserved) = _onNodeEval(self)
+    function _onNodeEval(self) 
+        self._onNodeEvalCalledNum += 1
         parents = SUT.getGraphParents(self)
-        self._onGraphEvalParentNums = [(SUT.getGraphID(parent),parent._onGraphEvalCalledNum) for parent in parents]
+        self._onNodeEvalParentNums = [(SUT.getGraphID(parent),parent._onNodeEvalCalledNum) for parent in parents]
     end 
 
     clearState(self::TestDependent) = _clearState(self)
     clearState(self::TestObserved) = _clearState(self)
     function _clearState(self::SUT.DependentDNA) 
-        self._onGraphEvalCalledNum = 0
-        self._onGraphEvalParentNums = []
+        self._onNodeEvalCalledNum = 0
+        self._onNodeEvalParentNums = []
     end
 
     clearState(self::TestObserver) = _clearState(self)
@@ -216,7 +216,7 @@
                 newChildIDs = Set()
                 for childID in childIDs
                     #println("\t$(childID):")
-                    @test dependents[childID]._onGraphEvalCalledNum == 1
+                    @test dependents[childID]._onNodeEvalCalledNum == 1
                     for newChildID in paths[childID]
                         push!(newChildIDs,newChildID)
                         #println("\t\t$(childID) -> $(newChildID)")
@@ -268,7 +268,7 @@
 
             totalDependentEvalCalled = 0
             for dependent in dependents
-                totalDependentEvalCalled += dependent._onGraphEvalCalledNum
+                totalDependentEvalCalled += dependent._onNodeEvalCalledNum
             end
 
             @test totalDependentEvalCalled == length(testPathNodeIndexes)
@@ -287,9 +287,9 @@
             for depententIndex in eachindex(dependents)
                 dependent = dependents[depententIndex]
                 if depententIndex in testPathNodeIndexes
-                    @test dependent._onGraphEvalCalledNum != 0
+                    @test dependent._onNodeEvalCalledNum != 0
                 else
-                    @test dependent._onGraphEvalCalledNum == 0
+                    @test dependent._onNodeEvalCalledNum == 0
                 end
             end
             
@@ -307,7 +307,7 @@
             for depententIndex in eachindex(dependents)
                 dependent = dependents[depententIndex]
                 
-                for parentData in dependent._onGraphEvalParentNums
+                for parentData in dependent._onNodeEvalParentNums
                     parentIndex,parentNum = parentData
                     if parentIndex in testPathNodeIndexes 
                         @test parentNum != 0

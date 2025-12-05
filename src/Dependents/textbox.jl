@@ -34,7 +34,7 @@ mutable struct TextBoxDependent <: GuiDependentDNA
         text = plan._text
 
         textBox = new(dependent,text)
-        onGraphEval(textBox)
+        onNodeEval(textBox)
         return textBox
     end
 end
@@ -44,7 +44,7 @@ _GuiDependent_(self::TextBoxDependent)::GuiDependent = return self._dependent
 getSliderField(self::TextBoxDependent,fieldVal::Val{:text}) = return self._text
 Base.getindex(self::TextBoxDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
 
-onGraphEval(self::TextBoxDependent) = dpEvalCallback(self)
+onNodeEval(self::TextBoxDependent) = dpEvalCallback(self)
 evalCallback(self::TextBoxDependent) = getCallback(self)(getGraphParents(self)...)
 dpCallbackReturn(self::TextBoxDependent, text::String) = self._text = text
 dpCallbackReturn(self::TextBoxDependent, ::Nothing) = return nothing

@@ -26,7 +26,7 @@ mutable struct ToggleDependent <: GuiDependentDNA
         toggled = false
 
         toggle = new(dependent,toggled)
-        onGraphEval(toggle)
+        onNodeEval(toggle)
         return toggle
     end
 end
@@ -39,7 +39,7 @@ Base.getindex(self::ToggleDependent,fieldSymbol::Symbol) = return getToggleField
 
 flip!(self::ToggleDependent) = self._toggled = !self._toggled
 
-onGraphEval(self::ToggleDependent) = dpEvalCallback(self)
+onNodeEval(self::ToggleDependent) = dpEvalCallback(self)
 evalCallback(self::ToggleDependent) = getCallback(self)(getGraphParents(self)...)
 dpCallbackReturn(self::ToggleDependent, val::Bool) = self._toggled = val
 dpCallbackReturn(self::ToggleDependent, ::Nothing) = return nothing

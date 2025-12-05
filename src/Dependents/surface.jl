@@ -196,7 +196,7 @@ function runCallbacks(self::ParametricSurfaceDependent)
 
 end
 
-function onGraphEval(self::ParametricSurfaceDependent)
+function onNodeEval(self::ParametricSurfaceDependent)
     runCallbacks(self)
 end
 

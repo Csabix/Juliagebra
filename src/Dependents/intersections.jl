@@ -130,11 +130,11 @@ function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tupl
 end
 
 # ? Now we need to define, how the Dependent should act, when everything it depends on changes.
-# ? Note that for every Dependent, the "onGraphEval" only gets called once and in a way, where everything
+# ? Note that for every Dependent, the "onNodeEval" only gets called once and in a way, where everything
 # ? it depends on is up-to date.
 # ? in the case of curve-to-curve intersecting, we here do an iterative intersection between segments of the curves.
 # ! Must have
-function onGraphEval(self::Curve2CurveIntersectionDependent)
+function onNodeEval(self::Curve2CurveIntersectionDependent)
     FindIntersections(curve1(self), curve2(self), self)
 end
 
@@ -191,7 +191,7 @@ function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tu
     return (v[1],v[2],v[3])
 end
 
-function onGraphEval(self::Curve2SurfaceIntersectionDependent)
+function onNodeEval(self::Curve2SurfaceIntersectionDependent)
     FindIntersections(curve(self), TrianglesOf(surface(self)._uvValues), self)
 end
 
@@ -245,6 +245,6 @@ function Base.getindex(self::Surface2SurfaceIntersectionDependent, index)::Union
     return a, b
 end
 
-function onGraphEval(self::Surface2SurfaceIntersectionDependent)
+function onNodeEval(self::Surface2SurfaceIntersectionDependent)
     FindIntersections(TrianglesOf(surface1(self)._uvValues), TrianglesOf(surface2(self)._uvValues), self)
 end

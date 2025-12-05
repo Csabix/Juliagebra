@@ -93,17 +93,17 @@ function Base.getindex(self::PointDependent,fieldSymbols...)
 end
 
 # ? Now we need to define, how the Dependent should act, when everything it depends on changes.
-# ? Note that for every Dependent, the "onGraphEval" only gets called once and in a way, where everything
+# ? Note that for every Dependent, the "onNodeEval" only gets called once and in a way, where everything
 # ? it depends on is up-to date.
 # ? Since Point is a Dependent, for it to be able to depend on other objects, we have to define
 # ? what will it do, when it should be evaluated in the graph, that's what
-# ? "onGraphEval" does.
+# ? "onNodeEval" does.
 # ? dpEvalCallback is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
 # ! Must have
-onGraphEval(self::PointDependent) = dpEvalCallback(self)
+onNodeEval(self::PointDependent) = dpEvalCallback(self)
 
 # ? So for a Point we want to evaluate the User's callback once, then dispatch on the returned value
-# ? (this is why "onGraphEval" is just a call to dpEvalCallback).
+# ? (this is why "onNodeEval" is just a call to dpEvalCallback).
 # ? now we must define how, with what parameters should the callback be called, and what modifications
 # ? (in this case nothing) we should do on the return, before dispatching onto it.
 function evalCallback(self::PointDependent)

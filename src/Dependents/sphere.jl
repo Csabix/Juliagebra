@@ -50,7 +50,7 @@ _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dep
 
 Plan2Dependent(plan::SpherePlan)::SphereDependent = return SphereDependent(plan)
 
-onGraphEval(self::SphereDependent) = dpEvalCallback(self)
+onNodeEval(self::SphereDependent) = dpEvalCallback(self)
 
 evalCallback(self::SphereDependent) = return getCallback(self)(getGraphParents(self)...)
 

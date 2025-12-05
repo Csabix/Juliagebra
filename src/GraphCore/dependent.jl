@@ -35,8 +35,8 @@ end
 
 evalGraph(self::DependentDNA) = evalChain(getChain(self))
 
-onGraphEval(self::DependentDNA) =  error("Missing \"onGraphEval\" for subclass of DependentDNA")
-afterGraphEval(self::DependentDNA) = nothing
+onNodeEval(self::DependentDNA) =  error("Missing \"onNodeEval\" for subclass of DependentDNA")
+afterNodeEval(self::DependentDNA) = nothing
 
 dpEvalCallback(self::DependentDNA,params...) = dpCallbackReturn(self,params...,evalCallback(self,params...))
 evalCallback(self::DependentDNA,params...) = error("Missing \"evalCallback\" for subclass of DependentDNA")

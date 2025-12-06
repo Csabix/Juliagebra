@@ -37,19 +37,22 @@ Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._p
 # ? Since it's a rendered dependent, it should inherit from RenderedDependentDNA.
 mutable struct PointDependent <:RenderedDependentDNA
     _renderedDependent::RenderedDependent
-    _x::Float64
-    _y::Float64
-    _z::Float64    
+    _coord::Vec3D 
 
     function PointDependent(plan::PointPlan)
         a = RenderedDependent(plan)
         x = plan._x
         y = plan._y
         z = plan._z
-        new(a,x,y,z)
+        coord = Vec3D(x,y,z)
+        new(a,coord)
     end
 end
 
+getX(self::PointDependent) = return self._coord.x
+getY(self::PointDependent) = return self._coord.y
+getZ(self::PointDependent) = return self._coord.z
+getCoord(self::PointDependent) = return self._coord
 
 # ? Every Dependent needs a "Plan2Dependent" function, which connects the above defined Dependent to the
 # ? Plan We've defined at the beggining of the file. The function must be able to construct a Dependent from a Plan.
@@ -62,10 +65,7 @@ _RenderedDependent_(self::PointDependent)::RenderedDependent = return self._rend
 Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
 
 function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
-    self._x = x
-    self._y = y
-    self._z = z
-    
+    self._coord = Vec3D(x,y,z)
     evalGraph(self)
 end
 
@@ -73,11 +73,11 @@ end
 
 getPointField(self::PointDependent,fieldVal) = error("Unrecognized Symbol for Point's field!")
 
-getPointField(self::PointDependent,fieldVal::Val{:x}) = return self._x
-getPointField(self::PointDependent,fieldVal::Val{:y}) = return self._y
-getPointField(self::PointDependent,fieldVal::Val{:z}) = return self._z
+getPointField(self::PointDependent,fieldVal::Val{:x}) = return self._coord.x
+getPointField(self::PointDependent,fieldVal::Val{:y}) = return self._coord.y
+getPointField(self::PointDependent,fieldVal::Val{:z}) = return self._coord.z
 
-getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return Vec3D(self._x,self._y,self._z)
+getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return self._xyz
 
 Base.getindex(self::PointDependent,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
 
@@ -98,35 +98,20 @@ end
 # ? Since Point is a Dependent, for it to be able to depend on other objects, we have to define
 # ? what will it do, when it should be evaluated in the graph, that's what
 # ? "onNodeEval" does.
-# ? evalNodeDp is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
+# ? evalCallbackDp is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
 # ! Must have
-onNodeEval(self::PointDependent) = evalNodeDp(self)
+onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
-# ? So for a Point we want to evaluate the User's callback once, then dispatch on the returned value
-# ? (this is why "onNodeEval" is just a call to evalNodeDp).
-# ? now we must define how, with what parameters should the callback be called, and what modifications
-# ? (in this case nothing) we should do on the return, before dispatching onto it.
-function evalNode(self::PointDependent)
-    return getCallback(self)(getGraphParents(self)...)
-end
+evalCallbackDpEntry(self::PointDependent)::Vec3D = self._coord
 
-# ? if "evalNodeDpReturn" is defined for input types, then the returned value of "evalNode" will be sipatched into this
+# ? if "evalCallbackDpReturn" is defined for input types, then the returned value of "evalCallback" will be sipatched into this
 # ? function, as the name suggests.
-function evalNodeDpReturn(self::PointDependent,v)
-    x,y,z = v
-    self._x = Float64(x)
-    self._y = Float64(y)
-    self._z = Float64(z)
-    
-end
-
-function evalNodeDpReturn(self::PointDependent,::Nothing)
-    
-    self._x = NaN64
-    self._y = NaN64
-    self._z = NaN64
-    
-end
+evalCallbackDpReturn(self::PointDependent,value) = self._coord = Vec3D(value)
+evalCallbackDpReturn(self::PointDependent,value::Tuple) = self._coord = Vec3D(value...)
+evalCallbackDpReturn(self::PointDependent,value::Vector) = self._coord = Vec3D(value...)
+evalCallbackDpReturn(self::PointDependent,value::Vec3F) = self._coord = Vec3D(value)
+evalCallbackDpReturn(self::PointDependent,value::Vec3D) = self._coord = value
+evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
 # ? Note that fancier callback evaluation can be seen in other Dependents than Point, that is why this system is needed.
 
@@ -174,13 +159,12 @@ end
 # ? The function should be used to copy data to CPU datastructures used for GPU parsing.
 # ! Must have
 function added!(self::PointRenderer,point::PointDependent)
+    evalCallbackDp(point)
+    
     aID = 0
+    coord = point._coord
 
-    x = point._x
-    y = point._y
-    z = point._z
-
-    push!(self._coords,Vec3F(x,y,z))
+    push!(self._coords,Vec3F(coord))
     push!(self._ids,Float32(aID))
 end
 
@@ -198,10 +182,9 @@ end
 # ! Must have
 function sync!(self::PointRenderer,point::PointDependent)
     id = getObserverID(point)
-    x = point._x
-    y = point._y
-    z = point._z
-    self._coords[id] = Vec3F(x,y,z)
+    coord = point._coord
+
+    self._coords[id] = Vec3F(coord)
 end
 
 # ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,

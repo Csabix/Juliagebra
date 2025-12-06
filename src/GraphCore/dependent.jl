@@ -38,12 +38,19 @@ evalGraph(self::DependentDNA) = evalChain(getChain(self))
 onNodeEval(self::DependentDNA) =  error("Missing \"onNodeEval\" for subclass of DependentDNA")
 afterNodeEval(self::DependentDNA) = nothing
 
-#nodeEvalEnterConversion(self::DependentDNA) = return self
+evalCallbackDpEntry(self::DependentDNA) = return self
 
-evalNodeDp(self::DependentDNA,params...) = evalNodeDpReturn(self,params...,evalNode(self,params...))
-evalNode(self::DependentDNA,params...) = error("Missing \"evalNode\" for subclass of DependentDNA")
-evalNodeDpReturn(self::DependentDNA,others...) = error("Missing \"evalNodeDpReturn\" for subclass of $(typeof(self)) for $(typeof(others...))")
-evalNodeDpReturn(self::DependentDNA,::Nothing) = error("Missing \"evalNodeDpReturn\" for subclass of DependentDNA (on Nothing)")
+function evalCallbackDp(self::DependentDNA; callbackParams = (), returnParams = ()) 
+    
+    parents = getGraphParents(self)
+    entryNodes = [evalCallbackDpEntry(parent) for parent in parents]
+    
+    returnVal = getCallback(self)(callbackParams...,entryNodes...)
+    evalCallbackDpReturn(self,returnVal,returnParams...)
+end
+
+evalCallbackDpReturn(self::DependentDNA,returnVal,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of $(typeof(self)) for $(typeof(returnVal))")
+evalCallbackDpReturn(self::DependentDNA,::Nothing,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of DependentDNA (on Nothing)")
 
 function to_string(self::DependentDNA)
     outStr = ""

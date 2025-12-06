@@ -1,6 +1,7 @@
 # ! All exported constructors should be defined, and exported from here.
 
 const DependentsT = Vector{T} where T <: PlanDNA
+const DEFAULT_CALLBACK = () -> (return nothing)
 
 # ? ---------------------------------
 # ! GenericDependent
@@ -37,12 +38,17 @@ _GenericDependent(_call = callback, _startT = T(startT), _deps = dependents)
 
 function _Point(;
                 _app::App = implicitApp,
-                _call::Function = () -> (),
+                _call::Function = DEFAULT_CALLBACK,
                 _deps::DependentsT = Vector{PlanDNA}(),
                 _x = 0,
                 _y = 0,
                 _z = 0,
                 )::PointPlan
+    
+    if (_call === DEFAULT_CALLBACK)
+        _call = () -> (return Vec3D(_x,_y,_z))
+    end
+                
     plan = PointPlan(_call,_deps,_x,_y,_z)
     submit!(_app,plan)
     return plan

@@ -52,10 +52,9 @@ _GuiDependent_(self::SliderDependent)::GuiDependent = return self._dependent
 getSliderField(self::SliderDependent,fieldVal::Val{:state}) = return self._currVal
 Base.getindex(self::SliderDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
 
-onNodeEval(self::SliderDependent) = evalNodeDp(self)
-evalNode(self::SliderDependent) = getCallback(self)(getGraphParents(self)...)
-evalNodeDpReturn(self::SliderDependent, currVal::Number) = self._currVal = clamp(Float32(currVal),self._minVal,self._maxVal)
-evalNodeDpReturn(self::SliderDependent, ::Nothing) = return nothing
+onNodeEval(self::SliderDependent) = evalCallbackDp(self)
+evalCallbackDpReturn(self::SliderDependent, currVal::Number) = self._currVal = clamp(Float32(currVal),self._minVal,self._maxVal)
+evalCallbackDpReturn(self::SliderDependent, ::Nothing) = return nothing
 
 # ? ---------------------------------
 # ! SliderRenderer

@@ -10,10 +10,10 @@ function circle(radius,t)
 end
 
 crv1 = ParametricCurve(0,2*pi,5) do t
-    circle(5.0,t)
+    return circle(5.0,t)
 end
 crv2 = ParametricCurve(0,2*pi,5) do t
-    circle(10.0,t)
+    return circle(10.0,t)
 end
 
 Center = Point(0,0,0)
@@ -24,7 +24,7 @@ radius = 5
 crv3 = ParametricCurve(0,tMax,55,[Center]) do t,p1
     xx = cos(t) * radius
     yy = sin(t) * radius
-    zz = p1[:z] * (t/tMax)
+    zz = p1.z * (t/tMax)
     
     return (xx,yy,zz + 15)
 end

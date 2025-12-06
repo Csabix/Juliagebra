@@ -1,4 +1,5 @@
 using Juliagebra
+using JuliaGLM
 
 App()
 
@@ -27,7 +28,7 @@ Point(0,0,0,cubePoints) do points...
     avgCoords = [0.0,0.0,0.0]
 
     for p in points
-        avgCoords = avgCoords + p[:xyz]
+        avgCoords = avgCoords + p
     end
 
     avgCoords = avgCoords / length(points)

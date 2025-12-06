@@ -44,10 +44,10 @@ _GuiDependent_(self::TextBoxDependent)::GuiDependent = return self._dependent
 getSliderField(self::TextBoxDependent,fieldVal::Val{:text}) = return self._text
 Base.getindex(self::TextBoxDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
 
-onNodeEval(self::TextBoxDependent) = dpEvalCallback(self)
-evalCallback(self::TextBoxDependent) = getCallback(self)(getGraphParents(self)...)
-dpCallbackReturn(self::TextBoxDependent, text::String) = self._text = text
-dpCallbackReturn(self::TextBoxDependent, ::Nothing) = return nothing
+onNodeEval(self::TextBoxDependent) = evalNodeDp(self)
+evalNode(self::TextBoxDependent) = getCallback(self)(getGraphParents(self)...)
+evalNodeDpReturn(self::TextBoxDependent, text::String) = self._text = text
+evalNodeDpReturn(self::TextBoxDependent, ::Nothing) = return nothing
 
 # ? ---------------------------------
 # ! TextBoxRenderer

@@ -98,21 +98,21 @@ end
 # ? Since Point is a Dependent, for it to be able to depend on other objects, we have to define
 # ? what will it do, when it should be evaluated in the graph, that's what
 # ? "onNodeEval" does.
-# ? dpEvalCallback is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
+# ? evalNodeDp is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
 # ! Must have
-onNodeEval(self::PointDependent) = dpEvalCallback(self)
+onNodeEval(self::PointDependent) = evalNodeDp(self)
 
 # ? So for a Point we want to evaluate the User's callback once, then dispatch on the returned value
-# ? (this is why "onNodeEval" is just a call to dpEvalCallback).
+# ? (this is why "onNodeEval" is just a call to evalNodeDp).
 # ? now we must define how, with what parameters should the callback be called, and what modifications
 # ? (in this case nothing) we should do on the return, before dispatching onto it.
-function evalCallback(self::PointDependent)
+function evalNode(self::PointDependent)
     return getCallback(self)(getGraphParents(self)...)
 end
 
-# ? if "dpCallbackReturn" is defined for input types, then the returned value of "evalCallback" will be sipatched into this
+# ? if "evalNodeDpReturn" is defined for input types, then the returned value of "evalNode" will be sipatched into this
 # ? function, as the name suggests.
-function dpCallbackReturn(self::PointDependent,v)
+function evalNodeDpReturn(self::PointDependent,v)
     x,y,z = v
     self._x = Float64(x)
     self._y = Float64(y)
@@ -120,7 +120,7 @@ function dpCallbackReturn(self::PointDependent,v)
     
 end
 
-function dpCallbackReturn(self::PointDependent,::Nothing)
+function evalNodeDpReturn(self::PointDependent,::Nothing)
     
     self._x = NaN64
     self._y = NaN64

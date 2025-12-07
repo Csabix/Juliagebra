@@ -20,7 +20,7 @@ for x in -10:10
         cap = 3.0
         xf = x * cap
         yf = y * cap
-        Point(xf,yf,0,[cursor]) do cur
+        Point([cursor]) do cur
             return wave(xf,yf,0.0,cap,cur.x,cur.y,cur.z)
         end
     end

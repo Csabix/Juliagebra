@@ -159,7 +159,7 @@ end
 # ? The function should be used to copy data to CPU datastructures used for GPU parsing.
 # ! Must have
 function added!(self::PointRenderer,point::PointDependent)
-    addedNodeEval(point)
+    onNodeEval(point)
     
     aID = 0
     coord = point._coord

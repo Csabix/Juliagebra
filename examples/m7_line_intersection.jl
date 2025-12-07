@@ -12,7 +12,7 @@ a2 = Point(0,10,0)
 b2 = Point(0,-10,0)
 s2 = Segment(a2,b2)
 
-ip = Point(NaN64,NaN64,NaN64,[a1,b1,a2,b2]) do a1,b1,a2,b2
+ip = Point([a1,b1,a2,b2]) do a1,b1,a2,b2
     no_intersect = (-50,-50,-50)
     epsilon = 0.1
 

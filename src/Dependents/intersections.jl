@@ -94,14 +94,17 @@ _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 mutable struct Curve2CurveIntersectionDependent <: DependentDNA
     _dependent::Dependent
     _foundIntersectionNum::UInt
-    _intersections::Vector{Vec3F}
+    _intersections::Vector{Vec3D}
     
     function Curve2CurveIntersectionDependent(plan::Curve2CurveIntersectionPlan)
         dependent = Dependent(plan)
-        foundIntersectionNum = plan._intersectNum
-        intersections = Vector{Vec3F}(undef,foundIntersectionNum)
+        foundIntersectionNum = 0
+        intersections = Vector{Vec3D}(undef,plan._intersectNum)
         
-        new(dependent,foundIntersectionNum,intersections)
+        self = new(dependent,foundIntersectionNum,intersections)
+        onNodeEval(self)
+
+        return self
     end
 end
 
@@ -119,14 +122,12 @@ function Plan2Dependent(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersect
 end
 
 # ? Some user accessible indexing getter. 
-function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
+function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Vec3D,Nothing}
     if (index > self._foundIntersectionNum || index < 1)
         return nothing
     end
     
-    v = self._intersections[index]
-
-    return (v[1],v[2],v[3])
+    return self._intersections[index]
 end
 
 # ? Now we need to define, how the Dependent should act, when everything it depends on changes.

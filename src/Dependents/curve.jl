@@ -148,7 +148,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     curve._endIndex = length(self._coords) - 1
     curve._tValues = self._coords
 
-    addedNodeEval(curve)
+    onNodeEval(curve)
 
 end
 

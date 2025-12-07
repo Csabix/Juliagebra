@@ -18,10 +18,23 @@ getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BO
 getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 
+function _setEntryNodes(self::Dependent)
+    entryNodes = self._entryNodes
+    parents = self._graphParents
+
+    for i in eachindex(parents)
+        entryNodes[i] = evalCallbackDpEntry(parents[i])
+    end
+end
+
 function Dependent(callback::Function,graphParents::Vector{DependentDNA})
     dependentChain = DependentChain()
     entryNodes = Vector{Any}(undef,length(graphParents))
-    return Dependent(0,graphParents,entryNodes,dependentChain,callback)
+    
+    self = Dependent(0,graphParents,entryNodes,dependentChain,callback)
+    _setEntryNodes(self)
+
+    return self
 end
 
 function Dependent(plan::PlanDNA)
@@ -37,20 +50,11 @@ function Dependent(plan::PlanDNA)
 end
 
 evalGraph(self::DependentDNA) = evalChain(getChain(self))
+setEntryNodes(self::DependentDNA) = _setEntryNodes(_Dependent_(self))
 
-function beforeNodeEval(self::DependentDNA) 
-    entryNodes = getEntryNodes(self)
-    parents = getGraphParents(self)
-
-    for i in eachindex(parents)
-        entryNodes[i] = evalCallbackDpEntry(parents[i])
-    end
-end
-
-onNodeEval(self::DependentDNA) =  error("Missing \"onNodeEval\" for subclass of DependentDNA")
+beforeNodeEval(self::DependentDNA) = setEntryNodes(self)
+onNodeEval(self::DependentDNA) = error("Missing \"onNodeEval\" for subclass of DependentDNA")
 afterNodeEval(self::DependentDNA) = nothing
-
-addedNodeEval(self::DependentDNA) = (beforeNodeEval(self);onNodeEval(self))
 
 evalCallbackDpEntry(self::DependentDNA) = return self
 

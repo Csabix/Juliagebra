@@ -57,9 +57,6 @@ end
 Point(x::Real,y::Real,z::Real) = 
 _Point(_x=x,_y=y,_z=z)
 
-Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT) = 
-_Point(_call=callback,_x=x,_y=y,_z=z,_deps=dependents)
-
 Point(callback::Function,dependents::DependentsT) = 
 _Point(_call=callback,_deps=dependents)
 

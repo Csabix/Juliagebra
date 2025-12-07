@@ -4,15 +4,15 @@ App()
 
 Center = Point(0,0,0)
 
-Axis1 = Point(5,0,0,[Center]) do c
+Axis1 = Point([Center]) do c
     return c + [5.0,0.0,0.0]
 end
 
-Axis2 = Point(0,5,0,[Center]) do c
+Axis2 = Point([Center]) do c
     return c + [0.0,5.0,0.0]
 end
 
-Axis3 = Point(0,0,5,[Center]) do c
+Axis3 = Point([Center]) do c
     return c + [0.0,0.0,5.0]
 end
 

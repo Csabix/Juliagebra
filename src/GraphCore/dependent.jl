@@ -4,7 +4,8 @@
 
 mutable struct Dependent
     _graphID::Int                       
-    _graphParents::Vector{DependentDNA}   
+    _graphParents::Vector{DependentDNA}
+    _entryNodes::Vector{Any}
     _dependentChain::DependentChain
     _callback::Function
 end
@@ -12,13 +13,15 @@ end
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
+getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
 getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 
 function Dependent(callback::Function,graphParents::Vector{DependentDNA})
     dependentChain = DependentChain()
-    return Dependent(0,graphParents,dependentChain,callback)
+    entryNodes = Vector{Any}(undef,length(graphParents))
+    return Dependent(0,graphParents,entryNodes,dependentChain,callback)
 end
 
 function Dependent(plan::PlanDNA)
@@ -35,15 +38,25 @@ end
 
 evalGraph(self::DependentDNA) = evalChain(getChain(self))
 
+function beforeNodeEval(self::DependentDNA) 
+    entryNodes = getEntryNodes(self)
+    parents = getGraphParents(self)
+
+    for i in eachindex(parents)
+        entryNodes[i] = evalCallbackDpEntry(parents[i])
+    end
+end
+
 onNodeEval(self::DependentDNA) =  error("Missing \"onNodeEval\" for subclass of DependentDNA")
 afterNodeEval(self::DependentDNA) = nothing
+
+addedNodeEval(self::DependentDNA) = (beforeNodeEval(self);onNodeEval(self))
 
 evalCallbackDpEntry(self::DependentDNA) = return self
 
 function evalCallbackDp(self::DependentDNA; callbackParams = (), returnParams = ()) 
     
-    parents = getGraphParents(self)
-    entryNodes = [evalCallbackDpEntry(parent) for parent in parents]
+    entryNodes = getEntryNodes(self)
     
     returnVal = getCallback(self)(callbackParams...,entryNodes...)
     evalCallbackDpReturn(self,returnVal,returnParams...)

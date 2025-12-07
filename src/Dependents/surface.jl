@@ -242,7 +242,7 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     surface._uvValues  = FlatMatrix{layers(self._vertexes),Vec3F}(self._vertexes)
     surface._uvNormals = FlatMatrix{layers(self._vertexes),Vec3F}(self._normals)
 
-    runCallbacks(surface)
+    addedNodeEval(surface)
 
     @log "ParametricSurface added!" INFO
 end

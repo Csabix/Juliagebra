@@ -23,6 +23,7 @@ observersOf(self::DependentChain) = return self._set
 
 function evalChain(self::DependentChain)
     for item in dependentsOf(self)
+        beforeNodeEval(item)
         onNodeEval(item)
         afterNodeEval(item)
     end

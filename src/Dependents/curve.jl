@@ -134,7 +134,7 @@ _Renderer_(self::CurveRenderer) = return self._renderer
 Base.string(self::CurveRenderer) = return "CurveRenderer[$(length(self._coords))]"
 
 # ! Must have
-function added!(self::CurveRenderer,curve::ParametricCurveDependent)
+function added!(self::CurveRenderer,curve::ParametricCurveDependent)    
     curve._startIndex = length(self._coords) + 1
     
     for i in 1:curve._tNum
@@ -148,7 +148,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     curve._endIndex = length(self._coords) - 1
     curve._tValues = self._coords
 
-    runCallbacks(curve)
+    addedNodeEval(curve)
 
 end
 

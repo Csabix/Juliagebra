@@ -105,7 +105,7 @@ DEFAULT_SEGMENT_COLOR = (0.6,0.0,1.0)
 
 function Segment(fst::PointPlan,snd::PointPlan,color)::ParametricCurvePlan
     return ParametricCurve(0,1,2,color,[fst,snd]) do t,a,b
-        return a[:xyz] .* t .+ (1-t) .* b[:xyz]
+        return a .* t .+ (1-t) .* b
     end
 end
 

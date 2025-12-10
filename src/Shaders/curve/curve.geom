@@ -32,23 +32,19 @@ void calcTBN() {
 }
 
 void unpack(in uint color_type, out vec3 color, out uint type) {
-    color.x = float((color_type & uint(0xFF000000)) >> 24) / 255.0;
-    color.y = float((color_type & uint(0x00FF0000)) >> 16) / 255.0;
-    color.z = float((color_type & uint(0x0000FF00)) >> 8 ) / 255.0;
-    type = color_type & uint(0x000000FF);
-
     color = unpackUnorm4x8(color_type).xyz;
     type = uint(0);
 }
 
-void clampNDC(inout vec4 A, inout vec4 B) {
-    float t0 = A.z + A.w;
-    float t1 = B.z + B.w;
+void clampNDC(inout vec4 from, inout vec4 to) {
+    float t0 = from.z + from.w;
+    float t1 = to.z + to.w;
     if(t0 < 0.0){
-        if(t1 < 0.0) return;
-        A = mix(A, B, (0 - t0) / (t1 - t0));
-    } if(t1 < 0.0){
-        B = mix(B, A, (0 - t1) / (t0 - t1));
+        // ! t0<0<t1
+        from = mix(from, to, t0 / (t0 - t1));
+    }else if(t1 < 0.0){
+        // ! t1<0<t0
+        to = mix(to, from, t1 / (t1 - t0));
     }
 }
 
@@ -62,8 +58,22 @@ void main() {
 
     if (B4.z + B4.w < 0.0 && C4.z + C4.w < 0.0) return;
 
+    float t0 = B4.z + B4.w;
+    float t1 = C4.z + C4.w;
+    if(t0 < 0.0){
+        // ! t0<0<t1
+        B4 = mix(B4, C4, t0 / (t0 - t1));
+    } else if(t1 < 0.0){
+        // ! t1<0<t0
+        C4 = mix(C4, B4, t1 / (t1 - t0));
+    }
+    if (t0 < 0.0 || t1 < 0.0) { // DIRTY FIX
+        t0 = B4.x + B4.w;
+        t1 = C4.x + C4.w;
+        if(t0 < 0.0 && t1 >= 0.0)      B4 = mix(B4, C4, t0 / (t0 - t1));
+        else if(t1 < 0.0 && t0 >= 0.0) C4 = mix(C4, B4, t1 / (t1 - t0));
+    }
     if(!any(isnan(A4)))clampNDC(A4,B4);
-    clampNDC(B4,C4);
     if(!any(isnan(D4)))clampNDC(C4,D4);
 
     A4 /= A4.w;
@@ -87,10 +97,10 @@ void main() {
     vec2 BC_dir = -CB_dir;             // A B <-- C D
     vec2 DC_dir = (D-C) / distances.z; // A B C --> D
 
-    float AB_l = distance(A,B) / width_in[0];
-    float CB_l = distance(C,B) / width_in[0];
-    float BC_l = distance(B,C) / width_in[0];
-    float DC_l = distance(D,C) / width_in[0];
+    float AB_l = distances.x / width_in[1];
+    float CB_l = distances.y / width_in[1];
+    float BC_l = distances.y / width_in[1];
+    float DC_l = distances.z / width_in[1];
     
     vec2 AB_dir_r = vec2( AB_dir.y,-AB_dir.x);
     vec2 CB_dir_r = vec2(-CB_dir.y, CB_dir.x);

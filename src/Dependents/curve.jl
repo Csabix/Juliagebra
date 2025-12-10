@@ -106,6 +106,12 @@ function runCallbacks(self::ParametricCurveDependent)
     end
 end
 
+function onGraphEval(self::ParametricCurveDependent)
+    renderer::CurveRenderer = getObserver(self)
+    (first, last, _) = renderer._ranges[self._ref]
+    self._tValues = view(renderer._coords,first:last)
+    runCallbacks(self)
+end
 
 # ? ---------------------------------
 # ! CurveRenderer
@@ -114,7 +120,6 @@ end
 mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
 
-    _shader::ShaderProgram
     _shaders::Vector{ShaderProgram}
     _buffer::TypedBufferArray
 
@@ -141,7 +146,6 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dash_dot.frag"),uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_arrow.frag"),   uniforms))
 
-        shader = ShaderProgram(sp("curve/curve.vert"),sp("curve/curve.geom"),sp("curve/curve_solid.frag"),["VP","Eye","W_H_NEAR_FAR","At"])
         buffer = TypedBufferArray{Tuple{Vec3F,Float32,Float32,Float32}}()
 
         ranges = Vector{Tuple{Int,Int,Int}}()
@@ -155,10 +159,8 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         push!(colors, 0.0f0)
 
         needMaintance = false
-
         new(
             renderer,
-            shader,
             shaders,
             buffer,
             ranges,
@@ -198,7 +200,7 @@ function _maintainCurveRenderer!(self::CurveRenderer)
             push!(colors, 0x0)
 
             (min_ind,max_ind) = self._drawRanges[type]
-            self._drawRanges[type] = (min(min_ind,first-1),max(max_ind,last+1))
+            self._drawRanges[type] = (min(min_ind,first-2),max(max_ind,last+1))
         end
     end
     self._coords = coords
@@ -297,32 +299,25 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     activate(self._buffer)
     glEnable(GL_BLEND)
     for type in 1:_CURVE_COUNT
-        if self._drawRanges[type][1] == typemax(Int) continue end
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
         activate(self._shaders[type])
-        setUniform!(self._shader,"VP",vp)
-        setUniform!(self._shader,"Eye",cam._eye)
-        setUniform!(self._shader,"At",normalize(cam._at - cam._eye))
-        setUniform!(self._shader,"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
-        count = self._drawRanges[type][2] - self._drawRanges[type][1] + 1
-        glDrawArrays(GL_LINE_STRIP_ADJACENCY, self._drawRanges[type][1] - 1, count);
+        setUniform!(self._shaders[type],"VP",vp)
+        setUniform!(self._shaders[type],"Eye",cam._eye)
+        setUniform!(self._shaders[type],"At",normalize(cam._at - cam._eye))
+        setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
+        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
     end
     glDisable(GL_BLEND)
 end
 
 # ! Must have
 function destroy!(self::CurveRenderer)
-    destroy!(self._shader)
+    foreach(destroy!, self._shaders)
     destroy!(self._buffer)
 end
 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::ParametricCurvePlan)
     return SingleRendererTactic(self,CurveRenderer)
-end
-
-function onGraphEval(self::ParametricCurveDependent)
-    renderer::CurveRenderer = GetRenderer(CurveRenderer)
-    (first, last, _) = renderer._ranges[self._ref]
-    self._tValues = view(renderer._coords,first : last)
-    runCallbacks(self)
 end

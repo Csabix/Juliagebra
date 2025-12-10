@@ -1,4 +1,5 @@
 #version 330 core
+#define PI 3.1415926538
 
 layout(location = 0) out vec4 outCol;
 layout(location = 1) out uint outInd;
@@ -54,6 +55,14 @@ void main(){
     }else{
         outCol = drawColor;
     }
+
+    float sinv = sin(gl_PointCoord.x * PI);
+    float sinu = sin(gl_PointCoord.y * PI);
+    float cosv = cos(gl_PointCoord.x * PI);
+    float cosu = cos(gl_PointCoord.y * PI);
+    vec3 n = vec3(sinv * cosu, cosu, sinv * sinu);
+
+    outCol = vec4( outCol.xyz*(max(0.0,dot(n,vec3(0,0,1.0)))*0.70+0.30), 1.0);
 
     outInd = id;
 }

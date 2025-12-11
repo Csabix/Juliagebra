@@ -138,7 +138,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         shaders = Vector{ShaderProgram}()
         vert = sp("curve/curve.vert")
         geom = sp("curve/curve.geom")
-        uniforms = ["VP","Eye","W_H_NEAR_FAR","At"]
+        uniforms = ["VP","Eye","W_H_NEAR_FAR","lightDirCam","lightDirSide"]
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_solid.frag"),   uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dashed.frag"),  uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dotted.frag"),  uniforms))
@@ -295,7 +295,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         end
     end
     upload!(self._buffer,4,distances,GL_DYNAMIC_DRAW)
-    
+    (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)
     for type in 1:_CURVE_COUNT
@@ -304,7 +304,8 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         activate(self._shaders[type])
         setUniform!(self._shaders[type],"VP",vp)
         setUniform!(self._shaders[type],"Eye",cam._eye)
-        setUniform!(self._shaders[type],"At",normalize(cam._at - cam._eye))
+        setUniform!(self._shaders[type],"lightDirCam", cam_light)
+        setUniform!(self._shaders[type],"lightDirSide",side_light)
         setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
         glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
     end

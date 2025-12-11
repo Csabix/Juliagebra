@@ -11,12 +11,14 @@ noperspective layout(location=0) out vec4 segment_SDF_field_out;
 noperspective layout(location=1) out vec3 color_out;
 flat          layout(location=2) out uint type_out;
 noperspective layout(location=3) out float total_distance_out;
-flat          layout(location=4) out vec3 light_dir;
+flat          layout(location=4) out vec3 light_dir_cam_out;
+flat          layout(location=5) out vec3 light_dir_side_out;
 
 layout(location = 0) uniform mat4 VP;
 layout(location = 1) uniform vec3 Eye;
 layout(location = 2) uniform vec4 W_H_NEAR_FAR;
-layout(location = 3) uniform vec3 At;
+layout(location = 3) uniform vec3 lightDirCam;
+layout(location = 4) uniform vec3 lightDirSide;
 
 
 void calcTBN() {
@@ -28,7 +30,8 @@ void calcTBN() {
     vec3 N = normalize(cross(T,BI));
 
     mat3 TBN = transpose(mat3(T,BI,N));
-    light_dir = TBN * At;
+    light_dir_cam_out = TBN * lightDirCam;
+    light_dir_side_out = TBN * lightDirSide;
 }
 
 void unpack(in uint color_type, out vec3 color, out uint type) {

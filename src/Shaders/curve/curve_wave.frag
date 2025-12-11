@@ -8,7 +8,8 @@ noperspective layout(location=0) in vec4 segment_SDF_field_in;
 noperspective layout(location=1) in vec3 color_in;
 flat          layout(location=2) in uint type_in;
 noperspective layout(location=3) in float total_distance_in;
-flat          layout(location=4) in vec3 LIGHT_DIR;
+flat          layout(location=4) in vec3 light_dir_cam_in;
+flat          layout(location=5) in vec3 light_dir_side_in;
 
 
 float sdCapsule( vec2 p, float r, float h ) {
@@ -28,9 +29,12 @@ void main() {
     float alpha = 1.0 - smoothstep(-1.0, 0.0, d);
 
     float val = mix(0.0,PI,(segment_SDF_field_in.x * 0.5 + 0.5 * lenX)/segment_SDF_field_in.z);
-    vec3 n = vec3(-cos(val),0,sin(val));
+    vec3 normal = vec3(-cos(val),0,sin(val));
 
-    color_out = vec4( color_in*(max(0.0,dot(n,LIGHT_DIR))*0.70+0.30), alpha);
+    float diffuse = (max(dot(normal,light_dir_cam_in),0.0) * 0.3 + max(dot(normal,light_dir_side_in),0.0) * 0.7) * 0.8;
+    float ambient = 0.2;
+    color_out = vec4(color_in * (diffuse + ambient), alpha);
+
     index_out = uint(0);
     if (d > 0.0) discard;
 }

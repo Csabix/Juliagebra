@@ -166,7 +166,7 @@ function update!(self::OpenGLData,cam::Camera)
     
     activate(self._mainFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glClearTexImage(self._mainIDTexture._id,0,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref(0x0))
+    glClearTexImage(self._mainIDTexture._id,0,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref{UInt32}(0x0))
 
     activate(self._bodyShader)
     setUniform!(self._bodyShader,"VP",self._vp)  

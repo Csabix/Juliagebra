@@ -35,8 +35,7 @@ vec4 grid(vec3 position, float scale) {
 float computeLinearDepth(float clip_space_depth) {
     const float NEAR = NEAR_FAR_DISTANCE_POWER.x;
     const float FAR  = NEAR_FAR_DISTANCE_POWER.y;
-    clip_space_depth = 2.0 * clip_space_depth - 1.0;
-    return (NEAR * FAR) / (FAR + clip_space_depth * (NEAR - FAR));
+    return ((FAR * NEAR) / (NEAR - FAR)) / (clip_space_depth - (FAR / (FAR - NEAR)));
 }
 
 vec3 rayDirection() {

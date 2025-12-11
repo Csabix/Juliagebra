@@ -73,8 +73,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         #glPolygonMode(GL_BACK,GL_LINE)
 
         glEnable(GL_PROGRAM_POINT_SIZE)
-        #glDisable(GL_POINT_SMOOTH)
-        glEnable(GL_POINT_SPRITE)
 
         renderOffices = Dict{DataType,Vector{<:RendererDNA}}()
         updateMeQueue = Queue{RendererDNA}()
@@ -226,7 +224,6 @@ function destroy!(self::OpenGLData)
     
     
     destroy!(self._combinerShader)
-    destroy!(self._backgroundShader)
     destroy!(self._bodyShader)
     destroy!(self._centerShader)
     destroy!(self._mainFBO)

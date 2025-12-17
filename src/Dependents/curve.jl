@@ -10,22 +10,33 @@ const CURVE_DASH_DOT::UInt8 = 5
 const CURVE_ARROW::UInt8    = 6
 const _CURVE_COUNT::UInt8   = 6
 
+export CURVE_SOLID, CURVE_DASHED, CURVE_DOTTED, 
+        CURVE_WAVE, CURVE_DASH_DOT, CURVE_ARROW
+
 mutable struct ParametricCurvePlan <: RenderedPlanDNA
     _plan::RenderedPlan
 
-    _tStart::Float64
-    _tEnd::Float64
-    _tNum::Int
-    _color::Vec3F
+    _range::AbstractRange{Float64}
+    _colors::Vector{Vec3F}
     _type::UInt32
+    _width::Float32
     
-    function ParametricCurvePlan(callback::Function,plans::Vector{T},tStart,tEnd,tNum,color,type) where {T<:PlanDNA}
+    function ParametricCurvePlan(callback::Function, plans::Vector{T},
+                                 range::AbstractRange{Float64},
+                                 color::Tuple{Real,Real,Real},
+                                 type::UInt8, width::Real) where {T<:PlanDNA}
+        
+        ParametricCurvePlan(callback,plans,range,[color],type,width)
+    end
 
-        r = Float32(color[1])
-        g = Float32(color[2])
-        b = Float32(color[3])
-
-        new(RenderedPlan(callback,plans),tStart,tEnd,tNum,Vec3F(r,g,b),type)
+    function ParametricCurvePlan(callback::Function,plans::Vector{T},
+                                 range::AbstractRange{Float64},
+                                 color::Vector{U},
+                                 type::UInt8, width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
+        
+        colors = [Vec3F(c[1],c[2],c[3]) for c in color]
+        width = clamp(width,1.0,10.0)
+        new(RenderedPlan(callback,plans),range,colors,type,width)
     end
 end
 
@@ -40,29 +51,27 @@ Base.string(self::ParametricCurvePlan)::String = return "Curve"
 mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
-    _tStart::Float64
-    _tEnd::Float64
-    _tNum::Int
-    _color::Vec3F
+    _range::AbstractRange{Float64}
+    _colors::Vector{Vec3F}
+    _width::Float32
     _type::UInt32
     _typeLast::UInt32
 
     _ref::Int
     _tValues::Union{SubArray{Vec3F},Nothing}
 
-    
-
     function ParametricCurveDependent(plan::ParametricCurvePlan)
         a = RenderedDependent(plan)
-        tStart = plan._tStart
-        tEnd = plan._tEnd
-        tNum = plan._tNum
-        color = plan._color
+        range = plan._range
+        colors = plan._colors
+        width = plan._width
         type = plan._type
 
-        new(a,tStart,tEnd,tNum,color,type,type,0,nothing)
+        new(a,range,colors,width,type,type,0,nothing)
     end
 end
+
+Base.length(self::ParametricCurveDependent) = (max(length(self._range) - 1,0))
 
 function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
     if ((index >= 1) && (index <= length(self)))
@@ -73,21 +82,19 @@ function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
 end
 
 function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, LineSegment}
-    if ((index >= 1) && (index <= length(self) - 1))
+    if ((index >= 1) && (index <= length(self)))
         return LineSegment(self._tValues[index], self._tValues[index + 1])
     else
         return nothing 
     end
 end
 
-Base.length(self::ParametricCurveDependent) = self._tNum
-
 # ! Must have
 function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
     return ParametricCurveDependent(plan)
 end
 
-Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(self._startIndex) - $(self._endIndex) - $(self._tNum)"
+Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
 _RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
 
 function evalCallback(self::ParametricCurveDependent,t,index)
@@ -98,11 +105,8 @@ dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)  = ((x,y,z) = 
 dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)
-    for index in 1:self._tNum
-        t1 = Float64(index - 1)
-        t2 = Float64(self._tNum - 1)
-        t = (t1 / t2) * (self._tEnd - self._tStart) + self._tStart
-        dpEvalCallback(self,t,index)
+    for index in 1:length(self._range)
+        dpEvalCallback(self,self._range[index],index)
     end
 end
 
@@ -190,7 +194,10 @@ function _maintainCurveRenderer!(self::CurveRenderer)
     for group in range_groups
         for range_ind in group
             (first, last, type) = self._ranges[range_ind]
-            push!(ranges, (length(coords)+1,length(coords)+last-first,type))
+            (min_ind,max_ind) = self._drawRanges[type]
+            self._ranges[range_ind] = (length(coords)+1,length(coords)+last-first+1,type)
+            self._drawRanges[type] = (min(min_ind,length(coords)-1),max(max_ind,length(coords)+last-first+2))
+            
             append!(coords, self._coords[first:last])
             append!(widths, self._widths[first:last])
             append!(colors, self._colors[first:last])
@@ -198,9 +205,6 @@ function _maintainCurveRenderer!(self::CurveRenderer)
             push!(coords, Vec3FNan)
             push!(widths, 0.0f0)
             push!(colors, 0x0)
-
-            (min_ind,max_ind) = self._drawRanges[type]
-            self._drawRanges[type] = (min(min_ind,first-2),max(max_ind,last+1))
         end
     end
     self._coords = coords
@@ -230,17 +234,20 @@ end
 
 # ! Must have
 function added!(self::CurveRenderer,curve::ParametricCurveDependent)
-    push!(self._ranges, (length(self._coords)+1,length(self._coords)+curve._tNum,curve._type))
+    push!(self._ranges, (length(self._coords)+1,length(self._coords)+length(curve._range),curve._type))
     curve._ref = length(self._ranges)
-    packed_color = pack_color(curve._color,false)
-    for _ in 1:curve._tNum
+    color_count = length(curve._colors)
+    packed_colors = [pack_color(color,false) for color in curve._colors]
+    current_color = 1
+    for _ in 1:length(curve._range)
         push!(self._coords, Vec3F(0,0,0))
-        push!(self._widths, 5.0f0)
-        push!(self._colors, packed_color)
+        push!(self._widths, curve._width)
+        push!(self._colors, packed_colors[current_color])
+        current_color = mod1(current_color + 1, color_count)
     end
     push!(self._coords, Vec3FNan)
     push!(self._widths, 0.0f0)
-    push!(self._colors, 0x0)
+    push!(self._colors, 0x0000000)
 
     (first, last, _) = self._ranges[curve._ref]
     curve._tValues = view(self._coords, first : last)

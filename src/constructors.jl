@@ -66,17 +66,32 @@ function _ParametricCurve(;
                          _app::App = implicitApp,
                          _call::Function = () -> (),
                          _deps::DependentsT = Vector{PlanDNA}(),
-                         _tStart = 0,
-                         _tEnd = 1,
-                         _tNum = 1000,
+                         _range= range(0.0,1.0,length=1000),
                          _col= (0.6,0.6,0.9),
-                         _type= CURVE_SOLID
+                         _type= CURVE_SOLID,
+                         _width= 5.0f0
                          )::ParametricCurvePlan
-    plan = ParametricCurvePlan(_call,_deps,_tStart,_tEnd,_tNum,_col,_type)
+    plan = ParametricCurvePlan(_call,_deps,_range,_col,_type,_width)
     submit!(_app,plan)
     return plan
 end
 
+ParametricCurve(callback::Function,range::AbstractRange{Float64})::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_range=range)
+
+#ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT)::ParametricCurvePlan =
+#_ParametricCurve(_call=callback,_range=range,_deps=dependents)
+
+ParametricCurve(callback::Function,range::AbstractRange{Float64},color,dependents::DependentsT)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_range=range,_col=color,_deps=dependents)
+
+ParametricCurve(callback::Function,range::AbstractRange{Float64},color,type,dependents::DependentsT)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_range=range,_col=color,_type=type,_deps=dependents)
+
+ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT;color=(0.6,0.6,0.9),type=CURVE_SOLID,width=5.0f0)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_range=range,_col=color,_type=type,_width=width,_deps=dependents)
+
+#=
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
 _ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd)
 
@@ -94,21 +109,18 @@ _ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,
 
 ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,type,dependents::DependentsT,)::ParametricCurvePlan =
 _ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_type=type,_deps=dependents)
-
+=#
 # ? ---------------------------------
 # ! Segment
 # ? ---------------------------------
 
 DEFAULT_SEGMENT_COLOR = (0.6,0.0,1.0)
 
-function Segment(fst::PointPlan,snd::PointPlan,color)::ParametricCurvePlan
-    return ParametricCurve(0,1,2,color,[fst,snd]) do t,a,b
+function Segment(fst::PointPlan,snd::PointPlan;color=DEFAULT_SEGMENT_COLOR,type=CURVE_SOLID,width=5.0f0)::ParametricCurvePlan
+    return ParametricCurve(range(0,1,length=2),[fst,snd],color=color,type=type,width=width) do t,a,b
         return a[:xyz] .* t .+ (1-t) .* b[:xyz]
     end
 end
-
-Segment(fst::PointPlan,snd::PointPlan) =
-Segment(fst,snd,DEFAULT_SEGMENT_COLOR)
 
 # ? ---------------------------------
 # ! Intersections

@@ -61,20 +61,37 @@ void main() {
 
     if (B4.z + B4.w < 0.0 && C4.z + C4.w < 0.0) return;
 
+    vec3 color_B, color_C;
+    float distace_B = total_distance_in[1];
+    unpack(color_type_in[1], color_B, type_out);
+    float distace_C = total_distance_in[2];
+    unpack(color_type_in[2], color_C, type_out);
+
     float t0 = B4.z + B4.w;
     float t1 = C4.z + C4.w;
     if(t0 < 0.0){
         // ! t0<0<t1
         B4 = mix(B4, C4, t0 / (t0 - t1));
+        distace_B = mix(distace_B, distace_C, t0 / (t0 - t1));
+        color_B = mix(color_B, color_C, t0 / (t0 - t1));
     } else if(t1 < 0.0){
         // ! t1<0<t0
         C4 = mix(C4, B4, t1 / (t1 - t0));
+        distace_C = mix(distace_C, distace_B, t1 / (t1 - t0));
+        color_C = mix(color_C, color_B, t1 / (t1 - t0));
     }
     if (t0 < 0.0 || t1 < 0.0) { // DIRTY FIX
         t0 = B4.x + B4.w;
         t1 = C4.x + C4.w;
-        if(t0 < 0.0 && t1 >= 0.0)      B4 = mix(B4, C4, t0 / (t0 - t1));
-        else if(t1 < 0.0 && t0 >= 0.0) C4 = mix(C4, B4, t1 / (t1 - t0));
+        if(t0 < 0.0 && t1 >= 0.0) {
+            B4 = mix(B4, C4, t0 / (t0 - t1));
+            distace_B = mix(distace_B, distace_C, t0 / (t0 - t1));
+            color_B = mix(color_B, color_C, t0 / (t0 - t1));
+        } else if(t1 < 0.0 && t0 >= 0.0) {
+            C4 = mix(C4, B4, t1 / (t1 - t0));
+            distace_C = mix(distace_C, distace_B, t1 / (t1 - t0));
+            color_C = mix(color_C, color_B, t1 / (t1 - t0));
+        }
     }
     if(!any(isnan(A4)))clampNDC(A4,B4);
     if(!any(isnan(D4)))clampNDC(C4,D4);
@@ -175,7 +192,7 @@ void main() {
     float len_X = width_in[1];
     float len_Y = distances.y;
 
-    unpack(color_type_in[1], color_out, type_out);
+    color_out = color_B;
     segment_SDF_field_out = vec4(len_X,sdf_begin.x,len_X,len_Y);
     total_distance_out = total_distance_in[1] + sdf_begin.x;
     gl_Position = vec4(B4.xy + begin_inner_offset * length_conversion, B4.z, 1.0);
@@ -185,8 +202,8 @@ void main() {
     total_distance_out = total_distance_in[1] + sdf_begin.y;
     gl_Position = vec4(B4.xy + begin_outer_offset * length_conversion, B4.z, 1.0);
     EmitVertex();
-    unpack(color_type_in[2], color_out, type_out);
 
+    color_out = color_C;
     segment_SDF_field_out = vec4(len_X,sdf_end.x,len_X,len_Y);
     total_distance_out = total_distance_in[1] + sdf_end.x;
     gl_Position = vec4(C4.xy + end_inner_offset * length_conversion, C4.z, 1.0);

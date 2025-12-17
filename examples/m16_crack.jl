@@ -9,7 +9,7 @@ end
 a = Point(0,0,2)
 phase = 5*3.14
 
-crv1 = ParametricCurve(-phase,phase,250,[a]) do t, p
+crv1 = ParametricCurve(range(-phase,phase,250),[a]) do t, p
     x = t
     y = 0
     z = sin(t)*5
@@ -25,7 +25,7 @@ for i in 1:10
     end
 end
 
-ParametricCurve(1,10,10,[it]) do t,itt
+ParametricCurve(range(1,10,10),[it]) do t,itt
     return itt[Int(t)]
 end
 

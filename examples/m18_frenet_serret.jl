@@ -28,9 +28,9 @@ upP = Point(0,0,1,[startP,forwP,bendP]) do s,f,b
     return upDir .+ s[:xyz]
 end
 
-sfS = Segment(startP,forwP,(0.8,0.2,0.2))
-sbP = Segment(startP,bendP,(0.2,0.8,0.2))
-suP = Segment(startP,upP,(0.2,0.2,0.8))
+sfS = Segment(startP,forwP,color=(0.8,0.2,0.2))
+sbP = Segment(startP,bendP,color=(0.2,0.8,0.2))
+suP = Segment(startP,upP,color=(0.2,0.2,0.8))
 
 function FrenetCurve(K,T,tspan,pos0,e0,n0,b0)
     u0 = [pos0;e0;n0;b0]
@@ -82,7 +82,7 @@ calcFrenetP = Point(-999,-999,-999,[startP,forwP,bendP,upP]) do s,f,b,u
     return (-999,-999,-999)
 end
 
-approximatedFrenetCurve = ParametricCurve(tspan[1],tspan[2],500,[calcFrenetP]) do t, cFP
+approximatedFrenetCurve = ParametricCurve(range(tspan[1],tspan[2],500),[calcFrenetP]) do t, cFP
     
     if(isnothing(frenetSolution))
         return nothing

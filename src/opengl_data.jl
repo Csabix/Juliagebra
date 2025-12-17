@@ -23,6 +23,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _mainIDTexture :: Texture2D
     _mainDepthTexture :: Texture2D
     _mainFBO :: FrameBuffer
+    _behindFBO :: FrameBuffer
     
     _dummyBufferArray::BufferArray
     _centerBufferArray::BufferArray
@@ -58,12 +59,17 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         mainAttachements = Dict{GLuint,Texture2D}()
         mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
         mainAttachements[GL_COLOR_ATTACHMENT1] = createIDTexture2D(shrd._width,shrd._height)
-        mainAttachements[GL_DEPTH_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
+        mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
         mainFBO = FrameBuffer(mainAttachements)
-        
+
+        behindAttachments = Dict{GLuint,Texture2D}()
+        behindAttachments[GL_COLOR_ATTACHMENT0] = mainAttachements[GL_COLOR_ATTACHMENT0]
+        behindAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
+        behindFBO = FrameBuffer(behindAttachments)
+
         dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
         centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
-
+        
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
         
@@ -85,8 +91,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         new(shrd,widgets,renderOffices,updateMeQueue,
             combinerShader,backgroundShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
-            mainAttachements[GL_DEPTH_ATTACHMENT],
-            mainFBO,
+            mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT],
+            mainFBO,behindFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             0,
             Vec3F(0.73,0.73,0.73),
@@ -169,7 +175,8 @@ function update!(self::OpenGLData,cam::Camera)
     # * All the buffers are up to date at this point.
     #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     activate(self._mainFBO)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glClearStencil(0)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
     
     activate(self._backgroundShader)
     setUniform!(self._backgroundShader,"bCol",self._backgroundCol)  
@@ -178,11 +185,37 @@ function update!(self::OpenGLData,cam::Camera)
     activate(self._bodyShader)
     setUniform!(self._bodyShader,"VP",self._vp)  
     
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0xFF);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
     for (_,office) in self._renderOffices
         for renderer in office
             draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
     end
+    
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, self._mainFBO._id)
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._behindFBO._id)
+    glBlitFramebuffer(
+        0, 0, self._shrd._width, self._shrd._height,
+        0, 0, self._shrd._width, self._shrd._height,
+        GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
+        GL_NEAREST
+        )
+        activate(self._behindFBO)
+        glClear(GL_DEPTH_BUFFER_BIT)
+        
+        for (_,office) in self._renderOffices
+            for renderer in office
+                try
+                    draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd,0)
+                catch e
+                end
+            end
+        end
+    glDisable(GL_STENCIL_TEST);
+    activate(self._mainFBO)
 
     # TODO: refactor theese opengl widgets draw commands to something like this:
     # TODO: for widget in self._widgets

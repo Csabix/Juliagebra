@@ -135,6 +135,8 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _colors::Vector{Float32}
     _needMaintance::Bool
 
+    _proof_of_concept::ShaderProgram
+
     function CurveRenderer(context::OpenGLData)
         
         renderer = Renderer{ParametricCurveDependent}(context)
@@ -149,6 +151,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_wave.frag"),    uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dash_dot.frag"),uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_arrow.frag"),   uniforms))
+        proof_of_concept = ShaderProgram(vert,geom,sp("curve/proof_of_concept.frag"),uniforms)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32,Float32,Float32}}()
 
@@ -172,7 +175,8 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
             coords,
             widths,
             colors,
-            needMaintance)
+            needMaintance,
+            proof_of_concept)
     end
 end
 
@@ -305,6 +309,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)
+    glDisable(GL_STENCIL_TEST)
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
@@ -316,7 +321,27 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
         glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
     end
+    glEnable(GL_STENCIL_TEST)
     glDisable(GL_BLEND)
+end
+
+function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd, asd)
+    (cam_light, side_light) = get_lights(cam)
+    activate(self._buffer)
+    #glEnable(GL_BLEND)
+    glStencilFunc(GL_EQUAL, 1, 0xFF);
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._proof_of_concept)
+        setUniform!(self._shaders[type],"VP",vp)
+        setUniform!(self._shaders[type],"Eye",cam._eye)
+        setUniform!(self._shaders[type],"lightDirCam", cam_light)
+        setUniform!(self._shaders[type],"lightDirSide",side_light)
+        setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
+        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
+    end
+    #glDisable(GL_BLEND)
 end
 
 # ! Must have

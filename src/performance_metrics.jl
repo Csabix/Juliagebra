@@ -31,9 +31,6 @@ const _perf_blocks::Vector{PerfBlock} = []
 const _perf_gpu_inited::Ref{Bool} = Ref(false)
 const _perf_gpu_querry_begin::Ref{Bool} = Ref(false)
 
-const a = 1
-const global a = 1
-
 function _get_perf_block_index(layers)::UInt
     perf_block_index::UInt = 0
     current_layer::PerfLayer = _perf_layers
@@ -45,7 +42,7 @@ function _get_perf_block_index(layers)::UInt
         else
             index = findfirst(l -> l.name == layer_name, current_layer.childs)
             if index === nothing
-                current_layer.childs = [PerfLayer(layer_name)]
+                push!(current_layer.childs,PerfLayer(layer_name))
                 current_layer = last(current_layer.childs)
             else
                 current_layer = current_layer.childs[index]
@@ -68,6 +65,7 @@ function _time_cpu_begin(index::UInt)
     cpu::CPU_times = _perf_blocks[index].cpu
     if cpu.start_time != 0
         @log "Missing time_end_cpu call" ERR
+        return
     end
     cpu.start_time = time_ns()
 end
@@ -76,6 +74,7 @@ function _time_cpu_end(index::UInt)
     cpu::CPU_times = _perf_blocks[index].cpu
     if cpu.start_time == 0
         @log "Missing time_begin_cpu call" ERR
+        return
     end
     time = time_ns()
     cpu.times[cpu.current_index] = time - cpu.start_time

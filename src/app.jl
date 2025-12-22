@@ -122,6 +122,7 @@ function can_capture_mouse(self::App)::Bool
 end
 
 function handlePlans!(self::App)
+    @time_cpu_begin handlePlans!
     observers = Set{ObserverDNA}()
 
     while(!isempty(self._plans))
@@ -136,6 +137,7 @@ function handlePlans!(self::App)
     for observer in observers
         addedAll!(observer)
     end
+    @time_cpu_end handlePlans!
 end
 
 

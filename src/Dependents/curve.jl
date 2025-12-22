@@ -170,16 +170,18 @@ end
 
 # ! Must have
 function syncAll!(self::CurveRenderer)
+    @time_cpu_begin Dependent Curve
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    @time_cpu_end Dependent Curve
 end
 
 # ! Must have
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
-    # ? vp,v,p = getMat(cam,shrd._width,shrd._height)
-    
+    @time_gpu_begin Dependent Curve
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     draw(self._buffer,GL_LINE_STRIP)
+    @time_gpu_end Dependent Curve
 end
 
 # ! Must have

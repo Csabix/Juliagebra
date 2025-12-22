@@ -270,12 +270,15 @@ end
 
 # ! Must have
 function syncAll!(self::ParametricSurfaceRenderer)
+    @time_cpu_begin Dependent Surface
     upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
+    @time_cpu_end Dependent Surface
 end
 
 # ! Must have
 function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
+    @time_gpu_begin Dependent Surface
     glDisable(GL_CULL_FACE)
     
     activate(self._shader)
@@ -284,6 +287,7 @@ function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
     draw(self._buffer,GL_TRIANGLES)
 
     glEnable(GL_CULL_FACE)
+    @time_gpu_end Dependent Surface
 end
 
 # ! Must have

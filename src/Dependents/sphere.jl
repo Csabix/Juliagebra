@@ -130,12 +130,15 @@ function sync!(self::SphereRenderer,sphere::SphereDependent)
 end
 
 function syncAll!(self::SphereRenderer)
+    @time_cpu_begin Dependent Sphere
     upload!(self._buffer,1,self._centers,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._radiuses,GL_DYNAMIC_DRAW)
+    @time_cpu_end Dependent Sphere
     @log "Synced all Spheres!" INFO
 end
 
 function draw!(self::SphereRenderer,vp,selectedID,pickedID,cam,shrd)
+    @time_gpu_begin Dependent Sphere
     glDisable(GL_CULL_FACE)
     
     activate(self._shader)
@@ -144,6 +147,7 @@ function draw!(self::SphereRenderer,vp,selectedID,pickedID,cam,shrd)
     draw(self._buffer,GL_POINTS)
 
     glEnable(GL_CULL_FACE)
+    @time_gpu_end Dependent Sphere
 end
 
 function destroy!(self::SphereRenderer)

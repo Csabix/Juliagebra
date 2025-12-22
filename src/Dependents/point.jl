@@ -209,19 +209,23 @@ end
 # ? Actual CPU to GPU data transfer happens here.
 # ! Must have
 function syncAll!(self::PointRenderer)
+    @time_cpu_begin Dependent Point
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    @time_cpu_end Dependent Point
     @log "Uploaded Coordinate buffer!" INFO
 end
 
 # ? Function to specify how a Renderer should render.
 # ? Gets called every frame no matter what happens or not. 
 # ! Must have
-function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd) 
+function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd)
+    @time_gpu_begin Dependent Point
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"selectedID",selectedID)
     setUniform!(self._shader,"pickedID",pickedID)
     draw(self._buffer,GL_POINTS)
+    @time_gpu_end Dependent Point
 end
 
 # ? Free GPU resources here.

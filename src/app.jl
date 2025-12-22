@@ -214,7 +214,7 @@ function play!(self::App)
     
     init!(self)
     while(!self._shrd._gameOver)
-        
+        perf_get_results()
         updateDeltaTime!(self)
         handlePlans!(self)
         updateCam!(self)
@@ -245,7 +245,7 @@ function init!(self::App)
     setInputEvents(self._glfw._window,self) # Before call to ImGUI
     self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd) # After setInputEvents call
     self._windowCreated = true
-
+    perf_init_gpu()
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
 end

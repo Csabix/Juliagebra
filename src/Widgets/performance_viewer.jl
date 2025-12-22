@@ -11,6 +11,13 @@ _Window_(self::PerformanceWindow)::Window = self._window
 getWindowName(self::PerformanceWindow) = return "Timings"
 
 function renderContent(self::PerformanceWindow)
+    if CImGui.Button("Activate all")
+        perf_set_all_collect_data(true)
+    end
+    CImGui.SameLine()
+    if CImGui.Button("Deactivate all")
+        perf_set_all_collect_data(false)
+    end
     if _perf_layers.childs !== nothing
         for layer in _perf_layers.childs
             ui_render_perf_tree(layer)

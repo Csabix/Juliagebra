@@ -135,6 +135,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _coords::Vector{Vec3F}
     _widths::Vector{Float32}
     _colors::Vector{Float32}
+    _distances::Vector{Float32} # to avoid memory allocations
     _needMaintance::Bool
 
     function CurveRenderer(context::OpenGLData)
@@ -157,12 +158,10 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         ranges = Vector{Tuple{Int,Int,Int}}()
         drawRanges = fill((0,0),_CURVE_COUNT)
 
-        coords = Vector{Vec3F}()
-        widths = Vector{Float32}()
-        colors = Vector{Float32}()
-        push!(coords, Vec3FNan)
-        push!(widths, 0.0f0)
-        push!(colors, 0.0f0)
+        coords = [Vec3FNan]
+        widths = [0.0f0]
+        colors = [0.0f0]
+        distances = Vector{Float32}(undef,1)
 
         needMaintance = false
         new(
@@ -174,6 +173,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
             coords,
             widths,
             colors,
+            distances,
             needMaintance)
     end
 end
@@ -212,6 +212,7 @@ function _maintainCurveRenderer!(self::CurveRenderer)
     self._coords = coords
     self._widths = widths
     self._colors = colors
+    self._distances = Vector{Float32}(undef,length(coords))
     self._needMaintance = false
 
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
@@ -288,7 +289,6 @@ end
 # ! Must have
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     @time_cpu_begin Dependent Curve Distances
-    distances = fill(NaN32, length(self._coords))
     Threads.@threads for (first,last,_) in self._ranges
         distance_sum = 0.0f0
         last_p = Vec2(NaN32,NaN32)
@@ -301,13 +301,13 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
             if i != first
                 distance_sum += norm(last_p - p)
             end
-            distances[i] = distance_sum
+            self._distances[i] = distance_sum
             last_p = p
         end
     end
     @time_cpu_end Dependent Curve Distances
 
-    upload!(self._buffer,4,distances,GL_DYNAMIC_DRAW)
+    upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
     (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)

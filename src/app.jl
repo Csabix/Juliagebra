@@ -201,12 +201,14 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p = fetch(self._graph,self._shrd._pickedID)      
+        p = fetch(self._graph,self._shrd._pickedID)
+        @time_cpu_begin Graph_update
         set(
             p,
             Float64(self._opengl._gizmoGL._pos.x),
             Float64(self._opengl._gizmoGL._pos.y),
             Float64(self._opengl._gizmoGL._pos.z))
+        @time_cpu_end Graph_update
     end
 end
 
@@ -214,7 +216,7 @@ function play!(self::App)
     
     init!(self)
     while(!self._shrd._gameOver)
-        
+        perf_get_results()
         updateDeltaTime!(self)
         handlePlans!(self)
         updateCam!(self)
@@ -245,7 +247,7 @@ function init!(self::App)
     setInputEvents(self._glfw._window,self) # Before call to ImGUI
     self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd) # After setInputEvents call
     self._windowCreated = true
-
+    perf_init_gpu()
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
 end

@@ -101,7 +101,9 @@ function evalCallback(self::ParametricCurveDependent,t,index)
     return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
 
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)  = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3D) = self._tValues[index] = Vec3F(v)
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3F) = self._tValues[index] = v
 dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)
@@ -274,16 +276,18 @@ end
 
 # ! Must have
 function syncAll!(self::CurveRenderer)
+    @time_cpu_begin Dependent Curve
     if self._needMaintance
         _maintainCurveRenderer!(self)
     else
         upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     end
+    @time_cpu_end Dependent Curve
 end
 
 # ! Must have
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
-    # ? vp,v,p = getMat(cam,shrd._width,shrd._height)
+    @time_cpu_begin Dependent Curve Distances
     distances = fill(NaN32, length(self._coords))
     Threads.@threads for (first,last,_) in self._ranges
         distance_sum = 0.0f0
@@ -301,10 +305,13 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
             last_p = p
         end
     end
+    @time_cpu_end Dependent Curve Distances
+
     upload!(self._buffer,4,distances,GL_DYNAMIC_DRAW)
     (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Curve
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
@@ -316,6 +323,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
         glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
     end
+    @time_gpu_end Dependent Curve
     glDisable(GL_BLEND)
 end
 

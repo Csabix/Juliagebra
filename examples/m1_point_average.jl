@@ -24,13 +24,13 @@ for i in 1:4
 end
 
 Point(0,0,0,cubePoints) do points...
-    avgCoords = (0.0,0.0,0.0)
+    avgCoords = [0.0,0.0,0.0]
 
     for p in points
-        avgCoords = avgCoords .+ p[:x,:y,:z]
+        avgCoords = avgCoords + p[:xyz]
     end
 
-    avgCoords = avgCoords ./ length(points)
+    avgCoords = avgCoords / length(points)
 
     return avgCoords
 end

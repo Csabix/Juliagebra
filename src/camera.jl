@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 @kwdef mutable struct Camera
-    _eye::Vec3F= Vec3F(0.0,-5.0,0.0)
+    _eye::Vec3F= Vec3F(0.0,-5.0,1.0)
     _up::Vec3F = Vec3F(0.0,0.0,1.0)
     _at::Vec3F = Vec3F(0.0,0.0,0.0)
 

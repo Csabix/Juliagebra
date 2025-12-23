@@ -280,7 +280,6 @@ end
 function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
     
-    @time_gpu_begin Dependent Surface
     glDisable(GL_CULL_FACE)
     
     activate(self._shader)
@@ -288,10 +287,11 @@ function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
     #setUniform!(self._shader,"lightDir",normalize(cam._eye-cam._at))
     setUniform!(self._shader,"lightDirCam",-cam_light)
     setUniform!(self._shader,"lightDirSide",-side_light)
+    @time_gpu_begin Dependent Surface
     draw(self._buffer,GL_TRIANGLES)
+    @time_gpu_end Dependent Surface
 
     glEnable(GL_CULL_FACE)
-    @time_gpu_end Dependent Surface
 end
 
 # ! Must have

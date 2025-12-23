@@ -138,16 +138,16 @@ function syncAll!(self::SphereRenderer)
 end
 
 function draw!(self::SphereRenderer,vp,selectedID,pickedID,cam,shrd)
-    @time_gpu_begin Dependent Sphere
     glDisable(GL_CULL_FACE)
     
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"cam",cam._eye)
+    @time_gpu_begin Dependent Sphere
     draw(self._buffer,GL_POINTS)
+    @time_gpu_end Dependent Sphere
 
     glEnable(GL_CULL_FACE)
-    @time_gpu_end Dependent Sphere
 end
 
 function destroy!(self::SphereRenderer)

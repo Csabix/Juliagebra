@@ -222,12 +222,12 @@ function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd)
     (_, view, _) = get_matrices(cam)
     (_, side_light) = get_lights(cam)
 
-    @time_gpu_begin Dependent Point
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"selectedID",selectedID)
     setUniform!(self._shader,"pickedID",pickedID)
     setUniform!(self._shader,"lightDirSideView", view[1:3,1:3] * side_light)
+    @time_gpu_begin Dependent Point
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point
 end

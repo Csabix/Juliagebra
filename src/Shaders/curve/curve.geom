@@ -9,10 +9,9 @@ layout(location=2) in float total_distance_in[];
 
 noperspective layout(location=0) out vec4 segment_SDF_field_out;
 noperspective layout(location=1) out vec3 color_out;
-flat          layout(location=2) out uint type_out;
-noperspective layout(location=3) out float total_distance_out;
-flat          layout(location=4) out vec3 light_dir_cam_out;
-flat          layout(location=5) out vec3 light_dir_side_out;
+noperspective layout(location=2) out float total_distance_out;
+flat          layout(location=3) out vec3 light_dir_cam_out;
+flat          layout(location=4) out vec3 light_dir_side_out;
 
 layout(location = 0) uniform mat4 VP;
 layout(location = 1) uniform vec3 Eye;
@@ -34,9 +33,12 @@ void calcTBN() {
     light_dir_side_out = TBN * lightDirSide;
 }
 
-void unpack(in uint color_type, out vec3 color, out uint type) {
-    color = unpackUnorm4x8(color_type).xyz;
-    type = uint(0);
+float unpack(in uint color_type, out vec3 color) {
+    vec4 unpacked = unpackUnorm4x8(color_type);
+    color = unpacked.xyz;
+    float reverse = 1.0;
+    if (unpacked.a != 0.0) reverse = -1.0;
+    return reverse;
 }
 
 void clampNDC(inout vec4 from, inout vec4 to) {
@@ -59,9 +61,9 @@ void main() {
 
     vec3 color_B, color_C;
     float distace_B = total_distance_in[1];
-    unpack(color_type_in[1], color_B, type_out);
+    float reverse = unpack(color_type_in[1], color_B);
     float distace_C = total_distance_in[2];
-    unpack(color_type_in[2], color_C, type_out);
+    unpack(color_type_in[2], color_C);
 
     float t0 = B4.z + B4.w;
     float t1 = C4.z + C4.w;
@@ -194,28 +196,28 @@ void main() {
 
     color_out = color_B;
     segment_SDF_field_out.xy = vec2(width_in[1],sdf_begin.x);
-    total_distance_out = distace_B + sdf_begin.x;
+    total_distance_out = reverse * (distace_B + sdf_begin.x);
     gl_Position = vec4(B4.xy + begin_inner_offset * length_conversion, B4.z, 1.0);
     EmitVertex();
 
     segment_SDF_field_out.xy = vec2(-width_in[1],sdf_begin.y);
-    total_distance_out = distace_B + sdf_begin.y;
+    total_distance_out = reverse * (distace_B + sdf_begin.y);
     gl_Position = vec4(B4.xy + begin_outer_offset * length_conversion, B4.z, 1.0);
     EmitVertex();
 
     color_out = color_C;
     segment_SDF_field_out.xy = vec2(width_in[1],sdf_end.x);
-    total_distance_out = distace_B + sdf_end.x;
+    total_distance_out = reverse * (distace_B + sdf_end.x);
     gl_Position = vec4(C4.xy + end_inner_offset * length_conversion, C4.z, 1.0);
     EmitVertex();
 
     segment_SDF_field_out.xy = vec2(-width_in[1],sdf_end.y);
-    total_distance_out = distace_B + sdf_end.y;
+    total_distance_out = reverse * (distace_B + sdf_end.y);
     gl_Position = vec4(C4.xy + end_outer_offset * length_conversion, C4.z, 1.0);
     EmitVertex();
 
     segment_SDF_field_out.xy = vec2(third_sdf_side,sdf_end.z);
-    total_distance_out = distace_B + sdf_end.z;
+    total_distance_out = reverse * (distace_B + sdf_end.z);
     gl_Position = vec4(C4.xy + end_outer_third_offset * length_conversion, C4.z, 1.0);
     EmitVertex();
 

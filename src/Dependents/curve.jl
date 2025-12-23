@@ -324,7 +324,6 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)
-    #glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     @time_gpu_begin Dependent Curve
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
@@ -339,7 +338,6 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     end
     @time_gpu_end Dependent Curve
     glDisable(GL_BLEND)
-    #glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 end
 
 # ! Must have

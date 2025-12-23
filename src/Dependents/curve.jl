@@ -290,20 +290,33 @@ end
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     @time_cpu_begin Dependent Curve Distances
     Threads.@threads for (first,last,_) in self._ranges
+        wh = Vec2F(shrd._width,shrd._height)
         distance_sum = 0.0f0
-        last_p = Vec2(NaN32,NaN32)
-        for i in first:last
-            p4 = vp * Vec4F(self._coords[i], 1.0f0)
-            p = Vec2F(p4.x,p4.y) / p4.w
-            p = p .* 0.5f0 .+ 0.5f0
-            p = p .* Vec2F(shrd._width, shrd._height)
-
-            if i != first
-                distance_sum += norm(last_p - p)
+        for i in first:(last-1)
+            a = vp * Vec4F(self._coords[i], 1.0f0)
+            b = vp * Vec4F(self._coords[i+1], 1.0f0)
+            if a.z + a.w < 0.0 && b.z + b.w < 0.0f0 continue end
+            t0 = a.z + a.w;
+            t1 = b.z + b.w;
+            if t0 < 0.0
+                tt = t0 / (t0 - t1)
+                a = @. a * (1 - tt) + b * tt
+            elseif t1 < 0.0
+                tt = t1 / (t1 - t0)
+                b = @. b * (1 - tt) + a * tt
             end
+            a2 = Vec2F(a.x,a.y) / a.w
+            a2 = a2 .* 0.5f0 .+ 0.5f0
+            a2 = a2 .* wh
+
+            b2 = Vec2F(b.x,b.y) / b.w
+            b2 = b2 .* 0.5f0 .+ 0.5f0
+            b2 = b2 .* wh
+
             self._distances[i] = distance_sum
-            last_p = p
+            distance_sum += norm(a2 - b2)
         end
+        self._distances[last] = distance_sum
     end
     @time_cpu_end Dependent Curve Distances
 
@@ -311,6 +324,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)
+    #glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     @time_gpu_begin Dependent Curve
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
@@ -325,6 +339,7 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     end
     @time_gpu_end Dependent Curve
     glDisable(GL_BLEND)
+    #glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 end
 
 # ! Must have

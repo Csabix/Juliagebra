@@ -7,7 +7,7 @@ Center1 = Point(0,0,0)
 tMax = (2*pi)*5
 radius = 5
 
-crv1 = ParametricCurve(range(0,tMax,55),(0.3,0.8,0.3),[Center1]) do t,p1
+crv1 = ParametricCurve(range(0,tMax,55),[Center1],color=(0.3,0.8,0.3)) do t,p1
     x = cos(t) * radius
     y = sin(t) * radius
     z = p1[:z] * (t/tMax)

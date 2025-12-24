@@ -83,10 +83,12 @@ void main() {
             B4 = mix(B4, C4, t0 / (t0 - t1));
             distace_B = mix(distace_B, distace_C, t0 / (t0 - t1));
             color_B = mix(color_B, color_C, t0 / (t0 - t1));
+            A4 = vec4(0.0/0.0);
         } else if(t1 < 0.0 && t0 >= 0.0) {
             C4 = mix(C4, B4, t1 / (t1 - t0));
             distace_C = mix(distace_C, distace_B, t1 / (t1 - t0));
             color_C = mix(color_C, color_B, t1 / (t1 - t0));
+            D4 = vec4(0.0/0.0);
         }
     }
     clampNDC(B4,A4);

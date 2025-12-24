@@ -14,7 +14,7 @@ p1,s1 = genPoints(0,-1,0,0,5,0)
 p2,s2 = genPoints(0,1,0,5,0,0)
 
 phase = 5*3.14
-crv1 = ParametricCurve(range(-phase,phase,250),(0.9,0.6,0.3),[p1,s1]) do t, p, s
+crv1 = ParametricCurve(range(-phase,phase,250),[p1,s1],color=(0.9,0.6,0.3)) do t, p, s
     distance = p[:y] - s[:y]
     
     x = t
@@ -24,7 +24,7 @@ crv1 = ParametricCurve(range(-phase,phase,250),(0.9,0.6,0.3),[p1,s1]) do t, p, s
     return p[:xyz] .+ (x,y,z) 
 end
 
-crv2 = ParametricCurve(range(-phase,phase,250),(0.3,0.6,0.9),[p2,s2]) do t, p, s
+crv2 = ParametricCurve(range(-phase,phase,250),[p2,s2],color=(0.3,0.6,0.9)) do t, p, s
     distance = p[:x] - s[:x]
     
     x = sin(t) * distance

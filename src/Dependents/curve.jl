@@ -18,25 +18,26 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
 
     _range::AbstractRange{Float64}
     _colors::Vector{Vec3F}
-    _type::UInt32
+    _type::UInt8
+    _reversed::UInt8
     _width::Float32
     
     function ParametricCurvePlan(callback::Function, plans::Vector{T},
                                  range::AbstractRange{Float64},
                                  color::Tuple{Real,Real,Real},
-                                 type::UInt8, width::Real) where {T<:PlanDNA}
+                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA}
         
-        ParametricCurvePlan(callback,plans,range,[color],type,width)
+        ParametricCurvePlan(callback,plans,range,[color],type,reversed,width)
     end
 
     function ParametricCurvePlan(callback::Function,plans::Vector{T},
                                  range::AbstractRange{Float64},
                                  color::Vector{U},
-                                 type::UInt8, width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
+                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
         
         colors = [Vec3F(c[1],c[2],c[3]) for c in color]
         width = clamp(width,1.0,10.0)
-        new(RenderedPlan(callback,plans),range,colors,type,width)
+        new(RenderedPlan(callback,plans),range,colors,type,reversed,width)
     end
 end
 
@@ -54,8 +55,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _range::AbstractRange{Float64}
     _colors::Vector{Vec3F}
     _width::Float32
-    _type::UInt32
-    _typeLast::UInt32
+    _type::UInt8
+    _typeLast::UInt8
+    _reversed::UInt8
 
     _ref::Int
     _tValues::Union{SubArray{Vec3F},Nothing}
@@ -66,8 +68,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
         colors = plan._colors
         width = plan._width
         type = plan._type
+        reversed = plan._reversed
 
-        new(a,range,colors,width,type,type,0,nothing)
+        new(a,range,colors,width,type,type,reversed,0,nothing)
     end
 end
 
@@ -101,9 +104,9 @@ function evalCallback(self::ParametricCurveDependent,t,index)
     return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
 
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v)     = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3D) = self._tValues[index] = Vec3F(v)
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3F) = self._tValues[index] = v
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v)         = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3D)  = self._tValues[index] = Vec3F(v)
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3F)  = self._tValues[index] = v
 dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)
@@ -240,7 +243,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     push!(self._ranges, (length(self._coords)+1,length(self._coords)+length(curve._range),curve._type))
     curve._ref = length(self._ranges)
     color_count = length(curve._colors)
-    packed_colors = [pack_color(color,false) for color in curve._colors]
+    packed_colors = [pack_color(color,curve._reversed != 0x0) for color in curve._colors]
     current_color = 1
     for _ in 1:length(curve._range)
         push!(self._coords, Vec3F(0,0,0))

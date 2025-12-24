@@ -69,56 +69,77 @@ function _ParametricCurve(;
                          _range= range(0.0,1.0,length=1000),
                          _col= (0.6,0.6,0.9),
                          _type= CURVE_SOLID,
+                         _reversed= 0,
                          _width= 5.0f0
                          )::ParametricCurvePlan
-    plan = ParametricCurvePlan(_call,_deps,_range,_col,_type,_width)
+    plan = ParametricCurvePlan(_call,_deps,_range,_col,_type,_reversed,_width)
     submit!(_app,plan)
     return plan
 end
 
-ParametricCurve(callback::Function,range::AbstractRange{Float64})::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_range=range)
+"""
+    ParametricCurve(callback, range, [dependents]; kwargs...) -> ParametricCurvePlan
 
-#ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT)::ParametricCurvePlan =
-#_ParametricCurve(_call=callback,_range=range,_deps=dependents)
+Construct a plan for a parametric curve defined by a generator function over a specific interval.
 
-ParametricCurve(callback::Function,range::AbstractRange{Float64},color,dependents::DependentsT)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_range=range,_col=color,_deps=dependents)
+# Arguments
+- `callback::Function`: A function (typically `t,dependents... -> Point`) that defines the curve's path.
+- `range::AbstractRange{Float64}`: The interval and step size over which the `callback` is evaluated.
+- `dependents::DependentsT`: A collection of `PlanDNA` objects that this curve depends on. Defaults to an empty vector.
 
-ParametricCurve(callback::Function,range::AbstractRange{Float64},color,type,dependents::DependentsT)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_range=range,_col=color,_type=type,_deps=dependents)
+# Keyword Arguments
+- `color=(0.6, 0.6, 0.9)`: The RGB tuple or array of tuples defining the curve's color.
+- `width=5.0f0`: The line thickness.
+- `type=CURVE_SOLID`: The visual style of the curve (e.g., solid, dashed).
+- `reversed=false`: Whether to flip the line pattern.
 
-ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT;color=(0.6,0.6,0.9),type=CURVE_SOLID,width=5.0f0)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_range=range,_col=color,_type=type,_width=width,_deps=dependents)
+# Returns
+- `ParametricCurvePlan`: A `PlanDNA` for further use in dependencies.
 
-#=
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd)
+# Example
+App();
 
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Real)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum)
+curve = ParametricCurve(t -> (cos(t), sin(t), 0.0), 0:0.1:2π; color=(1, 0, 0));
 
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,dependents::DependentsT)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_deps=dependents)
+play!();
+"""
+ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT=Vector{PlanDNA}();
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan =
+_ParametricCurve(_call=callback,_deps=dependents,_range=range,_col=color,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,dependents::DependentsT)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_deps=dependents)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,dependents::DependentsT,)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_deps=dependents)
-
-ParametricCurve(callback::Function,tStart::Real,tEnd::Real,tNum::Int,color,type,dependents::DependentsT,)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_tStart=tStart,_tEnd=tEnd,_tNum=tNum,_col=color,_type=type,_deps=dependents)
-=#
 # ? ---------------------------------
 # ! Segment
 # ? ---------------------------------
 
-DEFAULT_SEGMENT_COLOR = (0.6,0.0,1.0)
+"""
+    Segment(first, second; kwargs...) -> ParametricCurvePlan
 
-function Segment(fst::PointPlan,snd::PointPlan;color=DEFAULT_SEGMENT_COLOR,type=CURVE_SOLID,width=5.0f0)::ParametricCurvePlan
-    return ParametricCurve(range(0,1,length=2),[fst,snd],color=color,type=type,width=width) do t,a,b
-        return a[:xyz] .* t .+ (1-t) .* b[:xyz]
+Construct a plan for a straight line segment connecting two points.
+
+# Arguments
+- `first::PointPlan`: The starting point of the segment.
+- `second::PointPlan`: The ending point of the segment.
+
+# Keyword Arguments
+- `color=(0.6, 0.6, 0.9)`: The RGB tuple or array of tuples defining the segment's color.
+- `width=5.0f0`: The line thickness.
+- `type=CURVE_SOLID`: The visual style of the curve (e.g., solid, dashed).
+- `reversed=false`: Whether to flip the line pattern.
+
+# Returns
+- `ParametricCurvePlan`: A `PlanDNA` representing the linear path between the two points.
+
+# Example
+App();
+
+Segment(Point(0,0,0),Point(1,1,1));
+
+play!();
+"""
+function Segment(first::PointPlan,second::PointPlan;
+                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
+    return ParametricCurve(range(0,1,length=2),[first,second],color=color,type=type,width=width,reversed=reversed) do t,a,b
+        return b[:xyz] .* t .+ (1-t) .* a[:xyz]
     end
 end
 

@@ -80,7 +80,7 @@ end
 function SphereRenderer(context::OpenGLData)
     renderer = Renderer{SphereDependent}(context)
 
-    shader = ShaderProgram(sp("sphere.vert"),sp("sphere.geom"),sp("sphere.frag"),["VP","cam"])
+    shader = ShaderProgram(sp("sphere.vert"),sp("sphere.geom"),sp("sphere.frag"),["VP","cam","lightDirCam","lightDirSide"])
 
     buffer = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
 
@@ -138,9 +138,12 @@ function syncAll!(self::SphereRenderer)
 end
 
 function draw!(self::SphereRenderer,vp,selectedID,pickedID,cam,shrd)
+    (cam_light, side_light) = get_lights(cam)
     glDisable(GL_CULL_FACE)
     
     activate(self._shader)
+    setUniform!(self._shader,"lightDirCam",-cam_light)
+    setUniform!(self._shader,"lightDirSide",-side_light)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"cam",cam._eye)
     @time_gpu_begin Dependent Sphere

@@ -110,7 +110,7 @@ for i in 0:(circle_n - 1)
     oy = origins[2 * i + 1 + 1]
     r = radiuses[i + 1]
     circles[i + 1] = Circle(SVector{2, Float32}(ox, oy), r)
-    c = ParametricCurve(0, 2 * pi, 50) do t
+    c = ParametricCurve(range(0, 2 * pi, 50)) do t
         circle(ox, oy, r, t)
     end
 end

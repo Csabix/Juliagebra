@@ -122,7 +122,6 @@ function can_capture_mouse(self::App)::Bool
 end
 
 function handlePlans!(self::App)
-    @time_cpu_begin handlePlans!
     observers = Set{ObserverDNA}()
 
     while(!isempty(self._plans))
@@ -137,7 +136,6 @@ function handlePlans!(self::App)
     for observer in observers
         addedAll!(observer)
     end
-    @time_cpu_end handlePlans!
 end
 
 
@@ -203,12 +201,14 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p = fetch(self._graph,self._shrd._pickedID)      
+        p = fetch(self._graph,self._shrd._pickedID)
+        @time_cpu_begin Graph_update
         set(
             p,
             Float64(self._opengl._gizmoGL._pos.x),
             Float64(self._opengl._gizmoGL._pos.y),
             Float64(self._opengl._gizmoGL._pos.z))
+        @time_cpu_end Graph_update
     end
 end
 

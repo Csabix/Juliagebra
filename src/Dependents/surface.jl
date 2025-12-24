@@ -218,7 +218,7 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         
-        shader = ShaderProgram(sp("mesh_direction.vert"),sp("mesh_direction.frag"),["VP","lightDir"])
+        shader = ShaderProgram(sp("mesh_direction.vert"),sp("mesh_direction.frag"),["VP","lightDirCam","lightDirSide"])
         buffer = IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}()
 
         indexes = Vector{UInt32}()
@@ -278,16 +278,20 @@ end
 
 # ! Must have
 function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
-    @time_gpu_begin Dependent Surface
+    (cam_light, side_light) = get_lights(cam)
+    
     glDisable(GL_CULL_FACE)
     
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
-    setUniform!(self._shader,"lightDir",normalize(cam._eye-cam._at))
+    #setUniform!(self._shader,"lightDir",normalize(cam._eye-cam._at))
+    setUniform!(self._shader,"lightDirCam",-cam_light)
+    setUniform!(self._shader,"lightDirSide",-side_light)
+    @time_gpu_begin Dependent Surface
     draw(self._buffer,GL_TRIANGLES)
+    @time_gpu_end Dependent Surface
 
     glEnable(GL_CULL_FACE)
-    @time_gpu_end Dependent Surface
 end
 
 # ! Must have

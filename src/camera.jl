@@ -22,7 +22,18 @@ function defaultCamera()::Camera
     return camera
 end
 
+function get_lights(self::Camera, z::Float32 = 45.0f0)
+    z = deg2rad(z)
+    l_cam = normalize(self._at - self._eye)
+    rot = [ cos(z) -sin(z) 0 ;
+            sin(z) cos(z)  0 ;
+            0      0       1 ]
+    
+    return (l_cam, rot * l_cam)
+end
+
 function get_matrices(self::Camera)
+    get_lights(self)
     return self._view_proj, self._view, self._proj
 end
 # TODO getting rid of get_matrices(self::Camera,zoom)

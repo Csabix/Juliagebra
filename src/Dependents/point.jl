@@ -146,7 +146,7 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
     
     function PointRenderer(context::OpenGLData) 
         
-        shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID"])
+        shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
@@ -219,11 +219,15 @@ end
 # ? Gets called every frame no matter what happens or not. 
 # ! Must have
 function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd)
-    @time_gpu_begin Dependent Point
+    (_, view, _) = get_matrices(cam)
+    (_, side_light) = get_lights(cam)
+
     activate(self._shader)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"selectedID",selectedID)
     setUniform!(self._shader,"pickedID",pickedID)
+    setUniform!(self._shader,"lightDirSideView", view[1:3,1:3] * side_light)
+    @time_gpu_begin Dependent Point
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point
 end

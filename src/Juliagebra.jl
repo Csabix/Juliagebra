@@ -16,6 +16,8 @@ using ModernGL
 using CImGui
 using DataStructures
 
+include("performance_metrics.jl")
+
 include("commons.jl")
 
 include("abstracts.jl")
@@ -52,6 +54,7 @@ include("Widgets/gui_dependents_window.jl")
 include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
+include("Widgets/performance_viewer.jl")
 
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
@@ -88,6 +91,8 @@ include("Dependents/intersections.jl")
 include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
 include("Dependents/textbox.jl")
+include("Dependents/sphere.jl")
+
 
 include("app.jl")
 

@@ -18,25 +18,26 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
 
     _range::AbstractRange{Float64}
     _colors::Vector{Vec3F}
-    _type::UInt32
+    _type::UInt8
+    _reversed::UInt8
     _width::Float32
     
     function ParametricCurvePlan(callback::Function, plans::Vector{T},
                                  range::AbstractRange{Float64},
                                  color::Tuple{Real,Real,Real},
-                                 type::UInt8, width::Real) where {T<:PlanDNA}
+                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA}
         
-        ParametricCurvePlan(callback,plans,range,[color],type,width)
+        ParametricCurvePlan(callback,plans,range,[color],type,reversed,width)
     end
 
     function ParametricCurvePlan(callback::Function,plans::Vector{T},
                                  range::AbstractRange{Float64},
                                  color::Vector{U},
-                                 type::UInt8, width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
+                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
         
         colors = [Vec3F(c[1],c[2],c[3]) for c in color]
         width = clamp(width,1.0,10.0)
-        new(RenderedPlan(callback,plans),range,colors,type,width)
+        new(RenderedPlan(callback,plans),range,colors,type,reversed,width)
     end
 end
 
@@ -54,8 +55,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _range::AbstractRange{Float64}
     _colors::Vector{Vec3F}
     _width::Float32
-    _type::UInt32
-    _typeLast::UInt32
+    _type::UInt8
+    _typeLast::UInt8
+    _reversed::UInt8
 
     _ref::Int
     _tValues::Union{SubArray{Vec3F},Nothing}
@@ -66,8 +68,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
         colors = plan._colors
         width = plan._width
         type = plan._type
+        reversed = plan._reversed
 
-        new(a,range,colors,width,type,type,0,nothing)
+        new(a,range,colors,width,type,type,reversed,0,nothing)
     end
 end
 
@@ -101,7 +104,9 @@ function evalCallback(self::ParametricCurveDependent,t,index)
     return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
 
-dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Tuple)  = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v)         = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3D)  = self._tValues[index] = Vec3F(v)
+dpCallbackReturn(self::ParametricCurveDependent,t,index,v::Vec3F)  = self._tValues[index] = v
 dpCallbackReturn(self::ParametricCurveDependent,t,index,::Nothing) = self._tValues[index] = Vec3FNan
 
 function runCallbacks(self::ParametricCurveDependent)
@@ -133,6 +138,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _coords::Vector{Vec3F}
     _widths::Vector{Float32}
     _colors::Vector{Float32}
+    _distances::Vector{Float32} # to avoid memory allocations
     _needMaintance::Bool
 
     _proof_of_concept::ShaderProgram
@@ -158,12 +164,10 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         ranges = Vector{Tuple{Int,Int,Int}}()
         drawRanges = fill((0,0),_CURVE_COUNT)
 
-        coords = Vector{Vec3F}()
-        widths = Vector{Float32}()
-        colors = Vector{Float32}()
-        push!(coords, Vec3FNan)
-        push!(widths, 0.0f0)
-        push!(colors, 0.0f0)
+        coords = [Vec3FNan]
+        widths = [0.0f0]
+        colors = [0.0f0]
+        distances = Vector{Float32}(undef,1)
 
         needMaintance = false
         new(
@@ -175,6 +179,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
             coords,
             widths,
             colors,
+            distances,
             needMaintance,
             proof_of_concept)
     end
@@ -214,6 +219,7 @@ function _maintainCurveRenderer!(self::CurveRenderer)
     self._coords = coords
     self._widths = widths
     self._colors = colors
+    self._distances = Vector{Float32}(undef,length(coords))
     self._needMaintance = false
 
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
@@ -241,7 +247,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     push!(self._ranges, (length(self._coords)+1,length(self._coords)+length(curve._range),curve._type))
     curve._ref = length(self._ranges)
     color_count = length(curve._colors)
-    packed_colors = [pack_color(color,false) for color in curve._colors]
+    packed_colors = [pack_color(color,curve._reversed != 0x0) for color in curve._colors]
     current_color = 1
     for _ in 1:length(curve._range)
         push!(self._coords, Vec3F(0,0,0))
@@ -278,38 +284,55 @@ end
 
 # ! Must have
 function syncAll!(self::CurveRenderer)
+    @time_cpu_begin Dependent Curve
     if self._needMaintance
         _maintainCurveRenderer!(self)
     else
         upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     end
+    @time_cpu_end Dependent Curve
 end
 
 # ! Must have
 function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
-    # ? vp,v,p = getMat(cam,shrd._width,shrd._height)
-    distances = fill(NaN32, length(self._coords))
+    @time_cpu_begin Dependent Curve Distances
     Threads.@threads for (first,last,_) in self._ranges
+        wh = Vec2F(shrd._width,shrd._height)
         distance_sum = 0.0f0
-        last_p = Vec2(NaN32,NaN32)
-        for i in first:last
-            p4 = vp * Vec4F(self._coords[i], 1.0f0)
-            p = Vec2F(p4.x,p4.y) / p4.w
-            p = p .* 0.5f0 .+ 0.5f0
-            p = p .* Vec2F(shrd._width, shrd._height)
-
-            if i != first
-                distance_sum += norm(last_p - p)
+        for i in first:(last-1)
+            a = vp * Vec4F(self._coords[i], 1.0f0)
+            b = vp * Vec4F(self._coords[i+1], 1.0f0)
+            if a.z + a.w < 0.0 && b.z + b.w < 0.0f0 continue end
+            t0 = a.z + a.w;
+            t1 = b.z + b.w;
+            if t0 < 0.0
+                tt = t0 / (t0 - t1)
+                a = @. a * (1 - tt) + b * tt
+            elseif t1 < 0.0
+                tt = t1 / (t1 - t0)
+                b = @. b * (1 - tt) + a * tt
             end
-            distances[i] = distance_sum
-            last_p = p
+            a2 = Vec2F(a.x,a.y) / a.w
+            a2 = a2 .* 0.5f0 .+ 0.5f0
+            a2 = a2 .* wh
+
+            b2 = Vec2F(b.x,b.y) / b.w
+            b2 = b2 .* 0.5f0 .+ 0.5f0
+            b2 = b2 .* wh
+
+            self._distances[i] = distance_sum
+            distance_sum += norm(a2 - b2)
         end
+        self._distances[last] = distance_sum
     end
-    upload!(self._buffer,4,distances,GL_DYNAMIC_DRAW)
+    @time_cpu_end Dependent Curve Distances
+
+    upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
     (cam_light, side_light) = get_lights(cam)
     activate(self._buffer)
     glEnable(GL_BLEND)
     glDisable(GL_STENCIL_TEST)
+    @time_gpu_begin Dependent Curve
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
@@ -319,8 +342,9 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         setUniform!(self._shaders[type],"lightDirCam", cam_light)
         setUniform!(self._shaders[type],"lightDirSide",side_light)
         setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
-        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
+        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first); 
     end
+    @time_gpu_end Dependent Curve
     glEnable(GL_STENCIL_TEST)
     glDisable(GL_BLEND)
 end

@@ -6,7 +6,7 @@ tMax = (2*pi)*5
 radius = 5
 a = Point(-tMax-10,0,0)
 
-curve = ParametricCurve(range(0,tMax,55),(0.3,0.8,0.3),[a]) do t,p1
+curve = ParametricCurve(range(0,tMax,55),[a],color=(0.3,0.8,0.3)) do t,p1
     z = cos(t) * radius
     y = sin(t) * radius
     x = t

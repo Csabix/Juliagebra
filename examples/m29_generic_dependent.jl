@@ -1,4 +1,5 @@
 using Juliagebra
+using JuliaGLM
 
 App()
 
@@ -23,11 +24,8 @@ end
 p1 = Point(0,0,0)
 
 # ? {T} parametric input decides the type.
-gd3 = GenericDependent{Tuple{Float32,Float32,Float32}}((0,0,0),[p1]) do p1
-    x = Float32(p1[:x])
-    y = Float32(p1[:y])
-    z = Float32(p1[:z])
-    return (x,y,z)
+gd3 = GenericDependent{Vec3F}((0,0,0),[p1]) do p1
+    return Vec3F(p1[:xyz])
 end
 
 txt3 = TextBox([gd3]) do gd3
@@ -36,7 +34,7 @@ txt3 = TextBox([gd3]) do gd3
 end
 
 # ? Starting value decides the type.
-gd4 = GenericDependent((0.0,0.0,0.0),[p1]) do p1
+gd4 = GenericDependent(Vec3D(0.0,0.0,0.0),[p1]) do p1
     return p1[:xyz]
 end
 

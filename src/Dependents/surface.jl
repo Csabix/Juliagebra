@@ -100,10 +100,14 @@ function evalCallback(self::ParametricSurfaceDependent,u,v)
     return _Dependent_(self)._callback(uf,vf,_Dependent_(self)._graphParents...)
 end
 
-function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Tuple)
+function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value)
     (x,y,z)=value
     self._uvValues[u,v] = Vec3F(x,y,z)
 end
+
+dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Vec3D) = self._uvValues[u,v] = Vec3F(value)
+dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Vec3F) = self._uvValues[u,v] = value
+
 
 function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,::Nothing)
     self._uvValues[u,v] = Vec3FNan
@@ -266,8 +270,10 @@ end
 
 # ! Must have
 function syncAll!(self::ParametricSurfaceRenderer)
+    @time_cpu_begin Dependent Surface
     upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
+    @time_cpu_end Dependent Surface
 end
 
 # ! Must have
@@ -281,7 +287,9 @@ function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
     #setUniform!(self._shader,"lightDir",normalize(cam._eye-cam._at))
     setUniform!(self._shader,"lightDirCam",-cam_light)
     setUniform!(self._shader,"lightDirSide",-side_light)
+    @time_gpu_begin Dependent Surface
     draw(self._buffer,GL_TRIANGLES)
+    @time_gpu_end Dependent Surface
 
     glEnable(GL_CULL_FACE)
 end

@@ -1,4 +1,5 @@
 using Juliagebra
+using JuliaGLM
 
 App()
 
@@ -18,7 +19,7 @@ function gravField(fieldHeight,fieldStrengthDistance,u,v,p)
     z = (d) * p[:z] +
         (1-d) * (fieldHeight)
 
-    return (x,y,z)
+    return Vec3F(x,y,z)
 end
 
 field1 = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0,[cursor]) do u,v,p

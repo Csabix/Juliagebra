@@ -1,0 +1,3 @@
+[deps]
+Clang = "40e3b903-d033-50b4-a0cc-940c62c95e31"
+assimp_jll = "54ae6823-98c6-5a7c-8365-5a43b909f91f"

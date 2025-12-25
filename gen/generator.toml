@@ -1,0 +1,7 @@
+[general]
+library_name = "libassimp"
+output_file_path = "./LibAssimp.jl"
+module_name = "LibAssimp"
+jll_pkg_name = "assimp_jll"
+export_symbol_prefixes = ["ai", "AI"]
+use_deterministic_symbol = true

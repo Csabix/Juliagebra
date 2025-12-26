@@ -130,6 +130,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
 
     _shaders::Vector{ShaderProgram}
+    _shaders_occluded::Vector{ShaderProgram}
     _buffer::TypedBufferArray
 
     _ranges::Vector{Tuple{Int,Int,Int}}
@@ -157,6 +158,18 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_wave.frag"),    uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dash_dot.frag"),uniforms))
         push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_arrow.frag"),   uniforms))
+
+        shaders_occluded = Vector{ShaderProgram}()
+        vert = sp("curve/occluded/curve.vert")
+        geom = sp("curve/occluded/curve.geom")
+        uniforms = ["VP","WH"]
+        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_solid.frag"),   uniforms))
+        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_dashed.frag"),  uniforms))
+        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_dotted.frag"),  uniforms))
+        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_wave.frag"),    uniforms))
+        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_dash_dot.frag"),uniforms))
+        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_arrow.frag"),   uniforms))
+
         proof_of_concept = ShaderProgram(vert,geom,sp("curve/proof_of_concept.frag"),uniforms)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32,Float32,Float32}}()
@@ -173,6 +186,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         new(
             renderer,
             shaders,
+            shaders_occluded,
             buffer,
             ranges,
             drawRanges,
@@ -293,11 +307,9 @@ function syncAll!(self::CurveRenderer)
     @time_cpu_end Dependent Curve
 end
 
-# ! Must have
-function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
+function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
     @time_cpu_begin Dependent Curve Distances
     Threads.@threads for (first,last,_) in self._ranges
-        wh = Vec2F(shrd._width,shrd._height)
         distance_sum = 0.0f0
         for i in first:(last-1)
             a = vp * Vec4F(self._coords[i], 1.0f0)
@@ -326,13 +338,10 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         self._distances[last] = distance_sum
     end
     @time_cpu_end Dependent Curve Distances
+end
 
-    upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
+function _draw_visible(self::CurveRenderer,vp,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
-    activate(self._buffer)
-    glEnable(GL_BLEND)
-    glDisable(GL_STENCIL_TEST)
-    @time_gpu_begin Dependent Curve
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
@@ -344,8 +353,32 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
         glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first); 
     end
+end
+
+function draw_occluded!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
+    activate(self._buffer)
+    glEnable(GL_BLEND)
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_occluded[type])
+        setUniform!(self._shaders_occluded[type],"VP",vp)
+        setUniform!(self._shaders_occluded[type],"WH",Vec2F(shrd._width, shrd._height))
+        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first); 
+    end
+    glDisable(GL_BLEND)
+end
+
+# ! Must have
+function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
+    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
+    upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
+    activate(self._buffer)
+
+    glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Curve
+    _draw_visible(self,vp,cam,shrd)
     @time_gpu_end Dependent Curve
-    glEnable(GL_STENCIL_TEST)
     glDisable(GL_BLEND)
 end
 

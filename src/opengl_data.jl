@@ -1,7 +1,10 @@
 const _SPEHERE_RENDERER::UInt = 1
 const _SURFACE_RENDERER::UInt = 2
-const _POINT_RENDERER::UInt   = 3
+
 const _CURVE_RENDERER::UInt   = 4
+
+const _POINT_RENDERER::UInt   = 3
+
 const _RENDERER_COUNT::UInt   = 4
 
 mutable struct OpenGLData <: ObserverBuilderDNA
@@ -13,13 +16,13 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     
     # ! Shaders
     _combinerShader::ShaderProgram
-    _bodyShader::ShaderProgram
     _centerShader::ShaderProgram
 
     # ! Main FBO objects
     _mainRGBATexture :: Texture2D
     _mainIDTexture :: Texture2D
     _mainDepthTexture :: Texture2D
+    _behindDepthTexture :: Texture2D
     _mainFBO :: FrameBuffer
     _behindFBO :: FrameBuffer
     
@@ -37,6 +40,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
+        glClearStencil(0)
+        glStencilMask(0xFF);
         glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
         
         widgets = Vector{OpenGLWidgetDNA}()
@@ -47,7 +52,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,orthoGizmoGL)
 
         combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"),["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
-        bodyShader      = ShaderProgram(sp("body_3D.vert")      ,sp("body_3D.frag"),["VP"])
         centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
 
         mainAttachements = Dict{GLuint,Texture2D}()
@@ -83,9 +87,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         camPos = Vec3F(0.0,0.0,0.0)
 
         new(shrd,widgets,renderers,updateMeQueue,
-            combinerShader,bodyShader,centerShader,
+            combinerShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
-            mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT],
+            mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT], behindAttachments[GL_DEPTH_STENCIL_ATTACHMENT],
             mainFBO,behindFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
@@ -119,6 +123,7 @@ function resize!(self::OpenGLData)
     resize!(self._mainRGBATexture,width,height)
     resize!(self._mainIDTexture,width,height)
     resize!(self._mainDepthTexture,width,height)
+    resize!(self._behindDepthTexture,width,height)
 end
 
 function readID(self::OpenGLData)
@@ -157,23 +162,33 @@ function update!(self::OpenGLData,cam::Camera)
     checkErrors(self)
 
     activate(self._mainFBO)
-    glClearStencil(0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
     glClearTexImage(self._mainIDTexture._id,0,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref{UInt32}(0x0))
 
-    activate(self._bodyShader)
-    setUniform!(self._bodyShader,"VP",self._vp)  
-    
-    glEnable(GL_STENCIL_TEST);
-    glStencilMask(0xFF);
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-    for renderer in self._renderers
+    for renderer_index in _SPEHERE_RENDERER:_SURFACE_RENDERER
+        renderer = self._renderers[renderer_index]
         if renderer !== nothing
             draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
     end
-    
+
+    glEnable(GL_STENCIL_TEST);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+    for renderer_index in _CURVE_RENDERER:_CURVE_RENDERER
+        renderer = self._renderers[renderer_index]
+        if renderer !== nothing
+            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
+        end
+    end
+
+    for renderer_index in _POINT_RENDERER:_POINT_RENDERER
+        renderer = self._renderers[renderer_index]
+        if renderer !== nothing
+            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
+        end
+    end
+
     glBindFramebuffer(GL_READ_FRAMEBUFFER, self._mainFBO._id)
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._behindFBO._id)
     glBlitFramebuffer(
@@ -181,18 +196,17 @@ function update!(self::OpenGLData,cam::Camera)
         0, 0, self._shrd._width, self._shrd._height,
         GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
         GL_NEAREST
-        )
-        activate(self._behindFBO)
-        glClear(GL_DEPTH_BUFFER_BIT)
-        
-        for renderer in self._renderers
-            if renderer !== nothing
-                try
-                    draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd,0)
-                catch e
-                end
-            end
+    )
+    
+    activate(self._behindFBO)
+    glClear(GL_DEPTH_BUFFER_BIT)
+    glStencilFunc(GL_GREATER, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+    for renderer in self._renderers
+        if renderer !== nothing
+            draw_occluded!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
+    end
     glDisable(GL_STENCIL_TEST);
     activate(self._mainFBO)
 
@@ -243,7 +257,6 @@ function destroy!(self::OpenGLData)
     
     
     destroy!(self._combinerShader)
-    destroy!(self._bodyShader)
     destroy!(self._centerShader)
     destroy!(self._mainFBO)
     destroy!(self._mainDepthTexture)

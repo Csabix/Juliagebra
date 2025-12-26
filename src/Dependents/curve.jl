@@ -376,5 +376,5 @@ end
 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::ParametricCurvePlan)
-    return SingleRendererTactic(self,CurveRenderer)
+    return SingleRendererTactic(self,_CURVE_RENDERER,CurveRenderer)::CurveRenderer
 end

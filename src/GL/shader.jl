@@ -70,9 +70,11 @@ function linkShaders!(shaders::GLuint...)::GLuint
 end
 
 function createShaderStage(path::String, stage::GLenum)::GLuint
-    source = read(path,String)
+    source = read(path)
     shader = glCreateShader(stage)
-    glShaderSource(shader,1,convert(Ptr{UInt8},pointer([convert(Ptr{GLchar},pointer(source))])), C_NULL)
+    GC.@preserve source begin
+        glShaderSource(shader,1,Ref(pointer(source)), C_NULL)
+    end
     glCompileShader(shader)
     
     status = Ref{GLint}(0)

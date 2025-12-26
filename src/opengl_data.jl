@@ -1,15 +1,14 @@
-
-# * iter on employees to check changes
-# * iter on opengldata for rendering
-
-global DEBUG_FRAME = 0
+const _SPEHERE_RENDERER::UInt = 1
+const _SURFACE_RENDERER::UInt = 2
+const _POINT_RENDERER::UInt   = 3
+const _CURVE_RENDERER::UInt   = 4
+const _RENDERER_COUNT::UInt   = 4
 
 mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
-    # TODO: Change Dictionary to an array. This suggestion might be a microoptimization.
-    _renderOffices::Dict{<:DataType,Vector{<:RendererDNA}}
+    _renderers::Vector{Union{Nothing,RendererDNA}}
     _updateMeQueue::Queue{RendererDNA}
     
     # ! Shaders
@@ -28,9 +27,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _centerBufferArray::BufferArray
     _gizmoGL::GizmoGL
     _orthoGizmoGL::OrthoGizmoGL
-
-
-    _index :: Int
 
     _backgroundCol::Vec3F
 
@@ -78,7 +74,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         
         glEnable(GL_PROGRAM_POINT_SIZE)
 
-        renderOffices = Dict{DataType,Vector{<:RendererDNA}}()
+        renderers = [nothing for _ in 1:_RENDERER_COUNT]
         updateMeQueue = Queue{RendererDNA}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
@@ -86,26 +82,22 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        new(shrd,widgets,renderOffices,updateMeQueue,
+        new(shrd,widgets,renderers,updateMeQueue,
             combinerShader,bodyShader,centerShader,
             mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
             mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT],
             mainFBO,behindFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
-            0,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
     end
 end
 
-function SingleRendererTactic(self::OpenGLData,t::Type{T})::T where T<:RendererDNA
-    myVector = get!(self._renderOffices,T,Vector{T}())
-
-    if(length(myVector)!=1)
-        push!(myVector,T(self))
+function SingleRendererTactic(self::OpenGLData,i::UInt,t::Type{T})::T where T<:RendererDNA
+    if self._renderers[i] === nothing
+        self._renderers[i] = T(self)
     end
-
-    return myVector[1]
+    return self._renderers[i]
 end
 
 function checkErrors(self::OpenGLData)
@@ -163,11 +155,7 @@ end
 
 function update!(self::OpenGLData,cam::Camera)
     checkErrors(self)
-    
-    self._index += 1
-    global DEBUG_FRAME
-    DEBUG_FRAME = self._index
-    
+
     activate(self._mainFBO)
     glClearStencil(0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
@@ -180,8 +168,8 @@ function update!(self::OpenGLData,cam::Camera)
     glStencilMask(0xFF);
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-    for (_,office) in self._renderOffices
-        for renderer in office
+    for renderer in self._renderers
+        if renderer !== nothing
             draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
     end
@@ -197,8 +185,8 @@ function update!(self::OpenGLData,cam::Camera)
         activate(self._behindFBO)
         glClear(GL_DEPTH_BUFFER_BIT)
         
-        for (_,office) in self._renderOffices
-            for renderer in office
+        for renderer in self._renderers
+            if renderer !== nothing
                 try
                     draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd,0)
                 catch e
@@ -247,9 +235,9 @@ end
 
 
 function destroy!(self::OpenGLData)
-    for (_, office) in self._renderOffices
-        for renderer in office
-            destroy!(renderer) 
+    for renderer in self._renderers
+        if renderer !== nothing
+            destroy!(renderer)
         end
     end
     
@@ -264,20 +252,4 @@ function destroy!(self::OpenGLData)
     destroy!(self._dummyBufferArray)
     destroy!(self._centerBufferArray)
     destroy!(self._gizmoGL)
-end
-
-function print_render_offices(self::OpenGLData)
-    printstyled("---------------\n";color=:white, bold=true)
-    printstyled("Render Offices:\n";color=:yellow, bold=true)
-    printstyled("---------------\n";color=:white, bold=true)
-
-    for (key,office) in self._renderOffices
-        printstyled("- ";color=:red,bold=true)
-        printstyled("$key:\n";color=:green)
-        for employee in office
-            printstyled("\t- ";color=:red,bold=true)
-            printstyled("$(string(employee)) - $(string(employee._asset))\n";color=:cyan)
-        end
-    end
-
 end

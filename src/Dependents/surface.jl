@@ -302,5 +302,5 @@ end
 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::ParametricSurfacePlan)
-    return SingleRendererTactic(self,ParametricSurfaceRenderer)
+    return SingleRendererTactic(self,_SURFACE_RENDERER,ParametricSurfaceRenderer)::ParametricSurfaceRenderer
 end

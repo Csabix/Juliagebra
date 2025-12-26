@@ -158,5 +158,5 @@ function destroy!(self::SphereRenderer)
     destroy!(self._buffer)
 end
 
-Plan2Observer(builder::OpenGLData, _::SpherePlan) = SingleRendererTactic(builder,SphereRenderer)
+Plan2Observer(builder::OpenGLData, _::SpherePlan) = SingleRendererTactic(builder,_SPEHERE_RENDERER,SphereRenderer)::SphereRenderer
 

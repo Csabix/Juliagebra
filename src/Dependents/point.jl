@@ -248,7 +248,7 @@ end
 # ? constructed from the incoming Plan. 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::PointPlan)
-    return SingleRendererTactic(self,PointRenderer)
+    return SingleRendererTactic(self,_POINT_RENDERER,PointRenderer)::PointRenderer
 end
 
 # ? Of course, in the case of renderers using views passed to Dependents is a very fast way to handee things,

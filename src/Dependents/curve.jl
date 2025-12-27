@@ -357,7 +357,6 @@ end
 
 function draw_occluded!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     activate(self._buffer)
-    glEnable(GL_BLEND)
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
@@ -366,7 +365,6 @@ function draw_occluded!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         setUniform!(self._shaders_occluded[type],"WH",Vec2F(shrd._width, shrd._height))
         glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first); 
     end
-    glDisable(GL_BLEND)
 end
 
 # ! Must have

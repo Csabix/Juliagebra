@@ -22,8 +22,9 @@ void main() {
     float lenY = segment_SDF_field_in.w;
     float d = sdCapsule(p,lenX,lenY);
     d = max(d,distance(sin(total_distance_in / lenX) * 0.5 * lenX, p.x) - lenX * 0.5);
+    d = max(d,mod(total_distance_in,lenX * 5.0) - lenX * 4.0);
 
-    color_out = vec4(color_in, 0.8);
+    color_out = vec4(color_in * 0.8, 1.0);
     index_out = uint(0);
 
     if (d > 0.0) discard;

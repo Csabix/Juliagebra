@@ -25,9 +25,9 @@ void main() {
     float lenX = segment_SDF_field_in.z;
     float lenY = segment_SDF_field_in.w;
     float d = sdCapsule(p,lenX,lenY);
-    d = max(d,sdCircle(vec2(p.x, mod(total_distance_in,lenX * 3.0) - lenX), lenX));
+    d = max(d,sdCircle(vec2(p.x, mod(total_distance_in,lenX * 6.0) - lenX), lenX));
 
-    color_out = vec4(color_in, 0.8);
+    color_out = vec4(color_in * 0.8, 1.0);
     index_out = uint(0);
 
     if (d > 0.0) discard;

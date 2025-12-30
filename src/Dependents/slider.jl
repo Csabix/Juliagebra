@@ -52,7 +52,10 @@ _GuiDependent_(self::SliderDependent)::GuiDependent = return self._dependent
 getSliderField(self::SliderDependent,fieldVal::Val{:state}) = return self._currVal
 Base.getindex(self::SliderDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
 
+
 onNodeEval(self::SliderDependent) = evalCallbackDp(self)
+evalCallbackDpEntry(self::SliderDependent)::Float64 = return Float64(self._currVal)
+
 evalCallbackDpReturn(self::SliderDependent, currVal::Number) = self._currVal = clamp(Float32(currVal),self._minVal,self._maxVal)
 evalCallbackDpReturn(self::SliderDependent, ::Nothing) = return nothing
 

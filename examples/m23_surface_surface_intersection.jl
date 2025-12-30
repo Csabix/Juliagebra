@@ -17,7 +17,7 @@ surface2 = ParametricSurface(100, 100, -10.0, 10.0, -10.0, 10.0, [a]) do u, v, p
     y = v
     z = -1.0 * (u^2 + v^2) * -0.05
 
-    return p1[:xyz] .+ (x,y,z - 5.0)
+    return p1 .+ (x,y,z - 5.0)
 end
 
 const MAX_INTERSECTIONS = 1000

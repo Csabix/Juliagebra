@@ -51,12 +51,12 @@ p3 = Point(-1.0,-1.0,0.0)
 p4 = Point(-1.0, 1.0,0.0)
 
 
-c = Point(NaN64,NaN64,NaN64,[p1,p2,p3,p4]) do p1,p2,p3,p4
-    return sphereCenter(p1[:xyz],p2[:xyz],p3[:xyz],p4[:xyz])
+c = Point([p1,p2,p3,p4]) do p1,p2,p3,p4
+    return sphereCenter(p1,p2,p3,p4)
 end
 
 r = GenericDependent(NaN64,[c,p1]) do c,p1
-    return norm(p1[:xyz]-c[:xyz])
+    return norm(p1-c)
 end
 
 

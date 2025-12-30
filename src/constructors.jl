@@ -238,6 +238,9 @@ _Slider()
 Slider(minVal,maxVal) =
 _Slider(_minVal = minVal, _startVal = ((maxVal - minVal)*0.5) + minVal ,_maxVal = maxVal)
 
+Slider(minVal,startVal,maxVal) = 
+_Slider(_minVal = minVal, _startVal = clamp(startVal,minVal,maxVal) ,_maxVal = maxVal)
+
 Slider(callback::Function,minVal,maxVal,dependents::DependentsT) =
 _Slider(_call = callback, _minVal = minVal ,_maxVal = maxVal, _deps=dependents)
 
@@ -293,8 +296,8 @@ _Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306))::SpherePlan
     deps = Vector{PlanDNA}([center,p1])
     call = function (center,p1)
-        radius = norm(center[:xyz] - p1[:xyz]) 
-        return (center[:xyz],radius)
+        radius = norm(center - p1) 
+        return (center,radius)
     end
 
     return _Sphere(_call = call, _deps = deps, _col = color)
@@ -303,7 +306,7 @@ end
 function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color = (0.031,0.337,0.412))
     deps = Vector{PlanDNA}([center,radius])
     call = function (center,radius)
-        return (center[:xyz],radius[:val])
+        return (center,radius)
     end
 
     return _Sphere(_call = call, _deps = deps, _col = color)
@@ -353,8 +356,8 @@ end
 function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))
     deps = [p1,p2,p3,p4]
     call = function (p1,p2,p3,p4)
-        c = sphereCenter(p1[:xyz],p2[:xyz],p3[:xyz],p4[:xyz])
-        r = norm(p1[:xyz] - c)
+        c = sphereCenter(p1,p2,p3,p4)
+        r = norm(p1 - c)
         return (c,r)
     end
 

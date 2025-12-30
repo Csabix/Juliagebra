@@ -4,8 +4,8 @@ App()
 
 t1 = Toggle()
 
-p1 = Point(5,5,5, [t1]) do t1
-    if (t1[:state])
+p1 = Point([t1]) do t1
+    if (t1)
         return (1,1,1)
     end
 
@@ -13,7 +13,7 @@ p1 = Point(5,5,5, [t1]) do t1
 end
 
 t2 = Toggle([t1]) do t1
-    if(t1[:state])
+    if(t1)
         return false
     end
 
@@ -21,11 +21,11 @@ t2 = Toggle([t1]) do t1
 end
 
 p2 = Point([p1,t2]) do p1,t2
-    if(t2[:state])
-        return p1[:xyz] .* -1
+    if(t2)
+        return p1 .* -1
     end
 
-    return (p1[:xyz] .* -3)
+    return (p1 .* -3)
 end
 
 play!()

@@ -58,6 +58,10 @@ afterNodeEval(self::DependentDNA) = nothing
 
 evalCallbackDpEntry(self::DependentDNA) = return self
 
+"""
+Eval the callback of a Dependent with every input node as type **evalCallbackDpEntry()**, 
+then dispatch onto the result with **evalCallbackDpReturn()**
+"""
 function evalCallbackDp(self::DependentDNA; callbackParams = (), returnParams = ()) 
     
     entryNodes = getEntryNodes(self)

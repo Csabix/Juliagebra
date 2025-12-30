@@ -45,6 +45,8 @@ getSliderField(self::TextBoxDependent,fieldVal::Val{:text}) = return self._text
 Base.getindex(self::TextBoxDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
 
 onNodeEval(self::TextBoxDependent) = evalCallbackDp(self)
+evalCallbackDpEntry(self::TextBoxDependent)::String = return self._text   
+
 evalCallbackDpReturn(self::TextBoxDependent, text::String) = self._text = text
 evalCallbackDpReturn(self::TextBoxDependent, ::Nothing) = return nothing
 

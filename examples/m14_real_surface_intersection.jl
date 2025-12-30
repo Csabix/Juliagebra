@@ -11,7 +11,7 @@ curve = ParametricCurve(0,tMax,55,(0.3,0.8,0.3),[a]) do t,p1
     y = sin(t) * radius
     x = t
     
-    return p1[:xyz] .+ (x,y,z)
+    return p1 .+ (x,y,z)
 end
 
 surface = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0) do u,v
@@ -25,7 +25,7 @@ end
 it = Intersection(curve,surface,6)
 
 for i in 1:6
-    Point(0,0,-999,[it]) do iit
+    Point([it]) do iit
         return iit[i]
     end
 end

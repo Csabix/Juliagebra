@@ -39,7 +39,11 @@ Base.getindex(self::ToggleDependent,fieldSymbol::Symbol) = return getToggleField
 
 flip!(self::ToggleDependent) = self._toggled = !self._toggled
 
+
+
 onNodeEval(self::ToggleDependent) = evalCallbackDp(self)
+evalCallbackDpEntry(self::ToggleDependent)::Bool = return self._toggled
+
 evalCallbackDpReturn(self::ToggleDependent, val::Bool) = self._toggled = val
 evalCallbackDpReturn(self::ToggleDependent, ::Nothing) = return nothing
 

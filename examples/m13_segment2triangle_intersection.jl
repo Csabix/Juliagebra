@@ -36,17 +36,10 @@ triangle = ParametricSurface(3,3,0.0,1.0,0.0,1.0,[ta,tb,tc]) do u,v,a,b,c
         v = 0.5
     end
 
-    return (1-u-v) .* a[:xyz] .+ u .* b[:xyz] .+ v .* c[:xyz]
+    return (1-u-v) .* a .+ u .* b .+ v .* c
 end
 
-intersectPoint = Point(-999,-999,-999,[sp1,sp2,ta,tb,tc]) do p1,p2,a,b,c
-    p1 = collect(p1[:xyz])
-    p2 = collect(p2[:xyz])
-    
-    a = collect(a[:xyz])
-    b = collect(b[:xyz])
-    c = collect(c[:xyz])
-
+intersectPoint = Point([sp1,sp2,ta,tb,tc]) do p1,p2,a,b,c
     p0 = p1
     v = p2 - p1
 
@@ -59,9 +52,7 @@ intersectPoint = Point(-999,-999,-999,[sp1,sp2,ta,tb,tc]) do p1,p2,a,b,c
     tuv = (1/dot(f,ab)) * [dot(g,ac),dot(f,ap),dot(g,v)]
     t = tuv[1]
 
-    intersection = (1-t) * p1 + t * p2
-
-    return (intersection[1],intersection[2],intersection[3])
+    return (1-t) * p1 + t * p2
 end
 
 play!()

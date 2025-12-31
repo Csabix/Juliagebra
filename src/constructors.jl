@@ -142,7 +142,7 @@ play!();
 function Segment(first::PointPlan,second::PointPlan;
                  color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
     return ParametricCurve(range(0,1,length=2),[first,second],color=color,type=type,width=width,reversed=reversed) do t,a,b
-        return b[:xyz] .* t .+ (1-t) .* a[:xyz]
+        return b .* t .+ (1-t) .* a
     end
 end
 

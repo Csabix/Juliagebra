@@ -24,8 +24,8 @@ function dCircle(t,xRadius,yRadius)
 end
 
 ParametricCurve(range(0,2*pi,51),[Center,Axis1,Axis2]) do t, c, a1, a2
-    xR = abs(c[:x] - a1[:x])
-    yR = abs(c[:y] - a2[:y]) 
+    xR = abs(c.x - a1.x)
+    yR = abs(c.y - a2.y) 
     
     coords = dCircle(t,xR,yR)
     
@@ -33,8 +33,8 @@ ParametricCurve(range(0,2*pi,51),[Center,Axis1,Axis2]) do t, c, a1, a2
 end
 
 ParametricCurve(range(0,2*pi,51),[Center,Axis2,Axis3]) do t, c, a2, a3
-    yRad = abs(c[:y] - a2[:y])
-    zRad = abs(c[:z] - a3[:z])
+    yRad = abs(c.y - a2.y)
+    zRad = abs(c.z - a3.z)
 
     y,z,x = dCircle(t,yRad,zRad)
 

@@ -8,7 +8,7 @@ spring = function (t,c)
     y = sin(t)
     z = (t/tMax)
 
-    return (c[:x] + x, c[:y] + y, c[:z] * z)
+    return (c.x + x, c.y + y, c.z * z)
 end
 tMax = (2*pi)*5
 A = Point(0,0,1)

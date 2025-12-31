@@ -61,6 +61,9 @@ evalCallbackDpEntry(self::DependentDNA) = return self
 """
 Eval the callback of a Dependent with every input node as type **evalCallbackDpEntry()**, 
 then dispatch onto the result with **evalCallbackDpReturn()**
+
+- The params given in a tuple to **callbackParams** will be entered into the user defined **_callback** starting from the first element.
+- The params given in a tuple to **returnParams** will be entered into **evalCallbackDpReturn** after the returned value, starting from the first element.
 """
 function evalCallbackDp(self::DependentDNA; callbackParams = (), returnParams = ()) 
     
@@ -72,17 +75,3 @@ end
 
 evalCallbackDpReturn(self::DependentDNA,returnVal,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of $(typeof(self)) for $(typeof(returnVal))")
 evalCallbackDpReturn(self::DependentDNA,::Nothing,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of DependentDNA (on Nothing)")
-
-function to_string(self::DependentDNA)
-    outStr = ""
-
-    outStr *= "$(getGraphID(self))"
-    outStr *= "\t: ["
-    for parent in getGraphParents(self)
-        outStr *= "$(getGraphID(parent)), "
-    end
-    outStr = outStr[1:end-2]
-    outStr *= "]"
-
-    return outStr
-end

@@ -21,6 +21,8 @@ abstract type CollectedDNA <:QueueLockDNA end
 abstract type CollectorDNA{T} end
 abstract type CollectedCollectorDNA{T} end
 
+abstract type AppDNA end
+
 abstract type WidgetDNA end
 abstract type OpenGLWidgetDNA <: WidgetDNA end
 abstract type ImGuiWidgetDNA <: WidgetDNA end

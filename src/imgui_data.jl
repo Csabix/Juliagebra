@@ -12,7 +12,13 @@ mutable struct ImGuiData <: ObserverBuilderDNA
     _dock::Dock
     _guiDependentsWindow::GuiDependentsWindow
 
-    function ImGuiData(glfwD::GLFWData,openglD::OpenGLData,shrd::SharedData)
+    function ImGuiData(app::AppDNA )
+        
+        glfwD::GLFWData = getGLFW(app)
+        openglD::OpenGLData = getOpenGL(app)
+        shrd::SharedData = getShrd(app)
+        graph::DependentGraphDNA = getGraph(app)
+
         imgui_context = CImGui.CreateContext()
         
         CImGui.StyleColorsDark()
@@ -29,6 +35,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
         add!(dock,PerformanceWindow())
+        add!(dock,GraphViewerWindow(graph))
 
         push!(widgets,dock)
 

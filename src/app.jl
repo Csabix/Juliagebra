@@ -2,7 +2,7 @@
 
 global implicitApp = nothing
 
-mutable struct App
+mutable struct App <: AppDNA
 
     _shrd::SharedData
     _glfw::Union{GLFWData,Nothing}
@@ -39,6 +39,11 @@ mutable struct App
         return self
     end
 end
+
+getGLFW(self::App) = return self._glfw
+getOpenGL(self::App) = return self._opengl
+getShrd(self::App) = return self._shrd
+getGraph(self::App) = return self._graph
 
 function submit!(self::App,plan::PlanDNA)
     enqueue!(self._plans,plan)    
@@ -245,7 +250,7 @@ function init!(self::App)
     self._glfw = GLFWData(self._shrd)
     self._opengl = OpenGLData(self._glfw,self._shrd)
     setInputEvents(self._glfw._window,self) # Before call to ImGUI
-    self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd) # After setInputEvents call
+    self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true
     perf_init_gpu()
     # ! Needed for first deltaTime to be accurate!

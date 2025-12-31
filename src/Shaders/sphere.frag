@@ -5,6 +5,8 @@ layout(location = 1) out uint out_id;
 
 uniform mat4 VP;
 uniform vec3 cam;
+uniform vec3 lightDirCam;
+uniform vec3 lightDirSide;
 
 flat in int isOutside;
 in float sphereRadius;
@@ -95,8 +97,12 @@ void main(){
     gl_FragDepth = depth;
 
     if(isOutside==1){
-        float diffuse = dot(rs.n,-normalize(spherePos-cam));
-        out_color = vec4(sphereColor*diffuse,1.0);  
+        float diffuse = (max(dot(rs.n,lightDirCam),0.0) * 0.3 + max(dot(rs.n,lightDirSide),0.0) * 0.7) * 0.8;
+        float ambient = 0.2;
+        out_color = vec4(sphereColor * (diffuse + ambient), 1.0);
+
+        //float diffuse = dot(rs.n,-normalize(spherePos-cam));
+        //out_color = vec4(sphereColor*diffuse,1.0);  
     }else{
         float diffuse = dot(-rs.n,-normalize(spherePos-cam));
         //out_color = vec4(0.0,abs(rs.uv),1.0);

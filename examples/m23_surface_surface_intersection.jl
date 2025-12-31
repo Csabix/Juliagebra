@@ -26,7 +26,7 @@ it = Intersection(surface1, surface2, MAX_INTERSECTIONS)
 
 for i in 1:MAX_INTERSECTIONS
     #just a simple line segment
-    ParametricCurve(0.0, 1.0, 2, [it]) do t, iit
+    ParametricCurve(range(0.0, 1.0, 2),[it]; width=15.0) do t, iit
         if (iit[i] !== nothing)
             a, b = iit[i]
             return a .* t .+ (1.0 - t) .* b

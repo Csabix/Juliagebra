@@ -6,7 +6,8 @@ layout(location = 1) out uint outInd;
 in vec3 vertNormal;
 in vec3 vertColor;
 
-uniform vec3 lightDir;
+uniform vec3 lightDirCam;
+uniform vec3 lightDirSide;
 uniform float minFactor = 0.2;
 
 void main(){
@@ -18,7 +19,8 @@ void main(){
         normal *= -1.0;
     }
 
-    float diffuseFactor = max(dot(normal,lightDir),minFactor);
-    outCol = vec4(fragColor * diffuseFactor,1.0);    
+    float diffuse = (max(dot(normal,lightDirCam),0.0) * 0.3 + max(dot(normal,lightDirSide),0.0) * 0.7) * 0.8;
+    float ambient = 0.2;
+    outCol = vec4(fragColor * (diffuse + ambient), 1.0);
     outInd = uint(0);
 }

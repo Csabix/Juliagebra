@@ -1,4 +1,5 @@
 #version 330 core
+#define PI 3.1415926538
 
 layout(location = 0) out vec4 outCol;
 layout(location = 1) out uint outInd;
@@ -10,6 +11,7 @@ flat in uint id;
 
 uniform uint selectedID;
 uniform uint pickedID;
+uniform vec3 lightDirSideView;
 
 // ! x:[0,1] -> [-0.5,0.5]
 // ! y:[0,1] -> [-0.5,0.5]
@@ -54,6 +56,16 @@ void main(){
     }else{
         outCol = drawColor;
     }
+
+    float sinv = sin(gl_PointCoord.x * PI);
+    float sinu = sin(gl_PointCoord.y * PI);
+    float cosv = cos(gl_PointCoord.x * PI);
+    float cosu = cos(gl_PointCoord.y * PI);
+    vec3 normal = -vec3(sinv * cosu, cosu, sinv * sinu);
+
+    float diffuse = max(0.0,dot(normal,vec3(0,0,-1.0)) * 0.2 + max(dot(normal,lightDirSideView),0.0) * 0.8) * 0.8;
+    float ambient = 0.2;
+    outCol = vec4(outCol.xyz * (diffuse + ambient), 1.0);
 
     outInd = id;
 }

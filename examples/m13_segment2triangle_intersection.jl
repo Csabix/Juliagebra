@@ -20,9 +20,9 @@ ta = Point(coords[1]...)
 tb = Point(coords[2]...)
 tc = Point(coords[3]...)
 
-tab = Segment(ta,tb,(1.0,0.6,0.0))
-tbc = Segment(tb,tc,(1.0,0.6,0.0))
-tca = Segment(tc,ta,(1.0,0.6,0.0))
+tab = Segment(ta,tb,color=(1.0,0.6,0.0))
+tbc = Segment(tb,tc,color=(1.0,0.6,0.0))
+tca = Segment(tc,ta,color=(1.0,0.6,0.0))
 
 normals = [
     (0,0,0),

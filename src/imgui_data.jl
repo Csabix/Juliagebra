@@ -28,6 +28,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         add!(dock,guiDependentsWindow)
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
+        add!(dock,PerformanceWindow())
 
         push!(widgets,dock)
 

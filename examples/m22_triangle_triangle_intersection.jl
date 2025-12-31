@@ -154,7 +154,7 @@ function DisplaySegment(p1::SVector{3, Float32}, p2::SVector{3, Float32})
     dp1 = Point(p1[1], p1[2], p1[3])
     dp2 = Point(p2[1], p2[2], p2[3])
 
-    Segment(dp1, dp2, (1.0,0.6,0.0))
+    Segment(dp1, dp2, color=(1.0,0.6,0.0))
 end
 
 function DisplayTriangle(triangle::Triangle)
@@ -162,9 +162,9 @@ function DisplayTriangle(triangle::Triangle)
     p1 = Point(triangle.v1[1], triangle.v1[2], triangle.v1[3])
     p2 = Point(triangle.v2[1], triangle.v2[2], triangle.v2[3])
 
-    Segment(p0, p1, (1.0,0.6,0.0))
-    Segment(p1, p2, (1.0,0.6,0.0))
-    Segment(p2, p0, (1.0,0.6,0.0))
+    Segment(p0, p1, color=(1.0,0.6,0.0))
+    Segment(p1, p2, color=(1.0,0.6,0.0))
+    Segment(p2, p0, color=(1.0,0.6,0.0))
 
     ParametricSurface(3.0, 3.0, 0.0, 1.0, 0.0, 1.0, [p0, p1, p2]) do u, v, a, b, c
         if ((u >= 0.5) && (v >= 0.5))

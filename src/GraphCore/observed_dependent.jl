@@ -29,11 +29,11 @@ function Observed(plan::PlanDNA)::Observed
 end
 
 function evalGraph(self::ObservedDNA)
-    afterGraphEval(self)
+    afterNodeEval(self)
     evalChain(getChain(self))
 end
 
-function afterGraphEval(self::ObservedDNA)
+function afterNodeEval(self::ObservedDNA)
     sync!(_Observed_(self)._observer,self)
 end
 

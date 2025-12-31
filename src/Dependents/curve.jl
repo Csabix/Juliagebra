@@ -100,6 +100,22 @@ end
 Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
 _RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
 
+evalCallbackDpReturn(self::ParametricCurveDependent,v,index) = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index) = self._tValues[index] = Vec3F(v)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index) = self._tValues[index] = v
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3FNan
+
+function runCallbacks(self::ParametricCurveDependent)
+    for index in self._startIndex:self._endIndex
+        t1 = Float64(index - self._startIndex)
+        t2 = Float64(self._endIndex - self._startIndex)
+        t = (t1 / t2) * (self._tEnd - self._tStart) + self._tStart
+        
+        evalCallbackDp(self; callbackParams = (t), returnParams = (index))
+    end
+end
+
+function onNodeEval(self::ParametricCurveDependent)
 function evalCallback(self::ParametricCurveDependent,t,index)
     return _Dependent_(self)._callback(t,_Dependent_(self)._graphParents...)
 end
@@ -257,6 +273,8 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
 
     (first, last, _) = self._ranges[curve._ref]
     curve._tValues = view(self._coords, first : last)
+
+    onNodeEval(curve)
 
     runCallbacks(curve)
 end

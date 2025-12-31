@@ -6,20 +6,20 @@ App()
 
 function Plane(p0,p1,p2)
     return ParametricSurface(2,2,-1.0,1.0,-1.0,1.0,[p0,p1,p2]) do u,v,p0,p1,p2
-        xv = p1[:xyz] - p0[:xyz]
-        yu = p2[:xyz] - p0[:xyz]
+        xv = p1 - p0
+        yu = p2 - p0
 
-        return p0[:xyz] + (xv * v + yu * u) * 10
+        return p0 + (xv * v + yu * u) * 10
     end
 end
 
 function NormPoint(p0,p1,p2)
-    return Point(NaN64,NaN64,NaN64,[p0,p1,p2]) do p0,p1,p2
-        v1 = p1[:xyz] - p0[:xyz]
-        v2 = p2[:xyz] - p0[:xyz]
+    return Point([p0,p1,p2]) do p0,p1,p2
+        v1 = p1 - p0
+        v2 = p2 - p0
         n = normalize(cross(v1,v2))
                 
-        return p0[:xyz] + n
+        return p0 + n
     end
 end
 
@@ -59,20 +59,20 @@ function plane2planeIntersection(plane_n1,plane_n2,plane_p1,plane_p2)
 end
 
 l12 = GenericDependent{Tuple{Vec3D,Vec3D}}((Vec3D(NaN64),Vec3D(NaN64)),[p10,p20,n1,n2]) do p10,p20,n1,n2
-    plane_n1 = n1[:xyz] - p10[:xyz]
-    plane_n2 = n2[:xyz] - p20[:xyz]
+    plane_n1 = n1 - p10
+    plane_n2 = n2 - p20
 
-    return plane2planeIntersection(plane_n1,plane_n2,p10[:xyz],p20[:xyz])
+    return plane2planeIntersection(plane_n1,plane_n2,p10,p20)
 end
 
-lp1 = Point(NaN64,NaN64,NaN64,[l12]) do l12
-    line_n,line_p = l12[:val]
+lp1 = Point([l12]) do l12
+    line_n,line_p = l12
 
     return line_p + line_n * 50
 end
 
-lp2 = Point(NaN64,NaN64,NaN64,[l12]) do l12
-    line_n,line_p = l12[:val]
+lp2 = Point([l12]) do l12
+    line_n,line_p = l12
 
     return line_p + line_n * -50
 end

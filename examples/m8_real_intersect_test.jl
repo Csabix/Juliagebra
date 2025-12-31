@@ -10,7 +10,7 @@ radius = 5
 crv1 = ParametricCurve(range(0,tMax,55),[Center1],color=(0.3,0.8,0.3)) do t,p1
     x = cos(t) * radius
     y = sin(t) * radius
-    z = p1[:z] * (t/tMax)
+    z = p1.z * (t/tMax)
     
     return [x,y,z]
 end
@@ -29,7 +29,7 @@ end
 it = Intersection(crv1,crv2,25)
 
 for i in 1:25
-    Point(0,0,-10,[it]) do iit
+    Point([it]) do iit
         return iit[i]
     end
 end

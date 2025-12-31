@@ -24,7 +24,7 @@ radius = 5
 crv3 = ParametricCurve(range(0,tMax,55),[Center]) do t,p1
     xx = cos(t) * radius
     yy = sin(t) * radius
-    zz = p1[:z] * (t/tMax)
+    zz = p1.z * (t/tMax)
     
     return (xx,yy,zz + 15)
 end

@@ -182,7 +182,7 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
                 self._shrd._gizmoEnabled = true
                 mouse_capture = true
                 p = fetch(self._graph,self._shrd._pickedID)
-                self._opengl._gizmoGL._pos = Vec3F(p._x,p._y,p._z)
+                self._opengl._gizmoGL._pos = Vec3F(getCoord(p))
             else
                 self._shrd._gizmoEnabled = false
             end

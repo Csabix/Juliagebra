@@ -1,10 +1,74 @@
 const BRUTE_FORCE_LBVH_THRESHOLD = 100
 const MORTON_CODE_TYPE = UInt64
 
-function BruteForceIntersections(shapes_a, shapes_b, self::DependentDNA)
+# ? ---------------------------------
+# ! GeneralIntersectionPlan
+# ? ---------------------------------
+
+mutable struct GeneralIntersectionPlan{T} <: PlanDNA
+    _plan::Plan
+    _maxIntersectionNum::UInt
+end
+
+# TODO: GeometryPlanDNA?
+
+function GeneralIntersectionPlan{T}(geometry1::PlanDNA,geometry2::PlanDNA,maxIntersectionNum::UInt) where T
+    return GeneralIntersectionPlan{T}(Plan(() -> (return nothing), [geometry1,geometry2]),maxIntersectionNum)
+end
+
+_Plan_(self::GeneralIntersectionPlan)::Plan = return self._plan
+
+# ? ---------------------------------
+# ! GeneralIntersectionDependent
+# ? ---------------------------------
+
+mutable struct GeneralIntersectionDependent{T} <: DependentDNA
+    _dependent::Dependent
+    _foundIntersectionNum::UInt
+    _intersections::Vector{T}
+end
+
+function GeneralIntersectionDependent(plan::GeneralIntersectionPlan{T}) where T
+    dependent = Dependent(plan)
+    foundIntersectionNum = 0
+    intersections = Vector{T}(undef,plan._maxIntersectionNum)
+        
+    self = GeneralIntersectionDependent{T}(dependent,foundIntersectionNum,intersections)
+    # ? This will init foundIntersectionNum, and intersections
+    onNodeEval(self)
+
+    return self
+end
+
+_Dependent_(self::GeneralIntersectionDependent)::Dependent = return self._dependent
+
+getGeometry1(self::GeneralIntersectionDependent) = return getGraphParent(self,1)
+getGeometry2(self::GeneralIntersectionDependent) = return getGraphParent(self,2)
+
+function Plan2Dependent(plan::GeneralIntersectionPlan)::GeneralIntersectionDependent
+    return GeneralIntersectionDependent(plan)
+end
+
+function Base.getindex(self::GeneralIntersectionDependent{T},index)::Union{T,Nothing} where T
+    if (index > self._foundIntersectionNum || index < 1)
+        return nothing
+    end
+    
+    return self._intersections[index]
+end
+
+function onNodeEval(self::GeneralIntersectionDependent)
+    # TODO: Refactor LBVH to be able to decide here
+    self._foundIntersectionNum = 0
+    BruteForceIntersections(getGeometry1(self),getGeometry2(self),self)
+end
+
+# TODO: GeometryDNA?
+
+function BruteForceIntersections(shapes_a::DependentDNA, shapes_b::DependentDNA, self::GeneralIntersectionDependent{T}) where T
     for primitive_a in shapes_a
         for primitive_b in shapes_b
-            intersection = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
+            intersection::Union{Nothing,T} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
             if (intersection !== nothing)
                 if (self._foundIntersectionNum < length(self._intersections))
                     self._intersections[self._foundIntersectionNum + 1] = intersection

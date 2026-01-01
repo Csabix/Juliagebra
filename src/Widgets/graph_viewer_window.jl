@@ -32,7 +32,8 @@ function renderContent(self::GraphViewerWindow)
         CImGui.Text("$(getGraphID(dependent))")
 
         CImGui.TableNextColumn()
-        CImGui.Text(split("$(typeof(dependent))",".")[end])
+        txtStr = replace("$(typeof(dependent))",r"Juliagebra\.|JuliaGLM\." => "")
+        CImGui.Text(txtStr)
         
         CImGui.TableNextColumn()
         txtStr = ""

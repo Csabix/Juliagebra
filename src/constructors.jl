@@ -150,6 +150,14 @@ end
 # ! Intersections
 # ? ---------------------------------
 
+function GenericIntersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,maxIntersectionNum;_app::App = implicitApp,)
+    plan = GeneralIntersectionPlan{Vec3D}(curve1,curve2,UInt(maxIntersectionNum))
+    submit!(_app,plan)
+    return plan
+end
+
+export  GenericIntersection
+
 function _Curve2CurveIntersection(;
                                  _app::App = implicitApp,                
                                  _curve1::ParametricCurvePlan,

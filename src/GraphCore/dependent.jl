@@ -13,6 +13,7 @@ end
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
+getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
 getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain

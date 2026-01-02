@@ -132,6 +132,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _shaders::Vector{ShaderProgram}
     _shaders_occluded::Vector{ShaderProgram}
     _shader_predraw::ShaderProgram
+    shader_tmp::ShaderProgram
     _buffer::TypedBufferArray
 
     _ranges::Vector{Tuple{Int,Int,Int}}
@@ -180,7 +181,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
 
         needMaintance = false
         new(renderer,
-            shaders,shaders_occluded,predraw_shader,
+            shaders,shaders_occluded,predraw_shader,ShaderProgram(sp("curve/curve_.vert"),sp("curve/curve_.frag")),
             buffer,ranges,
             drawRanges,
             coords,widths,colors,distances,
@@ -229,6 +230,10 @@ function _maintainCurveRenderer!(self::CurveRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._widths,GL_STATIC_DRAW)
     upload!(self._buffer,3,self._colors,GL_STATIC_DRAW)
+
+    upload!(self.PositionBuffer,self._coords,GL_DYNAMIC_DRAW)
+    upload!(self.WidthBuffer,self._widths,GL_STATIC_DRAW)
+    upload!(self.ColorTypeBuffer,self._colors,GL_STATIC_DRAW)
 end
 
 _Renderer_(self::CurveRenderer) = return self._renderer
@@ -293,6 +298,7 @@ function syncAll!(self::CurveRenderer)
         _maintainCurveRenderer!(self)
     else
         upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+        upload!(self.PositionBuffer,self._coords,GL_DYNAMIC_DRAW)
     end
     @time_cpu_end Dependent Curve
 end
@@ -393,6 +399,28 @@ end
 function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
     upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
+    upload!(self.DistanceBuffer,self._distances,GL_DYNAMIC_DRAW)
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,self.DistanceBuffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1,self.ColorTypeBuffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,2,self.WidthBuffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,3,self.PositionBuffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,4,self._buffer2._typedBuffers[1]._buffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,5,self._buffer2._typedBuffers[2]._buffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,6,self._buffer2._typedBuffers[3]._buffer._id)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,7,self._buffer2._typedBuffers[4]._buffer._id)
+
+    (cam_light, side_light) = get_lights(cam)
+    activate(self._shader_predraw)
+    setUniform!(self._shader_predraw,"VP",vp)
+    setUniform!(self._shader_predraw,"Eye",cam._eye)
+    setUniform!(self._shader_predraw,"lightDirCam", cam_light)
+    setUniform!(self._shader_predraw,"lightDirSide",side_light)
+    setUniform!(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    @time_gpu_begin Dependent Curve PRE_DRAW_PASS 
+    #glDispatchCompute(cld(self.PositionBuffer._numOfItems,32),1,1);
+    @time_gpu_end Dependent Curve PRE_DRAW_PASS 
+    glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
 end
 
 function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
@@ -400,10 +428,17 @@ function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Share
 end
 
 function opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._buffer)
+    #activate(self._buffer)
+    activate(self._buffer2)
     glEnable(GL_BLEND)
     @time_gpu_begin Dependent Curve OPAQUE_PASS
-    _draw_visible(self,vp,cam,shrd)
+    #_draw_visible(self,vp,cam,shrd)
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self.shader_tmp)
+        #glDrawArrays(GL_LINE_STRIP, first, last-first);
+    end
     @time_gpu_end Dependent Curve OPAQUE_PASS
     glDisable(GL_BLEND)
 end

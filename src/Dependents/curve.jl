@@ -131,6 +131,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
 
     _shaders::Vector{ShaderProgram}
     _shaders_occluded::Vector{ShaderProgram}
+    _shader_predraw::ShaderProgram
     _buffer::TypedBufferArray
 
     _ranges::Vector{Tuple{Int,Int,Int}}
@@ -142,7 +143,11 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _distances::Vector{Float32} # to avoid memory allocations
     _needMaintance::Bool
 
-    _proof_of_concept::ShaderProgram
+    DistanceBuffer::Buffer{GL_SHADER_STORAGE_BUFFER}
+    ColorTypeBuffer::Buffer{GL_SHADER_STORAGE_BUFFER}
+    WidthBuffer::Buffer{GL_SHADER_STORAGE_BUFFER}
+    PositionBuffer::Buffer{GL_SHADER_STORAGE_BUFFER}
+    _buffer2::TypedBufferArray
 
     function CurveRenderer(context::OpenGLData)
         
@@ -152,25 +157,16 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         vert = sp("curve/curve.vert")
         geom = sp("curve/curve.geom")
         uniforms = ["VP","Eye","W_H_NEAR_FAR","lightDirCam","lightDirSide"]
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_solid.frag"),   uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dashed.frag"),  uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dotted.frag"),  uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_wave.frag"),    uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dash_dot.frag"),uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_arrow.frag"),   uniforms))
+        types = ["solid","dashed","dotted","wave","dash_dot","arrow"]
+        for type in types push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_$type.frag"),uniforms)) end
 
         shaders_occluded = Vector{ShaderProgram}()
         vert = sp("curve/occluded/curve.vert")
         geom = sp("curve/occluded/curve.geom")
         uniforms = ["VP","WH"]
-        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_solid.frag"),   uniforms))
-        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_dashed.frag"),  uniforms))
-        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_dotted.frag"),  uniforms))
-        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_wave.frag"),    uniforms))
-        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_dash_dot.frag"),uniforms))
-        push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_arrow.frag"),   uniforms))
+        for type in types push!(shaders_occluded,ShaderProgram(vert,geom,sp("curve/occluded/curve_$type.frag"),uniforms)) end
 
-        proof_of_concept = ShaderProgram(vert,geom,sp("curve/proof_of_concept.frag"),uniforms)
+        predraw_shader = ShaderProgram(sp("curve/curve_vertex.comp"),["VP","Eye","WH","lightDirCam","lightDirSide"])
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32,Float32,Float32}}()
 
@@ -183,19 +179,14 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         distances = Vector{Float32}(undef,1)
 
         needMaintance = false
-        new(
-            renderer,
-            shaders,
-            shaders_occluded,
-            buffer,
-            ranges,
+        new(renderer,
+            shaders,shaders_occluded,predraw_shader,
+            buffer,ranges,
             drawRanges,
-            coords,
-            widths,
-            colors,
-            distances,
+            coords,widths,colors,distances,
             needMaintance,
-            proof_of_concept)
+            Buffer{GL_SHADER_STORAGE_BUFFER}(),Buffer{GL_SHADER_STORAGE_BUFFER}(),Buffer{GL_SHADER_STORAGE_BUFFER}(),Buffer{GL_SHADER_STORAGE_BUFFER}(),
+            TypedBufferArray{Tuple{Vec3F,UVec2,UVec4,Vec3F}}())
     end
 end
 
@@ -205,7 +196,6 @@ function _maintainCurveRenderer!(self::CurveRenderer)
     for index = 1:length(self._ranges)
         push!(range_groups[self._ranges[index][3]],index)
     end
-    ranges = Vector{Tuple{Int,Int,Int}}()
 
     coords = Vector{Vec3F}()
     widths = Vector{Float32}()
@@ -339,7 +329,6 @@ function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
     end
     @time_cpu_end Dependent Curve Distances
 end
-
 function _draw_visible(self::CurveRenderer,vp,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
     for type in 1:_CURVE_COUNT
@@ -355,6 +344,7 @@ function _draw_visible(self::CurveRenderer,vp,cam,shrd)
     end
 end
 
+#=
 function draw_occluded!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
     activate(self._buffer)
     for type in 1:_CURVE_COUNT
@@ -398,6 +388,30 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd, asd)
     end
     #glDisable(GL_BLEND)
 end
+=#
+
+function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
+    upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
+end
+
+function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+
+end
+
+function opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._buffer)
+    glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Curve OPAQUE_PASS
+    _draw_visible(self,vp,cam,shrd)
+    @time_gpu_end Dependent Curve OPAQUE_PASS
+    glDisable(GL_BLEND)
+end
+
+function behind_opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+
+end
+
 
 # ! Must have
 function destroy!(self::CurveRenderer)

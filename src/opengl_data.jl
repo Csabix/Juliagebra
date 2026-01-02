@@ -15,16 +15,20 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _updateMeQueue::Queue{RendererDNA}
     
     # ! Shaders
+    _transparent_combinerShader::ShaderProgram
     _combinerShader::ShaderProgram
     _centerShader::ShaderProgram
 
     # ! Main FBO objects
-    _mainRGBATexture :: Texture2D
-    _mainIDTexture :: Texture2D
-    _mainDepthTexture :: Texture2D
-    _behindDepthTexture :: Texture2D
-    _mainFBO :: FrameBuffer
-    _behindFBO :: FrameBuffer
+    _rgbaTexture::Texture2D
+    _idTexture::Texture2D
+    _depthstencilTexture::Texture2D
+    _accumTexture::Texture2D
+    _revealTexture::Texture2D
+
+    _opaqueFBO::FrameBuffer
+    _idFBO::FrameBuffer
+    _transparentFBO::FrameBuffer
     
     _dummyBufferArray::BufferArray
     _centerBufferArray::BufferArray
@@ -51,19 +55,32 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,gizmoGL)
         push!(widgets,orthoGizmoGL)
 
+        transparent_combinerShader = ShaderProgram(sp("combiner_transparent.vert"),sp("combiner_transparent.frag"))
         combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"),["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
         centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
 
-        mainAttachements = Dict{GLuint,Texture2D}()
-        mainAttachements[GL_COLOR_ATTACHMENT0] = createRGBATexture2D(shrd._width,shrd._height)
-        mainAttachements[GL_COLOR_ATTACHMENT1] = createIDTexture2D(shrd._width,shrd._height)
-        mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
-        mainFBO = FrameBuffer(mainAttachements)
+        depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
+        id = createIDTexture2D(shrd._width,shrd._height)
+        rgba = Texture2D(shrd._width,shrd._height,GL_RGBA16F,GL_RGBA,GL_HALF_FLOAT)
+        accum = Texture2D(shrd._width,shrd._height,GL_RGBA16F,GL_RGBA,GL_HALF_FLOAT)
+        reveal = Texture2D(shrd._width,shrd._height,GL_R8,GL_RED,GL_FLOAT)
 
-        behindAttachments = Dict{GLuint,Texture2D}()
-        behindAttachments[GL_COLOR_ATTACHMENT0] = mainAttachements[GL_COLOR_ATTACHMENT0]
-        behindAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = createDepthTexture2D(shrd._width,shrd._height)
-        behindFBO = FrameBuffer(behindAttachments)
+        opaqueAttachements = Dict{GLuint,Texture2D}()
+        opaqueAttachements[GL_COLOR_ATTACHMENT0] = rgba
+        opaqueAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
+        opaqueFBO = FrameBuffer(opaqueAttachements)
+
+        idAttachements = Dict{GLuint,Texture2D}()
+        idAttachements[GL_COLOR_ATTACHMENT0] = id
+        idAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
+        idFBO = FrameBuffer(idAttachements)
+
+        transparentAttachments = Dict{GLuint,Texture2D}()
+        transparentAttachments[GL_COLOR_ATTACHMENT0] = accum
+        transparentAttachments[GL_COLOR_ATTACHMENT1] = reveal
+        transparentAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
+        transparentFBO = FrameBuffer(transparentAttachments)
+
 
         dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
         centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
@@ -87,10 +104,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         camPos = Vec3F(0.0,0.0,0.0)
 
         new(shrd,widgets,renderers,updateMeQueue,
-            combinerShader,centerShader,
-            mainAttachements[GL_COLOR_ATTACHMENT0],mainAttachements[GL_COLOR_ATTACHMENT1],
-            mainAttachements[GL_DEPTH_STENCIL_ATTACHMENT], behindAttachments[GL_DEPTH_STENCIL_ATTACHMENT],
-            mainFBO,behindFBO,
+            transparent_combinerShader,combinerShader,centerShader,
+            rgba,id,depth_stencil,accum,reveal,
+            opaqueFBO,idFBO,transparentFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -120,10 +136,11 @@ function resize!(self::OpenGLData)
     width = self._shrd._width
     height = self._shrd._height
     glViewport(0,0,width,height)
-    resize!(self._mainRGBATexture,width,height)
-    resize!(self._mainIDTexture,width,height)
-    resize!(self._mainDepthTexture,width,height)
-    resize!(self._behindDepthTexture,width,height)
+    resize!(self._rgbaTexture,width,height)
+    resize!(self._idTexture,width,height)
+    resize!(self._depthstencilTexture,width,height)
+    resize!(self._accumTexture,width,height)
+    resize!(self._revealTexture,width,height)
 end
 
 function readID(self::OpenGLData)
@@ -133,10 +150,12 @@ function readID(self::OpenGLData)
     height = self._shrd._height
 
     if self._shrd._mouseMoved && x<width && y<height
-        glReadBuffer(GL_COLOR_ATTACHMENT1)
+        activate(self._idFBO)
+        glReadBuffer(GL_COLOR_ATTACHMENT0)
         num = Array{UInt32}(undef,1)
         glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
         self._shrd._selectedID = num[1]
+        disable(self._idFBO)
     end
 end
 
@@ -150,20 +169,27 @@ function readID(self::OpenGLData,x,y)::UInt32
 
     # TODO handling window size != buffer size
 
-    activate(self._mainFBO)
-    glReadBuffer(GL_COLOR_ATTACHMENT1)
+    activate(self._idFBO)
+    glReadBuffer(GL_COLOR_ATTACHMENT0)
     num = Array{UInt32}(undef,1)
     glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
-    disable(self._mainFBO)
+    disable(self._idFBO)
     return num[1]
 end
 
+#=
 function update!(self::OpenGLData,cam::Camera)
     checkErrors(self)
 
     activate(self._mainFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
     glClearTexImage(self._mainIDTexture._id,0,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref{UInt32}(0x0))
+
+    for renderer in self._renderers pre_draw!(renderer,self._vp,cam,self._shrd) end
+    for renderer in self._renderers id_pass!(renderer,self._vp,cam,self._shrd) end
+    for renderer in self._renderers opaque_pass!(renderer,self._vp,cam,self._shrd) end
+    for renderer in self._renderers behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
+    for renderer in self._renderers transparent_pass!(renderer,self._vp,cam,self._shrd) end
 
     for renderer_index in _SPEHERE_RENDERER:_SURFACE_RENDERER
         renderer = self._renderers[renderer_index]
@@ -188,27 +214,6 @@ function update!(self::OpenGLData,cam::Camera)
             draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
         end
     end
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, self._mainFBO._id)
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._behindFBO._id)
-    glBlitFramebuffer(
-        0, 0, self._shrd._width, self._shrd._height,
-        0, 0, self._shrd._width, self._shrd._height,
-        GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
-        GL_NEAREST
-    )
-    
-    activate(self._behindFBO)
-    glClear(GL_DEPTH_BUFFER_BIT)
-    glStencilFunc(GL_GREATER, 1, 0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
-    for renderer in self._renderers
-        if renderer !== nothing
-            draw_occluded!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
-        end
-    end
-    glDisable(GL_STENCIL_TEST);
-    activate(self._mainFBO)
 
     # TODO: refactor theese opengl widgets draw commands to something like this:
     # TODO: for widget in self._widgets
@@ -245,7 +250,122 @@ function update!(self::OpenGLData,cam::Camera)
     activate(self._mainRGBATexture,GL_TEXTURE0)
     activate(self._mainDepthTexture,GL_TEXTURE1)
     draw(self._dummyBufferArray,GL_TRIANGLES)
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, self._mainFBO._id)
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
+    glBlitFramebuffer(
+        0, 0, self._shrd._width, self._shrd._height,
+        0, 0, self._shrd._width, self._shrd._height,
+        GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
+        GL_NEAREST
+    )
+    
+    glClear(GL_DEPTH_BUFFER_BIT)
+    glStencilFunc(GL_GREATER, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+    for renderer in self._renderers
+        if renderer !== nothing
+            draw_occluded!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
+        end
+    end
+    glDisable(GL_STENCIL_TEST);
 end
+=#
+
+function _id_pass!(self::OpenGLData,cam::Camera)
+    clear_value = Int32[0, 0, 0, 0]
+    activate(self._idFBO)
+    glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+    glClearBufferiv(GL_COLOR, 0, clear_value)
+    for renderer in self._renderers
+        if renderer !== nothing id_pass!(renderer,self._vp,cam,self._shrd) end
+    end
+    glInvalidateFramebuffer(GL_FRAMEBUFFER,1,[GL_DEPTH_STENCIL_ATTACHMENT])
+end
+
+function _opaque_pass!(self::OpenGLData,cam::Camera)
+    activate(self._opaqueFBO)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+    for renderer in self._renderers
+        if renderer !== nothing opaque_pass!(renderer,self._vp,cam,self._shrd) end
+    end
+end
+
+function _transparent_pass!(self::OpenGLData,cam::Camera)
+    clear_value_zero = Float32[0.0f0,0.0f0,0.0f0,0.0f0]
+    clear_value_one = Float32[1.0f0,1.0f0,1.0f0,1.0f0]
+    glDepthMask(GL_FALSE)
+    glEnable(GL_BLEND)
+    glBlendFunci(0, GL_ONE, GL_ONE)
+    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR)
+    glBlendEquation(GL_FUNC_ADD)
+
+    activate(self._transparentFBO)
+    glClearBufferfv(GL_COLOR, 0, clear_value_zero)
+    glClearBufferfv(GL_COLOR, 1, clear_value_one)
+
+    for renderer in self._renderers
+        if renderer !== nothing transparent_pass!(renderer,self._vp,cam,self._shrd) end
+    end
+
+    glDepthFunc(GL_ALWAYS);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	activate(self._opaqueFBO);
+	activate(self._transparent_combinerShader);
+    activate(self._accumTexture,GL_TEXTURE0)
+    activate(self._revealTexture,GL_TEXTURE1)
+	draw(self._dummyBufferArray,GL_TRIANGLES)
+	glDisable(GL_BLEND);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE)
+end
+
+function update!(self::OpenGLData,cam::Camera)
+    checkErrors(self)
+
+    for renderer in self._renderers
+        if renderer !== nothing pre_draw!(renderer,self._vp,cam,self._shrd) end
+    end
+
+    _id_pass!(self,cam)
+    _opaque_pass!(self,cam)
+    _transparent_pass!(self,cam)
+    
+    #for renderer in self._renderers behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
+    #for renderer in self._renderers transparent_pass!(renderer,self._vp,cam,self._shrd) end
+
+    # Gizmo begin
+    glDepthFunc(GL_ALWAYS)
+    glEnable(GL_BLEND);
+
+    wh = Vec2F(self._shrd._width,self._shrd._height)
+    
+    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh) end
+    draw(self._orthoGizmoGL,cam,wh)
+
+    glDisable(GL_BLEND);
+    glDepthFunc(GL_LEQUAL)
+    # Gizmo end
+
+    readID(self)
+    #activate(self._centerShader)
+    #draw(self._centerBufferArray,GL_POINTS)
+    disable(self._opaqueFBO)
+
+    distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
+    activate(self._combinerShader)
+    setUniform!(self._combinerShader,"frameTex",Int32(0))
+    setUniform!(self._combinerShader,"depthTex",Int32(1))
+    setUniform!(self._combinerShader,"EYE",cam._eye)
+    setUniform!(self._combinerShader,"AT",cam._at)
+    setUniform!(self._combinerShader,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
+    setUniform!(self._combinerShader,"ASPECT_FOV",Vec2F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov)))
+    activate(self._rgbaTexture,GL_TEXTURE0)
+    activate(self._depthstencilTexture,GL_TEXTURE1)
+    draw(self._dummyBufferArray,GL_TRIANGLES)
+end
+
 
 
 function destroy!(self::OpenGLData)
@@ -258,10 +378,14 @@ function destroy!(self::OpenGLData)
     
     destroy!(self._combinerShader)
     destroy!(self._centerShader)
-    destroy!(self._mainFBO)
-    destroy!(self._mainDepthTexture)
-    destroy!(self._mainIDTexture)
-    destroy!(self._mainRGBATexture)
+    destroy!(self._idFBO)
+    destroy!(self._opaqueFBO)
+    destroy!(self._transparentFBO)
+    destroy!(self._rgbaTexture)
+    destroy!(self._idTexture)
+    destroy!(self._accumTexture)
+    destroy!(self._revealTexture)
+    destroy!(self._depthstencilTexture)
     destroy!(self._dummyBufferArray)
     destroy!(self._centerBufferArray)
     destroy!(self._gizmoGL)

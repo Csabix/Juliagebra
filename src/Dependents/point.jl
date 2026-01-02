@@ -138,15 +138,16 @@ end
 mutable struct PointRenderer <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
 
-    _shader::ShaderProgram
+    _shader_id::ShaderProgram
+    _shader_opaque::ShaderProgram
     _buffer::TypedBufferArray    
     
     _coords::Vector{Vec3F}
     _ids::Vector{Float32}
     
     function PointRenderer(context::OpenGLData) 
-        
-        shader = ShaderProgram(sp("point.vert"),sp("point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
+        shader_id = ShaderProgram(sp(".\\point\\point_id.vert"), sp(".\\point\\point_id.frag"),["VP"])
+        shader_opaque = ShaderProgram(sp(".\\point\\point.vert"), sp(".\\point\\point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
@@ -155,7 +156,7 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
 
         new(
             renderer,
-            shader,
+            shader_id,shader_opaque,
             buffer,
             coords,
             ids)
@@ -215,27 +216,35 @@ function syncAll!(self::PointRenderer)
     @log "Uploaded Coordinate buffer!" INFO
 end
 
-# ? Function to specify how a Renderer should render.
-# ? Gets called every frame no matter what happens or not. 
-# ! Must have
-function draw!(self::PointRenderer,vp,selectedID,pickedID,cam,shrd)
+function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._shader_id)
+    setUniform!(self._shader_id,"VP",vp)
+    @time_gpu_begin Dependent Point ID_PASS
+    draw(self._buffer,GL_POINTS)
+    @time_gpu_end Dependent Point ID_PASS
+    return nothing
+end
+
+function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     (_, view, _) = get_matrices(cam)
     (_, side_light) = get_lights(cam)
 
-    activate(self._shader)
-    setUniform!(self._shader,"VP",vp)
-    setUniform!(self._shader,"selectedID",selectedID)
-    setUniform!(self._shader,"pickedID",pickedID)
-    setUniform!(self._shader,"lightDirSideView", view[1:3,1:3] * side_light)
-    @time_gpu_begin Dependent Point
+    activate(self._shader_opaque)
+    setUniform!(self._shader_opaque,"VP",vp)
+    setUniform!(self._shader_opaque,"selectedID",shrd._selectedID)
+    setUniform!(self._shader_opaque,"pickedID",shrd._pickedID)
+    setUniform!(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
+    @time_gpu_begin Dependent Point OPAQUE_PASS
     draw(self._buffer,GL_POINTS)
-    @time_gpu_end Dependent Point
+    @time_gpu_end Dependent Point OPAQUE_PASS
+    return nothing
 end
 
 # ? Free GPU resources here.
 # ! Must have
 function destroy!(self::PointRenderer) 
-    destroy!(self._shader)
+    destroy!(self._shader_id)
+    destroy!(self._shader_opaque)
     destroy!(self._buffer)
 end
 

@@ -1,7 +1,19 @@
-#version 460 core
+#version 460
 
-layout(location=0) in vec3  position_in;
+in layout(location = 0) vec4 pos;
+in layout(location = 1) float col;
+
+in layout(location = 3) vec4 sdf_;
+
+out float dis;
+out vec4 color;
+out vec4 sdf;
 
 void main() {
-	gl_Position = vec4(position_in,1.0);
+
+
+	gl_Position = vec4(pos.xyz,1.0);
+	color = unpackUnorm4x8(floatBitsToUint(col));
+	dis = pos.w;
+	sdf = sdf_;
 }

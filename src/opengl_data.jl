@@ -1,10 +1,7 @@
 const _SPEHERE_RENDERER::UInt = 1
 const _SURFACE_RENDERER::UInt = 2
-
-const _CURVE_RENDERER::UInt   = 4
-
-const _POINT_RENDERER::UInt   = 3
-
+const _CURVE_RENDERER::UInt   = 3
+const _POINT_RENDERER::UInt   = 4
 const _RENDERER_COUNT::UInt   = 4
 
 mutable struct OpenGLData <: ObserverBuilderDNA
@@ -12,7 +9,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _widgets::Vector{OpenGLWidgetDNA}
 
     _renderers::Vector{Union{Nothing,RendererDNA}}
-    _updateMeQueue::Queue{RendererDNA}
     
     # ! Shaders
     _transparent_combinerShader::ShaderProgram
@@ -29,6 +25,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _opaqueFBO::FrameBuffer
     _idFBO::FrameBuffer
     _transparentFBO::FrameBuffer
+    _widgetFBO::FrameBuffer
     
     _dummyBufferArray::BufferArray
     _centerBufferArray::BufferArray
@@ -81,6 +78,12 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         transparentAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
         transparentFBO = FrameBuffer(transparentAttachments)
 
+        widgetAttachments = Dict{GLuint,Texture2D}()
+        widgetAttachments[GL_COLOR_ATTACHMENT0] = rgba
+        widgetAttachments[GL_COLOR_ATTACHMENT1] = id
+        widgetAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
+        widgetFBO = FrameBuffer(widgetAttachments)
+
 
         dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
         centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
@@ -96,17 +99,16 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         glEnable(GL_PROGRAM_POINT_SIZE)
 
         renderers = [nothing for _ in 1:_RENDERER_COUNT]
-        updateMeQueue = Queue{RendererDNA}()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        new(shrd,widgets,renderers,updateMeQueue,
+        new(shrd,widgets,renderers,
             transparent_combinerShader,combinerShader,centerShader,
             rgba,id,depth_stencil,accum,reveal,
-            opaqueFBO,idFBO,transparentFBO,
+            opaqueFBO,idFBO,transparentFBO,widgetFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -336,6 +338,7 @@ function update!(self::OpenGLData,cam::Camera)
     #for renderer in self._renderers transparent_pass!(renderer,self._vp,cam,self._shrd) end
 
     # Gizmo begin
+    activate(self._widgetFBO)
     glDepthFunc(GL_ALWAYS)
     glEnable(GL_BLEND);
 
@@ -347,10 +350,10 @@ function update!(self::OpenGLData,cam::Camera)
     glDisable(GL_BLEND);
     glDepthFunc(GL_LEQUAL)
     # Gizmo end
+    activate(self._centerShader)
+    draw(self._centerBufferArray,GL_POINTS)
 
     readID(self)
-    #activate(self._centerShader)
-    #draw(self._centerBufferArray,GL_POINTS)
     disable(self._opaqueFBO)
 
     distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
@@ -375,17 +378,20 @@ function destroy!(self::OpenGLData)
         end
     end
     
-    
     destroy!(self._combinerShader)
     destroy!(self._centerShader)
+
     destroy!(self._idFBO)
     destroy!(self._opaqueFBO)
     destroy!(self._transparentFBO)
+    destroy!(self._widgetFBO)
+
     destroy!(self._rgbaTexture)
     destroy!(self._idTexture)
     destroy!(self._accumTexture)
     destroy!(self._revealTexture)
     destroy!(self._depthstencilTexture)
+
     destroy!(self._dummyBufferArray)
     destroy!(self._centerBufferArray)
     destroy!(self._gizmoGL)

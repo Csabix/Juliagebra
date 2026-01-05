@@ -1,14 +1,9 @@
 #version 460
-#define PI 3.1415926538
 
-layout(location=0) out vec4 color_out;
 layout(location=1) out uint index_out;
 
 noperspective layout(location=0) in vec4 segment_SDF_field_in;
-noperspective layout(location=1) in vec3 color_in;
-noperspective layout(location=2) in float total_distance_in;
-flat          layout(location=3) in vec3 light_dir_cam_in;
-flat          layout(location=4) in vec3 light_dir_side_in;
+noperspective layout(location=1) in float total_distance_in;
 
 
 float sdCapsule( vec2 p, float r, float h ) {
@@ -33,12 +28,10 @@ void main() {
     float lenX = segment_SDF_field_in.z;
     float lenY = segment_SDF_field_in.w;
     float d = sdCapsule(p,lenX,lenY);
-    float d_arrow = sdEquilateralTriangle(vec2(p.x,mod(total_distance_in - lenX * 6.0, lenX * 16.0)), lenX);
-    d_arrow = min(d_arrow, max(mod(total_distance_in,lenX * 16.0) - lenX * 6.0, abs(p.x) - lenX * 0.3) );
+    float d_arrow = sdEquilateralTriangle(vec2(p.x,mod(total_distance_in + lenX * 3.0, lenX * 8.0) - lenX), lenX);
+    d_arrow = min(d_arrow, max(mod(total_distance_in,lenX * 8.0) - lenX * 6.0, abs(p.x) - lenX * 0.3) );
     d = max(d,d_arrow);
 
-    color_out = vec4(color_in * 0.8, 1.0);
     index_out = uint(0);
-
     if (d > 0.0) discard;
 }

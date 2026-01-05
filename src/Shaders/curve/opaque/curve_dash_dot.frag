@@ -2,11 +2,12 @@
 #define PI 3.1415926538
 
 layout(location=0) out vec4 color_out;
-layout(location=1) out uint index_out;
 
 noperspective layout(location=0) in vec4 segment_SDF_field_in;
 noperspective layout(location=1) in vec3 color_in;
 noperspective layout(location=2) in float total_distance_in;
+flat          layout(location=3) in vec3 light_dir_cam_in;
+flat          layout(location=4) in vec3 light_dir_side_in;
 
 
 float sdCapsule( vec2 p, float r, float h ) {
@@ -25,12 +26,18 @@ void main() {
     float lenX = segment_SDF_field_in.z;
     float lenY = segment_SDF_field_in.w;
     float d = sdCapsule(p,lenX,lenY);
-    float d_dash_dot = sdCircle(vec2(p.x, mod(total_distance_in + lenX * 6.0,lenX * 16.0) - lenX), lenX);
-    d_dash_dot = min(d_dash_dot, mod(total_distance_in,lenX * 16.0) - lenX * 4.0);
+    float d_dash_dot = sdCircle(vec2(p.x, mod(total_distance_in + lenX * 3.0,lenX * 8.0) - lenX), lenX);
+    d_dash_dot = min(d_dash_dot, mod(total_distance_in,lenX * 8.0) - lenX * 4.0);
     d = max(d,d_dash_dot);
 
-    color_out = vec4(color_in * 0.8, 1.0);
-    index_out = uint(0);
+    float alpha = 1.0 - smoothstep(max(-0.2*lenX,-2.0), 0.0, d);
+
+    float val = mix(0.0,PI,(segment_SDF_field_in.x * 0.5 + 0.5 * lenX)/segment_SDF_field_in.z);
+    vec3 normal = vec3(-cos(val),0,sin(val));
+
+    float diffuse = (max(dot(normal,light_dir_cam_in),0.0) * 0.3 + max(dot(normal,light_dir_side_in),0.0) * 0.7) * 0.8;
+    float ambient = 0.2;
+    color_out = vec4(color_in * (diffuse + ambient), alpha);
 
     if (d > 0.0) discard;
 }

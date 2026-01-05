@@ -19,11 +19,13 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _rgbaTexture::Texture2D
     _idTexture::Texture2D
     _depthstencilTexture::Texture2D
+    _behindOpaqueDepthstencilTexture::Texture2D
     _accumTexture::Texture2D
     _revealTexture::Texture2D
 
     _opaqueFBO::FrameBuffer
     _idFBO::FrameBuffer
+    _behindOpaqueFBO::FrameBuffer
     _transparentFBO::FrameBuffer
     _widgetFBO::FrameBuffer
     
@@ -57,6 +59,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
+        depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         id = createIDTexture2D(shrd._width,shrd._height)
         rgba = Texture2D(shrd._width,shrd._height,GL_RGBA16F,GL_RGBA,GL_HALF_FLOAT)
         accum = Texture2D(shrd._width,shrd._height,GL_RGBA16F,GL_RGBA,GL_HALF_FLOAT)
@@ -71,6 +74,11 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         idAttachements[GL_COLOR_ATTACHMENT0] = id
         idAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
         idFBO = FrameBuffer(idAttachements)
+
+        behindOpaqueAttachements = Dict{GLuint,Texture2D}()
+        behindOpaqueAttachements[GL_COLOR_ATTACHMENT0] = rgba
+        behindOpaqueAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil_behind_opaque
+        behindOpaqueFBO = FrameBuffer(behindOpaqueAttachements)
 
         transparentAttachments = Dict{GLuint,Texture2D}()
         transparentAttachments[GL_COLOR_ATTACHMENT0] = accum
@@ -107,8 +115,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
         new(shrd,widgets,renderers,
             transparent_combinerShader,combinerShader,centerShader,
-            rgba,id,depth_stencil,accum,reveal,
-            opaqueFBO,idFBO,transparentFBO,widgetFBO,
+            rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
+            opaqueFBO,idFBO,behindOpaqueFBO,transparentFBO,widgetFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -141,6 +149,7 @@ function resize!(self::OpenGLData)
     resize!(self._rgbaTexture,width,height)
     resize!(self._idTexture,width,height)
     resize!(self._depthstencilTexture,width,height)
+    resize!(self._behindOpaqueDepthstencilTexture,width,height)
     resize!(self._accumTexture,width,height)
     resize!(self._revealTexture,width,height)
 end
@@ -286,11 +295,46 @@ function _id_pass!(self::OpenGLData,cam::Camera)
 end
 
 function _opaque_pass!(self::OpenGLData,cam::Camera)
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+
     activate(self._opaqueFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+
     for renderer in self._renderers
-        if renderer !== nothing opaque_pass!(renderer,self._vp,cam,self._shrd) end
+        if renderer !== nothing && is_occluder(renderer)
+            opaque_pass!(renderer,self._vp,cam,self._shrd)
+        end
     end
+
+    glEnable(GL_STENCIL_TEST)
+    for renderer in self._renderers
+        if renderer !== nothing && !is_occluder(renderer)
+            opaque_pass!(renderer,self._vp,cam,self._shrd)
+        end
+    end
+    glDisable(GL_STENCIL_TEST)
+end
+
+function _behind_opaque_pass!(self::OpenGLData,cam::Camera)
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, self._opaqueFBO._id)
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._behindOpaqueFBO._id)
+    glBlitFramebuffer(
+        0, 0, self._shrd._width, self._shrd._height,
+        0, 0, self._shrd._width, self._shrd._height,
+        GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
+        GL_NEAREST
+    )
+    activate(self._behindOpaqueFBO)
+    glClear(GL_DEPTH_BUFFER_BIT)
+    glStencilFunc(GL_GREATER, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+
+    glEnable(GL_STENCIL_TEST);
+    for renderer in self._renderers
+        if renderer !== nothing behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
+    end
+    glDisable(GL_STENCIL_TEST);
 end
 
 function _transparent_pass!(self::OpenGLData,cam::Camera)
@@ -332,6 +376,7 @@ function update!(self::OpenGLData,cam::Camera)
 
     _id_pass!(self,cam)
     _opaque_pass!(self,cam)
+    _behind_opaque_pass!(self,cam)
     _transparent_pass!(self,cam)
     
     #for renderer in self._renderers behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
@@ -383,6 +428,7 @@ function destroy!(self::OpenGLData)
 
     destroy!(self._idFBO)
     destroy!(self._opaqueFBO)
+    destroy!(self._behindOpaqueFBO)
     destroy!(self._transparentFBO)
     destroy!(self._widgetFBO)
 
@@ -391,6 +437,7 @@ function destroy!(self::OpenGLData)
     destroy!(self._accumTexture)
     destroy!(self._revealTexture)
     destroy!(self._depthstencilTexture)
+    destroy!(self._behindOpaqueDepthstencilTexture)
 
     destroy!(self._dummyBufferArray)
     destroy!(self._centerBufferArray)

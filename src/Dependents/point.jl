@@ -240,6 +240,8 @@ function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::S
     return nothing
 end
 
+is_occluder(self::PointRenderer)::Bool = false
+
 # ? Free GPU resources here.
 # ! Must have
 function destroy!(self::PointRenderer) 

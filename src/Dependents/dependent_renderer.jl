@@ -18,6 +18,7 @@ _Observer_(self::RendererDNA)::Observer = return _Renderer_(self)._observer
 pre_draw!(self::RendererDNA,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing = begin end
 id_pass!(self::RendererDNA,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing = begin end
 opaque_pass!(self::RendererDNA,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing = begin end
+is_occluder(self::RendererDNA)::Bool = true
 behind_opaque_pass!(self::RendererDNA,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing = begin end
 transparent_pass!(self::RendererDNA,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing = begin end
 

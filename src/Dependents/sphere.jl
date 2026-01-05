@@ -22,7 +22,7 @@ function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r,col) where {T<:P
 
     color = Vec3F(r,g,b)
 
-    return SpherePlan(plan,center,radius,color,false)
+    return SpherePlan(plan,center,radius,color,true)
 end
 
 _RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan
@@ -149,11 +149,11 @@ end
 function syncAll!(self::SphereRenderer)
     @time_cpu_begin Dependent Sphere
 
-    upload!(self._buffer_opaque,1,self.centers_opaque,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,2,self.radiuses_opaque,GL_DYNAMIC_DRAW)
+    upload!(self._buffer_opaque,1,self._centers_opaque,GL_DYNAMIC_DRAW)
+    upload!(self._buffer_opaque,2,self._radiuses_opaque,GL_DYNAMIC_DRAW)
 
-    upload!(self._buffer_transparent,1,self.centers_transparent,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,2,self.radiuses_transparent,GL_DYNAMIC_DRAW)
+    upload!(self._buffer_transparent,1,self._centers_transparent,GL_DYNAMIC_DRAW)
+    upload!(self._buffer_transparent,2,self._radiuses_transparent,GL_DYNAMIC_DRAW)
 
     @time_cpu_end Dependent Sphere
     @log "Synced all Spheres!" INFO
@@ -167,7 +167,7 @@ function id_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
     setUniform!(self._shader_id,"cam",cam._eye)
     @time_gpu_begin Dependent Sphere ID_PASS
     if !isempty(self._centers_opaque) draw(self._buffer_opaque,GL_POINTS) end
-    if !isempty(self._centers_transparent) draw(self._buffer_transparent,GL_POINTS) end
+    #if !isempty(self._centers_transparent) draw(self._buffer_transparent,GL_POINTS) end
     @time_gpu_end Dependent Sphere ID_PASS
 
     glEnable(GL_CULL_FACE)

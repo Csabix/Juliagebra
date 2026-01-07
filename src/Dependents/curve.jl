@@ -203,7 +203,7 @@ function _maintainCurveRenderer!(self::CurveRenderer)
             (first, last, type) = self._ranges[range_ind]
             (min_ind,max_ind) = self._drawRanges[type]
             self._ranges[range_ind] = (length(coords_widths)+1,length(coords_widths)+last-first+1,type)
-            self._drawRanges[type] = (min(min_ind,length(coords_widths)-1),max(max_ind,length(coords_widths)+last-first+2))
+            self._drawRanges[type] = (min(min_ind,length(coords_widths)-1),max(max_ind,length(coords_widths)+last-first+1))
             
             append!(coords_widths, self._coords_widths[first:last])
             append!(colors, self._colors[first:last])
@@ -376,7 +376,7 @@ function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Share
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
         activate(self._shaders_id[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first, baseInstance)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
         baseInstance += last-first
     end
     @time_gpu_end Dependent Curve ID_PASS
@@ -395,7 +395,7 @@ function opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::S
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
         activate(self._shaders_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first, baseInstance)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
         baseInstance += last-first
     end
     @time_gpu_end Dependent Curve OPAQUE_PASS
@@ -415,7 +415,7 @@ function behind_opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
         activate(self._shaders_behind_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first, baseInstance)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
         baseInstance += last-first
     end
     @time_gpu_end Dependent Curve BEHIND_OPAQUE_PASS

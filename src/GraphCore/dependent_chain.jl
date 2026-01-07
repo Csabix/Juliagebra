@@ -23,8 +23,9 @@ observersOf(self::DependentChain) = return self._set
 
 function evalChain(self::DependentChain)
     for item in dependentsOf(self)
-        onGraphEval(item)
-        afterGraphEval(item)
+        beforeNodeEval(item)
+        onNodeEval(item)
+        afterNodeEval(item)
     end
     
     for item in observersOf(self)

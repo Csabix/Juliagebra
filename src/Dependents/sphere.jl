@@ -50,16 +50,14 @@ _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dep
 
 Plan2Dependent(plan::SpherePlan)::SphereDependent = return SphereDependent(plan)
 
-onGraphEval(self::SphereDependent) = dpEvalCallback(self)
+onNodeEval(self::SphereDependent) = evalCallbackDp(self)
 
-evalCallback(self::SphereDependent) = return getCallback(self)(getGraphParents(self)...)
-
-function dpCallbackReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
+function evalCallbackDpReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
     self._center = cr[1]
     self._radius = cr[2]
 end
 
-dpCallbackReturn(self::SphereDependent,::Nothing) = return nothing
+evalCallbackDpReturn(self::SphereDependent,::Nothing) = return nothing
 
 # ? ---------------------------------
 # ! SphereRenderer
@@ -104,7 +102,7 @@ setRenderedID!(self::SphereRenderer,_,_) = return nothing
 
 function added!(self::SphereRenderer,sphere::SphereDependent)
     
-    dpEvalCallback(sphere)
+    evalCallbackDp(sphere)
     
     push!(self._centers,Vec3F(sphere._center))
     push!(self._radiuses,Float32(sphere._radius))

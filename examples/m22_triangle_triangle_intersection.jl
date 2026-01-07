@@ -171,7 +171,7 @@ function DisplayTriangle(triangle::Triangle)
             u = 0.5
             v = 0.5
         end
-        return ((1.0 - u - v) .* a[:xyz]) .+ (u .* b[:xyz]) .+ (v .* c[:xyz])
+        return ((1.0 - u - v) .* a) .+ (u .* b) .+ (v .* c)
     end
 end
 

@@ -27,7 +27,7 @@ mutable struct GenericDependent{T} <: DependentDNA
         currT = plan._startT
 
         genericDependent = new(dependent,currT)
-        onGraphEval(genericDependent)
+        onNodeEval(genericDependent)
         return genericDependent
     end
 end
@@ -38,10 +38,13 @@ getGenericDependentField(self::GenericDependent,fieldVal::Val{:val}) = return se
 getGenericDependentField(self::GenericDependent{T},fieldVal::Val{:T}) where T = return T
 Base.getindex(self::GenericDependent,fieldSymbol::Symbol) = return getGenericDependentField(self,Val(fieldSymbol))
 
-onGraphEval(self::GenericDependent) = dpEvalCallback(self)
-evalCallback(self::GenericDependent) = getCallback(self)(getGraphParents(self)...)
-dpCallbackReturn(self::GenericDependent{T}, currT::T) where T = self._currT = currT
-dpCallbackReturn(self::GenericDependent, ::Nothing) = nothing
+onNodeEval(self::GenericDependent) = evalCallbackDp(self)
+function evalCallbackDpEntry(self::GenericDependent{T})::T where {T}
+    return self._currT
+end
+
+evalCallbackDpReturn(self::GenericDependent{T}, currT::T) where T = self._currT = currT
+evalCallbackDpReturn(self::GenericDependent, ::Nothing) = nothing
 
 function Plan2Dependent(plan::GenericDependentPlan{T}) where T
     return GenericDependent{T}(plan)

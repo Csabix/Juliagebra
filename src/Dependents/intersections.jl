@@ -94,14 +94,17 @@ _Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
 mutable struct Curve2CurveIntersectionDependent <: DependentDNA
     _dependent::Dependent
     _foundIntersectionNum::UInt
-    _intersections::Vector{Vec3F}
+    _intersections::Vector{Vec3D}
     
     function Curve2CurveIntersectionDependent(plan::Curve2CurveIntersectionPlan)
         dependent = Dependent(plan)
-        foundIntersectionNum = plan._intersectNum
-        intersections = Vector{Vec3F}(undef,foundIntersectionNum)
+        foundIntersectionNum = 0
+        intersections = Vector{Vec3D}(undef,plan._intersectNum)
         
-        new(dependent,foundIntersectionNum,intersections)
+        self = new(dependent,foundIntersectionNum,intersections)
+        onNodeEval(self)
+
+        return self
     end
 end
 
@@ -119,22 +122,20 @@ function Plan2Dependent(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersect
 end
 
 # ? Some user accessible indexing getter. 
-function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
+function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Vec3D,Nothing}
     if (index > self._foundIntersectionNum || index < 1)
         return nothing
     end
     
-    v = self._intersections[index]
-
-    return (v[1],v[2],v[3])
+    return self._intersections[index]
 end
 
 # ? Now we need to define, how the Dependent should act, when everything it depends on changes.
-# ? Note that for every Dependent, the "onGraphEval" only gets called once and in a way, where everything
+# ? Note that for every Dependent, the "onNodeEval" only gets called once and in a way, where everything
 # ? it depends on is up-to date.
 # ? in the case of curve-to-curve intersecting, we here do an iterative intersection between segments of the curves.
 # ! Must have
-function onGraphEval(self::Curve2CurveIntersectionDependent)
+function onNodeEval(self::Curve2CurveIntersectionDependent)
     FindIntersections(curve1(self), curve2(self), self)
 end
 
@@ -191,7 +192,7 @@ function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tu
     return (v[1],v[2],v[3])
 end
 
-function onGraphEval(self::Curve2SurfaceIntersectionDependent)
+function onNodeEval(self::Curve2SurfaceIntersectionDependent)
     FindIntersections(curve(self), TrianglesOf(surface(self)._uvValues), self)
 end
 
@@ -245,6 +246,6 @@ function Base.getindex(self::Surface2SurfaceIntersectionDependent, index)::Union
     return a, b
 end
 
-function onGraphEval(self::Surface2SurfaceIntersectionDependent)
+function onNodeEval(self::Surface2SurfaceIntersectionDependent)
     FindIntersections(TrianglesOf(surface1(self)._uvValues), TrianglesOf(surface2(self)._uvValues), self)
 end

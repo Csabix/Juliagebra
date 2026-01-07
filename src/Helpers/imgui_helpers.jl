@@ -38,20 +38,21 @@ end
 
 # ? Could microoptimize this by not creating buffers everytime if necessary
 function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::Union{String,Nothing}
-    
-    if (length(text)>= buf_size)
-        text = text[1:buf_size-1]
-    end
-    
+    result::Union{String,Nothing} = nothing
     buf = Vector{UInt8}(undef,buf_size)
-    fill!(buf,0)
-
-    textAsUint8s = codeunits(text)
-    copyto!(buf,textAsUint8s)
+    units = codeunits(text)
+    
+    # Not ideal because it can cut a character in half
+    copy_end = min(length(units),buf_size-1)
+    if !isempty(units)
+        copyto!(buf,view(units,1:copy_end))
+    end
+    buf[copy_end+1] = 0
+    
 
     if (CImGui.InputTextMultiline(name,buf,length(buf),size))
-        return unsafe_string(pointer(buf))
+        GC.@preserve buf result = unsafe_string(pointer(buf))
     end
 
-    return nothing
+    return result
 end

@@ -188,100 +188,11 @@ function readID(self::OpenGLData,x,y)::UInt32
     return num[1]
 end
 
-#=
-function update!(self::OpenGLData,cam::Camera)
-    checkErrors(self)
-
-    activate(self._mainFBO)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-    glClearTexImage(self._mainIDTexture._id,0,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref{UInt32}(0x0))
-
-    for renderer in self._renderers pre_draw!(renderer,self._vp,cam,self._shrd) end
-    for renderer in self._renderers id_pass!(renderer,self._vp,cam,self._shrd) end
-    for renderer in self._renderers opaque_pass!(renderer,self._vp,cam,self._shrd) end
-    for renderer in self._renderers behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
-    for renderer in self._renderers transparent_pass!(renderer,self._vp,cam,self._shrd) end
-
-    for renderer_index in _SPEHERE_RENDERER:_SURFACE_RENDERER
-        renderer = self._renderers[renderer_index]
-        if renderer !== nothing
-            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
-        end
-    end
-
-    glEnable(GL_STENCIL_TEST);
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-    for renderer_index in _CURVE_RENDERER:_CURVE_RENDERER
-        renderer = self._renderers[renderer_index]
-        if renderer !== nothing
-            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
-        end
-    end
-
-    for renderer_index in _POINT_RENDERER:_POINT_RENDERER
-        renderer = self._renderers[renderer_index]
-        if renderer !== nothing
-            draw!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
-        end
-    end
-
-    # TODO: refactor theese opengl widgets draw commands to something like this:
-    # TODO: for widget in self._widgets
-    # TODO:     render(widget)
-    # TODO: end
-
-    glDepthFunc(GL_ALWAYS)
-    glEnable(GL_BLEND);
-    # Gizmo here
-    wh = Vec2F(self._shrd._width,self._shrd._height)
-    
-    if(self._shrd._gizmoEnabled)
-        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh)
-    end
-    
-    draw(self._orthoGizmoGL,cam,wh)
-
-    glDisable(GL_BLEND);
-    glDepthFunc(GL_LEQUAL)
-
-    readID(self)
-    #activate(self._centerShader)
-    #draw(self._centerBufferArray,GL_POINTS)
-    disable(self._mainFBO)
-
-    distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
-    activate(self._combinerShader)
-    setUniform!(self._combinerShader,"frameTex",Int32(0))
-    setUniform!(self._combinerShader,"depthTex",Int32(1))
-    setUniform!(self._combinerShader,"EYE",cam._eye)
-    setUniform!(self._combinerShader,"AT",cam._at)
-    setUniform!(self._combinerShader,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
-    setUniform!(self._combinerShader,"ASPECT_FOV",Vec2F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov)))
-    activate(self._mainRGBATexture,GL_TEXTURE0)
-    activate(self._mainDepthTexture,GL_TEXTURE1)
-    draw(self._dummyBufferArray,GL_TRIANGLES)
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, self._mainFBO._id)
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
-    glBlitFramebuffer(
-        0, 0, self._shrd._width, self._shrd._height,
-        0, 0, self._shrd._width, self._shrd._height,
-        GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
-        GL_NEAREST
-    )
-    
-    glClear(GL_DEPTH_BUFFER_BIT)
-    glStencilFunc(GL_GREATER, 1, 0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+function _pre_draw!(self::OpenGLData,cam::Camera)
     for renderer in self._renderers
-        if renderer !== nothing
-            draw_occluded!(renderer,self._vp,self._shrd._selectedID,self._shrd._pickedID,cam,self._shrd)
-        end
+        if renderer !== nothing pre_draw!(renderer,self._vp,cam,self._shrd) end
     end
-    glDisable(GL_STENCIL_TEST);
 end
-=#
 
 function _id_pass!(self::OpenGLData,cam::Camera)
     clear_value = Int32[0, 0, 0, 0]
@@ -367,22 +278,7 @@ function _transparent_pass!(self::OpenGLData,cam::Camera)
     glDepthMask(GL_TRUE)
 end
 
-function update!(self::OpenGLData,cam::Camera)
-    checkErrors(self)
-
-    for renderer in self._renderers
-        if renderer !== nothing pre_draw!(renderer,self._vp,cam,self._shrd) end
-    end
-
-    _id_pass!(self,cam)
-    _opaque_pass!(self,cam)
-    _behind_opaque_pass!(self,cam)
-    _transparent_pass!(self,cam)
-    
-    #for renderer in self._renderers behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
-    #for renderer in self._renderers transparent_pass!(renderer,self._vp,cam,self._shrd) end
-
-    # Gizmo begin
+function _widget_pass!(self::OpenGLData,cam::Camera)
     activate(self._widgetFBO)
     glDepthFunc(GL_ALWAYS)
     glEnable(GL_BLEND);
@@ -394,12 +290,23 @@ function update!(self::OpenGLData,cam::Camera)
 
     glDisable(GL_BLEND);
     glDepthFunc(GL_LEQUAL)
-    # Gizmo end
-    activate(self._centerShader)
-    draw(self._centerBufferArray,GL_POINTS)
+end
+
+function update!(self::OpenGLData,cam::Camera)
+    checkErrors(self)
+
+    _pre_draw!(self,cam)
+    _id_pass!(self,cam)
+    _opaque_pass!(self,cam)
+    _behind_opaque_pass!(self,cam)
+    _transparent_pass!(self,cam)
+    _widget_pass!(self,cam)
+
+    #activate(self._centerShader)
+    #draw(self._centerBufferArray,GL_POINTS)
 
     readID(self)
-    disable(self._opaqueFBO)
+    glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
     activate(self._combinerShader)
@@ -423,6 +330,7 @@ function destroy!(self::OpenGLData)
         end
     end
     
+    destroy!(self._transparent_combinerShader)
     destroy!(self._combinerShader)
     destroy!(self._centerShader)
 

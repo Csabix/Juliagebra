@@ -2,26 +2,26 @@
 layout(local_size_x = 32) in;
 
 // Input
-restrict readonly layout(std430, binding = 0) buffer DistanceBuffer {
+restrict readonly layout(std430, binding = 0) buffer DistanceBufferIn {
     float in_distances[];
 };
-restrict readonly layout(std430, binding = 1) buffer ColorTypeBuffer {
+restrict readonly layout(std430, binding = 1) buffer ColorTypeBufferIn {
     uint in_color_types[];
 };
-restrict readonly layout(std430, binding = 3) buffer PositionBuffer {
+restrict readonly layout(std430, binding = 2) buffer PositionWidthBufferIn {
     vec4 in_position_widths[];
 };
 // Output
-restrict writeonly layout(std430, binding = 4) buffer position {
+restrict writeonly layout(std430, binding = 3) buffer PositionDistanceBufferOut {
 	vec4 out_position_distances[];
 };
-restrict writeonly layout(std430, binding = 5) buffer ColorDataBuffer {
+restrict writeonly layout(std430, binding = 4) buffer ColorBufferOut {
 	uvec2 out_color[];
 };
-restrict writeonly layout(std430, binding = 6) buffer LightBuffer {
+restrict writeonly layout(std430, binding = 5) buffer LightBufferOut {
 	vec4 out_lights[];
 };
-restrict writeonly layout(std430, binding = 7) buffer SDFBuffer {
+restrict writeonly layout(std430, binding = 6) buffer SDFBufferOut {
 	vec4 out_sdf[];
 };
 // Uniforms
@@ -58,6 +58,7 @@ void main() {
     const uint output_i = i * 5u;
 	vec4 A4 = vec4(in_position_widths[i   ].xyz, 1.0);
     vec4 B4 = vec4(in_position_widths[i+1u].xyz, 1.0);
+    const float width = in_position_widths[i+1u].w;
     vec4 C4 = vec4(in_position_widths[i+2u].xyz, 1.0);
     vec4 D4 = vec4(in_position_widths[i+3u].xyz, 1.0);
     calcLights(i,B4.xyz,C4.xyz);
@@ -126,7 +127,6 @@ void main() {
     const vec2 D = fma(D4.xy, vec2(0.5), vec2(0.5)) * WH;
 
     const vec3 distances = vec3(distance(A,B), distance(C,B), distance(C,D));
-    const float width = in_position_widths[i+1u].w;
 
     const vec2 AB_dir = (A-B) / distances.x; // A <-- B C D
     const vec2 CB_dir = (C-B) / distances.y; // A B --> C D

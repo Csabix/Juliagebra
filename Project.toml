@@ -12,8 +12,8 @@ ModernGL = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test","JSON"]
+test = ["Test", "JSON"]

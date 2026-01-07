@@ -31,6 +31,8 @@ include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 
+#include("Generated/LibAssimp.jl")
+
 ID_LOWER_BOUND = 3
 
 include("shared_data.jl")

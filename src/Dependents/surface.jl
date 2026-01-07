@@ -18,7 +18,7 @@ mutable struct ParametricSurfacePlan <:RenderedPlanDNA
     _color::Vec3F
     _transparent::Bool
     
-    function ParametricSurfacePlan(callback::Function,plans::Vector{T},width,height,uStart,uEnd,vStart,vEnd,color) where {T<:PlanDNA}
+    function ParametricSurfacePlan(callback::Function,plans::Vector{T},width,height,uStart,uEnd,vStart,vEnd,color,transparent) where {T<:PlanDNA}
         
         r = Float32(color[1])
         g = Float32(color[2])
@@ -28,7 +28,7 @@ mutable struct ParametricSurfacePlan <:RenderedPlanDNA
             width,height,
             uStart,uEnd,
             vStart,vEnd,
-            Vec3F(r,g,b),false)
+            Vec3F(r,g,b),transparent)
     end
 end
 

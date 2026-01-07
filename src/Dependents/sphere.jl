@@ -11,7 +11,7 @@ mutable struct SpherePlan <: RenderedPlanDNA
     _transparent::Bool
 end
 
-function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r,col) where {T<:PlanDNA}
+function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r,col,transparent) where {T<:PlanDNA}
     plan = RenderedPlan(callback,plans)
     center = Vec3D(x,y,z)
     radius = Float64(r)
@@ -22,7 +22,7 @@ function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r,col) where {T<:P
 
     color = Vec3F(r,g,b)
 
-    return SpherePlan(plan,center,radius,color,true)
+    return SpherePlan(plan,center,radius,color,transparent)
 end
 
 _RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan

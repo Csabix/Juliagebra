@@ -213,19 +213,6 @@ function updateGizmo!(self::App)
 end
 
 function play!(self::App)
-    #scene = aiImportFile("E:\\FinalBaseMesh.obj",
-    #                 aiProcess_CalcTangentSpace |
-    #                 aiProcess_Triangulate |
-    #                 aiProcess_JoinIdenticalVertices |
-    #                 aiProcess_SortByPType)
-    
-    #if scene == C_NULL
-    #@error aiGetErrorString() |> unsafe_string
-    #end
-
-    #aiReleaseImport(scene)
-
-
     init!(self)
     while(!self._shrd._gameOver)
         perf_get_results()

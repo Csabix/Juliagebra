@@ -401,6 +401,68 @@ function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color =
     return _Sphere(_call = call, _deps = deps, _col = color)
 end
 
+# ? ---------------------------------
+# ! SceneLoader
+# ? ---------------------------------
+
+function load_scene(path)
+    props = aiCreatePropertyStore();
+
+    components_to_remove =
+        aiComponent_TANGENTS_AND_BITANGENTS |
+        aiComponent_COLORS |
+        aiComponent_TEXCOORDS |
+        aiComponent_BONEWEIGHTS |
+        aiComponent_ANIMATIONS |
+        aiComponent_LIGHTS |
+        aiComponent_CAMERAS |
+        aiComponent_MATERIALS |
+        aiComponent_NORMALS
+
+    aiSetImportPropertyInteger(props, AI_CONFIG_PP_RVC_FLAGS, components_to_remove);
+
+    flags =
+        aiProcess_Triangulate |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_GenSmoothNormals |
+        aiProcess_RemoveComponent |
+        aiProcess_FlipWindingOrder
+
+    scene_ptr = aiImportFileExWithProperties(path, flags, C_NULL, props);
+
+    aiReleasePropertyStore(props);
+
+    if scene_ptr != C_NULL
+        scene = unsafe_load(scene_ptr)
+        
+        for i in 1:scene.mNumMeshes
+            mesh_ptr = unsafe_load(scene.mMeshes, i)
+            mesh = unsafe_load(mesh_ptr)
+            
+            #name_ptr = pointer_from_objref(Ref(mesh.mName))
+            #name = unsafe_string(name_ptr + 4, mesh.mName.length)
+
+            pos_raw = unsafe_wrap(Array, mesh.mVertices, mesh.mNumVertices)
+            positions = [Vec3F(v.x, v.z, v.y) for v in pos_raw]
+
+            norm_raw = unsafe_wrap(Array, mesh.mNormals, mesh.mNumVertices)
+            normals = [Vec3F(n.x, n.y, n.z) for n in norm_raw]
+
+            indices = UInt32[]
+            faces = unsafe_wrap(Array, mesh.mFaces, mesh.mNumFaces)
+            for face in faces
+                f_indices = unsafe_wrap(Array, face.mIndices, face.mNumIndices)
+                append!(indices, f_indices)
+            end
+
+            plan = MeshPlan(DEFAULT_CALLBACK,Vector{PlanDNA}(),positions, normals, indices)
+            submit!(implicitApp,plan)
+        end
+        
+        aiReleaseImport(scene_ptr)
+    end
+end
+
 export GenericDependent
 export Point
 export ParametricCurve
@@ -412,3 +474,4 @@ export Toggle
 export Slider
 export TextBox
 export Sphere
+export load_scene

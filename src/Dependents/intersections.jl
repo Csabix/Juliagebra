@@ -57,11 +57,7 @@ function Base.getindex(self::GeneralIntersectionDependent{T},index)::Union{T,Not
     return self._intersections[index]
 end
 
-function onNodeEval(self::GeneralIntersectionDependent)
-    # TODO: Refactor LBVH to be able to decide here
-    self._foundIntersectionNum = 0
-    BruteForceIntersections(getGeometry1(self),getGeometry2(self),self)
-end
+onNodeEval(self::GeneralIntersectionDependent) = FindIntersections(getGeometry1(self),getGeometry2(self),self)
 
 # TODO: GeometryDNA?
 
@@ -81,7 +77,9 @@ function BruteForceIntersections(shapes_a::DependentDNA, shapes_b::DependentDNA,
     end
 end
 
-function LBVHIntersections(shapes_lbvh, shapes_b, self::DependentDNA)
+# TODO: GeometryDNA?
+
+function LBVHIntersections(shapes_lbvh::DependentDNA, shapes_b::DependentDNA, self::DependentDNA)
     lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABB, shapes_lbvh), MORTON_CODE_TYPE)
             
     for primitive_b in shapes_b
@@ -104,7 +102,10 @@ function LBVHIntersections(shapes_lbvh, shapes_b, self::DependentDNA)
     end
 end
 
-function FindIntersections(shapes_a, shapes_b, self::DependentDNA)
+# TODO: GeometryDNA?
+# TODO: PrimitivesOf?
+
+function FindIntersections(shapes_a::DependentDNA, shapes_b::DependentDNA, self::GeneralIntersectionDependent)
     self._foundIntersectionNum = 0
 
     if ((length(shapes_a) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b) < BRUTE_FORCE_LBVH_THRESHOLD))

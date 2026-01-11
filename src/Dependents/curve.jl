@@ -59,7 +59,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _reversed::UInt8
 
     _ref::Int
-    _tValues::Union{SubArray{Vec4F},Nothing}
+    _tValues::Union{SubArray{Vec3D},Nothing}
 
     function ParametricCurveDependent(plan::ParametricCurvePlan)
         a = RenderedDependent(plan)
@@ -85,7 +85,7 @@ end
 
 function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, LineSegment}
     if ((index >= 1) && (index <= length(self)))
-        return LineSegment(Vec3F(self._tValues[index][1:3]), Vec3F(self._tValues[index + 1][1:3]))
+        return LineSegment(self._tValues[index], self._tValues[index + 1])
     else
         return nothing 
     end
@@ -108,14 +108,14 @@ end
 function onNodeEval(self::ParametricCurveDependent)
     renderer::CurveRenderer = getObserver(self)
     (first, last, _) = renderer._ranges[self._ref]
-    self._tValues = view(renderer._coords_widths,first:last)
+    self._tValues = view(renderer._coords,first:last)
     runCallbacks(self)
 end
 
-evalCallbackDpReturn(self::ParametricCurveDependent,v,index)          = ((x,y,z) = v ; self._tValues[index] = Vec4F(x,y,z,self._tValues[index].w))
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)   = self._tValues[index] = Vec4F(v.x,v.y,v.z,self._tValues[index].w)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)   = self._tValues[index] = Vec4F(v.x,v.y,v.z,self._tValues[index].w)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec4FNan
+evalCallbackDpReturn(self::ParametricCurveDependent,v,index)          = ((x,y,z) = v ; self._tValues[index] = Vec3D(x,y,z))
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)   = self._tValues[index] = v
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)   = self._tValues[index] = Vec3D(v)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3DNan
 
 
 
@@ -135,10 +135,12 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _ranges::Vector{Tuple{Int,Int,Int}}
     _drawRanges::Vector{Tuple{Int,Int}}
 
-    _coords_widths::Vector{Vec4F}
+    _coords::Vector{Vec3D}
+    _widths::Dict{Int,Float32}
     _colors::Vector{Float32}
 
     _distances::Vector{Float32} # to avoid memory allocations
+    _position_width::Vector{Vec4F}
     _needMaintance::Bool
 
     _distance_buffer_in::StaticBuffer
@@ -172,19 +174,35 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         ranges = Vector{Tuple{Int,Int,Int}}()
         drawRanges = fill((0,0),_CURVE_COUNT)
 
-        coords_widths = [Vec4FNan]
+        coords = [Vec3DNan]
+        widths = Dict{Int,Float32}()
         colors = [0.0f0]
         distances = Vector{Float32}()
+        position_width = Vector{Vec4F}()
         
         needMaintance = false
         new(renderer,
             shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
             ranges,drawRanges,
-            coords_widths,colors,
-            distances,needMaintance,
+            coords,widths,colors,
+            distances,position_width,needMaintance,
             StaticBuffer(),StaticBuffer(),StaticBuffer(),
             StaticBuffer(),StaticBuffer(),StaticBuffer(),StaticBuffer())
     end
+end
+
+@inbounds function _upload_positon_width(self::CurveRenderer)
+    @time_cpu_begin Dependent Curve UPLOAD_POSITION
+    Threads.@threads for (first,last,_) in self._ranges
+        width = self._widths[first]
+        for i = first:last
+            p = self._coords[i]
+            self._position_width[i] = Vec4F(p.x,p.y,p.z,width)
+        end
+    end
+
+    upload!(self._position_width_buffer_in, self._position_width)
+    @time_cpu_end Dependent Curve UPLOAD_POSITION
 end
 
 function _maintainCurveRenderer!(self::CurveRenderer)
@@ -194,32 +212,35 @@ function _maintainCurveRenderer!(self::CurveRenderer)
         push!(range_groups[self._ranges[index][3]],index)
     end
 
-    coords_widths = Vector{Vec4F}()
+    coords = Vector{Vec3D}()
+    widths = Dict{Int,Float32}()
     colors = Vector{Float32}()
-    push!(coords_widths, Vec4FNan)
+    push!(coords, Vec3DNan)
     push!(colors, 0x0)
 
     for group in range_groups
         for range_ind in group
             (first, last, type) = self._ranges[range_ind]
             (min_ind,max_ind) = self._drawRanges[type]
-            self._ranges[range_ind] = (length(coords_widths)+1,length(coords_widths)+last-first+1,type)
-            self._drawRanges[type] = (min(min_ind,length(coords_widths)-1),max(max_ind,length(coords_widths)+last-first+1))
+            self._ranges[range_ind] = (length(coords)+1,length(coords)+last-first+1,type)
+            widths[length(coords)+1] = self._widths[first]
+            self._drawRanges[type] = (min(min_ind,length(coords)-1),max(max_ind,length(coords)+last-first+1))
             
-            append!(coords_widths, self._coords_widths[first:last])
+            append!(coords, self._coords[first:last])
             append!(colors, self._colors[first:last])
             
-            push!(coords_widths, Vec4FNan)
+            push!(coords, Vec3DNan)
             push!(colors, 0x0)
         end
     end
-    self._coords_widths = coords_widths
+    self._coords = coords
+    self._widths = widths
     self._colors = colors
 
     self._needMaintance = false
 
     self._color_type_buffer_in = create(self._color_type_buffer_in,self._colors,UInt32(0))
-    upload!(self._position_width_buffer_in, self._coords_widths)
+    _upload_positon_width(self)
 end
 
 _Renderer_(self::CurveRenderer) = return self._renderer
@@ -238,21 +259,22 @@ end
 
 # ! Must have
 function added!(self::CurveRenderer,curve::ParametricCurveDependent)
-    push!(self._ranges, (length(self._coords_widths)+1,length(self._coords_widths)+length(curve._range),curve._type))
+    push!(self._ranges, (length(self._coords)+1,length(self._coords)+length(curve._range),curve._type))
+    self._widths[length(self._coords)+1] = curve._width
     curve._ref = length(self._ranges)
     color_count = length(curve._colors)
     packed_colors = [pack_color(color,curve._reversed != 0x0) for color in curve._colors]
     current_color = 1
     for _ in 1:length(curve._range)
-        push!(self._coords_widths, Vec4F(0,0,0,curve._width))
+        push!(self._coords, Vec3DNan)
         push!(self._colors, packed_colors[current_color])
         current_color = mod1(current_color + 1, color_count)
     end
-    push!(self._coords_widths, Vec4FNan)
+    push!(self._coords, Vec3DNan)
     push!(self._colors, 0x0000000)
 
     (first, last, _) = self._ranges[curve._ref]
-    curve._tValues = view(self._coords_widths, first : last)
+    curve._tValues = view(self._coords, first : last)
 
     runCallbacks(curve)
 end
@@ -261,15 +283,16 @@ setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) =
 
 # ! Must have
 function addedAll!(self::CurveRenderer)
-    self._distances = Vector{Float32}(undef,length(self._coords_widths))
+    self._distances = Vector{Float32}(undef,length(self._coords))
+    self._position_width = fill(Vec4FNan, length(self._coords))
     
-    self._distance_buffer_in = create(self._distance_buffer_in, length(self._coords_widths)*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
-    self._position_width_buffer_in = create(self._position_width_buffer_in, length(self._coords_widths)*4*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
+    self._distance_buffer_in = create(self._distance_buffer_in, length(self._coords)*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
+    self._position_width_buffer_in = create(self._position_width_buffer_in, length(self._coords)*4*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
 
-    self._position_distance_buffer_out = create(self._position_distance_buffer_out, 5 * length(self._coords_widths)*4*sizeof(GLfloat), UInt32(0))
-    self._color_buffer_out = create(self._color_buffer_out, length(self._coords_widths)*2*sizeof(GLuint), UInt32(0))
-    self._light_buffer_out = create(self._light_buffer_out, length(self._coords_widths)*4*sizeof(GLfloat), UInt32(0))
-    self._sdf_buffer_out = create(self._sdf_buffer_out, 5 * length(self._coords_widths)*4*sizeof(GLfloat), UInt32(0))
+    self._position_distance_buffer_out = create(self._position_distance_buffer_out, 5 * length(self._coords)*4*sizeof(GLfloat), UInt32(0))
+    self._color_buffer_out = create(self._color_buffer_out, length(self._coords)*2*sizeof(GLuint), UInt32(0))
+    self._light_buffer_out = create(self._light_buffer_out, length(self._coords)*4*sizeof(GLfloat), UInt32(0))
+    self._sdf_buffer_out = create(self._sdf_buffer_out, 5 * length(self._coords)*4*sizeof(GLfloat), UInt32(0))
 
     _maintainCurveRenderer!(self)
 end
@@ -290,7 +313,7 @@ function syncAll!(self::CurveRenderer)
     if self._needMaintance
         _maintainCurveRenderer!(self)
     else
-        upload!(self._position_width_buffer_in, self._coords_widths)
+        _upload_positon_width(self)
     end
     @time_cpu_end Dependent Curve
 end
@@ -300,8 +323,8 @@ function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
     Threads.@threads for (first,last,_) in self._ranges
         distance_sum = 0.0f0
         for i in first:(last-1)
-            a = vp * Vec4F(Vec3F(self._coords_widths[i][1:3]), 1.0f0)
-            b = vp * Vec4F(Vec3F(self._coords_widths[i+1][1:3]), 1.0f0)
+            a = vp * Vec4F(Vec3F(self._coords[i]), 1.0f0)
+            b = vp * Vec4F(Vec3F(self._coords[i+1]), 1.0f0)
             if a.z + a.w < 0.0 && b.z + b.w < 0.0f0 continue end
             t0 = a.z + a.w;
             t1 = b.z + b.w;
@@ -362,7 +385,7 @@ function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
     setUniform!(self._shader_predraw,"lightDirCam", cam_light)
     setUniform!(self._shader_predraw,"lightDirSide",side_light)
     @time_gpu_begin Dependent Curve PRE_DRAW_PASS
-    glDispatchCompute(cld(length(self._coords_widths),32),1,1);
+    glDispatchCompute(cld(length(self._coords),32),1,1);
     @time_gpu_end Dependent Curve PRE_DRAW_PASS 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 end

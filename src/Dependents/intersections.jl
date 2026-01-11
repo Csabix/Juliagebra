@@ -253,12 +253,12 @@ _Plan_(self::Surface2SurfaceIntersectionPlan)::Plan = return self._plan
 
 mutable struct Surface2SurfaceIntersectionDependent <: DependentDNA
     _dependent::Dependent
-    _intersections::Vector{LineSegment}
+    _intersections::Vector{PSegment}
     _foundIntersectionNum::UInt
 
     function Surface2SurfaceIntersectionDependent(plan::Surface2SurfaceIntersectionPlan)
         dependent = Dependent(plan)
-        intersections = Vector{LineSegment}(undef, plan._intersectNum)
+        intersections = Vector{PSegment}(undef, plan._intersectNum)
         new(dependent, intersections, 0)
     end
 end
@@ -276,7 +276,7 @@ function Base.getindex(self::Surface2SurfaceIntersectionDependent, index)::Union
         return nothing
     end
 
-    s::LineSegment = self._intersections[index]
+    s::PSegment = self._intersections[index]
     
     a::Tuple{Float32, Float32, Float32} = (s.p0.x, s.p0.y, s.p0.z)
     b::Tuple{Float32, Float32, Float32} = (s.p1.x, s.p1.y, s.p1.z)

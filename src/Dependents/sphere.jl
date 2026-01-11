@@ -57,6 +57,11 @@ function evalCallbackDpReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
     self._radius = cr[2]
 end
 
+function evalCallbackDpReturn(self::SphereDependent,s::PSphere)
+    self._center = s.c
+    self._radius = s.r
+end
+
 evalCallbackDpReturn(self::SphereDependent,::Nothing) = return nothing
 
 # ? ---------------------------------

@@ -28,7 +28,7 @@ function Isect2(
 end
 
 function ComputeIntervalsIsectline(
-    triangle::Triangle,
+    triangle::PTriangle,
     D0::Float32, 
     D1::Float32, 
     D2::Float32
@@ -52,7 +52,7 @@ function IsCoplanar(D0::Float32, D1::Float32, D2::Float32)::Bool
     return ((D0 == 0.0) && (D1 == 0.0) && (D2 == 0.0))
 end
 
-function EpsilonTest(N::SVector{3, Float32}, V::SVector{3, Float32}, triangle::Triangle)::Tuple{Float32, Float32, Float32}
+function EpsilonTest(N::SVector{3, Float32}, V::SVector{3, Float32}, triangle::PTriangle)::Tuple{Float32, Float32, Float32}
     d1::Float32 = -dot(N, V)
 
     du0::Float32 = dot(N, triangle.v0) + d1
@@ -75,7 +75,7 @@ function EpsilonTest(N::SVector{3, Float32}, V::SVector{3, Float32}, triangle::T
 end
 
 
-function TriangleTriangleIntersectionWithIsectline(triangle_a::Triangle, triangle_b::Triangle)::Union{Bool, Tuple{Bool, SVector{3, Float32}, SVector{3, Float32}}}
+function TriangleTriangleIntersectionWithIsectline(triangle_a::PTriangle, triangle_b::PTriangle)::Union{Bool, Tuple{Bool, SVector{3, Float32}, SVector{3, Float32}}}
     N1::SVector{3, Float32} = cross((triangle_a.v1 .- triangle_a.v0), (triangle_a.v2 .- triangle_a.v0))
     du0::Float32, du1::Float32, du2::Float32 = EpsilonTest(N1, triangle_a.v0, triangle_b)
     if (((du0 * du1) > 0.0) && ((du0 * du2) > 0.0))
@@ -157,7 +157,7 @@ function DisplaySegment(p1::SVector{3, Float32}, p2::SVector{3, Float32})
     Segment(dp1, dp2, color=(1.0,0.6,0.0))
 end
 
-function DisplayTriangle(triangle::Triangle)
+function DisplayTriangle(triangle::PTriangle)
     p0 = Point(triangle.v0[1], triangle.v0[2], triangle.v0[3])
     p1 = Point(triangle.v1[1], triangle.v1[2], triangle.v1[3])
     p2 = Point(triangle.v2[1], triangle.v2[2], triangle.v2[3])

@@ -84,9 +84,9 @@ function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
     end
 end
 
-function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, LineSegment}
+function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, PSegment}
     if ((index >= 1) && (index <= length(self)))
-        return LineSegment(self._tValues[index], self._tValues[index + 1])
+        return PSegment(self._tValues[index], self._tValues[index + 1])
     else
         return nothing 
     end

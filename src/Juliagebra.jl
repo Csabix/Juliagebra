@@ -31,6 +31,14 @@ include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 
+# ? ---------------------------------
+# ! Primitives
+# ? ---------------------------------
+
+include("Primitives/primitives.jl")
+include("Primitives/primitive_intersections.jl")
+include("Primitives/primitive_constructors.jl")
+
 ID_LOWER_BOUND = 3
 
 include("shared_data.jl")
@@ -90,8 +98,6 @@ include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
 include("Dependents/textbox.jl")
 include("Dependents/sphere.jl")
-include("Primitives/primitives.jl")
-include("Primitives/primitive_intersections.jl")
 include("Dependents/intersections.jl")
 
 include("app.jl")

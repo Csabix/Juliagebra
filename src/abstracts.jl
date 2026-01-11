@@ -28,4 +28,7 @@ abstract type OpenGLWidgetDNA <: WidgetDNA end
 abstract type ImGuiWidgetDNA <: WidgetDNA end
 abstract type WindowDNA <: ImGuiWidgetDNA end
 
+abstract type Primitive end
+abstract type AABBPrimitive <: Primitive end
+
 const QueueLockPool = Union{RenderedDependentDNA,QueueLockDNA,CollectedDNA,CollectedCollectorDNA}

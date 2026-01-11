@@ -357,7 +357,7 @@ end
 function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))
     deps = [p1,p2,p3,p4]
     call = function (p1,p2,p3,p4)
-        s = FourPointOnPSphere(p1,p2,p3,p4)
+        s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
         return s
     end
 

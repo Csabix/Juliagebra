@@ -36,6 +36,8 @@ struct PLine <: Primitive
     v::Vec3D
 end
 
+Base.convert(::Type{PLine},::Nothing)::PLine = return PLine(Vec3DNan,Vec3DNan)
+
 """
 Infinite representation of a plane primitive.
 - p is a point on the plane.
@@ -45,6 +47,8 @@ struct PPlane <: Primitive
     p::Vec3D
     n::Vec3D
 end
+
+Base.convert(::Type{PPlane},::Nothing)::PPlane = return PPlane(Vec3DNan,Vec3DNan)
 
 """
 Representation of a primitive sphere.
@@ -56,7 +60,8 @@ struct PSphere <: Primitive
     r::Float64
 end
 
-const PSphereNan = PSphere(Vec3DNan,NaN64)
+Base.convert(::Type{PSphere},::Nothing)::PSphere = return PSphere(Vec3DNan,NaN64)
+
 
 
 

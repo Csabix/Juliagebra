@@ -209,7 +209,7 @@ function PrimitiveToPrimitiveIntersection(triangle_a::PTriangle, triangle_b::PTr
 end
 
 
-function P2PIntersection(plane1::PPlane,plane2::PPlane)::Union{PLine,Nothing}
+function PrimitiveToPrimitiveIntersection(plane1::PPlane,plane2::PPlane)::Union{PLine,Nothing}
     
     plane_d1 = dot(-plane1.n,plane1.p)
     plane_d2 = dot(-plane2.n,plane2.p)
@@ -226,7 +226,7 @@ function P2PIntersection(plane1::PPlane,plane2::PPlane)::Union{PLine,Nothing}
     return PLine(line_p3,plane_n3)
 end
 
-function P2PIntersection(line::PLine,plane::PPlane)::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(line::PLine,plane::PPlane)::Union{Vec3D,Nothing}
     l = dot(line.v,plane.n)
     if (l == 0.0)
         return nothing

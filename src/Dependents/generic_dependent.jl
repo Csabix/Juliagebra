@@ -38,6 +38,8 @@ getGenericDependentField(self::GenericDependent,fieldVal::Val{:val}) = return se
 getGenericDependentField(self::GenericDependent{T},fieldVal::Val{:T}) where T = return T
 Base.getindex(self::GenericDependent,fieldSymbol::Symbol) = return getGenericDependentField(self,Val(fieldSymbol))
 
+getField(self::GenericDependent) = return self._currT
+
 onNodeEval(self::GenericDependent) = evalCallbackDp(self)
 function evalCallbackDpEntry(self::GenericDependent{T})::T where {T}
     return self._currT

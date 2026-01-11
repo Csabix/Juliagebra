@@ -150,8 +150,20 @@ end
 # ! Intersections
 # ? ---------------------------------
 
-function GenericIntersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,maxIntersectionNum;_app::App = implicitApp,)
-    plan = GeneralIntersectionPlan{Vec3D}(curve1,curve2,UInt(maxIntersectionNum))
+function GenericIntersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,maxIntersectionNum;_app::App = implicitApp,) 
+    call = function (curve)
+        po::PSegmentsOf = PrimitivesOf(curve) 
+        return po     
+    end
+
+    # TODO: Remove PSegmentsOf() by adding Union{T,Nothing} GeneralDependents
+    pso::PSegmentsOf = PSegmentsOfCurve(nothing)
+
+    gd1 = GenericDependent(call,pso,[curve1])
+    gd2 = GenericDependent(call,pso,[curve2])
+
+    plan = GeneralIntersectionPlan(gd1,gd2,UInt(maxIntersectionNum))
+    
     submit!(_app,plan)
     return plan
 end

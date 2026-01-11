@@ -31,4 +31,11 @@ abstract type WindowDNA <: ImGuiWidgetDNA end
 abstract type Primitive end
 abstract type AABBPrimitive <: Primitive end
 
+abstract type PrimitivesOf end
+abstract type AABBPrimitivesOf <: PrimitivesOf end
+abstract type PTrianglesOf <: AABBPrimitivesOf end
+abstract type PSegmentsOf <: AABBPrimitivesOf end
+
+const IntersectT= Union{Vec3D,Primitive}
+
 const QueueLockPool = Union{RenderedDependentDNA,QueueLockDNA,CollectedDNA,CollectedCollectorDNA}

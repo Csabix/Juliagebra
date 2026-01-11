@@ -118,6 +118,30 @@ evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index) = self._tVal
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index) = self._tValues[index] = v
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3FNan
 
+# ? For Intersectable ParametricCurves
+# TODO: Remove this Union
+struct PSegmentsOfCurve <: PSegmentsOf
+    _curve::Union{ParametricCurveDependent,Nothing}
+end
+PrimitivesOf(self::ParametricCurveDependent) = return PSegmentsOfCurve(self)
+
+Base.length(self::PSegmentsOfCurve) = (max(length(self._curve._range) - 1,0))
+
+function Base.getindex(self::PSegmentsOfCurve, index::Integer)::Union{Nothing, PSegment}
+    if ((1 <= index) && (index <= length(self)))
+        return PSegment(self._curve._tValues[index], self._curve._tValues[index + 1])
+    else
+        return nothing 
+    end
+end
+
+function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
+    if ((1 <= index) && (index <= length(self)))
+        return (self[index], (index + 1))
+    else
+        return nothing
+    end
+end
 
 
 # ? ---------------------------------

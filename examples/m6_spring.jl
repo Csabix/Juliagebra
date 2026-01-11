@@ -11,7 +11,7 @@ ParametricCurve(range(0,tMax,55),[Center],color=(0.3,0.8,0.3)) do t, c
     y = sin(t)
     z = (t/tMax)
     
-    return c[:xyz] .* [x,y,z]
+    return c .* [x,y,z]
 end
 
 play!()

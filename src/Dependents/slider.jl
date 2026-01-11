@@ -42,7 +42,7 @@ mutable struct SliderDependent <: GuiDependentDNA
         maxVal = plan._maxVal
 
         slider = new(dependent,minVal,currVal,maxVal)
-        onGraphEval(slider)
+        onNodeEval(slider)
         return slider
     end
 end
@@ -52,10 +52,12 @@ _GuiDependent_(self::SliderDependent)::GuiDependent = return self._dependent
 getSliderField(self::SliderDependent,fieldVal::Val{:state}) = return self._currVal
 Base.getindex(self::SliderDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
 
-onGraphEval(self::SliderDependent) = dpEvalCallback(self)
-evalCallback(self::SliderDependent) = getCallback(self)(getGraphParents(self)...)
-dpCallbackReturn(self::SliderDependent, currVal::Number) = self._currVal = clamp(Float32(currVal),self._minVal,self._maxVal)
-dpCallbackReturn(self::SliderDependent, ::Nothing) = return nothing
+
+onNodeEval(self::SliderDependent) = evalCallbackDp(self)
+evalCallbackDpEntry(self::SliderDependent)::Float64 = return Float64(self._currVal)
+
+evalCallbackDpReturn(self::SliderDependent, currVal::Number) = self._currVal = clamp(Float32(currVal),self._minVal,self._maxVal)
+evalCallbackDpReturn(self::SliderDependent, ::Nothing) = return nothing
 
 # ? ---------------------------------
 # ! SliderRenderer

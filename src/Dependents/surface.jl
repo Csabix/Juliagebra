@@ -90,7 +90,7 @@ end
 _RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
 
-function evalCallback(self::ParametricSurfaceDependent,u,v)
+function evalCoordAtUV(self::ParametricSurfaceDependent,u,v)
    
     uf = Float64(u-1) / Float64(width(self._uvValues)-1)
     vf = Float64(v-1) / Float64(height(self._uvValues)-1)
@@ -98,19 +98,16 @@ function evalCallback(self::ParametricSurfaceDependent,u,v)
     uf = uf * (self._uEnd - self._uStart) + self._uStart
     vf = vf * (self._vEnd - self._vStart) + self._vStart
 
-    return _Dependent_(self)._callback(uf,vf,_Dependent_(self)._graphParents...)
+    return evalCallbackDp(self;callbackParams = (uf,vf), returnParams = (u,v))
 end
 
-function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value)
-    (x,y,z)=value
-    self._uvValues[u,v] = Vec3F(x,y,z)
-end
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value,u,v) = self._uvValues[u,v] = Vec3F(value)
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Tuple,u,v) = self._uvValues[u,v] = Vec3F(value...)
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3D,u,v) = self._uvValues[u,v] = Vec3F(value)
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3F,u,v) = self._uvValues[u,v] = value
+evalCallbackDpReturn(self::ParametricSurfaceDependent,::Nothing,u,v) = self._uvValues[u,v] = Vec3FNan
 
-dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Vec3D) = self._uvValues[u,v] = Vec3F(value)
-dpCallbackReturn(self::ParametricSurfaceDependent,u,v,value::Vec3F) = self._uvValues[u,v] = value
-
-
-function dpCallbackReturn(self::ParametricSurfaceDependent,u,v,::Nothing)
+function evalCallbackDpReturn(self::ParametricSurfaceDependent,u,v,::Nothing)
     self._uvValues[u,v] = Vec3FNan
 end
 
@@ -141,7 +138,7 @@ end
 function runCallbacks(self::ParametricSurfaceDependent)
     for v in 1:height(self._uvValues)
         for u in 1:width(self._uvValues)
-            dpEvalCallback(self,u,v)
+            evalCoordAtUV(self,u,v)
         end
     end
     
@@ -197,7 +194,7 @@ function runCallbacks(self::ParametricSurfaceDependent)
 
 end
 
-function onGraphEval(self::ParametricSurfaceDependent)
+function onNodeEval(self::ParametricSurfaceDependent)
     runCallbacks(self)
 end
 
@@ -261,7 +258,7 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     surface._uvValues  = FlatMatrix{layers(vertexes),Vec3F}(vertexes)
     surface._uvNormals = FlatMatrix{layers(vertexes),Vec3F}(normals)
 
-    runCallbacks(surface)
+    onNodeEval(surface)
 
     @log "ParametricSurface added!" INFO
 end

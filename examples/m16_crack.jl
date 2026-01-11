@@ -14,13 +14,13 @@ crv1 = ParametricCurve(range(-phase,phase,250),[a]) do t, p
     y = 0
     z = sin(t)*5
 
-    return p[:xyz] .+ (x,y,z)
+    return p .+ (x,y,z)
 end
 
 it = Intersection(crv1,srfc1,10)
 
 for i in 1:10
-    Point(-999,-999,-999,[it]) do iit
+    Point([it]) do iit
         return iit[i]
     end
 end

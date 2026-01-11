@@ -1,6 +1,7 @@
 # ! All exported constructors should be defined, and exported from here.
 
 const DependentsT = Vector{T} where T <: PlanDNA
+const DEFAULT_CALLBACK = () -> (return nothing)
 
 # ? ---------------------------------
 # ! GenericDependent
@@ -37,12 +38,17 @@ _GenericDependent(_call = callback, _startT = T(startT), _deps = dependents)
 
 function _Point(;
                 _app::App = implicitApp,
-                _call::Function = () -> (),
+                _call::Function = DEFAULT_CALLBACK,
                 _deps::DependentsT = Vector{PlanDNA}(),
                 _x = 0,
                 _y = 0,
                 _z = 0,
                 )::PointPlan
+    
+    if (_call === DEFAULT_CALLBACK)
+        _call = () -> (return Vec3D(_x,_y,_z))
+    end
+                
     plan = PointPlan(_call,_deps,_x,_y,_z)
     submit!(_app,plan)
     return plan
@@ -50,9 +56,6 @@ end
 
 Point(x::Real,y::Real,z::Real) = 
 _Point(_x=x,_y=y,_z=z)
-
-Point(callback::Function,x::Real,y::Real,z::Real,dependents::DependentsT) = 
-_Point(_call=callback,_x=x,_y=y,_z=z,_deps=dependents)
 
 Point(callback::Function,dependents::DependentsT) = 
 _Point(_call=callback,_deps=dependents)
@@ -139,7 +142,7 @@ play!();
 function Segment(first::PointPlan,second::PointPlan;
                  color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
     return ParametricCurve(range(0,1,length=2),[first,second],color=color,type=type,width=width,reversed=reversed) do t,a,b
-        return b[:xyz] .* t .+ (1-t) .* a[:xyz]
+        return b .* t .+ (1-t) .* a
     end
 end
 
@@ -273,6 +276,9 @@ _Slider()
 Slider(minVal,maxVal) =
 _Slider(_minVal = minVal, _startVal = ((maxVal - minVal)*0.5) + minVal ,_maxVal = maxVal)
 
+Slider(minVal,startVal,maxVal) = 
+_Slider(_minVal = minVal, _startVal = clamp(startVal,minVal,maxVal) ,_maxVal = maxVal)
+
 Slider(callback::Function,minVal,maxVal,dependents::DependentsT) =
 _Slider(_call = callback, _minVal = minVal ,_maxVal = maxVal, _deps=dependents)
 
@@ -329,8 +335,8 @@ _Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306), transparent = false)::SpherePlan
     deps = Vector{PlanDNA}([center,p1])
     call = function (center,p1)
-        radius = norm(center[:xyz] - p1[:xyz]) 
-        return (center[:xyz],radius)
+        radius = norm(center - p1) 
+        return (center,radius)
     end
 
     return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
@@ -339,7 +345,7 @@ end
 function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color = (0.031,0.337,0.412), transparent = false)
     deps = Vector{PlanDNA}([center,radius])
     call = function (center,radius)
-        return (center[:xyz],radius[:val])
+        return (center,radius)
     end
 
     return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
@@ -389,8 +395,8 @@ end
 function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))
     deps = [p1,p2,p3,p4]
     call = function (p1,p2,p3,p4)
-        c = sphereCenter(p1[:xyz],p2[:xyz],p3[:xyz],p4[:xyz])
-        r = norm(p1[:xyz] - c)
+        c = sphereCenter(p1,p2,p3,p4)
+        r = norm(p1 - c)
         return (c,r)
     end
 

@@ -36,7 +36,6 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
                                  type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
         
         colors = [Vec3F(c[1],c[2],c[3]) for c in color]
-        width = clamp(width,1.0,10.0)
         new(RenderedPlan(callback,plans),range,colors,type,reversed,width)
     end
 end
@@ -133,6 +132,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _shaders_id::Vector{ShaderProgram}
     _shaders_opaque::Vector{ShaderProgram}
     _shaders_behind_opaque::Vector{ShaderProgram}
+    _shaders_transparent::Vector{ShaderProgram}
 
     _ranges::Vector{Tuple{Int,Int,Int}}
     _drawRanges::Vector{Tuple{Int,Int}}
@@ -168,6 +168,9 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         shaders_behind_opaque = Vector{ShaderProgram}()
         for type in types push!(shaders_behind_opaque,ShaderProgram(sp("curve/behind_opaque/curve.vert"),sp("curve/behind_opaque/curve_$type.frag"))) end
 
+        shaders_transparent = Vector{ShaderProgram}()
+        for type in types push!(shaders_transparent,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/transparent/curve_$type.frag"))) end
+
         ranges = Vector{Tuple{Int,Int,Int}}()
         drawRanges = fill((0,0),_CURVE_COUNT)
 
@@ -177,7 +180,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         
         needMaintance = false
         new(renderer,
-            shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,
+            shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
             ranges,drawRanges,
             coords_widths,colors,
             distances,needMaintance,
@@ -421,6 +424,25 @@ function behind_opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,
     @time_gpu_end Dependent Curve BEHIND_OPAQUE_PASS
 end
 
+function transparent_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._color_buffer_out,1)
+    bind_ssbo(self._light_buffer_out,2)
+    bind_ssbo(self._sdf_buffer_out,3)
+
+    baseInstance = 0
+    glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Curve TRANSPARENT_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_transparent[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Curve TRANSPARENT_PASS
+end
+
 
 # ! Must have
 function destroy!(self::CurveRenderer)
@@ -428,6 +450,7 @@ function destroy!(self::CurveRenderer)
     foreach(destroy!, self._shaders_id)
     foreach(destroy!, self._shaders_opaque)
     foreach(destroy!, self._shaders_behind_opaque)
+    foreach(destroy!, self._shaders_transparent)
 
     destroy!(self._distance_buffer_in)
     destroy!(self._color_type_buffer_in)

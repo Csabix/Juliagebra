@@ -5,14 +5,6 @@ layout(location=1) out uint index_out;
 noperspective layout(location=0) in vec4 segment_SDF_field_in;
 noperspective layout(location=1) in float total_distance_in;
 
-
-float sdCapsule( vec2 p, float r, float h ) {
-    p.x = abs(p.x);
-    if( p.y < 0.0 ) return length(p) - r;
-    if( p.y > h ) return length(p-vec2(0.0,h)) - r;
-    return p.x - r;
-}
-
 float sdEquilateralTriangle( in vec2 p, in float r ) {
     const float k = sqrt(3.0);
     p.x = abs(p.x) - r;
@@ -22,16 +14,25 @@ float sdEquilateralTriangle( in vec2 p, in float r ) {
     return -length(p)*sign(p.y);
 }
 
-void main() {
-    vec2 p = segment_SDF_field_in.xy;
-    float dist = total_distance_in;
-    float lenX = segment_SDF_field_in.z;
-    float lenY = segment_SDF_field_in.w;
-    float d = sdCapsule(p,lenX,lenY);
-    float d_arrow = sdEquilateralTriangle(vec2(p.x,mod(total_distance_in + lenX * 3.0, lenX * 8.0) - lenX), lenX);
-    d_arrow = min(d_arrow, max(mod(total_distance_in,lenX * 8.0) - lenX * 6.0, abs(p.x) - lenX * 0.3) );
-    d = max(d,d_arrow);
+float rounding() {
+    vec2 p = vec2(abs(segment_SDF_field_in.x),segment_SDF_field_in.y);
+    if( p.y < 0.0 ) return length(p) - segment_SDF_field_in.z;
+    if( p.y > segment_SDF_field_in.w ) return length(p-vec2(0.0,segment_SDF_field_in.w)) - segment_SDF_field_in.z;
+    return p.x - segment_SDF_field_in.z;
+}
 
-    index_out = uint(0);
+float pattern() {
+    const float lenX = segment_SDF_field_in.z;
+    float d = abs(segment_SDF_field_in.x) - lenX * 0.3;
+    d = max(d, abs(mod(total_distance_in + lenX,lenX * 8.0) * 2.0 - lenX * 8.0) - lenX * 6.0);
+    d = min(d, sdEquilateralTriangle(vec2(segment_SDF_field_in.x,mod(total_distance_in + lenX * 4.0, lenX * 8.0) - 2 * lenX), lenX));
+    return d;
+}
+
+void main() {
+    float d = pattern();
+    d = max(d, rounding());
+
     if (d > 0.0) discard;
+    index_out = uint(0);
 }

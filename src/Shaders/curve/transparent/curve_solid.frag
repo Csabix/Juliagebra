@@ -1,7 +1,8 @@
 #version 460
 #define PI 3.1415926538
 
-layout(location=0) out vec4 color_out;
+layout(location = 0) out vec4 accum;
+layout(location = 1) out float reveal;
 
 noperspective layout(location=0) in vec4 segment_SDF_field_in;
 noperspective layout(location=1) in vec3 color_in;
@@ -27,11 +28,16 @@ vec4 get_color(in vec3 normal, in float alpha) {
     return vec4(color_in * (diffuse + ambient), alpha);
 }
 
+void write_transparent(in vec4 color, float depth) {
+    float weight = max(min(1.0, max(max(color.r, color.g), color.b) * color.a), color.a) *
+                   clamp(0.03 / (1e-5 + pow(depth / 200, 4.0)), 1e-2, 3e3);
+
+    accum = vec4(color.rgb * color.a, color.a) * weight;
+    reveal = color.a;
+}
+
 float pattern() {
-    const float lenX = segment_SDF_field_in.z;
-    float d = abs(segment_SDF_field_in.x) - lenX;
-    const float width = lenX * 5.0;
-    return max(d, abs(2.0 * mod(total_distance_in + lenX, width) - width) - lenX * 4.0);
+    return abs(segment_SDF_field_in.x) - segment_SDF_field_in.z;
 }
 
 void main() {
@@ -39,8 +45,9 @@ void main() {
     float alpha = 1.0 - smoothstep(max(-0.2*segment_SDF_field_in.z,-2.0), 0.0, d);
     d = max(d, rounding());
 
-    if (d > 0.0 || alpha <= 0.9) discard;
+    if (d > 0.0 || alpha > 0.9) discard;
 
     vec3 normal = get_normal();
-    color_out = get_color(normal, alpha);
+    vec4 color = get_color(normal, alpha);
+    write_transparent(color,gl_FragCoord.z);
 }

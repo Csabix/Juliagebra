@@ -74,24 +74,6 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     end
 end
 
-Base.length(self::ParametricCurveDependent) = (max(length(self._range) - 1,0))
-
-function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
-    if ((index >= 1) && (index <= length(self)))
-        return (self[index], (index + 1))
-    else
-        return nothing
-    end
-end
-
-function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, PSegment}
-    if ((index >= 1) && (index <= length(self)))
-        return PSegment(self._tValues[index], self._tValues[index + 1])
-    else
-        return nothing 
-    end
-end
-
 # ! Must have
 function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
     return ParametricCurveDependent(plan)

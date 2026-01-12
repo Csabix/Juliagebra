@@ -4,9 +4,9 @@
 
 mutable struct GenericDependentPlan{T} <: PlanDNA
     _plan::Plan
-    _startT::T
+    _startT::Union{T,Nothing}
 
-    function GenericDependentPlan{T}(callback::Function,plans::Vector{<:PlanDNA},startT::T) where T
+    function GenericDependentPlan{T}(callback::Function,plans::Vector{<:PlanDNA},startT::Union{T,Nothing}) where T
         plan = Plan(callback,plans)
         new{T}(plan,startT)
     end
@@ -20,7 +20,7 @@ _Plan_(self::GenericDependentPlan)::Plan = return self._plan
 
 mutable struct GenericDependent{T} <: DependentDNA
     _dependent::Dependent
-    _currT::T
+    _currT::Union{T,Nothing}
 
     function GenericDependent{T}(plan::GenericDependentPlan{T}) where T
         dependent = Dependent(plan)

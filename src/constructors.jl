@@ -11,7 +11,8 @@ function _GenericDependent(;
                 _app::App = implicitApp,
                 _call::Function = () -> (return nothing),
                 _deps::DependentsT = Vector{PlanDNA}(),
-                _startT::T
+                _startT::Union{T,Nothing} = nothing,
+                _T::Type{T}
 )::GenericDependentPlan{T} where {T}
     plan = GenericDependentPlan{T}(_call,_deps,_startT)
     submit!(_app,plan)
@@ -19,18 +20,15 @@ function _GenericDependent(;
 end
 
 GenericDependent(startT::T) where {T} = 
-_GenericDependent(_startT = startT)
+_GenericDependent(_startT = startT, _T = T)
 
 # ? Works, because Julia can figure out I'm just changing the syntax
 # ? and T can be inferred in _GenericDependent
 GenericDependent{T}(startT) where {T} = 
-_GenericDependent(_startT = T(startT))
+_GenericDependent(_startT = T(startT), _T = T)
 
-GenericDependent(callback::Function,startT::T,dependents::DependentsT) where {T} = 
-_GenericDependent(_call = callback, _startT = startT, _deps = dependents)
-
-GenericDependent{T}(callback::Function,startT,dependents::DependentsT) where {T} = 
-_GenericDependent(_call = callback, _startT = T(startT), _deps = dependents)
+GenericDependent{T}(callback::Function,dependents::DependentsT) where {T} = 
+_GenericDependent(_call = callback, _deps = dependents, _T = T)
 
 # ? ---------------------------------
 # ! Point
@@ -152,15 +150,12 @@ end
 
 function GenericIntersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,maxIntersectionNum;_app::App = implicitApp,) 
     call = function (curve)
-        po::PSegmentsOf = PrimitivesOf(curve) 
+        po = PrimitivesOf(curve) 
         return po     
     end
 
-    # TODO: Remove PSegmentsOf() by adding Union{T,Nothing} GeneralDependents
-    pso::PSegmentsOf = PSegmentsOfCurve(nothing)
-
-    gd1 = GenericDependent(call,pso,[curve1])
-    gd2 = GenericDependent(call,pso,[curve2])
+    gd1 = GenericDependent{PSegmentsOfCurve}(call,[curve1])
+    gd2 = GenericDependent{PSegmentsOfCurve}(call,[curve2])
 
     plan = GeneralIntersectionPlan(gd1,gd2,UInt(maxIntersectionNum))
     

@@ -7,9 +7,8 @@ uniform vec3 cam;
 uniform vec3 lightDirCam;
 uniform vec3 lightDirSide;
 
-flat in int isOutside;
-in float sphereRadius;
-in vec3 sphereCenter;
+flat in float sphereRadius;
+flat in vec3 sphereCenter;
 in vec3 worldPos;
 flat in vec3 sphereColor;
 
@@ -22,7 +21,8 @@ struct TraceResult
 {
     vec3 n;  // Normal vector on surface
     float t; // Distance taken on ray
-    vec2 uv; // Texture Coords;
+    vec2 uv; // Texture Coords
+    bool isOutside;
 };
 
 struct Sphere {
@@ -38,39 +38,29 @@ TraceResult intersectSphere(Ray ray, Sphere s)
     float c = dot(p0c,p0c) - s.r*s.r;
     float discriminant = b*b - 4.0*a*c;
     if(discriminant < 0.0)
-        return TraceResult(vec3(0),ray.tmax,vec2(0)); // no intersection
+        return TraceResult(vec3(0),-1.0,vec2(0), false); // no intersection
     float sqd = sqrt(discriminant);
-    float numerator = -b - sqd;
-    if(numerator < 0.0)
-        numerator = -b + sqd;
-    float t = 0.5 * numerator / a;
+
+    float t1 = (-b - sqd) / (2.0 * a);
+    float t2 = (-b + sqd) / (2.0 * a);
+
+
+    float t = -1.0;
+    bool isOutside = false;
+    if (t1 >= ray.tmin && t1 <= ray.tmax) {
+        t = t1;
+        isOutside = true;
+    } else if (t2 >= ray.tmin && t2 <= ray.tmax) {
+        t = t2;
+    }
+
     vec3 p = ray.p0 + t * ray.v;
     vec3 normal = normalize(p - s.c);
-    
-    {
-    /*
-    
-    float u = dot(normal,vec3(1,0,0));
-    float v = dot(normal,vec3(0,1,0));
-    
-    n.x = cos(uv.x)*cos(-uv.y)
-    n.y = sin(-uv.y)
-    n.z = sin(uv.x)*cos(-uv.y)
-    
-    asin(n.y) = -uv.y
-    -asin(n.y) = uv.y
-    
-    n.z/cos(-uv.y) = sin(uv.x)
-    asin(n.z/cos(-uv.y)) = uv.x
-    
-    _U~~
-    */ 
-    }
     
     float v = -asin(normal.y);
     float u = asin(normal.z/cos(-v));
     
-    return TraceResult(normal, t,vec2(u,v));
+    return TraceResult(normal, t,vec2(u,v), isOutside);
 }
 
 void main(){
@@ -81,12 +71,10 @@ void main(){
                 v,
                 1000.0);
     
-    Sphere s = Sphere(sphereCenter,sphereRadius); 
+    Sphere s = Sphere(sphereCenter,sphereRadius);
     TraceResult rs = intersectSphere(r,s);
     
-    if(rs.t == r.tmax){
-        discard;    
-    }
+    if(rs.t == -1.0) discard;
     
     vec3 spherePos = cam + v * rs.t;
     
@@ -95,12 +83,12 @@ void main(){
     depth = (depth + 1.0) / 2.0;
     gl_FragDepth = depth;
 
-    if(isOutside==1){
+    if(rs.isOutside){
         float diffuse = (max(dot(rs.n,lightDirCam),0.0) * 0.3 + max(dot(rs.n,lightDirSide),0.0) * 0.7) * 0.8;
         float ambient = 0.2;
-        out_color = vec4(sphereColor * (diffuse + ambient), 1.0);
+        out_color = vec4(sphereColor*(diffuse+ambient),1.0);
     }else{
-        float diffuse = dot(-rs.n,-normalize(spherePos-cam));
+        float diffuse = max(dot(-rs.n,lightDirCam),0.0);
         out_color = vec4(sphereColor*diffuse,1.0);
     }
 }

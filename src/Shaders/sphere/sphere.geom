@@ -43,9 +43,8 @@ const int idx[idxCOUNT] = int[idxCOUNT](
     5,2,1
 );
 
-flat out int isOutside;
-out float sphereRadius;
-out vec3 sphereCenter;
+flat out float sphereRadius;
+flat out vec3 sphereCenter;
 out vec3 worldPos;
 flat out vec3 sphereColor;
 layout (triangle_strip, max_vertices = 36) out;
@@ -55,59 +54,27 @@ void main(){
     float r = radius[0];
     vec3 col = color[0];
 
-
-    int isCamOutside = 1;
-    
     vec3 corner1 = vec3(0.0);
     vec3 corner2 = vec3(0.0);
     vec3 corner3 = vec3(0.0);
 
-    int splice1 = 0;
-    int splice2 = 0;
-    int splice3 = 0;
-
-    if(distance(cam,center)>=r){
-        isCamOutside = 1;
-    }else{
-        isCamOutside = 0;
-    }
-
-    if(isCamOutside==1){
-        splice1 = 0;
-        splice2 = 1;
-        splice3 = 2;
-    }else{
-        splice1 = 0;
-        splice2 = 2;
-        splice3 = 1;
-    }
-
+    sphereRadius = r;
+    sphereCenter = center;
+    sphereColor = col;
     for(int i = 0; i<triCount; i++){    
-        corner1 = corners[idx[i*3 + splice1]];
-        corner2 = corners[idx[i*3 + splice2]];
-        corner3 = corners[idx[i*3 + splice3]];
+        corner1 = corners[idx[i*3 + 0]];
+        corner2 = corners[idx[i*3 + 1]];
+        corner3 = corners[idx[i*3 + 2]];
 
-        isOutside = isCamOutside;
-        sphereRadius = r;
-        sphereCenter = center;
         worldPos = center + corner1 * r;
-        sphereColor = col;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
 
-        isOutside = isCamOutside;
-        sphereRadius = r;
-        sphereCenter = center;
         worldPos = center + corner2 * r;
-        sphereColor = col;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
 
-        isOutside = isCamOutside;
-        sphereRadius = r;
-        sphereCenter = center;
         worldPos = center + corner3 * r;
-        sphereColor = col;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
     

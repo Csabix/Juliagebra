@@ -42,8 +42,8 @@ const int idx[idxCOUNT] = int[idxCOUNT](
     5,2,1
 );
 
-out float sphereRadius;
-out vec3 sphereCenter;
+flat out float sphereRadius;
+flat out vec3 sphereCenter;
 out vec3 worldPos;
 flat out vec3 sphereColor;
 layout (triangle_strip, max_vertices = 36) out;
@@ -79,25 +79,21 @@ void main(){
         splice3 = 1;
     }
 
+    sphereRadius = r;
+    sphereCenter = center;
     for(int i = 0; i<triCount; i++){    
         corner1 = corners[idx[i*3 + splice1]];
         corner2 = corners[idx[i*3 + splice2]];
         corner3 = corners[idx[i*3 + splice3]];
 
-        sphereRadius = r;
-        sphereCenter = center;
         worldPos = center + corner1 * r;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
 
-        sphereRadius = r;
-        sphereCenter = center;
         worldPos = center + corner2 * r;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 
 
-        sphereRadius = r;
-        sphereCenter = center;
         worldPos = center + corner3 * r;
         gl_Position = VP * vec4(worldPos,1.0);
         EmitVertex(); 

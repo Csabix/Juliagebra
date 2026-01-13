@@ -16,7 +16,7 @@ float rounding() {
 float pattern() {
     const float lenX = segment_SDF_field_in.z;
     float d = abs(segment_SDF_field_in.x) - segment_SDF_field_in.z;
-    return max(d, mod(total_distance_in,lenX * 5.0) - lenX * 4.0);
+    return max(d, mod(total_distance_in + lenX,lenX * 5.0) - lenX * 4.0);
 }
 
 void main() {

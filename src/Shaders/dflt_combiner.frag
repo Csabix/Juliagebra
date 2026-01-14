@@ -18,8 +18,8 @@ vec4 grid(vec3 position, float scale) {
     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
     float line = min(grid.x, grid.y);
 
-    float minimum_y = min(derivative.y, 1);
-    float minimum_x = min(derivative.x, 1);
+    float minimum_y = min(derivative.y, 1.0);
+    float minimum_x = min(derivative.x, 1.0);
 
     vec4 color = vec4(0.2, 0.2, 0.2, 1.0 - min(line, 1.0));
 
@@ -70,14 +70,16 @@ void main() {
 
     float depth = texture(depthTex, tex_vs_out).x;
     float depth_lin = computeLinearDepth(depth);
+    vec3 view_forward = normalize(AT - EYE);
+    float grid_view_z = t * dot(ray_dir, view_forward);
 
     vec4 gridColor = grid(frag_position, DISTANCE_POWER/10.0);
     gridColor = mix(gridColor,grid(frag_position, DISTANCE_POWER),smoothstep(DISTANCE_POWER,10.0*DISTANCE_POWER,DISTANCE));
-    float fade = max(0,((2.0*DISTANCE) - distance(AT,frag_position)) / (2.0*DISTANCE));
+    float fade = max(0.0,((2.0*DISTANCE) - distance(AT,frag_position)) / (2.0*DISTANCE));
     gridColor.w *= fade;
 
-    bool hit_in_front_of_camera = t > 0;
-    bool hit_in_render_distance = t <= FAR && t < depth_lin;
+    bool hit_in_front_of_camera = t > 0.0;
+    bool hit_in_render_distance = grid_view_z <= FAR && grid_view_z < depth_lin;
     bool outside_render_distance = depth == 1.0;
     if(hit_in_front_of_camera && (hit_in_render_distance || outside_render_distance)){
         color_out = mix(color_out, gridColor, gridColor.w);

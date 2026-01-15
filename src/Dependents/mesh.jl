@@ -65,7 +65,7 @@ mutable struct MeshRenderer <: RendererDNA{MeshDependent}
     function MeshRenderer(context::OpenGLData)
         renderer = Renderer{MeshDependent}(context)
 
-        shader = ShaderProgram(sp("mesh_direction.vert"),sp("mesh_direction.frag"),["VP","lightDirCam","lightDirSide"])
+        shader = ShaderProgram(sp("surface/surface.vert"),sp("surface/surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
         buffers = Vector{IndexedTypedBufferArray}()
 
         new(renderer,shader,buffers)
@@ -102,8 +102,7 @@ end
 function syncAll!(self::MeshRenderer)
 end
 
-# ! Must have
-function draw!(self::MeshRenderer,vp,selectedID,pickedID,cam,shrd)
+function opaque_pass!(self::MeshRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     (cam_light, side_light) = get_lights(cam)
     glDisable(GL_CULL_FACE)
     activate(self._shader)
@@ -111,11 +110,14 @@ function draw!(self::MeshRenderer,vp,selectedID,pickedID,cam,shrd)
     setUniform!(self._shader,"VP",vp)
     setUniform!(self._shader,"lightDirCam",-cam_light)
     setUniform!(self._shader,"lightDirSide",-side_light)
-
+    @time_gpu_begin Dependent Mesh OPAQUE_PASS
     for buffer in self._buffers
         draw(buffer,GL_TRIANGLES)
     end
+    @time_gpu_end Dependent Mesh OPAQUE_PASS
+
     glEnable(GL_CULL_FACE)
+    return nothing
 end
 
 # ! Must have
@@ -124,5 +126,5 @@ end
 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::MeshPlan)
-    return SingleRendererTactic(self,MeshRenderer)
+    return SingleRendererTactic(self,_MESH_RENDERER,MeshRenderer)::MeshRenderer
 end

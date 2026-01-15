@@ -418,17 +418,15 @@ function load_scene(path)
         aiComponent_ANIMATIONS |
         aiComponent_LIGHTS |
         aiComponent_CAMERAS |
-        aiComponent_MATERIALS |
-        aiComponent_NORMALS
+        aiComponent_MATERIALS
 
     aiSetImportPropertyInteger(props, AI_CONFIG_PP_RVC_FLAGS, components_to_remove);
 
     flags =
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
-        aiProcess_GenSmoothNormals |
-        aiProcess_RemoveComponent |
-        aiProcess_FlipWindingOrder
+        #aiProcess_GenSmoothNormals |
+        aiProcess_RemoveComponent
 
     scene_ptr = aiImportFileExWithProperties(path, flags, C_NULL, props);
 
@@ -448,7 +446,7 @@ function load_scene(path)
             positions = [Vec3F(v.x, v.z, v.y) for v in pos_raw]
 
             norm_raw = unsafe_wrap(Array, mesh.mNormals, mesh.mNumVertices)
-            normals = [Vec3F(n.x, n.y, n.z) for n in norm_raw]
+            normals = [Vec3F(n.x, n.z, n.y) for n in norm_raw]
 
             indices = UInt32[]
             faces = unsafe_wrap(Array, mesh.mFaces, mesh.mNumFaces)

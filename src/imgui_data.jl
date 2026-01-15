@@ -111,18 +111,11 @@ function _display!(self::ImGuiData,openglD::OpenGLData)
     openglD._backgroundCol = slider3(openglD._backgroundCol,"RGB-(Bckg)",0.0,1.0)
     openglD._gizmoGL._pos = slider3(openglD._gizmoGL._pos,"Gizmo-(x,y,z)",-10.0,10.0)
 
-    CImGui.Text("Render Offices:")
-    i = 1
-    for (key,office) in openglD._renderOffices
-        if CImGui.TreeNode("$(i) - $(string(key))")
-            j = 1
-            for employee in office
-                CImGui.Text("$(j) - $(string(employee))")
-                j+=1
-            end
-            CImGui.TreePop()
+    CImGui.Text("Renderers:")
+    for renderer in openglD._renders
+        if renderer !== nothing
+            CImGui.Text("$(string(renderer))")
         end
-        i+=1
     end
 
 

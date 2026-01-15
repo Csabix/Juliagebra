@@ -16,8 +16,9 @@ mutable struct ParametricSurfacePlan <:RenderedPlanDNA
     _vEnd::Float64
 
     _color::Vec3F
+    _transparent::Bool
     
-    function ParametricSurfacePlan(callback::Function,plans::Vector{T},width,height,uStart,uEnd,vStart,vEnd,color) where {T<:PlanDNA}
+    function ParametricSurfacePlan(callback::Function,plans::Vector{T},width,height,uStart,uEnd,vStart,vEnd,color,transparent) where {T<:PlanDNA}
         
         r = Float32(color[1])
         g = Float32(color[2])
@@ -27,7 +28,7 @@ mutable struct ParametricSurfacePlan <:RenderedPlanDNA
             width,height,
             uStart,uEnd,
             vStart,vEnd,
-            Vec3F(r,g,b))
+            Vec3F(r,g,b),transparent)
     end
 end
 
@@ -54,6 +55,7 @@ mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
     _vEnd::Float64
 
     _color::Vec3F
+    _transparent::Bool
 
     function ParametricSurfaceDependent(plan::ParametricSurfacePlan)
         renderedDependent = RenderedDependent(plan)
@@ -68,6 +70,7 @@ mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
         vEnd = plan._vEnd
         
         color = plan._color
+        transparent = plan._transparent
 
         new(renderedDependent,
             EMPTY_FlatMatrix,
@@ -75,7 +78,7 @@ mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
             unmanagedWidth,unmanagedHeight,
             uStart,uEnd,
             vStart,vEnd,
-            color)
+            color,transparent)
     end
 end
 
@@ -202,27 +205,35 @@ end
 mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDependent}
     _renderer::Renderer{ParametricSurfaceDependent}
 
-    _shader::ShaderProgram
-    _buffer::IndexedTypedBufferArray
+    _shader_id::ShaderProgram
+    _shader_opaque::ShaderProgram
+    _shader_transparent::ShaderProgram
 
-    _indexes::Vector{UInt32}
-    _vertexes::FlatMatrixManager{Vec3F}
-    _normals::FlatMatrixManager{Vec3F}
-    _colors::FlatMatrixManager{Vec3F}
+    _buffer_opaque::IndexedTypedBufferArray
+    _buffer_transparent::IndexedTypedBufferArray
+
+    _indexes_opaque::Vector{UInt32}
+    _vertexes_opaque::FlatMatrixManager{Vec3F}
+    _normals_opaque::FlatMatrixManager{Vec3F}
+    _colors_opaque::FlatMatrixManager{Vec3F}
+
+    _indexes_transparent::Vector{UInt32}
+    _vertexes_transparent::FlatMatrixManager{Vec3F}
+    _normals_transparent::FlatMatrixManager{Vec3F}
+    _colors_transparent::FlatMatrixManager{Vec3F}
 
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         
-        shader = ShaderProgram(sp("mesh_direction.vert"),sp("mesh_direction.frag"),["VP","lightDirCam","lightDirSide"])
-        buffer = IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}()
+        shader_id = ShaderProgram(sp(".\\surface\\surface_id.vert"),sp(".\\surface\\surface_id.frag"),["VP"])
+        shader_opaque = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
+        shader_transparent = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
 
-        indexes = Vector{UInt32}()
-
-        vertexes = FlatMatrixManager{Vec3F}()
-        normals = FlatMatrixManager{Vec3F}()
-        colors = FlatMatrixManager{Vec3F}()
-
-        new(renderer,shader,buffer,indexes,vertexes,normals,colors)
+        new(renderer,
+        shader_id,shader_opaque,shader_transparent,
+        IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),
+        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),
+        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}())
     end
 end
 
@@ -231,17 +242,21 @@ Base.string(self::ParametricSurfaceRenderer) = "ParametricSurfaceRenderer - [$(l
 
 # ! Must have
 function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
-    
     width = surface._unmanagedWidth
     height = surface._unmanagedHeight
     color = surface._color
 
-    initMatrix(self._vertexes,width,height,Vec3FNan)
-    initMatrix(self._normals,width,height,Vec3FNan)
-    initMatrix(self._colors,width,height,color)
-    triangulateInto!(self._indexes,self._vertexes,layers(self._vertexes))
-    surface._uvValues  = FlatMatrix{layers(self._vertexes),Vec3F}(self._vertexes)
-    surface._uvNormals = FlatMatrix{layers(self._vertexes),Vec3F}(self._normals)
+    vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
+    normals = surface._transparent ? self._normals_transparent : self._normals_opaque
+    colors = surface._transparent ? self._colors_transparent : self._colors_opaque
+    indexes = surface._transparent ? self._indexes_transparent : self._indexes_opaque
+
+    initMatrix(vertexes,width,height,Vec3FNan)
+    initMatrix(normals,width,height,Vec3FNan)
+    initMatrix(colors,width,height,color)
+    triangulateInto!(indexes,vertexes,layers(vertexes))
+    surface._uvValues  = FlatMatrix{layers(vertexes),Vec3F}(vertexes)
+    surface._uvNormals = FlatMatrix{layers(vertexes),Vec3F}(normals)
 
     onNodeEval(surface)
 
@@ -252,10 +267,15 @@ setRenderedID!(renderer::ParametricSurfaceRenderer,dependent::ParametricSurfaceD
 
 # ! Must have
 function addedAll!(self::ParametricSurfaceRenderer)
-    upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
-    upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
-    upload!(self._buffer,3,data(self._colors),GL_STATIC_DRAW)
-    uploadIndexes!(self._buffer,self._indexes,GL_STATIC_DRAW)
+    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_opaque,2,data(self._normals_opaque),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_opaque,3,data(self._colors_opaque),GL_STATIC_DRAW)
+    uploadIndexes!(self._buffer_opaque,self._indexes_opaque,GL_STATIC_DRAW)
+
+    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_transparent,2,data(self._normals_transparent),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_transparent,3,data(self._colors_transparent),GL_STATIC_DRAW)
+    uploadIndexes!(self._buffer_transparent,self._indexes_transparent,GL_STATIC_DRAW)
 end
 
 # ! Must have
@@ -266,36 +286,73 @@ end
 # ! Must have
 function syncAll!(self::ParametricSurfaceRenderer)
     @time_cpu_begin Dependent Surface
-    upload!(self._buffer,1,data(self._vertexes),GL_DYNAMIC_DRAW)
-    upload!(self._buffer,2,data(self._normals),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_opaque,2,data(self._normals_opaque),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),GL_DYNAMIC_DRAW)
+    upload!(self._buffer_transparent,2,data(self._normals_transparent),GL_DYNAMIC_DRAW)
     @time_cpu_end Dependent Surface
 end
 
-# ! Must have
-function draw!(self::ParametricSurfaceRenderer,vp,selectedID,pickedID,cam,shrd)
+function id_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    glDisable(GL_CULL_FACE)
+    
+    activate(self._shader_id)
+    setUniform!(self._shader_id,"VP",vp)
+    @time_gpu_begin Dependent Surface ID_PASS
+    if !isempty(self._indexes_opaque) draw(self._buffer_opaque,GL_TRIANGLES) end
+    if !isempty(self._indexes_transparent) draw(self._buffer_transparent,GL_TRIANGLES) end
+    @time_gpu_end Dependent Surface ID_PASS
+
+    glEnable(GL_CULL_FACE)
+    return nothing
+end
+
+function opaque_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    if isempty(self._indexes_opaque) return nothing end
     (cam_light, side_light) = get_lights(cam)
     
     glDisable(GL_CULL_FACE)
     
-    activate(self._shader)
-    setUniform!(self._shader,"VP",vp)
-    #setUniform!(self._shader,"lightDir",normalize(cam._eye-cam._at))
-    setUniform!(self._shader,"lightDirCam",-cam_light)
-    setUniform!(self._shader,"lightDirSide",-side_light)
-    @time_gpu_begin Dependent Surface
-    draw(self._buffer,GL_TRIANGLES)
-    @time_gpu_end Dependent Surface
+    activate(self._shader_opaque)
+    setUniform!(self._shader_opaque,"VP",vp)
+    setUniform!(self._shader_opaque,"lightDirCam",-cam_light)
+    setUniform!(self._shader_opaque,"lightDirSide",-side_light)
+    @time_gpu_begin Dependent Surface OPAQUE_PASS
+    draw(self._buffer_opaque,GL_TRIANGLES)
+    @time_gpu_end Dependent Surface OPAQUE_PASS
 
     glEnable(GL_CULL_FACE)
+    return nothing
+end
+
+function transparent_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    if isempty(self._indexes_transparent) return nothing end
+    (cam_light, side_light) = get_lights(cam)
+    
+    glDisable(GL_CULL_FACE)
+    
+    activate(self._shader_transparent)
+    setUniform!(self._shader_transparent,"VP",vp)
+    setUniform!(self._shader_transparent,"lightDirCam",-cam_light)
+    setUniform!(self._shader_transparent,"lightDirSide",-side_light)
+    @time_gpu_begin Dependent Surface TRANSPARENT_PASS
+    draw(self._buffer_transparent,GL_TRIANGLES)
+    @time_gpu_end Dependent Surface TRANSPARENT_PASS
+
+    glEnable(GL_CULL_FACE)
+    return nothing
 end
 
 # ! Must have
 function destroy!(self::ParametricSurfaceRenderer)
-    destroy!(self._shader)
-    destroy!(self._buffer)
+    destroy!(self._shader_id)
+    destroy!(self._shader_opaque)
+    destroy!(self._shader_transparent)
+    destroy!(self._buffer_opaque)
+    destroy!(self._buffer_transparent)
 end
 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::ParametricSurfacePlan)
-    return SingleRendererTactic(self,ParametricSurfaceRenderer)
+    return SingleRendererTactic(self,_SURFACE_RENDERER,ParametricSurfaceRenderer)::ParametricSurfaceRenderer
 end

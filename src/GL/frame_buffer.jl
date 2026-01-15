@@ -17,7 +17,7 @@ mutable struct FrameBuffer
             #println("$(attachementPoint) - $(texture._id)")
             
             glFramebufferTexture2D(GL_FRAMEBUFFER, attachementPoint, GL_TEXTURE_2D, texture._id, 0)
-            if (attachementPoint != GL_DEPTH_ATTACHMENT) && (attachementPoint != GL_STENCIL_ATTACHMENT)
+            if (attachementPoint != GL_DEPTH_ATTACHMENT && attachementPoint != GL_DEPTH_STENCIL_ATTACHMENT) && (attachementPoint != GL_STENCIL_ATTACHMENT)
                 push!(attachmentPoints,attachementPoint)
             end
         end

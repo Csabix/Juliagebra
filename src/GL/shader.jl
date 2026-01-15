@@ -18,6 +18,12 @@ mutable struct ShaderProgram <: OpenGLWrapper
         uniforms = _scrapeUniforms(prog,uniformNames)
         new(prog,uniforms)
     end
+    function ShaderProgram(compPath::String,uniformNames::Vector{String}=Vector{String}(undef,0))
+        comp = createShaderStage(compPath,GL_COMPUTE_SHADER)
+        prog = linkShaders!(comp)
+        uniforms = _scrapeUniforms(prog,uniformNames)
+        new(prog,uniforms)
+    end
 end
 destroy!(self::ShaderProgram) = (self._id!=0 && glDeleteProgram(self._id))
 activate(self::ShaderProgram) = glUseProgram(self._id)

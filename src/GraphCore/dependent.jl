@@ -4,9 +4,9 @@
 
 mutable struct Dependent
     _graphID::Int                       
-    _graphParents::Vector{DependentDNA}
+    _graphParents::Vector{DependentDNA} # ? Who do I Depend on?
     _entryNodes::Vector{Any}
-    _dependentChain::DependentChain
+    _dependentChain::DependentChain # ? Who Depends on me (collectively)?
     _callback::Function
 end
 

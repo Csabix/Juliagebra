@@ -16,7 +16,7 @@ end
 _Plan_(self::PlanDNA)::Plan = error("Missing func!")
 
 # ? ---------------------------------
-# ! ObservedlanDNA
+# ! ObservedPlanDNA
 # ? ---------------------------------
 
 mutable struct ObservedPlan <: PlanDNA

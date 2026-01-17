@@ -44,9 +44,10 @@ getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
+getPlanQueue(self::App) = return self._plans
 
-function submit!(self::App,plan::PlanDNA)
-    enqueue!(self._plans,plan)    
+function submit!(self::AppDNA,plan::PlanDNA)
+    enqueue!(getPlanQueue(self),plan)    
 end
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing

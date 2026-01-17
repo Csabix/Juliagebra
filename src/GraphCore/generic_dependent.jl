@@ -1,28 +1,28 @@
 # ? ---------------------------------
-# ! GenericDependentPlan{T}
+# ! GenericValueHolderPlan{T}
 # ? ---------------------------------
 
-mutable struct GenericDependentPlan{T} <: PlanDNA
+mutable struct GenericValueHolderPlan{T} <: PlanDNA
     _plan::Plan
     _startT::Union{T,Nothing}
 
-    function GenericDependentPlan{T}(callback::Function,plans::Vector{<:PlanDNA},startT::Union{T,Nothing}) where T
+    function GenericValueHolderPlan{T}(callback::Function,plans::Vector{<:PlanDNA},startT::Union{T,Nothing}) where T
         plan = Plan(callback,plans)
         new{T}(plan,startT)
     end
 end
 
-_Plan_(self::GenericDependentPlan)::Plan = return self._plan
+_Plan_(self::GenericValueHolderPlan)::Plan = return self._plan
 
 # ? ---------------------------------
-# ! GenericDependent{T}
+# ! GenericValueHolder{T}
 # ? ---------------------------------
 
-mutable struct GenericDependent{T} <: DependentDNA
+mutable struct GenericValueHolder{T} <: DependentDNA
     _dependent::Dependent
     _currT::Union{T,Nothing}
 
-    function GenericDependent{T}(plan::GenericDependentPlan{T}) where T
+    function GenericValueHolder{T}(plan::GenericValueHolderPlan{T}) where T
         dependent = Dependent(plan)
         currT = plan._startT
 
@@ -32,22 +32,47 @@ mutable struct GenericDependent{T} <: DependentDNA
     end
 end
 
-_Dependent_(self::GenericDependent)::Dependent = return self._dependent
+_Dependent_(self::GenericValueHolder)::Dependent = return self._dependent
 
-getGenericDependentField(self::GenericDependent,fieldVal::Val{:val}) = return self._currT
-getGenericDependentField(self::GenericDependent{T},fieldVal::Val{:T}) where T = return T
-Base.getindex(self::GenericDependent,fieldSymbol::Symbol) = return getGenericDependentField(self,Val(fieldSymbol))
+getField(self::GenericValueHolder) = return self._currT
 
-getField(self::GenericDependent) = return self._currT
-
-onNodeEval(self::GenericDependent) = evalCallbackDp(self)
-function evalCallbackDpEntry(self::GenericDependent{T})::T where {T}
+onNodeEval(self::GenericValueHolder) = evalCallbackDp(self)
+function evalCallbackDpEntry(self::GenericValueHolder{T})::T where {T}
     return self._currT
 end
 
-evalCallbackDpReturn(self::GenericDependent{T}, currT::T) where T = self._currT = currT
-evalCallbackDpReturn(self::GenericDependent, ::Nothing) = nothing
+evalCallbackDpReturn(self::GenericValueHolder{T}, currT::T) where T = self._currT = currT
+evalCallbackDpReturn(self::GenericValueHolder, ::Nothing) = nothing
 
-function Plan2Dependent(plan::GenericDependentPlan{T}) where T
-    return GenericDependent{T}(plan)
+function Plan2Dependent(plan::GenericValueHolderPlan{T}) where T
+    return GenericValueHolder{T}(plan)
 end
+
+# ? ---------------------------------
+# ! GenericValueHolder
+# ? ---------------------------------
+
+function _GenericValueHolder(;
+                _app::AppDNA = implicitApp,
+                _call::Function = () -> (return nothing),
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _startT::Union{T,Nothing} = nothing,
+                _T::Type{T}
+)::GenericValueHolderPlan{T} where {T}
+    plan = GenericValueHolderPlan{T}(_call,_deps,_startT)
+    submit!(_app,plan)
+    return plan
+end
+
+GenericValueHolder(startT::T) where {T} = 
+_GenericValueHolder(_startT = startT, _T = T)
+
+# ? Works, because Julia can figure out I'm just changing the syntax
+# ? and T can be inferred in _GenericValueHolder
+GenericValueHolder{T}(startT) where {T} = 
+_GenericValueHolder(_startT = T(startT), _T = T)
+
+GenericValueHolder{T}(callback::Function,dependents::DependentsT) where {T} = 
+_GenericValueHolder(_call = callback, _deps = dependents, _T = T)
+
+export GenericValueHolder

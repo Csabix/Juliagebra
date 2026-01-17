@@ -39,3 +39,5 @@ abstract type PSegmentsOf <: AABBPrimitivesOf end
 const IntersectT= Union{Vec3D,Primitive}
 
 const QueueLockPool = Union{RenderedDependentDNA,QueueLockDNA,CollectedDNA,CollectedCollectorDNA}
+
+const DependentsT = Vector{T} where T <: PlanDNA

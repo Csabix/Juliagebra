@@ -1,35 +1,5 @@
 # ! All exported constructors should be defined, and exported from here.
 
-const DependentsT = Vector{T} where T <: PlanDNA
-const DEFAULT_CALLBACK = () -> (return nothing)
-
-# ? ---------------------------------
-# ! GenericDependent
-# ? ---------------------------------
-
-function _GenericDependent(;
-                _app::App = implicitApp,
-                _call::Function = () -> (return nothing),
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _startT::Union{T,Nothing} = nothing,
-                _T::Type{T}
-)::GenericDependentPlan{T} where {T}
-    plan = GenericDependentPlan{T}(_call,_deps,_startT)
-    submit!(_app,plan)
-    return plan
-end
-
-GenericDependent(startT::T) where {T} = 
-_GenericDependent(_startT = startT, _T = T)
-
-# ? Works, because Julia can figure out I'm just changing the syntax
-# ? and T can be inferred in _GenericDependent
-GenericDependent{T}(startT) where {T} = 
-_GenericDependent(_startT = T(startT), _T = T)
-
-GenericDependent{T}(callback::Function,dependents::DependentsT) where {T} = 
-_GenericDependent(_call = callback, _deps = dependents, _T = T)
-
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
@@ -154,8 +124,8 @@ function GenericIntersection(curve1::ParametricCurvePlan,curve2::ParametricCurve
         return po     
     end
 
-    gd1 = GenericDependent{PSegmentsOfCurve}(call,[curve1])
-    gd2 = GenericDependent{PSegmentsOfCurve}(call,[curve2])
+    gd1 = GenericValueHolder{PSegmentsOfCurve}(call,[curve1])
+    gd2 = GenericValueHolder{PSegmentsOfCurve}(call,[curve2])
 
     plan = GeneralIntersectionPlan(gd1,gd2,UInt(maxIntersectionNum))
     
@@ -352,7 +322,7 @@ function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306))::S
     return _Sphere(_call = call, _deps = deps, _col = color)
 end
 
-function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color = (0.031,0.337,0.412))
+function Sphere(center::PointPlan,radius::GenericValueHolderPlan{Float64}; color = (0.031,0.337,0.412))
     deps = Vector{PlanDNA}([center,radius])
     call = function (center,radius)
         return (center,radius)
@@ -371,7 +341,6 @@ function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color =
     return _Sphere(_call = call, _deps = deps, _col = color)
 end
 
-export GenericDependent
 export Point
 export ParametricCurve
 export Segment

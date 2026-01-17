@@ -1,4 +1,5 @@
 abstract type PlanDNA end
+abstract type ValueHolderPlanDNA{T} <: PlanDNA end
 abstract type ObservedPlanDNA <: PlanDNA end
 abstract type RenderedPlanDNA <: ObservedPlanDNA end
 abstract type GuiPlanDNA <: ObservedPlanDNA end
@@ -6,6 +7,8 @@ abstract type QueueLockDNA end
 
 abstract type DependentDNA end 
 abstract type DependentGraphDNA end
+
+abstract type ValueHolderDNA{T} <: DependentDNA end
 
 abstract type ObservedDNA <: DependentDNA end
 abstract type ObserverBuilderDNA end

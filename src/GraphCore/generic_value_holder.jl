@@ -1,78 +1,76 @@
 # ? ---------------------------------
-# ! GenericValueHolderPlan{T}
-# ? ---------------------------------
-
-mutable struct GenericValueHolderPlan{T} <: PlanDNA
-    _plan::Plan
-    _startT::Union{T,Nothing}
-
-    function GenericValueHolderPlan{T}(callback::Function,plans::Vector{<:PlanDNA},startT::Union{T,Nothing}) where T
-        plan = Plan(callback,plans)
-        new{T}(plan,startT)
-    end
-end
-
-_Plan_(self::GenericValueHolderPlan)::Plan = return self._plan
-
-# ? ---------------------------------
 # ! GenericValueHolder{T}
 # ? ---------------------------------
 
-mutable struct GenericValueHolder{T} <: DependentDNA
-    _dependent::Dependent
-    _currT::Union{T,Nothing}
+mutable struct GenericValueHolder{T} <: ValueHolderPlanDNA{T}
+    _plan::ValueHolderPlan{T}
 
-    function GenericValueHolder{T}(plan::GenericValueHolderPlan{T}) where T
-        dependent = Dependent(plan)
-        currT = plan._startT
+    function GenericValueHolder(;
+        _call::Function = DEFAULT_CALLBACK,
+        _deps::DependentsT = Vector{PlanDNA}(),
+        _T::Type)
 
-        genericDependent = new(dependent,currT)
+        plan = ValueHolderPlan{_T}(_call,_deps)
+        new{_T}(plan)
+    end
+end
+
+function _ValueHolderPlan_(self::GenericValueHolder{T})::ValueHolderPlan{T} where T
+    return self._plan
+end
+
+function _GenericValueHolder(;
+        _app::AppDNA = implicitApp,
+        _call::Function = DEFAULT_CALLBACK,
+        _deps::DependentsT = Vector{PlanDNA}(),
+        _T::Type)
+
+        plan = GenericValueHolder(_call = _call, _deps = _deps, _T = _T)
+        submit!(_app,plan)
+        return plan
+end
+
+"""
+Acts as external constructor.
+
+Use only if submission to App is needed!
+"""
+GenericValueHolder{T}(callback::Function,dependents::DependentsT) where T =
+_GenericValueHolder(_call = callback, _deps = dependents, _T = T)
+
+export GenericValueHolder
+
+# ? ---------------------------------
+# ! GenericValueHolderDependent{T}
+# ? ---------------------------------
+
+mutable struct GenericValueHolderDependent{T} <: ValueHolderDNA{T}
+    _dependent::ValueHolder{T}
+    _value::Union{T,Nothing}
+
+    function GenericValueHolderDependent{T}(plan::GenericValueHolder{T}) where T
+        dependent = ValueHolder{T}(plan)
+
+        genericDependent = new(dependent,nothing)
         onNodeEval(genericDependent)
         return genericDependent
     end
 end
 
-_Dependent_(self::GenericValueHolder)::Dependent = return self._dependent
-
-getField(self::GenericValueHolder) = return self._currT
-
-onNodeEval(self::GenericValueHolder) = evalCallbackDp(self)
-function evalCallbackDpEntry(self::GenericValueHolder{T})::T where {T}
-    return self._currT
+function _ValueHolder_(self::GenericValueHolderDependent{T})::ValueHolder{T} where T
+    return self._dependent
 end
 
-evalCallbackDpReturn(self::GenericValueHolder{T}, currT::T) where T = self._currT = currT
-evalCallbackDpReturn(self::GenericValueHolder, ::Nothing) = nothing
+getField(self::GenericValueHolderDependent) = return self._value
 
-function Plan2Dependent(plan::GenericValueHolderPlan{T}) where T
-    return GenericValueHolder{T}(plan)
+onNodeEval(self::GenericValueHolderDependent) = evalCallbackDp(self)
+function evalCallbackDpEntry(self::GenericValueHolderDependent{T})::T where T
+    return self._value
 end
 
-# ? ---------------------------------
-# ! GenericValueHolder
-# ? ---------------------------------
+evalCallbackDpReturn(self::GenericValueHolderDependent{T}, value::T) where T = self._value = value
+evalCallbackDpReturn(self::GenericValueHolderDependent{T}, value::Nothing) where T = (value isa T) ? (self._value = value) : error("Returned $(value) doesn't conform to $(T)!")
 
-function _GenericValueHolder(;
-                _app::AppDNA = implicitApp,
-                _call::Function = () -> (return nothing),
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _startT::Union{T,Nothing} = nothing,
-                _T::Type{T}
-)::GenericValueHolderPlan{T} where {T}
-    plan = GenericValueHolderPlan{T}(_call,_deps,_startT)
-    submit!(_app,plan)
-    return plan
+function Plan2Dependent(plan::GenericValueHolder{T})::GenericValueHolderDependent{T} where T
+    return GenericValueHolderDependent{T}(plan)
 end
-
-GenericValueHolder(startT::T) where {T} = 
-_GenericValueHolder(_startT = startT, _T = T)
-
-# ? Works, because Julia can figure out I'm just changing the syntax
-# ? and T can be inferred in _GenericValueHolder
-GenericValueHolder{T}(startT) where {T} = 
-_GenericValueHolder(_startT = T(startT), _T = T)
-
-GenericValueHolder{T}(callback::Function,dependents::DependentsT) where {T} = 
-_GenericValueHolder(_call = callback, _deps = dependents, _T = T)
-
-export GenericValueHolder

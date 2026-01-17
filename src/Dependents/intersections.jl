@@ -10,11 +10,11 @@ mutable struct GeneralIntersectionPlan{T} <: PlanDNA
     _maxIntersectionNum::UInt
 end
 
-function GeneralIntersectionPlan{T}(geometry1::GenericValueHolder{U},geometry2::GenericValueHolder{U},maxIntersectionNum::UInt) where {T<:IntersectT,U<:PrimitivesOf}
+function GeneralIntersectionPlan{T}(geometry1::GenericValueHolderPlan{U},geometry2::GenericValueHolderPlan{U},maxIntersectionNum::UInt) where {T<:IntersectT,U<:PrimitivesOf}
     return GeneralIntersectionPlan{T}(Plan(() -> (return nothing), [geometry1,geometry2]),maxIntersectionNum)
 end
 
-GeneralIntersectionPlan(geometry1::GenericValueHolder{T},geometry2::GenericValueHolder{T},maxIntersectionNum::UInt) where {T<:PSegmentsOf} =
+GeneralIntersectionPlan(geometry1::GenericValueHolderPlan{T},geometry2::GenericValueHolderPlan{T},maxIntersectionNum::UInt) where {T<:PSegmentsOf} =
 GeneralIntersectionPlan{Vec3D}(geometry1,geometry2,maxIntersectionNum)
 
 _Plan_(self::GeneralIntersectionPlan)::Plan = return self._plan

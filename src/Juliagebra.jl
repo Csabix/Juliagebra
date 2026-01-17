@@ -83,7 +83,7 @@ include("GraphCore/dependent_graph.jl")
 include("GraphCore/plan.jl")
 include("GraphCore/dependent.jl")
 include("GraphCore/dependent_observer.jl")
-include("GraphCore/generic_dependent.jl")
+include("GraphCore/generic_value_holder.jl")
 include("GraphCore/observed_dependent.jl")
 
 include("Dependents/plans.jl")

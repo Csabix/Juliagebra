@@ -26,12 +26,13 @@ include("abstracts.jl")
 # ! Helpers
 # ? ---------------------------------
 
+include("Generated/LibAssimp.jl")
+
 include("Helpers/flat_matrix_manager.jl")
 include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
-
-include("Generated/LibAssimp.jl")
+include("Helpers/scene.jl")
 
 ID_LOWER_BOUND = 3
 
@@ -94,7 +95,7 @@ include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
 include("Dependents/textbox.jl")
 include("Dependents/sphere.jl")
-include("Dependents/Mesh.jl")
+include("Dependents/triangle_cluster.jl")
 
 
 include("app.jl")

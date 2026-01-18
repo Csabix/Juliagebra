@@ -36,13 +36,10 @@ function _ValueHolder_(self::GenericValueHolderDependent{T})::ValueHolder{T} whe
     return self._dependent
 end
 
-getField(self::GenericValueHolderDependent) = return self._value
-
-onNodeEval(self::GenericValueHolderDependent) = evalCallbackDp(self)
-function evalCallbackDpEntry(self::GenericValueHolderDependent{T})::T where T
+function getField(self::GenericValueHolderDependent{T})::T where T 
     return self._value
 end
-
+onNodeEval(self::GenericValueHolderDependent) = evalCallbackDp(self)
 evalCallbackDpReturn(self::GenericValueHolderDependent{T}, value::T) where T = self._value = value
 evalCallbackDpReturn(self::GenericValueHolderDependent{T}, value::Nothing) where T = (value isa T) ? (self._value = value) : error("Returned $(value) doesn't conform to $(T)!")
 

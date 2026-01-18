@@ -34,6 +34,13 @@ end
 function _ValueHolder_(self::ValueHolderDNA{T})::ValueHolder{T} where T
     error("Missing func!")
 end
-
 _Dependent_(self::ValueHolderDNA)::Dependent = _ValueHolder_(self)._dependent
 
+
+function getField(self::ValueHolderDNA{T})::T where T
+    error("Missing func!")
+end
+
+function evalCallbackDpEntry(self::ValueHolderDNA{T})::T where T
+    return getField(self)
+end

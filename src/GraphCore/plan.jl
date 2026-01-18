@@ -9,11 +9,20 @@ mutable struct Plan
     _callback::Function
 
     function Plan(callback::Function,graphParents::Vector{T}) where T<:PlanDNA
-        new(nothing,graphParents,callback)
+        self = new(nothing,graphParents,callback)
+        
+        for parent in self._graphParents
+            iWillDependOnYou(self,parent)
+        end
+
+        return self
     end
 end
 
 _Plan_(self::PlanDNA)::Plan = error("Missing func!")
+
+getGraphParents(self::PlanDNA) = _Plan_(self)._graphParents
+iWillDependOnYou(i::Plan,you::PlanDNA) = nothing
 
 # ? ---------------------------------
 # ! ObservedPlanDNA

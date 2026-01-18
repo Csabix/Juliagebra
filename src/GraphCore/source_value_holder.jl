@@ -3,7 +3,7 @@
 # ! SourceValueHolderPlan{T}
 # ? ---------------------------------
 
-mutable struct SourceValueHolderPlan{T} <: ValueHolderPlanDNA{T}
+mutable struct SourceValueHolderPlan{T} <: SourceValueHolderPlanDNA{T}
     _plan::ValueHolderPlan{T}
     _value::T
 
@@ -13,35 +13,50 @@ mutable struct SourceValueHolderPlan{T} <: ValueHolderPlanDNA{T}
     end
 end
 
-function _ValueHolderPlan_(self::SourceValueHolderPlan{T})::ValueHolderPlan{T} where T
-    return self._plan
+function _SourceValueHolderPlan_(self::SourceValueHolderPlanDNA{T})::SourceValueHolderPlan{T} where T
+    error("Missing func!")
+end
+# ? This class is usable as-is.
+function _SourceValueHolderPlan_(self::SourceValueHolderPlan{T})::SourceValueHolderPlan{T} where T
+    return self
+end
+
+function _ValueHolderPlan_(self::SourceValueHolderPlanDNA{T})::ValueHolderPlan{T} where T
+    return _SourceValueHolderPlan_(self)._plan
 end
 
 # ? ---------------------------------
 # ! SourceValueHolderDependent{T}
 # ? ---------------------------------
 
-mutable struct SourceValueHolderDependent{T} <: ValueHolderDNA{T}
+mutable struct SourceValueHolderDependent{T} <: SourceValueHolderDNA{T}
     _dependent::ValueHolder{T}
     _value::T
 
-    function SourceValueHolderDependent{T}(plan::SourceValueHolderPlan{T}) where T
+    function SourceValueHolderDependent{T}(plan::SourceValueHolderPlanDNA{T}) where T
         dependent = ValueHolder{T}(plan)
-        value = plan._value
+        value = _SourceValueHolderPlan_(plan)._value
         new(dependent,value)
     end
 end
 
-function _ValueHolder_(self::SourceValueHolderDependent{T})::ValueHolder{T} where T
-    return self._dependent
+function _SourceValueHolder_(self::SourceValueHolderDNA{T})::SourceValueHolderDependent{T} where T
+    error("Missing func!")
+end
+# ? This class is usable as-is.
+function _SourceValueHolder_(self::SourceValueHolderDependent{T})::SourceValueHolderDependent{T} where T
+    return self
 end
 
-getField(self::SourceValueHolderDependent) = return self._value
-
-onNodeEval(self::SourceValueHolderDependent) = error("Impossible!")
-function evalCallbackDpEntry(self::SourceValueHolderDependent{T})::T where T
-    return self._value
+function _ValueHolder_(self::SourceValueHolderDNA{T})::ValueHolder{T} where T
+    return _SourceValueHolder_(self)._dependent
 end
+
+function getField(self::SourceValueHolderDNA{T})::T where T 
+    return _SourceValueHolder_(self)._value
+end
+onNodeEval(self::SourceValueHolderDNA) = error("Impossible!")
+evalCallbackDpReturn(self::SourceValueHolderDNA, ::Any) = error("Impossible")
 
 function Plan2Dependent(plan::SourceValueHolderPlan{T})::SourceValueHolderDependent{T} where T
     return SourceValueHolderDependent{T}(plan)

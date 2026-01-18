@@ -1,0 +1,30 @@
+#version 460
+
+layout(location=1) out uint index_out;
+
+noperspective layout(location=0) in vec4 segment_SDF_field_in;
+noperspective layout(location=1) in float total_distance_in;
+
+float sdCircle( vec2 p, float r ) {
+    return length(p) - r;
+}
+
+float rounding() {
+    vec2 p = vec2(abs(segment_SDF_field_in.x),segment_SDF_field_in.y);
+    if( p.y < 0.0 ) return length(p) - segment_SDF_field_in.z;
+    if( p.y > segment_SDF_field_in.w ) return length(p-vec2(0.0,segment_SDF_field_in.w)) - segment_SDF_field_in.z;
+    return p.x - segment_SDF_field_in.z;
+}
+
+float pattern() {
+    const float lenX = segment_SDF_field_in.z;
+    return sdCircle(vec2(segment_SDF_field_in.x, mod(total_distance_in,lenX * 3.0) - lenX), lenX);
+}
+
+void main() {
+    float d = pattern();
+    d = max(d, rounding());
+
+    if (d > 0.0) discard;
+    index_out = uint(0);
+}

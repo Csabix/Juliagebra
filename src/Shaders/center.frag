@@ -17,5 +17,5 @@ void main(){
     
     
     outCol = vec4(0.0,0.0,1.0,1.0);
-    outInd = uint(170);
+    outInd = uint(0);
 }

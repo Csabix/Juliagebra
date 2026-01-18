@@ -38,4 +38,4 @@ destroy!(self::Texture2D) = glDeleteTextures(1,[self._id])
 
 createRGBATexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
 createIDTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_R32I,GL_RED_INTEGER,GL_UNSIGNED_INT)
-createDepthTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_DEPTH_COMPONENT,GL_DEPTH_COMPONENT,GL_FLOAT)
+createDepthTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)

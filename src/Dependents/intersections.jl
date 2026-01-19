@@ -2,65 +2,50 @@ const BRUTE_FORCE_LBVH_THRESHOLD = 100
 const MORTON_CODE_TYPE = UInt64
 
 # ? ---------------------------------
-# ! GeneralIntersectionPlan
+# ! IntersectionData{T}
 # ? ---------------------------------
 
-mutable struct GeneralIntersectionPlan{T} <: PlanDNA
-    _plan::Plan
-    _maxIntersectionNum::UInt
-end
-
-function GeneralIntersectionPlan{T}(geometry1::GenericValueHolderPlan{U},geometry2::GenericValueHolderPlan{U},maxIntersectionNum::UInt) where {T<:IntersectT,U<:PrimitivesOf}
-    return GeneralIntersectionPlan{T}(Plan(() -> (return nothing), [geometry1,geometry2]),maxIntersectionNum)
-end
-
-GeneralIntersectionPlan(geometry1::GenericValueHolderPlan{T},geometry2::GenericValueHolderPlan{T},maxIntersectionNum::UInt) where {T<:PSegmentsOf} =
-GeneralIntersectionPlan{Vec3D}(geometry1,geometry2,maxIntersectionNum)
-
-_Plan_(self::GeneralIntersectionPlan)::Plan = return self._plan
-
-# ? ---------------------------------
-# ! GeneralIntersectionDependent
-# ? ---------------------------------
-
-mutable struct GeneralIntersectionDependent{T} <: DependentDNA
-    _dependent::Dependent
+mutable struct IntersectionData{T}
     _foundIntersectionNum::UInt
     _intersections::Vector{T}
+
+    function IntersectionData{T}(maxIntersectionNum) where T
+        foundIntersectionNum = 0
+        intersecions = Vector{T}(undef, maxIntersectionNum)
+        new(foundIntersectionNum,intersecions)
+    end
 end
 
-function GeneralIntersectionDependent(plan::GeneralIntersectionPlan{T}) where T
-    dependent = Dependent(plan)
-    foundIntersectionNum = 0
-    intersections = Vector{T}(undef,plan._maxIntersectionNum)
-        
-    self = GeneralIntersectionDependent{T}(dependent,foundIntersectionNum,intersections)
-    # ? This will init foundIntersectionNum, and intersections
-    onNodeEval(self)
+# ? ---------------------------------
+# ! IntersectionResult{T}
+# ? ---------------------------------
 
-    return self
+mutable struct IntersectionResult{T}
+    _data::IntersectionData{T}
+
+    function IntersectionResult{T}(data::IntersectionData{T}) where T
+        new(data)
+    end
 end
 
-_Dependent_(self::GeneralIntersectionDependent)::Dependent = return self._dependent
-
-getGeometry1(self::GeneralIntersectionDependent) = return getGraphParent(self,1)
-getGeometry2(self::GeneralIntersectionDependent) = return getGraphParent(self,2)
-
-function Plan2Dependent(plan::GeneralIntersectionPlan)::GeneralIntersectionDependent
-    return GeneralIntersectionDependent(plan)
-end
-
-function Base.getindex(self::GeneralIntersectionDependent{T},index)::Union{T,Nothing} where T
-    if (index > self._foundIntersectionNum || index < 1)
+function Base.getindex(self::IntersectionResult{T}, idx = 1)::Union{T,Nothing} where T
+    if (1 <= idx && idx <= self._data._foundIntersectionNum)
+        return self._data._intersections[idx]
+    else
         return nothing
     end
-    
-    return self._intersections[index]
 end
 
-onNodeEval(self::GeneralIntersectionDependent) = FindIntersections(self,getField(getGeometry1(self)),getField(getGeometry2(self)))
+# function Base.iterate(self::IntersectionResult, state = 1) 
+#     if (state <= self._data._foundIntersectionNum)
+#         return (self[i],state+1)
+#     else
+#         return nothing
+#     end
+# end
 
-function FindIntersections(self::GeneralIntersectionDependent,shapes_a::PrimitivesOf, shapes_b::PrimitivesOf)
+
+function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf, shapes_b::PrimitivesOf)
     self._foundIntersectionNum = 0
 
     if ((length(shapes_a) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b) < BRUTE_FORCE_LBVH_THRESHOLD))
@@ -74,7 +59,7 @@ function FindIntersections(self::GeneralIntersectionDependent,shapes_a::Primitiv
     end
 end
 
-function BruteForceIntersections(self::GeneralIntersectionDependent{T}, shapes_a::PrimitivesOf, shapes_b::PrimitivesOf) where T
+function BruteForceIntersections(self::IntersectionData{T}, shapes_a::PrimitivesOf{T}, shapes_b::PrimitivesOf{T}) where T
     for primitive_a in shapes_a
         for primitive_b in shapes_b
             intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
@@ -90,7 +75,7 @@ function BruteForceIntersections(self::GeneralIntersectionDependent{T}, shapes_a
     end
 end
 
-function LBVHIntersections(self::GeneralIntersectionDependent{T}, shapes_lbvh::AABBPrimitivesOf, shapes_b::AABBPrimitivesOf) where T
+function LBVHIntersections(self::IntersectionData, shapes_lbvh::PrimitivesOf{T}, shapes_b::PrimitivesOf{T}) where T <: AABBPrimitive
     lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABB, shapes_lbvh), MORTON_CODE_TYPE)
             
     for primitive_b in shapes_b
@@ -113,8 +98,35 @@ function LBVHIntersections(self::GeneralIntersectionDependent{T}, shapes_lbvh::A
     end
 end
 
-# TODO: GeometryDNA?
-# TODO: PrimitivesOf?
+# ? ---------------------------------
+# ! Intersection
+# ? ---------------------------------
+
+# TODO: Restrain PlanDNA to intersectable plans?
+
+function IIntersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum = 25)::GenericValueHolderPlan
+    T1::Type = TOfPrimitivesOf(geometry1)
+    T2::Type = TOfPrimitivesOf(geometry2)
+
+    call = function (g::DependentDNA)
+        return PrimitivesOf(g)
+    end
+
+    gvh1 = GenericValueHolder(call,PrimitivesOf{T1},[geometry1])
+    gvh2 = GenericValueHolder(call,PrimitivesOf{T2},[geometry2])
+
+    T12::Type = TypeOfPrimitiveToPrimitiveIntersection(T1,T2)
+    results = UnaryValueHolder(IntersectionData{T12}(maxIntersectionNum)) do unary
+        return GenericValueHolder(IntersectionResult{T12},[unary,gvh1,gvh2]) do unary, gvh1, gvh2
+            FindIntersections(unary,gvh1,gvh2)
+            return IntersectionResult{T12}(unary)
+        end
+    end
+
+    return results
+end
+
+export IIntersection
 
 # ? ---------------------------------
 # ! Curve2CurveIntersectionPlan

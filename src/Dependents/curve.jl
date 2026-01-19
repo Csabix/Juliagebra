@@ -44,6 +44,8 @@ end
 _RenderedPlan_(self::ParametricCurvePlan)::RenderedPlan = return self._plan
 Base.string(self::ParametricCurvePlan)::String = return "Curve"
 
+# ? For automatic intersections.
+TOfPrimitivesOf(::ParametricCurvePlan) = PSegment
 
 # ? ---------------------------------
 # ! ParametricCurveDependent
@@ -102,7 +104,7 @@ evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tV
 
 # ? For Intersectable ParametricCurves
 
-struct PSegmentsOfCurve <: PSegmentsOf
+struct PSegmentsOfCurve <: PrimitivesOf{PSegment}
     _curve::ParametricCurveDependent
 end
 PrimitivesOf(self::ParametricCurveDependent) = return PSegmentsOfCurve(self)

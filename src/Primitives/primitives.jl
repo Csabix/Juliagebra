@@ -12,6 +12,10 @@ function GetAABB(line_segment::PSegment)::AABB3D
     return AABB3D(min.(line_segment.p0, line_segment.p1), max.(line_segment.p0, line_segment.p1))
 end
 
+Base.convert(::Type{PSegment},::Nothing)::PSegment = return PSegment(Vec3FNan,Vec3FNan)
+
+export PSegment
+
 """
 Representation of a triangle primitive.
 - v0, v1, v2 are the corners of the triangle.

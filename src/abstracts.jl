@@ -36,7 +36,7 @@ abstract type WindowDNA <: ImGuiWidgetDNA end
 abstract type Primitive end
 abstract type AABBPrimitive <: Primitive end
 
-abstract type PrimitivesOf{T} end
+abstract type PrimitivesOf{T<:Primitive} end
 
 const IntersectT= Union{Vec3D,Primitive}
 

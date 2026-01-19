@@ -16,27 +16,11 @@ mutable struct IntersectionData{T}
     end
 end
 
-# ? ---------------------------------
-# ! IntersectionResult{T}
-# ? ---------------------------------
-
-mutable struct IntersectionResult{T}
-    _data::IntersectionData{T}
-
-    function IntersectionResult{T}(data::IntersectionData{T}) where T
-        new(data)
-    end
+function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {U,V}
+    
 end
 
-function Base.getindex(self::IntersectionResult{T}, idx = 1)::Union{T,Nothing} where T
-    if (1 <= idx && idx <= self._data._foundIntersectionNum)
-        return self._data._intersections[idx]
-    else
-        return nothing
-    end
-end
-
-function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf, shapes_b::PrimitivesOf)
+function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {U <: AABBPrimitive,V <: AABBPrimitive}
     self._foundIntersectionNum = 0
 
     if ((length(shapes_a) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b) < BRUTE_FORCE_LBVH_THRESHOLD))
@@ -90,6 +74,26 @@ function LBVHIntersections(self::IntersectionData, shapes_lbvh::PrimitivesOf{U},
 end
 
 # ? ---------------------------------
+# ! IntersectionResult{T}
+# ? ---------------------------------
+
+mutable struct IntersectionResult{T}
+    _data::IntersectionData{T}
+
+    function IntersectionResult{T}(data::IntersectionData{T}) where T
+        new(data)
+    end
+end
+
+function Base.getindex(self::IntersectionResult{T}, idx = 1)::Union{T,Nothing} where T
+    if (1 <= idx && idx <= self._data._foundIntersectionNum)
+        return self._data._intersections[idx]
+    else
+        return nothing
+    end
+end
+
+# ? ---------------------------------
 # ! Intersection
 # ? ---------------------------------
 
@@ -118,44 +122,3 @@ function Intersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum
 end
 
 export Intersection
-
-# ? ---------------------------------
-# ! Surface2SurfaceIntersectionDependent
-# ? ---------------------------------
-
-mutable struct Surface2SurfaceIntersectionDependent <: DependentDNA
-    _dependent::Dependent
-    _intersections::Vector{PSegment}
-    _foundIntersectionNum::UInt
-
-    function Surface2SurfaceIntersectionDependent(plan::Surface2SurfaceIntersectionPlan)
-        dependent = Dependent(plan)
-        intersections = Vector{PSegment}(undef, plan._intersectNum)
-        new(dependent, intersections, 0)
-    end
-end
-
-_Dependent_(self::Surface2SurfaceIntersectionDependent)::Dependent = return self._dependent
-surface1(self::Surface2SurfaceIntersectionDependent)::ParametricSurfaceDependent = return self._dependent._graphParents[1]
-surface2(self::Surface2SurfaceIntersectionDependent)::ParametricSurfaceDependent = return self._dependent._graphParents[2]
-
-function Plan2Dependent(plan::Surface2SurfaceIntersectionPlan)::Surface2SurfaceIntersectionDependent
-    return Surface2SurfaceIntersectionDependent(plan)
-end
-
-function Base.getindex(self::Surface2SurfaceIntersectionDependent, index)::Union{Nothing, Tuple{Tuple{Float32, Float32, Float32}, Tuple{Float32, Float32, Float32}}}
-    if ((index > self._foundIntersectionNum) || (index < 1))
-        return nothing
-    end
-
-    s::PSegment = self._intersections[index]
-    
-    a::Tuple{Float32, Float32, Float32} = (s.p0.x, s.p0.y, s.p0.z)
-    b::Tuple{Float32, Float32, Float32} = (s.p1.x, s.p1.y, s.p1.z)
-    
-    return a, b
-end
-
-function onNodeEval(self::Surface2SurfaceIntersectionDependent)
-    FindIntersections(TrianglesOf(surface1(self)._uvValues), TrianglesOf(surface2(self)._uvValues), self)
-end

@@ -36,15 +36,6 @@ function Base.getindex(self::IntersectionResult{T}, idx = 1)::Union{T,Nothing} w
     end
 end
 
-# function Base.iterate(self::IntersectionResult, state = 1) 
-#     if (state <= self._data._foundIntersectionNum)
-#         return (self[i],state+1)
-#     else
-#         return nothing
-#     end
-# end
-
-
 function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf, shapes_b::PrimitivesOf)
     self._foundIntersectionNum = 0
 
@@ -59,7 +50,7 @@ function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf, shapes
     end
 end
 
-function BruteForceIntersections(self::IntersectionData{T}, shapes_a::PrimitivesOf{T}, shapes_b::PrimitivesOf{T}) where T
+function BruteForceIntersections(self::IntersectionData{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
     for primitive_a in shapes_a
         for primitive_b in shapes_b
             intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
@@ -75,7 +66,7 @@ function BruteForceIntersections(self::IntersectionData{T}, shapes_a::Primitives
     end
 end
 
-function LBVHIntersections(self::IntersectionData, shapes_lbvh::PrimitivesOf{T}, shapes_b::PrimitivesOf{T}) where T <: AABBPrimitive
+function LBVHIntersections(self::IntersectionData, shapes_lbvh::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {U <: AABBPrimitive,V <: AABBPrimitive}
     lbvh_nodes, number_of_leafs, number_of_internal_nodes = BuildLBVH(map(GetAABB, shapes_lbvh), MORTON_CODE_TYPE)
             
     for primitive_b in shapes_b
@@ -104,7 +95,7 @@ end
 
 # TODO: Restrain PlanDNA to intersectable plans?
 
-function IIntersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum = 25)::GenericValueHolderPlan
+function Intersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum = 25)::GenericValueHolderPlan
     T1::Type = TOfPrimitivesOf(geometry1)
     T2::Type = TOfPrimitivesOf(geometry2)
 
@@ -126,135 +117,7 @@ function IIntersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNu
     return results
 end
 
-export IIntersection
-
-# ? ---------------------------------
-# ! Curve2CurveIntersectionPlan
-# ? ---------------------------------
-
-mutable struct Curve2CurveIntersectionPlan <: PlanDNA
-    _plan::Plan
-    _curve1::ParametricCurvePlan
-    _curve2::ParametricCurvePlan
-    _intersectNum::UInt
-
-    function Curve2CurveIntersectionPlan(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectNum::UInt)
-        new(Plan(() -> (), [curve1,curve2]),curve1,curve2,intersectNum)
-    end
-end
-
-_Plan_(self::Curve2CurveIntersectionPlan)::Plan = return self._plan
-
-# ? ---------------------------------
-# ! Curve2CurveIntersectionDependent
-# ? ---------------------------------
-
-mutable struct Curve2CurveIntersectionDependent <: DependentDNA
-    _dependent::Dependent
-    _foundIntersectionNum::UInt
-    _intersections::Vector{Vec3D}
-    
-    function Curve2CurveIntersectionDependent(plan::Curve2CurveIntersectionPlan)
-        dependent = Dependent(plan)
-        foundIntersectionNum = 0
-        intersections = Vector{Vec3D}(undef,plan._intersectNum)
-        
-        self = new(dependent,foundIntersectionNum,intersections)
-        onNodeEval(self)
-
-        return self
-    end
-end
-
-_Dependent_(self::Curve2CurveIntersectionDependent)::Dependent = return self._dependent
-
-curve1(self::Curve2CurveIntersectionDependent)::ParametricCurveDependent = return self._dependent._graphParents[1]
-curve2(self::Curve2CurveIntersectionDependent)::ParametricCurveDependent = return self._dependent._graphParents[2]
-
-function Plan2Dependent(plan::Curve2CurveIntersectionPlan)::Curve2CurveIntersectionDependent
-    return Curve2CurveIntersectionDependent(plan)
-end
-
-function Base.getindex(self::Curve2CurveIntersectionDependent,index)::Union{Vec3D,Nothing}
-    if (index > self._foundIntersectionNum || index < 1)
-        return nothing
-    end
-    
-    return self._intersections[index]
-end
-
-
-function onNodeEval(self::Curve2CurveIntersectionDependent)
-    FindIntersections(curve1(self), curve2(self), self)
-end
-
-# ? ---------------------------------
-# ! Curve2SurfaceIntersectionPlan
-# ? ---------------------------------
-
-mutable struct Curve2SurfaceIntersectionPlan <: PlanDNA
-    _plan::Plan
-    _curve::ParametricCurvePlan
-    _surface::ParametricSurfacePlan
-    _intersectNum::UInt
-
-    function Curve2SurfaceIntersectionPlan(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectNum::UInt)
-        new(Plan(() -> (), [curve,surface]),curve,surface,intersectNum)
-    end
-end
-
-_Plan_(self::Curve2SurfaceIntersectionPlan)::Plan = return self._plan
-
-# ? ---------------------------------
-# ! Curve2SurfaceIntersectionDependent
-# ? ---------------------------------
-
-mutable struct Curve2SurfaceIntersectionDependent <: DependentDNA
-    _dependent::Dependent
-    _intersections::Vector{Vec3F}
-    _foundIntersectionNum::UInt
-
-    function Curve2SurfaceIntersectionDependent(plan::Curve2SurfaceIntersectionPlan)
-        dependent = Dependent(plan)
-        intersections = Vector{Vec3F}(undef,plan._intersectNum)
-        new(dependent,intersections,0)
-    end
-end
-
-_Dependent_(self::Curve2SurfaceIntersectionDependent)::Dependent = return self._dependent
-curve(self::Curve2SurfaceIntersectionDependent)::ParametricCurveDependent     = return self._dependent._graphParents[1]
-surface(self::Curve2SurfaceIntersectionDependent)::ParametricSurfaceDependent = return self._dependent._graphParents[2]
-
-function Plan2Dependent(plan::Curve2SurfaceIntersectionPlan)::Curve2SurfaceIntersectionDependent
-    return Curve2SurfaceIntersectionDependent(plan)
-end
-
-function Base.getindex(self::Curve2SurfaceIntersectionDependent,index)::Union{Tuple{Float32,Float32,Float32},Nothing}
-    if (index > self._foundIntersectionNum || index < 1)
-        return nothing
-    end
-    
-    v = self._intersections[index]
-
-    return (v[1],v[2],v[3])
-end
-
-function onNodeEval(self::Curve2SurfaceIntersectionDependent)
-    FindIntersections(curve(self), TrianglesOf(surface(self)._uvValues), self)
-end
-
-mutable struct Surface2SurfaceIntersectionPlan <: PlanDNA
-    _plan::Plan
-    _surface1::ParametricSurfacePlan
-    _surface2::ParametricSurfacePlan
-    _intersectNum::UInt
-
-    function Surface2SurfaceIntersectionPlan(surface1::ParametricSurfacePlan, surface2::ParametricSurfacePlan, intersectNum::UInt)
-        new(Plan(() -> (), [surface1, surface2]), surface1, surface2, intersectNum)
-    end
-end
-
-_Plan_(self::Surface2SurfaceIntersectionPlan)::Plan = return self._plan
+export Intersection
 
 # ? ---------------------------------
 # ! Surface2SurfaceIntersectionDependent

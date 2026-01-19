@@ -114,55 +114,6 @@ function Segment(first::PointPlan,second::PointPlan;
     end
 end
 
-# ? ---------------------------------
-# ! Intersections
-# ? ---------------------------------
-
-function GenericIntersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,maxIntersectionNum;_app::App = implicitApp,) 
-    call = function (curve)
-        po = PrimitivesOf(curve) 
-        return po     
-    end
-
-    gd1 = GenericValueHolder(call,PSegmentsOfCurve,[curve1])
-    gd2 = GenericValueHolder(call,PSegmentsOfCurve,[curve2])
-
-    plan = GeneralIntersectionPlan(gd1,gd2,UInt(maxIntersectionNum))
-    
-    submit!(_app,plan)
-    return plan
-end
-
-export  GenericIntersection
-
-function _Curve2CurveIntersection(;
-                                 _app::App = implicitApp,                
-                                 _curve1::ParametricCurvePlan,
-                                 _curve2::ParametricCurvePlan,
-                                 _intersectNum
-                                 )::Curve2CurveIntersectionPlan
-    plan = Curve2CurveIntersectionPlan(_curve1,_curve2,UInt(_intersectNum))
-    submit!(_app,plan)
-    return plan
-end
-
-Intersection(curve1::ParametricCurvePlan,curve2::ParametricCurvePlan,intersectionNum) =
-_Curve2CurveIntersection(_curve1=curve1,_curve2=curve2,_intersectNum=intersectionNum)
-
-function _Curve2SurfaceIntersection(;
-                                   _app::App = implicitApp,
-                                   _curve::ParametricCurvePlan,
-                                   _surface::ParametricSurfacePlan,
-                                   _intersectNum
-                                   )::Curve2SurfaceIntersectionPlan
-    plan = Curve2SurfaceIntersectionPlan(_curve,_surface,UInt(_intersectNum))
-    submit!(_app,plan)
-    return plan
-end
-
-Intersection(curve::ParametricCurvePlan,surface::ParametricSurfacePlan,intersectionNum) =
-_Curve2SurfaceIntersection(_curve=curve,_surface=surface,_intersectNum=intersectionNum)
-
 function _Surface2SurfaceIntersection(;
                                    _app::App = implicitApp,
                                    _surface1::ParametricSurfacePlan,

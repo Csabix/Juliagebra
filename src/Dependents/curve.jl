@@ -102,7 +102,7 @@ evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index) = self._tVal
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index) = self._tValues[index] = v
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3FNan
 
-# ? For Intersectable ParametricCurves
+# ? For Intersectable ParametricCurves.
 
 struct PSegmentsOfCurve <: PrimitivesOf{PSegment}
     _curve::ParametricCurveDependent

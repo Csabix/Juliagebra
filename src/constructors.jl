@@ -193,19 +193,6 @@ Intersection(surface1::ParametricSurfacePlan,surface2::ParametricSurfacePlan,int
 _Surface2SurfaceIntersection(_surface1=surface1,_surface2=surface2,_intersectNum=intersectionNum)
 
 # ? ---------------------------------
-# ! Mesh
-# ? ---------------------------------
-
-function Mesh(vertexes,normals,color,app::App)::MeshDependentPlan
-    plan = MeshDependentPlan(vertexes,normals,color)
-    submit!(app,plan)
-    return plan
-end
-
-Mesh(vertexes,normals,color) =
-Mesh(vertexes,normals,color,implicitApp)
-
-# ? ---------------------------------
 # ! ParametricSurface
 # ? ---------------------------------
 
@@ -407,21 +394,26 @@ end
 # ! TriangleCluster
 # ? ---------------------------------
 
-function _TriangleCluster(_mesh::SceneMesh;
+function _TriangleCluster(_mesh;
                            _app::App = implicitApp,
                            _call::Function = () -> (),
                            _deps::DependentsT = Vector{PlanDNA}(),
+                           _col = (0.6,0.6,0.9),
+                           _transparent = false
                            )::TriangleClusterPlan
-    plan = TriangleClusterPlan(_call,_deps,_mesh)
+    plan = TriangleClusterPlan(_call,_deps,_mesh,_col,_transparent)
     submit!(_app,plan)
     return plan
 end
 
-TriangleCluster(callback::Function,mesh::SceneMesh,dependents::DependentsT=Vector{PlanDNA}())::TriangleClusterPlan =
-_TriangleCluster(_call=callback,_deps=dependents,mesh)
+# TODO we don't use the callback at the moment
+TriangleCluster(callback::Function,mesh,dependents::DependentsT=Vector{PlanDNA}();
+    transparent::Bool=false,color=(0.6,0.6,0.9))::TriangleClusterPlan =
+_TriangleCluster(mesh,_call=callback,_deps=dependents,_col=color,_transparent=transparent)
 
-TriangleCluster(mesh::SceneMesh)::TriangleClusterPlan =
-_TriangleCluster(mesh)
+TriangleCluster(mesh;
+    transparent::Bool=false,color=(0.6,0.6,0.9))::TriangleClusterPlan =
+_TriangleCluster(mesh,_col=color,_transparent=transparent)
 
 export GenericDependent
 export Point

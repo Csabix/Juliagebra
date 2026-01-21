@@ -6,8 +6,8 @@ const width::Float64 = 0.2
 const Vec2D = GenericDependent{Vec2T{Float64}}
 const Scalar = GenericDependent{Float64}
 
-function triangle(a,b,c)
-    ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a,b,c]) do u,v,a,b,c
+function triangle(a,b,c,col)
+    ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a,b,c];color=col) do u,v,a,b,c
         if (u>=0.5 && v>=0.5)
             u = 0.5
             v = 0.5
@@ -174,9 +174,9 @@ function curve_segment(A,B,C,D)
         return Vec3T{Float64}(C.x + end_outer_third_offset.x, 0, C.z + end_outer_third_offset.y)
     end
 
-    triangle(r1,r2,r3)
-    triangle(r2,r3,r4)
-    triangle(r3,r4,r5)
+    triangle(r1,r2,r3,(1,0,0))
+    triangle(r3,r2,r4,(0,1,0))
+    triangle(r3,r4,r5,(0,0,1))
 end
 
 App()
@@ -187,9 +187,11 @@ B = Point(0, 0, 1)
 C = Point(1, 0, 2)
 D = Point(2, 0, 2)
 E = Point(3, 0, 2)
+F = Point(4, 0, 2)
 
 curve_segment(A,B,C,D)
 curve_segment(B,C,D,E)
+curve_segment(C,D,E,F)
 
 Segment(A,B,type=CURVE_ARROW)
 Segment(B,C,type=CURVE_ARROW)

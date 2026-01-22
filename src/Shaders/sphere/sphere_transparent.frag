@@ -2,15 +2,17 @@
 
 layout(location = 0) out vec4 accum;
 layout(location = 1) out float reveal;
+layout(depth_greater) out float gl_FragDepth;
 
 uniform mat4 VP;
 uniform vec3 cam;
+uniform vec3 at;
 uniform vec3 lightDirCam;
 uniform vec3 lightDirSide;
+uniform vec4 ASPECT_FOV_RESOLUTION;
 
 flat in float sphereRadius;
 flat in vec3 sphereCenter;
-in vec3 worldPos;
 flat in vec3 sphereColor;
 
 struct Ray {
@@ -30,6 +32,25 @@ struct Sphere {
     vec3 c;    // center
     float r;   // radius
 };
+
+vec3 rayDirection() {
+    const float ASPECT = ASPECT_FOV_RESOLUTION.x;
+    const float FOV    = ASPECT_FOV_RESOLUTION.y;
+    const vec2 RESOLUTION = ASPECT_FOV_RESOLUTION.zw;
+
+    vec3 look_dir = normalize(cam - at);
+    vec3 right = normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
+    vec3 up = normalize(cross(right, look_dir));
+
+    float focal_length = -1.0 / tan(FOV * 0.5);
+    vec2 screen_uv = (gl_FragCoord.xy / RESOLUTION) * 2.0 - 1.0; 
+    
+    screen_uv.x *= ASPECT;
+
+    return normalize(screen_uv.x  * right +
+                     screen_uv.y  * up +
+                     focal_length * look_dir);
+}
 
 TraceResult intersectSphere(Ray ray, Sphere s)
 {
@@ -65,7 +86,7 @@ TraceResult intersectSphere(Ray ray, Sphere s)
 }
 
 void main(){
-    vec3 v = normalize(worldPos-cam);
+    vec3 v = rayDirection();
     
     Ray r = Ray(cam,
                 0.01,
@@ -87,10 +108,10 @@ void main(){
     if(rs.isOutside){
         float diffuse = (max(dot(rs.n,lightDirCam),0.0) * 0.3 + max(dot(rs.n,lightDirSide),0.0) * 0.7) * 0.8;
         float ambient = 0.2;
-        color = vec4(sphereColor * (diffuse + ambient), 0.5);
+        color = vec4(sphereColor * (diffuse + ambient), 0.75);
     }else{
         float diffuse = max(dot(-rs.n,lightDirCam),0.0);
-        color = vec4(sphereColor*diffuse,0.5);
+        color = vec4(sphereColor*diffuse,0.75);
     }
 
     float weight = max(min(1.0, max(max(color.r, color.g), color.b) * color.a), color.a) *

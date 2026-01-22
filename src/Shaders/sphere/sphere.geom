@@ -1,83 +1,60 @@
 #version 330 core
 
 layout (points) in;
+layout (triangle_strip, max_vertices = 4) out;
+
 in float radius[];
 in vec3 color[];
 
 uniform mat4 VP;
 uniform vec3 cam;
 
-const vec3 corners[8] = vec3[8](
-    vec3(1.0,1.0,1.0),
-    vec3(1.0,-1.0,1.0),
-    vec3(-1.0,-1.0,1.0),
-    vec3(-1.0,1.0,1.0),
-
-    vec3(1.0,1.0,-1.0),
-    vec3(1.0,-1.0,-1.0),
-    vec3(-1.0,-1.0,-1.0),
-    vec3(-1.0,1.0,-1.0)
-);
-
-const int idxCOUNT = 36;
-const int triCount = idxCOUNT/3;
-const int idx[idxCOUNT] = int[idxCOUNT](
-    // ! top
-    0,1,2,
-    0,2,3,
-
-    // ! bottom
-    4,6,5,
-    4,7,6,
-
-    0,3,7,
-    0,7,4,
-
-    0,4,5,
-    1,0,5,
-
-    2,6,7,
-    3,2,7,
-
-    6,2,5,
-    5,2,1
-);
-
 flat out float sphereRadius;
 flat out vec3 sphereCenter;
-out vec3 worldPos;
 flat out vec3 sphereColor;
-layout (triangle_strip, max_vertices = 36) out;
 
-void main(){
+const vec2 quadOffsets[4] = vec2[4](
+    vec2(-1.0, -1.0),
+    vec2(+1.0, -1.0),
+    vec2(-1.0, +1.0),
+    vec2(+1.0, +1.0)
+);
+
+void main() {
     vec3 center = gl_in[0].gl_Position.xyz;
     float r = radius[0];
-    vec3 col = color[0];
-
-    vec3 corner1 = vec3(0.0);
-    vec3 corner2 = vec3(0.0);
-    vec3 corner3 = vec3(0.0);
 
     sphereRadius = r;
     sphereCenter = center;
-    sphereColor = col;
-    for(int i = 0; i<triCount; i++){    
-        corner1 = corners[idx[i*3 + 0]];
-        corner2 = corners[idx[i*3 + 1]];
-        corner3 = corners[idx[i*3 + 2]];
+    sphereColor = color[0];
 
-        worldPos = center + corner1 * r;
-        gl_Position = VP * vec4(worldPos,1.0);
-        EmitVertex(); 
+    if (distance(cam, center) < r) {
+        for(int i = 0; i < 4; i++) {
+            gl_Position = vec4(quadOffsets[i],0.0,1.0);
+            EmitVertex();
+        }
+    } else {
+        vec3 a = normalize(cam - center); 
+        vec3 b = vec3(0.0, 0.0, 1.0);
 
-        worldPos = center + corner2 * r;
-        gl_Position = VP * vec4(worldPos,1.0);
-        EmitVertex(); 
+        vec3 v = cross(a, b);
+        float c = dot(a, b);
+        float k = 1.0 / (1.0 + c);
 
-        worldPos = center + corner3 * r;
-        gl_Position = VP * vec4(worldPos,1.0);
-        EmitVertex(); 
-    
-        EndPrimitive();
+        mat3 R = c > -0.9999 ? mat3(
+            v.x * v.x * k + c,   v.y * v.x * k - v.z, v.z * v.x * k + v.y,
+            v.x * v.y * k + v.z, v.y * v.y * k + c,   v.z * v.y * k - v.x,
+            v.x * v.z * k - v.y, v.y * v.z * k + v.x, v.z * v.z * k + c
+        ) : mat3(-1.0);
+
+        vec3 surfaceCenter = center + a * r;
+
+        for(int i = 0; i < 4; i++) {
+            vec3 offset = R * vec3(quadOffsets[i],0.0) * r;
+            gl_Position = VP * vec4(surfaceCenter + offset, 1.0);
+            EmitVertex();
+        }
     }
+
+    EndPrimitive();
 }

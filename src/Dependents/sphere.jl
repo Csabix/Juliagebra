@@ -89,9 +89,9 @@ end
 function SphereRenderer(context::OpenGLData)
     renderer = Renderer{SphereDependent}(context)
 
-    shader_id = ShaderProgram(sp(".\\sphere\\sphere_id.vert"),sp(".\\sphere\\sphere_id.geom"),sp(".\\sphere\\sphere_id.frag"),["VP","cam"])
-    shader_opaque = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_opaque.frag"),["VP","cam","lightDirCam","lightDirSide"])
-    shader_transparent = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_transparent.frag"),["VP","cam","lightDirCam","lightDirSide"])
+    shader_id = ShaderProgram(sp(".\\sphere\\sphere_id.vert"),sp(".\\sphere\\sphere_id.geom"),sp(".\\sphere\\sphere_id.frag"),["VP","cam","at","ASPECT_FOV_RESOLUTION"])
+    shader_opaque = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_opaque.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
+    shader_transparent = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_transparent.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
 
     buffer_opaque = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
     buffer_transparent = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
@@ -163,6 +163,9 @@ function id_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
     activate(self._shader_id)
     setUniform!(self._shader_id,"VP",vp)
     setUniform!(self._shader_id,"cam",cam._eye)
+    setUniform!(self._shader_id,"at",cam._at)
+    setUniform!(self._shader_id,"ASPECT_FOV_RESOLUTION",
+        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
     @time_gpu_begin Dependent Sphere ID_PASS
     if !isempty(self._centers_opaque) draw(self._buffer_opaque,GL_POINTS) end
     #if !isempty(self._centers_transparent) draw(self._buffer_transparent,GL_POINTS) end
@@ -183,6 +186,9 @@ function opaque_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::
     setUniform!(self._shader_opaque,"lightDirSide",-side_light)
     setUniform!(self._shader_opaque,"VP",vp)
     setUniform!(self._shader_opaque,"cam",cam._eye)
+    setUniform!(self._shader_opaque,"at",cam._at)
+    setUniform!(self._shader_opaque,"ASPECT_FOV_RESOLUTION",
+        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
     @time_gpu_begin Dependent Sphere OPAQUE_PASS
     draw(self._buffer_opaque,GL_POINTS)
     @time_gpu_end Dependent Sphere OPAQUE_PASS
@@ -202,6 +208,9 @@ function transparent_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,s
     setUniform!(self._shader_transparent,"lightDirSide",-side_light)
     setUniform!(self._shader_transparent,"VP",vp)
     setUniform!(self._shader_transparent,"cam",cam._eye)
+    setUniform!(self._shader_transparent,"at",cam._at)
+    setUniform!(self._shader_transparent,"ASPECT_FOV_RESOLUTION",
+        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
     @time_gpu_begin Dependent Sphere TRANSPARENT_PASS
     draw(self._buffer_transparent,GL_POINTS)
     @time_gpu_end Dependent Sphere TRANSPARENT_PASS

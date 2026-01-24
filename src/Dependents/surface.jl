@@ -35,6 +35,7 @@ _RenderedPlan_(self::ParametricSurfacePlan)::RenderedPlan = return self._plan
 Base.string(self::ParametricSurfacePlan)::String = return "Surface"
 
 # ? For automatic intersections.
+
 TOfPrimitivesOf(::ParametricSurfacePlan) = PTriangle
 
 # ? ---------------------------------

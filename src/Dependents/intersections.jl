@@ -100,6 +100,9 @@ end
 # TODO: Restrain PlanDNA to intersectable plans?
 
 function Intersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum = 25)::GenericValueHolderPlan
+    
+    # TODO automatic T1, T2 infer
+    
     T1::Type = TOfPrimitivesOf(geometry1)
     T2::Type = TOfPrimitivesOf(geometry2)
 

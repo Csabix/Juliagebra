@@ -26,9 +26,6 @@ end
 
 _RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan
 
-# ? For automatic intersections.
-
-TOfPrimitivesOf(::SpherePlan) = PTriangle
 
 # ? ---------------------------------
 # ! SphereDependent

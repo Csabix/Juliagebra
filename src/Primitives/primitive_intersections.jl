@@ -1,7 +1,7 @@
 const LINE_TO_LINE_EPSILON = 0.1
 #const PLANE_TO_PLANE_EPSILON = 0.0000000001
 #const LINE_TO_PLANE_EPSILON = 0.0000000001
-TypeOfPrimitiveToPrimitiveIntersection(::Type{PSegment},::Type{PSegment}) = Vec3F
+
 function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment_b::PSegment)::Union{Nothing, Vec3F}
     v1 = line_segment_a.p1 - line_segment_a.p0
     v2 = line_segment_b.p1 - line_segment_b.p0
@@ -40,7 +40,6 @@ function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment
     return hit
 end
 
-TypeOfPrimitiveToPrimitiveIntersection(::Type{PSegment},::Type{PTriangle}) = Vec3F
 function PrimitiveToPrimitiveIntersection(line_segment::PSegment, triangle::PTriangle)::Union{Nothing, Vec3F}
     p0 = line_segment.p0
     v = line_segment.p1 - line_segment.p0
@@ -65,7 +64,6 @@ function PrimitiveToPrimitiveIntersection(line_segment::PSegment, triangle::PTri
     end
 end
 
-TypeOfPrimitiveToPrimitiveIntersection(fst::Type{PTriangle},snd::Type{PSegment}) = TypeOfPrimitiveToPrimitiveIntersection(snd,fst)
 PrimitiveToPrimitiveIntersection(triangle::PTriangle, line_segment::PSegment)::Union{Nothing, Vec3F} = PrimitiveToPrimitiveIntersection(line_segment, triangle)
 
 function Isect2(
@@ -129,7 +127,6 @@ function EpsilonTest(N::Vec3F, V::Vec3F, triangle::PTriangle)::Tuple{Float32, Fl
     return du0, du1, du2
 end
 
-TypeOfPrimitiveToPrimitiveIntersection(::Type{PTriangle},::Type{PTriangle}) = PSegment
 #from https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tritri_isectline.txt
 function PrimitiveToPrimitiveIntersection(triangle_a::PTriangle, triangle_b::PTriangle)::Union{PSegment,Nothing}
     N1::Vec3F = cross((triangle_a.v1 .- triangle_a.v0), (triangle_a.v2 .- triangle_a.v0))
@@ -206,7 +203,6 @@ function PrimitiveToPrimitiveIntersection(triangle_a::PTriangle, triangle_b::PTr
     return PSegment(isectpt1, isectpt2)
 end
 
-TypeOfPrimitiveToPrimitiveIntersection(::Type{PPlane},::Type{PPlane}) = PLine
 function PrimitiveToPrimitiveIntersection(plane1::PPlane,plane2::PPlane)::Union{PLine,Nothing}
     
     plane_d1 = dot(-plane1.n,plane1.p)
@@ -224,7 +220,6 @@ function PrimitiveToPrimitiveIntersection(plane1::PPlane,plane2::PPlane)::Union{
     return PLine(line_p3,plane_n3)
 end
 
-TypeOfPrimitiveToPrimitiveIntersection(::Type{PLine},::Type{PPlane}) = Vec3D
 function PrimitiveToPrimitiveIntersection(line::PLine,plane::PPlane)::Union{Vec3D,Nothing}
     l = dot(line.v,plane.n)
     if (l == 0.0)
@@ -235,5 +230,4 @@ function PrimitiveToPrimitiveIntersection(line::PLine,plane::PPlane)::Union{Vec3
     return line.p + t * line.v   
 end
 
-TypeOfPrimitiveToPrimitiveIntersection(fst::Type{PPlane},snd::Type{PLine}) = TypeOfPrimitiveToPrimitiveIntersection(snd,fst)
 PrimitiveToPrimitiveIntersection(plane::PPlane,line::PLine)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(line,plane)

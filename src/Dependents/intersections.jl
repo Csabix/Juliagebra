@@ -99,12 +99,25 @@ end
 
 # TODO: Restrain PlanDNA to intersectable plans?
 
+function getPrimitivesT(::Type{<:PrimitivesOf{T}})::Type{T} where {T <: Primitive}
+    return T
+end
+
+function InferPrimitivesT(geometry::PlanDNA)
+    DependentT::Type = InferSingletonDefinitionFor(geometry,Plan2Dependent,DependentDNA)
+    PrimitivesOfT::Type = InferSingletonDefinitionFor(DependentT,PrimitivesOf,PrimitivesOf)
+    return getPrimitivesT(PrimitivesOfT)
+end
+
+function InferPrimitiveToPrimitiveIntersection(::Type{U},::Type{V})::Type where {U,V <: Primitive}
+    return InferSingletonDefinitionFor(Tuple{U,V},PrimitiveToPrimitiveIntersection,Union{Any,Nothing})
+end
+
 function Intersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum = 25)::GenericValueHolderPlan
     
-    # TODO automatic T1, T2 infer
-    
-    T1::Type = TOfPrimitivesOf(geometry1)
-    T2::Type = TOfPrimitivesOf(geometry2)
+    T1::Type = InferPrimitivesT(geometry1)
+    T2::Type = InferPrimitivesT(geometry2)
+    T12::Type = InferPrimitiveToPrimitiveIntersection(T1,T2)
 
     call = function (g::DependentDNA)
         return PrimitivesOf(g)
@@ -113,7 +126,6 @@ function Intersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum
     gvh1 = GenericValueHolder(call,PrimitivesOf{T1},[geometry1])
     gvh2 = GenericValueHolder(call,PrimitivesOf{T2},[geometry2])
 
-    T12::Type = TypeOfPrimitiveToPrimitiveIntersection(T1,T2)
     results = UnaryValueHolder(IntersectionData{T12}(maxIntersectionNum)) do unary
         return GenericValueHolder(IntersectionResult{T12},[unary,gvh1,gvh2]) do unary, gvh1, gvh2
             FindIntersections(unary,gvh1,gvh2)

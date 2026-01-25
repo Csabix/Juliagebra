@@ -26,7 +26,7 @@ crv2 = ParametricCurve(range(0,2*pi,35),[Center2]) do t,c2
     return [x,y,z]
 end
 
-it = Intersection(crv1,crv2,25)
+it = Intersection(crv1,crv2; maxIntersectionNum=25)
 
 for i in 1:25
     Point([it]) do iit

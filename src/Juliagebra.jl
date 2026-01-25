@@ -102,6 +102,7 @@ include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
 include("Dependents/textbox.jl")
 include("Dependents/sphere.jl")
+include("Dependents/lazy_lbvh.jl")
 include("Dependents/intersections.jl")
 
 include("app.jl")

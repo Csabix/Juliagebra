@@ -99,14 +99,7 @@ curve = ParametricCurve(range(0,curveTMax,55),[curvePoint],color=(0.3,0.8,0.3)) 
     
     return curvePoint .+ (x,y,z)
 end
-
 sphere2CurveIntersection = Intersection(sphere,curve)
-
-for i in 1:100 
-    Point([sphere2CurveIntersection]) do sphere2CurveIntersection
-        return sphere2CurveIntersection[i]
-    end
-end
 
 surface = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0) do u,v
     x = u
@@ -115,8 +108,13 @@ surface = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0) do u,v
 
     return (x,y,z)
 end
-
 sphere2SurfaceIntersection = Intersection(sphere,surface; maxIntersectionNum = 392)
+
+for i in 1:100 
+    Point([sphere2CurveIntersection]) do sphere2CurveIntersection
+        return sphere2CurveIntersection[i]
+    end
+end
 
 for i in 1:392
     ParametricCurve(range(0, 1, length = 2), [sphere2SurfaceIntersection]; width=50.0) do t, sphere2SurfaceIntersection

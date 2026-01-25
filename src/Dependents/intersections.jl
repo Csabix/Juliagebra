@@ -2,20 +2,20 @@ const BRUTE_FORCE_LBVH_THRESHOLD = 100
 const MORTON_CODE_TYPE = UInt64
 
 # ? ---------------------------------
-# ! IntersectionDataPlan{T}
+# ! IntersectionCalculatorPlan{T}
 # ? ---------------------------------
 
-mutable struct IntersectionDataPlan{T} <: PlanDNA
+mutable struct IntersectionCalculatorPlan{T} <: PlanDNA
     _plan::Plan
     _maxIntersectionNum::UInt
 
-    function IntersectionDataPlan{T}(plan1::PlanDNA,plan2::PlanDNA,maxIntersectionNum::UInt) where T
+    function IntersectionCalculatorPlan{T}(plan1::PlanDNA,plan2::PlanDNA,maxIntersectionNum::UInt) where T
         plans = Vector{PlanDNA}([plan1,plan2])
         # TODO: Enforce this:
         # ! Note that in the callback:
-        # ! - data: IntersectionData{T12}
-        # ! - geometry1: GenericValueHolder{PrimtiviesOf{T1<:Primitive}} or LazyLBVH{PrimitivesOf{T1<:AABBPrimitive}}
-        # ! - geometry2: GenericValueHolder{PrimtiviesOf{T2<:Primitive}} or LazyLBVH{PrimitivesOf{T2<:AABBPrimitive}}
+        # ! - data: IntersectionCalculatorDependent{T12}
+        # ! - geometry1: PrimtiviesOf{T1<:Primitive} or LazyLBVH{PrimitivesOf{T1<:AABBPrimitive}}
+        # ! - geometry2: PrimtiviesOf{T2<:Primitive} or LazyLBVH{PrimitivesOf{T2<:AABBPrimitive}}
         callback = function (data,geometry1,geometry2)
             FindIntersections(data,geometry1,geometry2)
             return nothing
@@ -25,18 +25,18 @@ mutable struct IntersectionDataPlan{T} <: PlanDNA
     end
 end
 
-_Plan_(self::IntersectionDataPlan)::Plan = return self._plan
+_Plan_(self::IntersectionCalculatorPlan)::Plan = return self._plan
 
 # ? ---------------------------------
-# ! IntersectionData{T}
+# ! IntersectionCalculatorDependent{T}
 # ? ---------------------------------
 
-mutable struct IntersectionData{T} <: DependentDNA
+mutable struct IntersectionCalculatorDependent{T} <: DependentDNA
     _dependent::Dependent
     _foundIntersectionNum::UInt
     _intersections::Vector{T}
 
-    function IntersectionData{T}(plan::IntersectionDataPlan{T}) where T
+    function IntersectionCalculatorDependent{T}(plan::IntersectionCalculatorPlan{T}) where T
         dependent = Dependent(plan)
         foundIntersectionNum = 0
         intersections = Vector{T}(undef,plan._maxIntersectionNum)
@@ -46,22 +46,22 @@ mutable struct IntersectionData{T} <: DependentDNA
     end
 end
 
-_Dependent_(self::IntersectionData)::Dependent = self._dependent
-getGeometry1(self::IntersectionData)::DependentDNA = return getGraphParent(self,1)
-getGeometry2(self::IntersectionData)::DependentDNA = return getGraphParent(self,2)
+_Dependent_(self::IntersectionCalculatorDependent)::Dependent = self._dependent
+getGeometry1(self::IntersectionCalculatorDependent)::DependentDNA = return getGraphParent(self,1)
+getGeometry2(self::IntersectionCalculatorDependent)::DependentDNA = return getGraphParent(self,2)
 
-evalCallbackDpEntry(self::IntersectionData)::IntersectionData = return self
-onNodeEval(self::IntersectionData) = evalCallbackDp(self; callbackParams = (self))
-evalCallbackDpReturn(self::IntersectionData,::Nothing) = return nothing
+evalCallbackDpEntry(self::IntersectionCalculatorDependent)::IntersectionCalculatorDependent = return self
+onNodeEval(self::IntersectionCalculatorDependent) = evalCallbackDp(self; callbackParams = Tuple([self]))
+evalCallbackDpReturn(self::IntersectionCalculatorDependent,::Nothing) = return nothing
 
-function FindIntersections(self::IntersectionData,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
+function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
     BruteForceIntersections(self,shapes_a,shapes_b)
 end
 
-function FindIntersections(self::IntersectionData,shapes_a::LazyLBVH{PrimitivesOf{U}}, shapes_b::LazyLBVH{PrimitivesOf{V}}) where {U <: AABBPrimitive,V <: AABBPrimitive}
+function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyLBVHDependent{PrimitivesOf{U}}, shapes_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
     self._foundIntersectionNum = 0
 
-    if ((length(shapes_a) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b) < BRUTE_FORCE_LBVH_THRESHOLD))
+    if ((length(shapes_a._iter) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b._iter) < BRUTE_FORCE_LBVH_THRESHOLD))
         BruteForceIntersections(self, shapes_a._iter, shapes_b._iter)
     else
         if (length(shapes_a._iter) <= length(shapes_b._iter))
@@ -72,7 +72,7 @@ function FindIntersections(self::IntersectionData,shapes_a::LazyLBVH{PrimitivesO
     end
 end
 
-function BruteForceIntersections(self::IntersectionData{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
+function BruteForceIntersections(self::IntersectionCalculatorDependent{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
     for primitive_a in shapes_a
         for primitive_b in shapes_b
             intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
@@ -88,8 +88,9 @@ function BruteForceIntersections(self::IntersectionData{T}, shapes_a::Primitives
     end
 end
 
-function LBVHIntersections(self::IntersectionData, geometry_lbvh::LazyLBVH{PrimitivesOf{U}}, geometry_b::LazyLBVH{PrimitivesOf{V}}) where {U <: AABBPrimitive,V <: AABBPrimitive}
+function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh::LazyLBVHDependent{PrimitivesOf{U}}, geometry_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
     lbvh_nodes, number_of_leafs, number_of_internal_nodes = getLBVH(geometry_lbvh)
+    shapes_lbvh = geometry_lbvh._iter
     shapes_b = geometry_b._iter
             
     for primitive_b in shapes_b
@@ -112,39 +113,40 @@ function LBVHIntersections(self::IntersectionData, geometry_lbvh::LazyLBVH{Primi
     end
 end
 
-function Base.getindex(self::IntersectionData{T}, idx = 1)::Union{T,Nothing} where T
-    if (1 <= idx && idx <= self._data._foundIntersectionNum)
-        return self._data._intersections[idx]
+function Base.getindex(self::IntersectionCalculatorDependent{T}, idx = 1)::Union{T,Nothing} where T
+    if (1 <= idx && idx <= self._foundIntersectionNum)
+        return self._intersections[idx]
     else
         return nothing
     end
 end
 
-# ? ---------------------------------
-# ! IntersectionResult{T}
-# ? ---------------------------------
-
-mutable struct IntersectionResult{T}
-    _data::IntersectionData{T}
-
-    function IntersectionResult{T}(data::IntersectionData{T}) where T
-        new(data)
-    end
+function Plan2Dependent(plan::IntersectionCalculatorPlan{T})::IntersectionCalculatorDependent{T} where T
+    return IntersectionCalculatorDependent{T}(plan)
 end
 
-function Base.getindex(self::IntersectionResult{T}, idx = 1)::Union{T,Nothing} where T
-    if (1 <= idx && idx <= self._data._foundIntersectionNum)
-        return self._data._intersections[idx]
-    else
-        return nothing
-    end
+# ? ---------------------------------
+# ! IntersectionCalculator(T)
+# ? ---------------------------------
+
+function _IntersectionCalculator(;
+        _app::AppDNA = implicitApp,
+        _geom1::PlanDNA,
+        _geom2::PlanDNA,
+        _maxIntersectionNum::UInt = 25,
+        _T12::Type)
+
+        plan = IntersectionCalculatorPlan{_T12}(_geom1, _geom2, _maxIntersectionNum)
+        submit!(_app,plan)
+        return plan
 end
+
+IntersectionCalculator(T12,geom1,geom2; maxIntersectionNum = 25) =
+_IntersectionCalculator(_geom1 = geom1, _geom2 = geom2, _maxIntersectionNum = UInt(maxIntersectionNum), _T12 = T12)
 
 # ? ---------------------------------
 # ! Intersection
 # ? ---------------------------------
-
-# TODO: Restrain PlanDNA to intersectable plans?
 
 function getPrimitivesT(::Type{<:PrimitivesOf{T}})::Type{T} where {T <: Primitive}
     return T
@@ -160,37 +162,11 @@ function InferPrimitiveToPrimitiveIntersection(::Type{U},::Type{V})::Type where 
     return InferSingletonDefinitionFor(Tuple{U,V},PrimitiveToPrimitiveIntersection,Union{Any,Nothing})
 end
 
-function Intersection(geometry1::PlanDNA, geometry2::PlanDNA; maxIntersectionNum = 25)::GenericValueHolderPlan
-    
-    T1::Type = InferPrimitivesT(geometry1)
-    T2::Type = InferPrimitivesT(geometry2)
-    T12::Type = InferPrimitiveToPrimitiveIntersection(T1,T2)
-
-    call = function (g::DependentDNA)
-        return PrimitivesOf(g)
-    end
-
-    gvh1 = GenericValueHolder(call,PrimitivesOf{T1},[geometry1])
-    gvh2 = GenericValueHolder(call,PrimitivesOf{T2},[geometry2])
-
-    results = UnaryValueHolder(IntersectionData{T12}(maxIntersectionNum)) do unary
-        return GenericValueHolder(IntersectionResult{T12},[unary,gvh1,gvh2]) do unary, gvh1, gvh2
-            FindIntersections(unary,gvh1,gvh2)
-            return IntersectionResult{T12}(unary)
-        end
-    end
-
-    return results
-end
-
-# TODO: Finish this.
-
 function Intersection(geometry1::PlanDNA,geometry2::PlanDNA; maxIntersectionNum = 25)
     T1::Type = InferPrimitivesT(geometry1)
     T2::Type = InferPrimitivesT(geometry2)
     T12::Type = InferPrimitiveToPrimitiveIntersection(T1,T2)
-
-    
+    _Intersection(geometry1,geometry2,T1,T2,T12; maxIntersectionNum = maxIntersectionNum)
 end
 
 function _Intersection(geometry1::PlanDNA,geometry2::PlanDNA, T1::Type{<:Primitive}, T2::Type{<:Primitive}, T12::Type; maxIntersectionNum = 25, )
@@ -200,8 +176,13 @@ function _Intersection(geometry1::PlanDNA,geometry2::PlanDNA, T1::Type{<:Primiti
 
     gvh1 = GenericValueHolder(call,PrimitivesOf{T1},[geometry1])
     gvh2 = GenericValueHolder(call,PrimitivesOf{T2},[geometry2])
+    return IntersectionCalculator(T12,gvh1,gvh2; maxIntersectionNum = maxIntersectionNum)
+end
 
-
+function _Intersection(geometry1::PlanDNA,geometry2::PlanDNA, T1::Type{<:AABBPrimitive}, T2::Type{<:AABBPrimitive}, T12::Type; maxIntersectionNum = 25, )
+    llbvh1 = LazyLBVH(PrimitivesOf{T1},geometry1)
+    llbvh2 = LazyLBVH(PrimitivesOf{T2},geometry2)
+    return IntersectionCalculator(T12,llbvh1,llbvh2; maxIntersectionNum = maxIntersectionNum)
 end
 
 export Intersection

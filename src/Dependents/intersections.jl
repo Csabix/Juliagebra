@@ -1,6 +1,9 @@
 const BRUTE_FORCE_LBVH_THRESHOLD = 100
 const MORTON_CODE_TYPE = UInt64
 
+# TODO: Integrate this into the App.
+global intersectionPlans = Dict{PlanDNA,PlanDNA}()
+
 # ? ---------------------------------
 # ! IntersectionCalculatorPlan{T}
 # ? ---------------------------------
@@ -65,8 +68,10 @@ function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyL
         BruteForceIntersections(self, shapes_a._iter, shapes_b._iter)
     else
         if (length(shapes_a._iter) <= length(shapes_b._iter))
+            @log "$(getGraphID(shapes_a)) vs $(getGraphID(shapes_b)) --> $(getGraphID(shapes_a)) is LBVH"
             LBVHIntersections(self, shapes_a, shapes_b)
         else
+            @log "$(getGraphID(shapes_a)) vs $(getGraphID(shapes_b)) --> $(getGraphID(shapes_b)) is LBVH"
             LBVHIntersections(self, shapes_b, shapes_a)
         end
     end
@@ -170,18 +175,52 @@ function Intersection(geometry1::PlanDNA,geometry2::PlanDNA; maxIntersectionNum 
 end
 
 function _Intersection(geometry1::PlanDNA,geometry2::PlanDNA, T1::Type{<:Primitive}, T2::Type{<:Primitive}, T12::Type; maxIntersectionNum = 25, )
+    
     call = function (g)
         return PrimitivesOf(g)
     end
+    
+    global intersectionPlans
+    local gvh1::GenericValueHolderPlan
+    local gvh2::GenericValueHolderPlan
+    
+    if (haskey(intersectionPlans,geometry1))
+        gvh1 = intersectionPlans[geometry1]
+    else
+        gvh1 = GenericValueHolder(call,PrimitivesOf{T1},[geometry1])
+        intersectionPlans[geometry1] = gvh1
+    end
 
-    gvh1 = GenericValueHolder(call,PrimitivesOf{T1},[geometry1])
-    gvh2 = GenericValueHolder(call,PrimitivesOf{T2},[geometry2])
+    if (haskey(intersectionPlans,geometry2))
+        gvh2 = intersectionPlans[geometry2]
+    else
+        gvh2 = GenericValueHolder(call,PrimitivesOf{T1},[geometry2])
+        intersectionPlans[geometry2] = gvh2
+    end
+    
     return IntersectionCalculator(T12,gvh1,gvh2; maxIntersectionNum = maxIntersectionNum)
 end
 
 function _Intersection(geometry1::PlanDNA,geometry2::PlanDNA, T1::Type{<:AABBPrimitive}, T2::Type{<:AABBPrimitive}, T12::Type; maxIntersectionNum = 25, )
-    llbvh1 = LazyLBVH(PrimitivesOf{T1},geometry1)
-    llbvh2 = LazyLBVH(PrimitivesOf{T2},geometry2)
+    
+    global intersectionPlans
+    local llbvh1::LazyLBVHPlan
+    local llbvh2::LazyLBVHPlan
+    
+    if (haskey(intersectionPlans,geometry1))
+        llbvh1 = intersectionPlans[geometry1]
+    else
+        llbvh1 = LazyLBVH(PrimitivesOf{T1},geometry1)
+        intersectionPlans[geometry1] = llbvh1
+    end
+
+    if (haskey(intersectionPlans,geometry2))
+        llbvh2 = intersectionPlans[geometry2]
+    else
+        llbvh2 = LazyLBVH(PrimitivesOf{T2},geometry2)
+        intersectionPlans[geometry2] = llbvh2
+    end
+
     return IntersectionCalculator(T12,llbvh1,llbvh2; maxIntersectionNum = maxIntersectionNum)
 end
 

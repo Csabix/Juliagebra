@@ -11,6 +11,7 @@ mutable struct App <: AppDNA
     _windowCreated::Bool
     _graph::DependentGraph
     _plans::Queue{PlanDNA}
+    _planOptimizer::GlobalPlanOptimizer
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
@@ -28,11 +29,12 @@ mutable struct App <: AppDNA
         windowCreated = false
         graph = DependentGraph()
         plans = Queue{PlanDNA}()
+        planOptimizer = GlobalPlanOptimizer()
         peripherals = Peripherals()
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,peripherals,cam,manipulator)
+        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator)
 
         global implicitApp
         implicitApp = self

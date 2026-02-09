@@ -89,9 +89,9 @@ end
 function SphereRenderer(context::OpenGLData)
     renderer = Renderer{SphereDependent}(context)
 
-    shader_id = ShaderProgram(sp(".\\sphere\\sphere_id.vert"),sp(".\\sphere\\sphere_id.geom"),sp(".\\sphere\\sphere_id.frag"),["VP","cam","at","ASPECT_FOV_RESOLUTION"])
-    shader_opaque = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_opaque.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
-    shader_transparent = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_transparent.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
+    shader_id = ShaderProgram(sp("./sphere/sphere_id.vert"),sp("./sphere/sphere_id.geom"),sp("./sphere/sphere_id.frag"),["VP","cam","at","ASPECT_FOV_RESOLUTION"])
+    shader_opaque = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_opaque.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
+    shader_transparent = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_transparent.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
 
     buffer_opaque = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
     buffer_transparent = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()

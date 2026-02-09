@@ -225,9 +225,9 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         
-        shader_id = ShaderProgram(sp(".\\surface\\surface_id.vert"),sp(".\\surface\\surface_id.frag"),["VP"])
-        shader_opaque = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
-        shader_transparent = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
+        shader_id = ShaderProgram(sp("./surface/surface_id.vert"),sp("./surface/surface_id.frag"),["VP"])
+        shader_opaque = ShaderProgram(sp("./surface/surface.vert"),sp("./surface/surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
+        shader_transparent = ShaderProgram(sp("./surface/surface.vert"),sp("./surface/surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
 
         new(renderer,
         shader_id,shader_opaque,shader_transparent,

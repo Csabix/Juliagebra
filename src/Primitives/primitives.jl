@@ -3,7 +3,7 @@
 Repsresentation of a segment primitive.
 - p0, p1 are the start and end points of the segment.
 """
-struct PSegment <: AABBPrimitive
+struct PSegment <: AABBPrimitive3D
     p0::Vec3F
     p1::Vec3F
 end
@@ -20,7 +20,7 @@ export PSegment
 Representation of a triangle primitive.
 - v0, v1, v2 are the corners of the triangle.
 """
-struct PTriangle <: AABBPrimitive
+struct PTriangle <: AABBPrimitive3D
     v0::Vec3F
     v1::Vec3F
     v2::Vec3F

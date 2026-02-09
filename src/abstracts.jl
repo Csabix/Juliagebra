@@ -35,6 +35,8 @@ abstract type WindowDNA <: ImGuiWidgetDNA end
 
 abstract type Primitive end
 abstract type AABBPrimitive <: Primitive end
+abstract type AABBPrimitive2D <: AABBPrimitive end
+abstract type AABBPrimitive3D <: AABBPrimitive end
 
 abstract type PrimitivesOf{T<:Primitive} end
 

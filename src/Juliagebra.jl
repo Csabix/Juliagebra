@@ -40,6 +40,15 @@ include("Primitives/primitives.jl")
 include("Primitives/primitive_intersections.jl")
 include("Primitives/primitive_constructors.jl")
 
+# ? ---------------------------------
+# ! LBVH
+# ? ---------------------------------
+
+include("LBVH/aabb.jl")
+include("LBVH/morton_codes.jl")
+include("LBVH/lbvh.jl")
+include("LBVH/lbvh_cache.jl")
+
 ID_LOWER_BOUND = 3
 
 include("shared_data.jl")
@@ -109,13 +118,5 @@ include("global_plan_optimizer.jl")
 include("app.jl")
 
 include("constructors.jl")
-
-# ? ---------------------------------
-# ! LBVH
-# ? ---------------------------------
-
-include("LBVH/aabb.jl")
-include("LBVH/morton_codes.jl")
-include("LBVH/lbvh.jl")
 
 end

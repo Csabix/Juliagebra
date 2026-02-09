@@ -471,10 +471,15 @@ function BuildLBVH(primitive_aabbs::Vector{AABB{N}}, ::Type{MortonCodeT})::Tuple
 
     sorted_morton_codes_with_primitive_indecies::Vector{PrimitiveIndexWithMortonCode{MortonCodeT}} = GetSortedMortonCodesWithIndecies(CalculateMortonCodesForPrimitiveAABBs(primitive_aabbs, MortonCodeT))
 
+    # !
     number_of_leafs::UInt32 = UInt32(length(sorted_morton_codes_with_primitive_indecies))
+    
+    # !
     number_of_internal_nodes::UInt32 = (number_of_leafs - 1)
 
+    # !
     lbvh_nodes::Vector{LBVHNode{N}} = Vector{LBVHNode{N}}(undef, (number_of_internal_nodes + number_of_leafs))
+    
     parent_information::Vector{UInt32} = Vector{UInt32}(undef, (number_of_internal_nodes + number_of_leafs))
     visitation_information::Vector{UInt32} = Vector{UInt32}(undef, number_of_internal_nodes)
 

@@ -90,17 +90,18 @@ function BruteForceIntersections(self::IntersectionCalculatorDependent{T}, shape
     end
 end
 
-function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh::LazyLBVHDependent{PrimitivesOf{U}}, geometry_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
-    lbvh_nodes, number_of_leafs, number_of_internal_nodes = getLBVH(geometry_lbvh)
+function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh::LazyLBVHDependent{PrimitivesOf{U}}, geometry_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}    
+    lbvh = getLBVH(geometry_lbvh)
+    
     shapes_lbvh = geometry_lbvh._iter
     shapes_b = geometry_b._iter
             
     for primitive_b in shapes_b
         number_of_intersections = LBVHToPrimitiveIntersection(
-            lbvh_nodes,
+            lbvh.lbvh_nodes,
             shapes_lbvh,
-            number_of_internal_nodes,
-            number_of_leafs,
+            lbvh.number_of_internal_nodes,
+            lbvh.number_of_leafs,
             primitive_b,
             GetAABB(primitive_b),
             PrimitiveToPrimitiveIntersection,

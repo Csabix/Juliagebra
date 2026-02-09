@@ -30,21 +30,33 @@ _Plan_(self::LazyLBVHPlan)::Plan = return self._plan
 mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}} <: DependentDNA
     _dependent::Dependent
     _iter::Union{T,Nothing}
-    _lbvh::Union{Tuple,Nothing}
+    _lbvh::LBVHCache
+    _isCacheOld::Bool
 
-    function LazyLBVHDependent{T}(plan::LazyLBVHPlan{T}) where T
+    function LazyLBVHDependent{T}(plan::LazyLBVHPlan{T}) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
         dependent = Dependent(plan)
-        self = new{T}(dependent,nothing,nothing)
+        iter = nothing
+        lbvh = LBVHCache{3}()
+        isCacheOld = false
+
+        self = new{T}(dependent,iter,lbvh,isCacheOld)
         onNodeEval(self)
+
         return self
     end
 end
 
 _Dependent_(self::LazyLBVHDependent)::Dependent = self._dependent
 
-function getLBVH(self::LazyLBVHDependent)::Tuple
-    if (isnothing(self._lbvh))
-        self._lbvh = BuildLBVH(map(GetAABB, self._iter), MORTON_CODE_TYPE)
+function getLBVH(self::LazyLBVHDependent)
+    
+    # TODO: continue from here.
+    # ! 1.932
+    # ! 0.979
+
+    if (self._isCacheOld)
+        BuildLBVH!(self._lbvh,map(GetAABB, self._iter),MORTON_CODE_TYPE)
+        self._isCacheOld = false
     end
     
     return self._lbvh
@@ -54,7 +66,7 @@ onNodeEval(self::LazyLBVHDependent) = evalCallbackDp(self)
 
 function evalCallbackDpReturn(self::LazyLBVHDependent{T},iter::T) where T
     self._iter = iter
-    self._lbvh = nothing
+    self._isCacheOld = true
 end
 
 evalCallbackDpEntry(self::LazyLBVHDependent)::LazyLBVHDependent = return self

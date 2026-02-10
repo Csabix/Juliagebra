@@ -73,24 +73,6 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     end
 end
 
-Base.length(self::ParametricCurveDependent) = (max(length(self._range) - 1,0))
-
-function Base.iterate(self::ParametricCurveDependent, index::Integer = 1)
-    if ((index >= 1) && (index <= length(self)))
-        return (self[index], (index + 1))
-    else
-        return nothing
-    end
-end
-
-function Base.getindex(self::ParametricCurveDependent, index::Integer)::Union{Nothing, LineSegment}
-    if ((index >= 1) && (index <= length(self)))
-        return LineSegment(self._tValues[index], self._tValues[index + 1])
-    else
-        return nothing 
-    end
-end
-
 # ! Must have
 function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
     return ParametricCurveDependent(plan)
@@ -117,6 +99,30 @@ evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)   = self._tV
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)   = self._tValues[index] = Vec3D(v)
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3DNan
 
+# ? For Intersectable ParametricCurves.
+
+struct PSegmentsOfCurve <: PrimitivesOf{PSegment}
+    _curve::ParametricCurveDependent
+end
+PrimitivesOf(self::ParametricCurveDependent) = return PSegmentsOfCurve(self)
+
+Base.length(self::PSegmentsOfCurve) = (max(length(self._curve._range) - 1,0))
+
+function Base.getindex(self::PSegmentsOfCurve, index::Integer)::Union{Nothing, PSegment}
+    if ((1 <= index) && (index <= length(self)))
+        return PSegment(self._curve._tValues[index], self._curve._tValues[index + 1])
+    else
+        return nothing 
+    end
+end
+
+function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
+    if ((1 <= index) && (index <= length(self)))
+        return (self[index], (index + 1))
+    else
+        return nothing
+    end
+end
 
 
 # ? ---------------------------------

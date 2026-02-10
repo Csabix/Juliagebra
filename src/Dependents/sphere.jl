@@ -27,6 +27,7 @@ end
 
 _RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan
 
+
 # ? ---------------------------------
 # ! SphereDependent
 # ? ---------------------------------
@@ -61,7 +62,70 @@ function evalCallbackDpReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
     self._radius = cr[2]
 end
 
+function evalCallbackDpReturn(self::SphereDependent,s::PSphere)
+    self._center = s.c
+    self._radius = s.r
+end
+
 evalCallbackDpReturn(self::SphereDependent,::Nothing) = return nothing
+
+# ? For Intersectable Spheres.
+
+const SPHERE_DETAIL = 15
+
+struct PTrianglesOfSphere <: PrimitivesOf{PTriangle}
+    _sphere::SphereDependent
+end
+PrimitivesOf(self::SphereDependent) = return PTrianglesOfSphere(self)
+
+function spherePos(u,v,r,center)
+    alfa = Float64(u-1) / Float64(SPHERE_DETAIL-1)
+    beta = Float64(v-1) / Float64(SPHERE_DETAIL-1)
+
+    alfa = alfa * (pi - 0.0) + 0.0
+    beta = beta * (2*pi - 0.0) + 0.0
+
+    x = center.x + (r + 0.1) * sin(alfa) * cos(beta)
+    y = center.y + (r + 0.1) * sin(alfa) * sin(beta)
+    z = center.z + (r + 0.1) * cos(alfa)
+
+    return Vec3F(x,y,z)
+end
+
+function Base.length(::PTrianglesOfSphere) 
+    return (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1) + (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1)
+end
+
+function Base.getindex(self::PTrianglesOfSphere, index::UInt)::PTriangle 
+    center = self._sphere._center
+    r = self._sphere._radius
+    
+    index = index - 1    
+    a = div(index,(SPHERE_DETAIL-1)*(SPHERE_DETAIL-1))
+
+    if (a == 0)
+        u = div(index,SPHERE_DETAIL-1) + 1
+        v = mod(index,SPHERE_DETAIL-1) + 1
+        return PTriangle(spherePos(u,v,r,center),spherePos(u+1,v,r,center),spherePos(u+1,v+1,r,center))
+    elseif (a == 1)
+        index = index - (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1)
+        u = div(index,SPHERE_DETAIL-1) + 1
+        v = mod(index,SPHERE_DETAIL-1) + 1
+        return PTriangle(spherePos(u,v,r,center),spherePos(u,v+1,r,center),spherePos(u+1,v+1,r,center))
+    else
+        error("$(index) is invalid state!")
+    end
+end
+
+function Base.iterate(self::PTrianglesOfSphere, state = UInt(1))
+    if state > length(self)
+        return nothing
+    else
+        return (self[state],state+1)
+    end
+end
+
+export PTrianglesOfSphere
 
 # ? ---------------------------------
 # ! SphereRenderer

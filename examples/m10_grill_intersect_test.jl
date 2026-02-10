@@ -34,7 +34,7 @@ crv2 = ParametricCurve(range(-phase,phase,250),[p2,s2],color=(0.3,0.6,0.9)) do t
     return p .+ (x,y,z) 
 end
 
-it = Intersection(crv1,crv2,100)
+it = Intersection(crv1,crv2; maxIntersectionNum = 100)
 
 for i in 1:100
     Point([it]) do iit

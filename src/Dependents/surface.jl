@@ -35,6 +35,7 @@ end
 _RenderedPlan_(self::ParametricSurfacePlan)::RenderedPlan = return self._plan
 Base.string(self::ParametricSurfacePlan)::String = return "Surface"
 
+
 # ? ---------------------------------
 # ! ParametricSurfaceDependent
 # ? ---------------------------------
@@ -197,6 +198,19 @@ end
 function onNodeEval(self::ParametricSurfaceDependent)
     runCallbacks(self)
 end
+
+# ? For Intersectable ParametricSurfaces.
+
+struct PTrianglesOfSurface <: PrimitivesOf{PTriangle}
+    _surfaceTriangleIterator::TrianglesOf
+end
+PrimitivesOf(self::ParametricSurfaceDependent) = return PTrianglesOfSurface(TrianglesOf(self._uvValues))
+
+Base.length(self::PTrianglesOfSurface) = return length(self._surfaceTriangleIterator)
+
+Base.getindex(self::PTrianglesOfSurface, index::UInt)::PTriangle = return self._surfaceTriangleIterator[index]
+
+Base.iterate(self::PTrianglesOfSurface, state = (1,1,1)) = return iterate(self._surfaceTriangleIterator,state)   
 
 # ? ---------------------------------
 # ! ParametricSurfaceRenderer

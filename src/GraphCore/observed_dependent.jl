@@ -21,7 +21,7 @@ function Observed(callback::Function,graphParents::Vector{DependentDNA})::Observ
     return Observed(dependent,observer,observerID)
 end
 
-function Observed(plan::PlanDNA)::Observed
+function Observed(plan::ObservedPlanDNA)::Observed
     dependent = Dependent(plan)
     observer = nothing
     observerID = 0

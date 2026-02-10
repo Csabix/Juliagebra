@@ -1,13 +1,15 @@
-EPSILON = 0.1
+const LINE_TO_LINE_EPSILON = 0.1
+#const PLANE_TO_PLANE_EPSILON = 0.0000000001
+#const LINE_TO_PLANE_EPSILON = 0.0000000001
 
-function PrimitiveToPrimitiveIntersection(line_segment_a::LineSegment, line_segment_b::LineSegment)::Union{Nothing, Vec3F}
+function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment_b::PSegment)::Union{Nothing, Vec3F}
     v1 = line_segment_a.p1 - line_segment_a.p0
     v2 = line_segment_b.p1 - line_segment_b.p0
 
     n_up = normalize(cross(v1,v2))
     
     d = abs(dot(line_segment_b.p0-line_segment_a.p0,n_up))
-    if( d > EPSILON)
+    if( d > LINE_TO_LINE_EPSILON)
         return nothing
     end
 
@@ -38,7 +40,7 @@ function PrimitiveToPrimitiveIntersection(line_segment_a::LineSegment, line_segm
     return hit
 end
 
-function PrimitiveToPrimitiveIntersection(line_segment::LineSegment, triangle::Triangle)::Union{Nothing, Vec3F}
+function PrimitiveToPrimitiveIntersection(line_segment::PSegment, triangle::PTriangle)::Union{Nothing, Vec3F}
     p0 = line_segment.p0
     v = line_segment.p1 - line_segment.p0
 
@@ -62,9 +64,7 @@ function PrimitiveToPrimitiveIntersection(line_segment::LineSegment, triangle::T
     end
 end
 
-function PrimitiveToPrimitiveIntersection(triangle::Triangle, line_segment::LineSegment)::Union{Nothing, Vec3F}
-    return PrimitiveToPrimitiveIntersection(line_segment, triangle)
-end
+PrimitiveToPrimitiveIntersection(triangle::PTriangle, line_segment::PSegment)::Union{Nothing, Vec3F} = PrimitiveToPrimitiveIntersection(line_segment, triangle)
 
 function Isect2(
     VTX0::Vec3F,
@@ -83,7 +83,7 @@ function Isect2(
 end
 
 function ComputeIntervalsIsectline(
-    triangle::Triangle,
+    triangle::PTriangle,
     D0::Float32, 
     D1::Float32, 
     D2::Float32
@@ -107,14 +107,13 @@ function IsCoplanar(D0::Float32, D1::Float32, D2::Float32)::Bool
     return ((D0 == 0.0) && (D1 == 0.0) && (D2 == 0.0))
 end
 
-function EpsilonTest(N::Vec3F, V::Vec3F, triangle::Triangle)::Tuple{Float32, Float32, Float32}
+function EpsilonTest(N::Vec3F, V::Vec3F, triangle::PTriangle)::Tuple{Float32, Float32, Float32}
     d1::Float32 = -dot(N, V)
 
     du0::Float32 = dot(N, triangle.v0) + d1
     du1::Float32 = dot(N, triangle.v1) + d1
     du2::Float32 = dot(N, triangle.v2) + d1
 
-#if USE_EPSILON_TEST == TRUE
     if (abs(du0) < 0.000001) 
         du0 = 0.0
     end
@@ -124,14 +123,12 @@ function EpsilonTest(N::Vec3F, V::Vec3F, triangle::Triangle)::Tuple{Float32, Flo
     if (abs(du2) < 0.000001)
         du2 = 0.0
     end
-#endif
 
     return du0, du1, du2
 end
 
-
 #from https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tritri_isectline.txt
-function PrimitiveToPrimitiveIntersection(triangle_a::Triangle, triangle_b::Triangle)::Union{Nothing, LineSegment}
+function PrimitiveToPrimitiveIntersection(triangle_a::PTriangle, triangle_b::PTriangle)::Union{PSegment,Nothing}
     N1::Vec3F = cross((triangle_a.v1 .- triangle_a.v0), (triangle_a.v2 .- triangle_a.v0))
     du0::Float32, du1::Float32, du2::Float32 = EpsilonTest(N1, triangle_a.v0, triangle_b)
     if (((du0 * du1) > 0.0) && ((du0 * du2) > 0.0))
@@ -203,5 +200,34 @@ function PrimitiveToPrimitiveIntersection(triangle_a::Triangle, triangle_b::Tria
         end
     end
 
-    return LineSegment(isectpt1, isectpt2)
+    return PSegment(isectpt1, isectpt2)
 end
+
+function PrimitiveToPrimitiveIntersection(plane1::PPlane,plane2::PPlane)::Union{PLine,Nothing}
+    
+    plane_d1 = dot(-plane1.n,plane1.p)
+    plane_d2 = dot(-plane2.n,plane2.p)
+
+    plane_n3 = cross(plane1.n,plane2.n)
+    
+    determinant = (norm(plane_n3))^2
+    if (determinant == 0.0)
+        return nothing
+    end
+
+    line_p3 = (cross(plane_n3,plane2.n) * plane_d1 + cross(plane1.n,plane_n3) * plane_d2) / determinant
+
+    return PLine(line_p3,plane_n3)
+end
+
+function PrimitiveToPrimitiveIntersection(line::PLine,plane::PPlane)::Union{Vec3D,Nothing}
+    l = dot(line.v,plane.n)
+    if (l == 0.0)
+        return nothing
+    end
+
+    t = dot(plane.p-line.p,plane.n) / l
+    return line.p + t * line.v   
+end
+
+PrimitiveToPrimitiveIntersection(plane::PPlane,line::PLine)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(line,plane)

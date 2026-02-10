@@ -22,7 +22,7 @@ curve2 = ParametricCurve(range(0,tMax,55)) do t
     return (x,y,z)
 end
 
-it = Intersection(curve1,curve2,6)
+it = Intersection(curve1,curve2; maxIntersectionNum = 6)
 
 for i in 1:6
     Point([it]) do iit

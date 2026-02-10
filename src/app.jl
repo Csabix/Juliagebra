@@ -2,7 +2,7 @@
 
 global implicitApp = nothing
 
-mutable struct App
+mutable struct App <: AppDNA
 
     _shrd::SharedData
     _glfw::Union{GLFWData,Nothing}
@@ -11,6 +11,7 @@ mutable struct App
     _windowCreated::Bool
     _graph::DependentGraph
     _plans::Queue{PlanDNA}
+    _planOptimizer::GlobalPlanOptimizer
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
@@ -28,11 +29,12 @@ mutable struct App
         windowCreated = false
         graph = DependentGraph()
         plans = Queue{PlanDNA}()
+        planOptimizer = GlobalPlanOptimizer()
         peripherals = Peripherals()
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,peripherals,cam,manipulator)
+        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator)
 
         global implicitApp
         implicitApp = self
@@ -40,8 +42,14 @@ mutable struct App
     end
 end
 
-function submit!(self::App,plan::PlanDNA)
-    enqueue!(self._plans,plan)    
+getGLFW(self::App) = return self._glfw
+getOpenGL(self::App) = return self._opengl
+getShrd(self::App) = return self._shrd
+getGraph(self::App) = return self._graph
+getPlanQueue(self::App) = return self._plans
+
+function submit!(self::AppDNA,plan::PlanDNA)
+    enqueue!(getPlanQueue(self),plan)    
 end
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
@@ -245,7 +253,7 @@ function init!(self::App)
     self._glfw = GLFWData(self._shrd)
     self._opengl = OpenGLData(self._glfw,self._shrd)
     setInputEvents(self._glfw._window,self) # Before call to ImGUI
-    self._imgui = ImGuiData(self._glfw,self._opengl,self._shrd) # After setInputEvents call
+    self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true
     perf_init_gpu()
     # ! Needed for first deltaTime to be accurate!

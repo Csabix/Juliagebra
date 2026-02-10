@@ -67,4 +67,6 @@ function UnaryValueHolder(generateUnaryChild::Function,value::T) where T
     return plan
 end
 
+ValueHolder(generateUnaryChild::Function,value) = UnaryValueHolder(generateUnaryChild,value)
+
 export UnaryValueHolder

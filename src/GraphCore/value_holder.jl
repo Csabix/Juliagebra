@@ -19,22 +19,22 @@ end
 _Plan_(self::ValueHolderPlanDNA)::Plan = return _ValueHolderPlan_(self)._plan
 
 # ? ---------------------------------
-# ! ValueHolder{T}
+# ! ValueHolderDependent{T}
 # ? ---------------------------------
 
-mutable struct ValueHolder{T} <: DependentDNA
+mutable struct ValueHolderDependent{T} <: DependentDNA
     _dependent::Dependent
 
-    function ValueHolder{T}(plan::ValueHolderPlanDNA{T}) where T
+    function ValueHolderDependent{T}(plan::ValueHolderPlanDNA{T}) where T
         dependent = Dependent(plan)
         new(dependent)
     end
 end
 
-function _ValueHolder_(self::ValueHolderDNA{T})::ValueHolder{T} where T
+function _ValueHolderDependent_(self::ValueHolderDNA{T})::ValueHolderDependent{T} where T
     error("Missing func!")
 end
-_Dependent_(self::ValueHolderDNA)::Dependent = _ValueHolder_(self)._dependent
+_Dependent_(self::ValueHolderDNA)::Dependent = _ValueHolderDependent_(self)._dependent
 
 
 function getField(self::ValueHolderDNA{T})::T where T
@@ -44,3 +44,5 @@ end
 function evalCallbackDpEntry(self::ValueHolderDNA{T})::T where T
     return getField(self)
 end
+
+export ValueHolder

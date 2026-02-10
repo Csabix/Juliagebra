@@ -3,9 +3,10 @@ using JuliaGLM
 
 App()
 
+# ? SourceValueHolder:
 # ? Starting value decides the type
 # ? so T will be the type of "96.0".
-gd1 = SourceValueHolder(96.0)
+gd1 = ValueHolder(96.0)
 
 txt1 = TextBox([gd1]) do gd1
     return  "gd1   T: $(typeof(gd1))\n" *
@@ -14,8 +15,9 @@ end
 
 p1 = Point(0,0,0)
 
+# ? GenericValueHolder:
 # ? T parametric input decides the type.
-gd2 = GenericValueHolder(Vec3D,[p1]) do p1
+gd2 = ValueHolder(Vec3D,[p1]) do p1
     return p1
 end
 
@@ -24,8 +26,9 @@ txt2 = TextBox([gd2]) do gd2
             "gd2 val: $(gd2)"
 end
 
+# ? UnaryValueHolder:
 # ? Unary values can communicate "backwards".
-txt3 = UnaryValueHolder(Ref("Alma")) do unary
+txt3 = ValueHolder(Ref("Alma")) do unary
     TextBox([unary,gd2]) do unary, gd2
         old_unary = unary[]
         unary[] = "Barack"

@@ -20,11 +20,11 @@ end
 # ? ---------------------------------
 
 mutable struct GenericValueHolderDependent{T} <: ValueHolderDNA{T}
-    _dependent::ValueHolder{T}
+    _dependent::ValueHolderDependent{T}
     _value::Union{T,Nothing}
 
     function GenericValueHolderDependent{T}(plan::GenericValueHolderPlan{T}) where T
-        dependent = ValueHolder{T}(plan)
+        dependent = ValueHolderDependent{T}(plan)
 
         self = new(dependent,nothing)
         onNodeEval(self)
@@ -32,7 +32,7 @@ mutable struct GenericValueHolderDependent{T} <: ValueHolderDNA{T}
     end
 end
 
-function _ValueHolder_(self::GenericValueHolderDependent{T})::ValueHolder{T} where T
+function _ValueHolderDependent_(self::GenericValueHolderDependent{T})::ValueHolderDependent{T} where T
     return self._dependent
 end
 
@@ -64,5 +64,7 @@ end
 
 GenericValueHolder(callback::Function,T::Type,dependents::DependentsT) =
 _GenericValueHolder(_call = callback, _deps = dependents, _T = T)
+
+ValueHolder(callback::Function,T::Type,dependents::DependentsT) = GenericValueHolder(callback,T,dependents)
 
 export GenericValueHolder

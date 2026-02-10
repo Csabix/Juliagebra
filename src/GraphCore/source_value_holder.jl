@@ -30,11 +30,11 @@ end
 # ? ---------------------------------
 
 mutable struct SourceValueHolderDependent{T} <: SourceValueHolderDNA{T}
-    _dependent::ValueHolder{T}
+    _dependent::ValueHolderDependent{T}
     _value::T
 
     function SourceValueHolderDependent{T}(plan::SourceValueHolderPlanDNA{T}) where T
-        dependent = ValueHolder{T}(plan)
+        dependent = ValueHolderDependent{T}(plan)
         value = _SourceValueHolderPlan_(plan)._value
         new(dependent,value)
     end
@@ -48,7 +48,7 @@ function _SourceValueHolder_(self::SourceValueHolderDependent{T})::SourceValueHo
     return self
 end
 
-function _ValueHolder_(self::SourceValueHolderDNA{T})::ValueHolder{T} where T
+function _ValueHolderDependent_(self::SourceValueHolderDNA{T})::ValueHolderDependent{T} where T
     return _SourceValueHolder_(self)._dependent
 end
 
@@ -79,5 +79,7 @@ end
 function SourceValueHolder(value::T)::SourceValueHolderPlan{T} where T
     return _SourceValueHolder(_value = value)
 end
+
+ValueHolder(value) = SourceValueHolder(value)
 
 export SourceValueHolder

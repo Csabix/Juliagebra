@@ -269,8 +269,8 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     initMatrix(normals,width,height,Vec3FNan)
     initMatrix(colors,width,height,color)
     triangulateInto!(indexes,vertexes,layers(vertexes))
-    surface._uvValues  = FlatMatrix{layers(vertexes),Vec3F}(vertexes)
-    surface._uvNormals = FlatMatrix{layers(vertexes),Vec3F}(normals)
+    surface._uvValues  = FlatMatrix{Vec3F}(layers(vertexes),vertexes)
+    surface._uvNormals = FlatMatrix{Vec3F}(layers(vertexes),normals)
 
     onNodeEval(surface)
 

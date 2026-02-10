@@ -71,3 +71,50 @@ destroy!(self::TypedBuffer) = destroy!(self._buffer)
 IndexBuffer() = TypedBuffer{UInt32}(GL_ELEMENT_ARRAY_BUFFER)
 
 # TODO: Implement binding for every buffer.
+
+struct StaticBuffer <:OpenGLWrapper
+    _id::GLuint
+    _size::GLsizeiptr
+    _numOfItems::Int
+
+    function StaticBuffer(id=0,size=0,numOfItems=0)
+        return new(id,size,numOfItems)
+    end
+end
+
+function create(self::StaticBuffer,size::GLsizeiptr,flags::GLuint)::StaticBuffer
+    if self._id != 0 glDeleteBuffers(1,[self._id]) end
+    id = Ref{GLuint}(0)
+    glCreateBuffers(1,id)
+
+    glNamedBufferStorage(id[],size,C_NULL,flags)
+
+    return StaticBuffer(id[],size)
+end
+
+function create(self::StaticBuffer,data::Vector,flags::GLuint)::StaticBuffer
+    @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
+
+    if self._id != 0 glDeleteBuffers(1,[self._id]) end
+    id = Ref{GLuint}(0)
+    glCreateBuffers(1,id)
+
+    numOfItems::Int = length(data)
+    size::GLsizeiptr = sizeof(data)
+    glNamedBufferStorage(id[],size,data,flags)
+    return StaticBuffer(id[],size,numOfItems)
+end
+
+function upload!(self::StaticBuffer,data::Vector)
+    @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
+    if sizeof(data) > self._size
+        @log "Imput data is larger than the size of StaticBuffer, create a new StaticBuffer for the data" ERR
+    end
+
+    glNamedBufferSubData(self._id,0,sizeof(data),data)
+end
+
+Base.length(self::StaticBuffer)::Int = self._numOfItems
+bind(self::StaticBuffer, target::GLuint) = glBindBuffer(target, self._id)
+bind_ssbo(self::StaticBuffer, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,self._id)
+destroy!(self::StaticBuffer) = if self._id != 0 glDeleteBuffers(1,[self._id]) end

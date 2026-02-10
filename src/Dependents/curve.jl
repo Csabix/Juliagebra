@@ -36,7 +36,6 @@ mutable struct ParametricCurvePlan <: RenderedPlanDNA
                                  type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
         
         colors = [Vec3F(c[1],c[2],c[3]) for c in color]
-        width = clamp(width,1.0,10.0)
         new(RenderedPlan(callback,plans),range,colors,type,reversed,width)
     end
 end
@@ -60,7 +59,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _reversed::UInt8
 
     _ref::Int
-    _tValues::Union{SubArray{Vec3F},Nothing}
+    _tValues::Union{SubArray{Vec3D},Nothing}
 
     function ParametricCurveDependent(plan::ParametricCurvePlan)
         a = RenderedDependent(plan)
@@ -95,10 +94,10 @@ function onNodeEval(self::ParametricCurveDependent)
     runCallbacks(self)
 end
 
-evalCallbackDpReturn(self::ParametricCurveDependent,v,index) = ((x,y,z) = v ; self._tValues[index] = Vec3F(x,y,z))
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index) = self._tValues[index] = Vec3F(v)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index) = self._tValues[index] = v
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3FNan
+evalCallbackDpReturn(self::ParametricCurveDependent,v,index)          = ((x,y,z) = v ; self._tValues[index] = Vec3D(x,y,z))
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)   = self._tValues[index] = v
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)   = self._tValues[index] = Vec3D(v)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3DNan
 
 # ? For Intersectable ParametricCurves.
 
@@ -133,56 +132,83 @@ end
 mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
 
-    _shaders::Vector{ShaderProgram}
-    _buffer::TypedBufferArray
+    _shader_predraw::ShaderProgram
+    _shaders_id::Vector{ShaderProgram}
+    _shaders_opaque::Vector{ShaderProgram}
+    _shaders_behind_opaque::Vector{ShaderProgram}
+    _shaders_transparent::Vector{ShaderProgram}
 
     _ranges::Vector{Tuple{Int,Int,Int}}
     _drawRanges::Vector{Tuple{Int,Int}}
 
-    _coords::Vector{Vec3F}
-    _widths::Vector{Float32}
+    _coords::Vector{Vec3D}
+    _widths::Dict{Int,Float32}
     _colors::Vector{Float32}
+
     _distances::Vector{Float32} # to avoid memory allocations
+    _position_width::Vector{Vec4F}
     _needMaintance::Bool
 
+    _distance_buffer_in::StaticBuffer
+    _color_type_buffer_in::StaticBuffer
+    _position_width_buffer_in::StaticBuffer
+
+    _position_distance_buffer_out::StaticBuffer
+    _color_buffer_out::StaticBuffer
+    _light_buffer_out::StaticBuffer
+    _sdf_buffer_out::StaticBuffer
+
     function CurveRenderer(context::OpenGLData)
-        
         renderer = Renderer{ParametricCurveDependent}(context)
 
-        shaders = Vector{ShaderProgram}()
-        vert = sp("curve/curve.vert")
-        geom = sp("curve/curve.geom")
-        uniforms = ["VP","Eye","W_H_NEAR_FAR","lightDirCam","lightDirSide"]
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_solid.frag"),   uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dashed.frag"),  uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dotted.frag"),  uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_wave.frag"),    uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_dash_dot.frag"),uniforms))
-        push!(shaders,ShaderProgram(vert,geom,sp("curve/curve_arrow.frag"),   uniforms))
+        shader_predraw = ShaderProgram(sp("curve/curve_vertex.comp"),["VP","WH","Eye","lightDirCam","lightDirSide"])
 
-        buffer = TypedBufferArray{Tuple{Vec3F,Float32,Float32,Float32}}()
+        types = ["solid","dashed","dotted","wave","dash_dot","arrow"]
+
+        shaders_id = Vector{ShaderProgram}()
+        for type in types push!(shaders_id,ShaderProgram(sp("curve/id/curve.vert"),sp("curve/id/curve_$type.frag"))) end
+
+        shaders_opaque = Vector{ShaderProgram}()
+        for type in types push!(shaders_opaque,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/opaque/curve_$type.frag"))) end
+
+        shaders_behind_opaque = Vector{ShaderProgram}()
+        for type in types push!(shaders_behind_opaque,ShaderProgram(sp("curve/behind_opaque/curve.vert"),sp("curve/behind_opaque/curve_$type.frag"))) end
+
+        shaders_transparent = Vector{ShaderProgram}()
+        for type in types push!(shaders_transparent,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/transparent/curve_$type.frag"))) end
 
         ranges = Vector{Tuple{Int,Int,Int}}()
         drawRanges = fill((0,0),_CURVE_COUNT)
 
-        coords = [Vec3FNan]
-        widths = [0.0f0]
+        coords = [Vec3DNan]
+        widths = Dict{Int,Float32}()
         colors = [0.0f0]
-        distances = Vector{Float32}(undef,1)
-
+        distances = Vector{Float32}()
+        position_width = Vector{Vec4F}()
+        
         needMaintance = false
-        new(
-            renderer,
-            shaders,
-            buffer,
-            ranges,
-            drawRanges,
-            coords,
-            widths,
-            colors,
-            distances,
-            needMaintance)
+        new(renderer,
+            shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
+            ranges,drawRanges,
+            coords,widths,colors,
+            distances,position_width,needMaintance,
+            StaticBuffer(),StaticBuffer(),StaticBuffer(),
+            StaticBuffer(),StaticBuffer(),StaticBuffer(),StaticBuffer())
     end
+end
+
+@inbounds function _upload_positon_width(self::CurveRenderer)
+    @time_cpu_begin Dependent Curve UPLOAD_POSITION
+    Threads.@threads for (first,last,_) in self._ranges
+        width = self._widths[first]
+        for i = first:last
+            p = self._coords[i]
+            self._position_width[i] = Vec4F(p.x,p.y,p.z,width)
+        end
+    end
+
+    upload!(self._position_width_buffer_in, self._position_width)
+    @time_cpu_end Dependent Curve UPLOAD_POSITION
 end
 
 function _maintainCurveRenderer!(self::CurveRenderer)
@@ -191,13 +217,11 @@ function _maintainCurveRenderer!(self::CurveRenderer)
     for index = 1:length(self._ranges)
         push!(range_groups[self._ranges[index][3]],index)
     end
-    ranges = Vector{Tuple{Int,Int,Int}}()
 
-    coords = Vector{Vec3F}()
-    widths = Vector{Float32}()
+    coords = Vector{Vec3D}()
+    widths = Dict{Int,Float32}()
     colors = Vector{Float32}()
-    push!(coords, Vec3FNan)
-    push!(widths, 0.0f0)
+    push!(coords, Vec3DNan)
     push!(colors, 0x0)
 
     for group in range_groups
@@ -205,34 +229,31 @@ function _maintainCurveRenderer!(self::CurveRenderer)
             (first, last, type) = self._ranges[range_ind]
             (min_ind,max_ind) = self._drawRanges[type]
             self._ranges[range_ind] = (length(coords)+1,length(coords)+last-first+1,type)
-            self._drawRanges[type] = (min(min_ind,length(coords)-1),max(max_ind,length(coords)+last-first+2))
+            widths[length(coords)+1] = self._widths[first]
+            self._drawRanges[type] = (min(min_ind,length(coords)-1),max(max_ind,length(coords)+last-first+1))
             
             append!(coords, self._coords[first:last])
-            append!(widths, self._widths[first:last])
             append!(colors, self._colors[first:last])
             
-            push!(coords, Vec3FNan)
-            push!(widths, 0.0f0)
+            push!(coords, Vec3DNan)
             push!(colors, 0x0)
         end
     end
     self._coords = coords
     self._widths = widths
     self._colors = colors
-    self._distances = Vector{Float32}(undef,length(coords))
+
     self._needMaintance = false
 
-    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
-    upload!(self._buffer,2,self._widths,GL_STATIC_DRAW)
-    upload!(self._buffer,3,self._colors,GL_STATIC_DRAW)
+    self._color_type_buffer_in = create(self._color_type_buffer_in,self._colors,UInt32(0))
+    _upload_positon_width(self)
 end
 
 _Renderer_(self::CurveRenderer) = return self._renderer
 Base.string(self::CurveRenderer) = return "CurveRenderer[$(length(self._coords))]"
 
 function pack_color(color::Vec3F, reversed::Bool)::Float32
-    color = Vec4F(color * 255.0f0, reversed ? 255.0f0 : 0.0f0)
-    #round(clamp(color, 0.0, 255.0)) TODO clamp
+    color = Vec4F(clamp.(color,0.0f0,1.0f0) * 255.0f0, reversed ? 255.0f0 : 0.0f0)
 
     r = UInt32(round(color.x))
     g = UInt32(round(color.y))
@@ -245,18 +266,17 @@ end
 # ! Must have
 function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     push!(self._ranges, (length(self._coords)+1,length(self._coords)+length(curve._range),curve._type))
+    self._widths[length(self._coords)+1] = curve._width
     curve._ref = length(self._ranges)
     color_count = length(curve._colors)
     packed_colors = [pack_color(color,curve._reversed != 0x0) for color in curve._colors]
     current_color = 1
     for _ in 1:length(curve._range)
-        push!(self._coords, Vec3F(0,0,0))
-        push!(self._widths, curve._width)
+        push!(self._coords, Vec3DNan)
         push!(self._colors, packed_colors[current_color])
         current_color = mod1(current_color + 1, color_count)
     end
-    push!(self._coords, Vec3FNan)
-    push!(self._widths, 0.0f0)
+    push!(self._coords, Vec3DNan)
     push!(self._colors, 0x0000000)
 
     (first, last, _) = self._ranges[curve._ref]
@@ -269,6 +289,17 @@ setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) =
 
 # ! Must have
 function addedAll!(self::CurveRenderer)
+    self._distances = Vector{Float32}(undef,length(self._coords))
+    self._position_width = fill(Vec4FNan, length(self._coords))
+    
+    self._distance_buffer_in = create(self._distance_buffer_in, length(self._coords)*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
+    self._position_width_buffer_in = create(self._position_width_buffer_in, length(self._coords)*4*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
+
+    self._position_distance_buffer_out = create(self._position_distance_buffer_out, 5 * length(self._coords)*4*sizeof(GLfloat), UInt32(0))
+    self._color_buffer_out = create(self._color_buffer_out, length(self._coords)*2*sizeof(GLuint), UInt32(0))
+    self._light_buffer_out = create(self._light_buffer_out, length(self._coords)*4*sizeof(GLfloat), UInt32(0))
+    self._sdf_buffer_out = create(self._sdf_buffer_out, 5 * length(self._coords)*4*sizeof(GLfloat), UInt32(0))
+
     _maintainCurveRenderer!(self)
 end
 
@@ -288,20 +319,18 @@ function syncAll!(self::CurveRenderer)
     if self._needMaintance
         _maintainCurveRenderer!(self)
     else
-        upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+        _upload_positon_width(self)
     end
     @time_cpu_end Dependent Curve
 end
 
-# ! Must have
-function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
+function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
     @time_cpu_begin Dependent Curve Distances
     Threads.@threads for (first,last,_) in self._ranges
-        wh = Vec2F(shrd._width,shrd._height)
         distance_sum = 0.0f0
         for i in first:(last-1)
-            a = vp * Vec4F(self._coords[i], 1.0f0)
-            b = vp * Vec4F(self._coords[i+1], 1.0f0)
+            a = vp * Vec4F(Vec3F(self._coords[i]), 1.0f0)
+            b = vp * Vec4F(Vec3F(self._coords[i+1]), 1.0f0)
             if a.z + a.w < 0.0 && b.z + b.w < 0.0f0 continue end
             t0 = a.z + a.w;
             t1 = b.z + b.w;
@@ -326,12 +355,9 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         self._distances[last] = distance_sum
     end
     @time_cpu_end Dependent Curve Distances
-
-    upload!(self._buffer,4,self._distances,GL_DYNAMIC_DRAW)
+end
+function _draw_visible(self::CurveRenderer,vp,cam,shrd)
     (cam_light, side_light) = get_lights(cam)
-    activate(self._buffer)
-    glEnable(GL_BLEND)
-    @time_gpu_begin Dependent Curve
     for type in 1:_CURVE_COUNT
         (first,last) = self._drawRanges[type]
         if first == typemax(Int) continue end
@@ -341,19 +367,128 @@ function draw!(self::CurveRenderer,vp,selectedID,pickedID,cam,shrd)
         setUniform!(self._shaders[type],"lightDirCam", cam_light)
         setUniform!(self._shaders[type],"lightDirSide",side_light)
         setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
-        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first);
+        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first); 
     end
-    @time_gpu_end Dependent Curve
+end
+
+function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
+    upload!(self._distance_buffer_in,self._distances)
+
+    bind_ssbo(self._distance_buffer_in,0)
+    bind_ssbo(self._color_type_buffer_in,1)
+    bind_ssbo(self._position_width_buffer_in,2)
+    bind_ssbo(self._position_distance_buffer_out,3)
+    bind_ssbo(self._color_buffer_out,4)
+    bind_ssbo(self._light_buffer_out,5)
+    bind_ssbo(self._sdf_buffer_out,6)
+
+    (cam_light, side_light) = get_lights(cam)
+    activate(self._shader_predraw)
+    setUniform!(self._shader_predraw,"VP",vp)
+    setUniform!(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    setUniform!(self._shader_predraw,"Eye",cam._eye)
+    setUniform!(self._shader_predraw,"lightDirCam", cam_light)
+    setUniform!(self._shader_predraw,"lightDirSide",side_light)
+    @time_gpu_begin Dependent Curve PRE_DRAW_PASS
+    glDispatchCompute(cld(length(self._coords),32),1,1);
+    @time_gpu_end Dependent Curve PRE_DRAW_PASS 
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+end
+
+function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._sdf_buffer_out,1)
+
+    baseInstance = 0
+    @time_gpu_begin Dependent Curve ID_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_id[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Curve ID_PASS
+end
+
+function opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._color_buffer_out,1)
+    bind_ssbo(self._light_buffer_out,2)
+    bind_ssbo(self._sdf_buffer_out,3)
+
+    baseInstance = 0
+    glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Curve OPAQUE_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_opaque[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Curve OPAQUE_PASS
     glDisable(GL_BLEND)
 end
 
+is_occluder(self::CurveRenderer)::Bool = false
+
+function behind_opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._color_buffer_out,1)
+    bind_ssbo(self._sdf_buffer_out,2)
+
+    baseInstance = 0
+    @time_gpu_begin Dependent Curve BEHIND_OPAQUE_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_behind_opaque[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Curve BEHIND_OPAQUE_PASS
+end
+
+function transparent_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._color_buffer_out,1)
+    bind_ssbo(self._light_buffer_out,2)
+    bind_ssbo(self._sdf_buffer_out,3)
+
+    baseInstance = 0
+    glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Curve TRANSPARENT_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._drawRanges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_transparent[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Curve TRANSPARENT_PASS
+end
+
+
 # ! Must have
 function destroy!(self::CurveRenderer)
-    foreach(destroy!, self._shaders)
-    destroy!(self._buffer)
+    destroy!(self._shader_predraw)
+    foreach(destroy!, self._shaders_id)
+    foreach(destroy!, self._shaders_opaque)
+    foreach(destroy!, self._shaders_behind_opaque)
+    foreach(destroy!, self._shaders_transparent)
+
+    destroy!(self._distance_buffer_in)
+    destroy!(self._color_type_buffer_in)
+    destroy!(self._position_width_buffer_in)
+    destroy!(self._position_distance_buffer_out)
+    destroy!(self._color_buffer_out)
+    destroy!(self._light_buffer_out)
+    destroy!(self._sdf_buffer_out)
 end
 
 # ! Must have
 function Plan2Observer(self::OpenGLData,plan::ParametricCurvePlan)
-    return SingleRendererTactic(self,CurveRenderer)
+    return SingleRendererTactic(self,_CURVE_RENDERER,CurveRenderer)::CurveRenderer
 end

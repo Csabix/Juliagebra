@@ -141,18 +141,19 @@ function _ParametricSurface(;
                            _uEnd = 1.0,
                            _vStart = 0.0,
                            _vEnd = 0.0,
-                           _color = (0.8,0.0,0.3)
+                           _color = (0.8,0.0,0.3),
+                           _transparent = false
                            )::ParametricSurfacePlan
-    plan = ParametricSurfacePlan(_call,_deps,_width,_height,_uStart,_uEnd,_vStart,_vEnd,_color)
+    plan = ParametricSurfacePlan(_call,_deps,_width,_height,_uStart,_uEnd,_vStart,_vEnd,_color,_transparent)
     submit!(_app,plan)
     return plan
 end
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT;transparent::Bool=false) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents,_transparent=transparent)
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transparent::Bool=false) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_transparent=transparent)
 
 # ? ---------------------------------
 # ! Toggle
@@ -239,9 +240,10 @@ function _Sphere(;
                 _y::Float64 = 0.0,
                 _z::Float64 = 0.0,
                 _r::Float64 = 1.0,
-                _col = (0.980,0.467,0.306)
+                _col = (0.980,0.467,0.306),
+                _transparent = false
                 )::SpherePlan
-    plan = SpherePlan(_call,_deps,_x,_y,_z,_r,_col)
+    plan = SpherePlan(_call,_deps,_x,_y,_z,_r,_col,_transparent)
     submit!(_app,plan)
     return plan
 end
@@ -249,23 +251,23 @@ end
 Sphere(x,y,z,r) =
 _Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 
-function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306))::SpherePlan
+function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306), transparent = false)::SpherePlan
     deps = Vector{PlanDNA}([center,p1])
     call = function (center,p1)
         radius = norm(center - p1) 
         return (center,radius)
     end
 
-    return _Sphere(_call = call, _deps = deps, _col = color)
+    return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
 end
 
-function Sphere(center::PointPlan,radius::ValueHolderPlanDNA{Float64}; color = (0.031,0.337,0.412))
+function Sphere(center::PointPlan,radius::ValueHolderPlanDNA{Float64}; color = (0.031,0.337,0.412), transparent = false)
     deps = Vector{PlanDNA}([center,radius])
     call = function (center,radius)
         return (center,radius)
     end
 
-    return _Sphere(_call = call, _deps = deps, _col = color)
+    return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
 end
 
 function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))

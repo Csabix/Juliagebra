@@ -117,7 +117,7 @@ for i in 1:100
 end
 
 for i in 1:392
-    ParametricCurve(range(0, 1, length = 2), [sphere2SurfaceIntersection]; width=50.0) do t, sphere2SurfaceIntersection
+    ParametricCurve(range(0, 1, length = 2), [sphere2SurfaceIntersection]; width=3.0) do t, sphere2SurfaceIntersection
         s::PSegment = sphere2SurfaceIntersection[i]
         return s.p0 .* t .+ (1.0 - t) .* s.p1
     end

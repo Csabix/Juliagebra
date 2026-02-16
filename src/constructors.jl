@@ -280,6 +280,29 @@ function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color =
     return _Sphere(_call = call, _deps = deps, _col = color)
 end
 
+# ? ---------------------------------
+# ! PointCloud
+# ? ---------------------------------
+
+function _PointCloud(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _col= (0.6,0.6,0.9),
+                         _width= 5.0f0
+                         )::PointCloudPlan
+    plan = PointCloudPlan(_call,_deps,_col,_width)
+    submit!(_app,plan)
+    return plan
+end
+
+PointCloud(callback::Function,dependents::DependentsT=Vector{PlanDNA}())::PointCloudPlan =
+_PointCloud(_call=callback,_deps=dependents)
+
+_point_sum(points...) = [point for point in points]
+PointCloud(points::Vector{PointPlan}) = GenericValueHolder(_point_sum,Vector{Vec3D},points)
+PointCloud(positions) = PointCloud([Point(p...) for p in positions])
+
 export Point
 export ParametricCurve
 export Segment
@@ -290,3 +313,4 @@ export Toggle
 export Slider
 export TextBox
 export Sphere
+export PointCloud

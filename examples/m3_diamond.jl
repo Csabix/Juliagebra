@@ -1,7 +1,7 @@
 using Juliagebra
 using JuliaGLM
 
-App()
+Juliagebra.Init()
 
 A = Point(0,0,1)
 

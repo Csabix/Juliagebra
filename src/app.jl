@@ -1,7 +1,5 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
 
-global implicitApp = nothing
-
 mutable struct App <: AppDNA
 
     _shrd::SharedData
@@ -34,11 +32,7 @@ mutable struct App <: AppDNA
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator)
-
-        global implicitApp
-        implicitApp = self
-        return self
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator)
     end
 end
 

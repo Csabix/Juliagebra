@@ -5,12 +5,9 @@ layout(location = 0) out vec4 outCol;
 
 uniform vec3 lightDirSideView;
 
-uniform vec4 defaultColor = vec4(1.0,0.0,1.0,1.0);
+uniform vec3 drawColor = vec3(1.0,0.0,1.0);
 
 void main(){
-
-    vec4 drawColor = defaultColor;
-
     vec2 texCoord = gl_PointCoord;
     float centerDist = distance(texCoord,vec2(0.5,0.5));
 

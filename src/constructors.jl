@@ -288,16 +288,16 @@ function _PointCloud(;
                          _app::App = implicitApp,
                          _call::Function = () -> (),
                          _deps::DependentsT = Vector{PlanDNA}(),
-                         _col= (0.6,0.6,0.9),
-                         _width= 5.0f0
+                         _col=(0.0,1.0,1.0),
+                         _width=25.0f0
                          )::PointCloudPlan
     plan = PointCloudPlan(_call,_deps,_col,_width)
     submit!(_app,plan)
     return plan
 end
 
-PointCloud(callback::Function,dependents::DependentsT=Vector{PlanDNA}())::PointCloudPlan =
-_PointCloud(_call=callback,_deps=dependents)
+PointCloud(callback::Function,dependents::DependentsT=Vector{PlanDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointCloudPlan =
+_PointCloud(_call=callback,_deps=dependents,_col=color,_width=width)
 
 _point_sum(points...) = [point for point in points]
 PointCloud(points::Vector{PointPlan}) = GenericValueHolder(_point_sum,Vector{Vec3D},points)

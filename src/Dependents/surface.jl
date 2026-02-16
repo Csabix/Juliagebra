@@ -35,6 +35,7 @@ end
 _RenderedPlan_(self::ParametricSurfacePlan)::RenderedPlan = return self._plan
 Base.string(self::ParametricSurfacePlan)::String = return "Surface"
 
+
 # ? ---------------------------------
 # ! ParametricSurfaceDependent
 # ? ---------------------------------
@@ -198,6 +199,19 @@ function onNodeEval(self::ParametricSurfaceDependent)
     runCallbacks(self)
 end
 
+# ? For Intersectable ParametricSurfaces.
+
+struct PTrianglesOfSurface <: PrimitivesOf{PTriangle}
+    _surfaceTriangleIterator::TrianglesOf
+end
+PrimitivesOf(self::ParametricSurfaceDependent) = return PTrianglesOfSurface(TrianglesOf(self._uvValues))
+
+Base.length(self::PTrianglesOfSurface) = return length(self._surfaceTriangleIterator)
+
+Base.getindex(self::PTrianglesOfSurface, index::UInt)::PTriangle = return self._surfaceTriangleIterator[index]
+
+Base.iterate(self::PTrianglesOfSurface, state = (1,1,1)) = return iterate(self._surfaceTriangleIterator,state)   
+
 # ? ---------------------------------
 # ! ParametricSurfaceRenderer
 # ? ---------------------------------
@@ -225,9 +239,9 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         
-        shader_id = ShaderProgram(sp(".\\surface\\surface_id.vert"),sp(".\\surface\\surface_id.frag"),["VP"])
-        shader_opaque = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
-        shader_transparent = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
+        shader_id = ShaderProgram(sp("./surface/surface_id.vert"),sp("./surface/surface_id.frag"),["VP"])
+        shader_opaque = ShaderProgram(sp("./surface/surface.vert"),sp("./surface/surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
+        shader_transparent = ShaderProgram(sp("./surface/surface.vert"),sp("./surface/surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
 
         new(renderer,
         shader_id,shader_opaque,shader_transparent,
@@ -255,8 +269,8 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     initMatrix(normals,width,height,Vec3FNan)
     initMatrix(colors,width,height,color)
     triangulateInto!(indexes,vertexes,layers(vertexes))
-    surface._uvValues  = FlatMatrix{layers(vertexes),Vec3F}(vertexes)
-    surface._uvNormals = FlatMatrix{layers(vertexes),Vec3F}(normals)
+    surface._uvValues  = FlatMatrix{Vec3F}(layers(vertexes),vertexes)
+    surface._uvNormals = FlatMatrix{Vec3F}(layers(vertexes),normals)
 
     onNodeEval(surface)
 

@@ -131,8 +131,8 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
     _ids::Vector{Float32}
     
     function PointRenderer(context::OpenGLData) 
-        shader_id = ShaderProgram(sp(".\\point\\point_id.vert"), sp(".\\point\\point_id.frag"),["VP"])
-        shader_opaque = ShaderProgram(sp(".\\point\\point.vert"), sp(".\\point\\point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
+        shader_id = ShaderProgram(sp("./point/point_id.vert"), sp("./point/point_id.frag"),["VP"])
+        shader_opaque = ShaderProgram(sp("./point/point.vert"), sp("./point/point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()

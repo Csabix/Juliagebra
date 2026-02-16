@@ -22,17 +22,12 @@ end
 
 const MAX_INTERSECTIONS = 1000
 
-it = Intersection(surface1, surface2, MAX_INTERSECTIONS)
+it = Intersection(surface1, surface2; maxIntersectionNum = MAX_INTERSECTIONS)
 
 for i in 1:MAX_INTERSECTIONS
-    #just a simple line segment
-    ParametricCurve(range(0.0, 1.0, 2),[it]; width=3.0) do t, iit
-        if (iit[i] !== nothing)
-            a, b = iit[i]
-            return a .* t .+ (1.0 - t) .* b
-        else
-            return (0.0, 0.0, -999.0)
-        end
+    ParametricCurve(range(0, 1, length = 2), [it]; width=3.0) do t, iit
+        s::PSegment = iit[i]
+        return s.p0 .* t .+ (1.0 - t) .* s.p1
     end
 end
 

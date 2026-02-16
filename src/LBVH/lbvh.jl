@@ -1,6 +1,6 @@
 const INVALID_CHILD_POINTER::UInt32 = 0 # 0 is the root thus it can't be a child pointer
 
-mutable struct LBVHNode{N}
+struct LBVHNode{N}
     left_child_index::UInt32
     right_child_index_or_primitive_index::UInt32 # if (left_child_index == INVALID_CHILD_POINTER) then this points to a primitive, otherwise this is points to the right child node
     aabb::AABB{N}
@@ -439,8 +439,8 @@ function CalculateBoundingBoxesBottomUp(
             left_child_node::LBVHNode{N} = lbvh_nodes[current_node.left_child_index + 1]
             right_child_node::LBVHNode{N} = lbvh_nodes[current_node.right_child_index_or_primitive_index + 1]
 
-            current_node.aabb = AABBUnion(left_child_node.aabb, right_child_node.aabb)
-
+            aabb::AABB{N} = AABBUnion(left_child_node.aabb, right_child_node.aabb)
+            lbvh_nodes[current_node_index + 1] = LBVHNode{N}(current_node.left_child_index,current_node.right_child_index_or_primitive_index,aabb)
 
             if (current_node_index == 0)
                 break
@@ -471,10 +471,15 @@ function BuildLBVH(primitive_aabbs::Vector{AABB{N}}, ::Type{MortonCodeT})::Tuple
 
     sorted_morton_codes_with_primitive_indecies::Vector{PrimitiveIndexWithMortonCode{MortonCodeT}} = GetSortedMortonCodesWithIndecies(CalculateMortonCodesForPrimitiveAABBs(primitive_aabbs, MortonCodeT))
 
+    # !
     number_of_leafs::UInt32 = UInt32(length(sorted_morton_codes_with_primitive_indecies))
+    
+    # !
     number_of_internal_nodes::UInt32 = (number_of_leafs - 1)
 
+    # !
     lbvh_nodes::Vector{LBVHNode{N}} = Vector{LBVHNode{N}}(undef, (number_of_internal_nodes + number_of_leafs))
+    
     parent_information::Vector{UInt32} = Vector{UInt32}(undef, (number_of_internal_nodes + number_of_leafs))
     visitation_information::Vector{UInt32} = Vector{UInt32}(undef, number_of_internal_nodes)
 

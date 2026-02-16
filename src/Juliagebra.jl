@@ -33,6 +33,24 @@ include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/scene.jl")
+include("Helpers/infer.jl")
+
+# ? ---------------------------------
+# ! Primitives
+# ? ---------------------------------
+
+include("Primitives/primitives.jl")
+include("Primitives/primitive_intersections.jl")
+include("Primitives/primitive_constructors.jl")
+
+# ? ---------------------------------
+# ! LBVH
+# ? ---------------------------------
+
+include("LBVH/aabb.jl")
+include("LBVH/morton_codes.jl")
+include("LBVH/lbvh.jl")
+include("LBVH/lbvh_cache.jl")
 
 ID_LOWER_BOUND = 3
 
@@ -58,6 +76,7 @@ include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
+include("Widgets/graph_viewer_window.jl")
 
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
@@ -65,7 +84,6 @@ include("Widgets/ortho_gizmo.jl")
 include("opengl_data.jl")
 
 include("imgui_data.jl")
-
 
 
 # ? ---------------------------------
@@ -77,10 +95,13 @@ include("GraphCore/dependent_graph.jl")
 include("GraphCore/plan.jl")
 include("GraphCore/dependent.jl")
 include("GraphCore/dependent_observer.jl")
+include("GraphCore/value_holder.jl")
+include("GraphCore/generic_value_holder.jl")
+include("GraphCore/source_value_holder.jl")
+include("GraphCore/unary_value_holder.jl")
 include("GraphCore/observed_dependent.jl")
 
 include("Dependents/plans.jl")
-include("Dependents/generic_dependent.jl")
 include("Dependents/dependent_renderer.jl")
 include("Dependents/rendered_dependent.jl")
 include("Dependents/gui_renderer.jl")
@@ -88,26 +109,18 @@ include("Dependents/gui_dependent.jl")
 include("Dependents/point.jl")
 include("Dependents/curve.jl")
 include("Dependents/surface.jl")
-include("Dependents/primitives.jl")
-include("Dependents/primitive_intersections.jl")
-include("Dependents/intersections.jl")
 include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
 include("Dependents/textbox.jl")
 include("Dependents/sphere.jl")
 include("Dependents/triangle_cluster.jl")
+include("Dependents/lazy_lbvh.jl")
+include("Dependents/intersections.jl")
 
+include("global_plan_optimizer.jl")
 
 include("app.jl")
 
 include("constructors.jl")
-
-# ? ---------------------------------
-# ! LBVH
-# ? ---------------------------------
-
-include("LBVH/aabb.jl")
-include("LBVH/morton_codes.jl")
-include("LBVH/lbvh.jl")
 
 end

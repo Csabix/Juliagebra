@@ -22,7 +22,7 @@ surface = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0) do u,v
     return (x,y,z)
 end
 
-it = Intersection(curve,surface,6)
+it = Intersection(curve,surface; maxIntersectionNum = 6)
 
 for i in 1:6
     Point([it]) do iit

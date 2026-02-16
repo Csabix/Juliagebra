@@ -14,6 +14,8 @@ end
 _DependentGraph_(self::DependentGraphDNA)::DependentGraph = error("Missing \"_DependentGraph_\" func for type of \"$(typeof(self))\"!")
 _DependentGraph_(self::DependentGraph)::DependentGraph = return self
 
+getNodes(self::DependentGraphDNA) = return _DependentGraph_(self)._dependentObjects
+
 # TODO: idotol valo fugges, timestep alapu osszefesulessel
 
 function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA

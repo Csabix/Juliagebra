@@ -1,24 +1,25 @@
 
-mutable struct FlatMatrix{LAYER,T}
+mutable struct FlatMatrix{T}
     _manager::FlatMatrixManager{T}
-    
-    function FlatMatrix{LAYER,T}(manager::FlatMatrixManager{T}) where {LAYER,T}
-        new(manager)
+    _layer::UInt32
+
+    function FlatMatrix{T}(layer::Int,manager::FlatMatrixManager{T}) where T
+        new(manager,UInt32(layer))
     end
 end
 
-function Base.getindex(self::FlatMatrix{LAYER,T},u,v)::T where {LAYER,T}
-    return self._manager[LAYER,u,v]
+function Base.getindex(self::FlatMatrix{T},u,v)::T where T
+    return self._manager[self._layer,u,v]
 end
 
-function Base.setindex!(self::FlatMatrix{LAYER,T},item::T,u,v) where {LAYER,T}
-    self._manager[LAYER,u,v] = item
+function Base.setindex!(self::FlatMatrix{T},item::T,u,v) where T
+    self._manager[self._layer,u,v] = item
 end
 
-Base.string(self::FlatMatrix{LAYER,T}) where {LAYER,T} = return string(self._manager,LAYER)
+Base.string(self::FlatMatrix{T}) where T = return "$(self._manager)[$(self._layer)]{$(T)}"
 
-height(self::FlatMatrix{LAYER,T}) where {LAYER,T} = return height(self._manager,LAYER)
-width(self::FlatMatrix{LAYER,T}) where {LAYER,T} = return width(self._manager,LAYER)
+height(self::FlatMatrix{T}) where T = return height(self._manager,self._layer)
+width(self::FlatMatrix{T}) where T = return width(self._manager,self._layer)
 
 struct TrianglesOf
     _vertexes::FlatMatrix
@@ -37,7 +38,7 @@ function Base.iterate(self::TrianglesOf,uvs = (1,1,1))
         a = self._vertexes[u  ,v  ]
         b = self._vertexes[u  ,v+1]
         c = self._vertexes[u+1,v  ]
-        abc = Triangle(a,b,c)
+        abc = PTriangle(a,b,c)
 
         if (u==width(self._vertexes)-1)
             if (v==height(self._vertexes)-1)
@@ -63,7 +64,7 @@ function Base.iterate(self::TrianglesOf,uvs = (1,1,1))
         a = self._vertexes[u  ,v  ]
         b = self._vertexes[u+1,v  ]
         c = self._vertexes[u+1,v-1]
-        abc = Triangle(a,b,c)
+        abc = PTriangle(a,b,c)
 
         if (u==width(self._vertexes)-1)
             if (v==height(self._vertexes))
@@ -86,7 +87,7 @@ end
 
 Base.length(self::TrianglesOf) = 2 * (width(self._vertexes) - 1) * (height(self._vertexes) - 1)
 
-function Base.getindex(self::TrianglesOf, index::UInt)::Union{Nothing, Triangle}
+function Base.getindex(self::TrianglesOf, index::UInt)::Union{Nothing, PTriangle}
     w = width(self._vertexes) - 1
     h = height(self._vertexes) - 1
     number_of_quads = w * h
@@ -105,7 +106,7 @@ function Base.getindex(self::TrianglesOf, index::UInt)::Union{Nothing, Triangle}
         b = self._vertexes[u  ,v+1]
         c = self._vertexes[u+1,v  ]
 
-        return Triangle(a,b,c)
+        return PTriangle(a,b,c)
     elseif (index <= 2 * number_of_quads)
         # ! *---3---4   u:->+ 
         # ! |  /|  /|      
@@ -120,10 +121,10 @@ function Base.getindex(self::TrianglesOf, index::UInt)::Union{Nothing, Triangle}
         b = self._vertexes[u+1,v  ]
         c = self._vertexes[u+1,v-1]
         
-        return Triangle(a,b,c)
+        return PTriangle(a,b,c)
     else
         return nothing
     end
 end
 
-const EMPTY_FlatMatrix = FlatMatrix{0,Vec3F}(FlatMatrixManager{Vec3F}())
+const EMPTY_FlatMatrix = FlatMatrix{Vec3F}(0,FlatMatrixManager{Vec3F}())

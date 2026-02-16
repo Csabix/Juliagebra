@@ -27,6 +27,7 @@ end
 
 _RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan
 
+
 # ? ---------------------------------
 # ! SphereDependent
 # ? ---------------------------------
@@ -61,7 +62,70 @@ function evalCallbackDpReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
     self._radius = cr[2]
 end
 
+function evalCallbackDpReturn(self::SphereDependent,s::PSphere)
+    self._center = s.c
+    self._radius = s.r
+end
+
 evalCallbackDpReturn(self::SphereDependent,::Nothing) = return nothing
+
+# ? For Intersectable Spheres.
+
+const SPHERE_DETAIL = 15
+
+struct PTrianglesOfSphere <: PrimitivesOf{PTriangle}
+    _sphere::SphereDependent
+end
+PrimitivesOf(self::SphereDependent) = return PTrianglesOfSphere(self)
+
+function spherePos(u,v,r,center)
+    alfa = Float64(u-1) / Float64(SPHERE_DETAIL-1)
+    beta = Float64(v-1) / Float64(SPHERE_DETAIL-1)
+
+    alfa = alfa * (pi - 0.0) + 0.0
+    beta = beta * (2*pi - 0.0) + 0.0
+
+    x = center.x + (r + 0.1) * sin(alfa) * cos(beta)
+    y = center.y + (r + 0.1) * sin(alfa) * sin(beta)
+    z = center.z + (r + 0.1) * cos(alfa)
+
+    return Vec3F(x,y,z)
+end
+
+function Base.length(::PTrianglesOfSphere) 
+    return (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1) + (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1)
+end
+
+function Base.getindex(self::PTrianglesOfSphere, index::UInt)::PTriangle 
+    center = self._sphere._center
+    r = self._sphere._radius
+    
+    index = index - 1    
+    a = div(index,(SPHERE_DETAIL-1)*(SPHERE_DETAIL-1))
+
+    if (a == 0)
+        u = div(index,SPHERE_DETAIL-1) + 1
+        v = mod(index,SPHERE_DETAIL-1) + 1
+        return PTriangle(spherePos(u,v,r,center),spherePos(u+1,v,r,center),spherePos(u+1,v+1,r,center))
+    elseif (a == 1)
+        index = index - (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1)
+        u = div(index,SPHERE_DETAIL-1) + 1
+        v = mod(index,SPHERE_DETAIL-1) + 1
+        return PTriangle(spherePos(u,v,r,center),spherePos(u,v+1,r,center),spherePos(u+1,v+1,r,center))
+    else
+        error("$(index) is invalid state!")
+    end
+end
+
+function Base.iterate(self::PTrianglesOfSphere, state = UInt(1))
+    if state > length(self)
+        return nothing
+    else
+        return (self[state],state+1)
+    end
+end
+
+export PTrianglesOfSphere
 
 # ? ---------------------------------
 # ! SphereRenderer
@@ -89,9 +153,9 @@ end
 function SphereRenderer(context::OpenGLData)
     renderer = Renderer{SphereDependent}(context)
 
-    shader_id = ShaderProgram(sp(".\\sphere\\sphere_id.vert"),sp(".\\sphere\\sphere_id.geom"),sp(".\\sphere\\sphere_id.frag"),["VP","cam"])
-    shader_opaque = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_opaque.frag"),["VP","cam","lightDirCam","lightDirSide"])
-    shader_transparent = ShaderProgram(sp(".\\sphere\\sphere.vert"),sp(".\\sphere\\sphere.geom"),sp(".\\sphere\\sphere_transparent.frag"),["VP","cam","lightDirCam","lightDirSide"])
+    shader_id = ShaderProgram(sp("./sphere/sphere_id.vert"),sp("./sphere/sphere_id.geom"),sp("./sphere/sphere_id.frag"),["VP","cam","at","ASPECT_FOV_RESOLUTION"])
+    shader_opaque = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_opaque.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
+    shader_transparent = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_transparent.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
 
     buffer_opaque = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
     buffer_transparent = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
@@ -163,6 +227,9 @@ function id_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
     activate(self._shader_id)
     setUniform!(self._shader_id,"VP",vp)
     setUniform!(self._shader_id,"cam",cam._eye)
+    setUniform!(self._shader_id,"at",cam._at)
+    setUniform!(self._shader_id,"ASPECT_FOV_RESOLUTION",
+        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
     @time_gpu_begin Dependent Sphere ID_PASS
     if !isempty(self._centers_opaque) draw(self._buffer_opaque,GL_POINTS) end
     #if !isempty(self._centers_transparent) draw(self._buffer_transparent,GL_POINTS) end
@@ -183,6 +250,9 @@ function opaque_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::
     setUniform!(self._shader_opaque,"lightDirSide",-side_light)
     setUniform!(self._shader_opaque,"VP",vp)
     setUniform!(self._shader_opaque,"cam",cam._eye)
+    setUniform!(self._shader_opaque,"at",cam._at)
+    setUniform!(self._shader_opaque,"ASPECT_FOV_RESOLUTION",
+        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
     @time_gpu_begin Dependent Sphere OPAQUE_PASS
     draw(self._buffer_opaque,GL_POINTS)
     @time_gpu_end Dependent Sphere OPAQUE_PASS
@@ -202,6 +272,9 @@ function transparent_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,s
     setUniform!(self._shader_transparent,"lightDirSide",-side_light)
     setUniform!(self._shader_transparent,"VP",vp)
     setUniform!(self._shader_transparent,"cam",cam._eye)
+    setUniform!(self._shader_transparent,"at",cam._at)
+    setUniform!(self._shader_transparent,"ASPECT_FOV_RESOLUTION",
+        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
     @time_gpu_begin Dependent Sphere TRANSPARENT_PASS
     draw(self._buffer_transparent,GL_POINTS)
     @time_gpu_end Dependent Sphere TRANSPARENT_PASS

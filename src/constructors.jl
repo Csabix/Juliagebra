@@ -1,37 +1,5 @@
 # ! All exported constructors should be defined, and exported from here.
 
-const DependentsT = Vector{T} where T <: PlanDNA
-const DEFAULT_CALLBACK = () -> (return nothing)
-
-# ? ---------------------------------
-# ! GenericDependent
-# ? ---------------------------------
-
-function _GenericDependent(;
-                _app::App = implicitApp,
-                _call::Function = () -> (return nothing),
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _startT::T
-)::GenericDependentPlan{T} where {T}
-    plan = GenericDependentPlan{T}(_call,_deps,_startT)
-    submit!(_app,plan)
-    return plan
-end
-
-GenericDependent(startT::T) where {T} = 
-_GenericDependent(_startT = startT)
-
-# ? Works, because Julia can figure out I'm just changing the syntax
-# ? and T can be inferred in _GenericDependent
-GenericDependent{T}(startT) where {T} = 
-_GenericDependent(_startT = T(startT))
-
-GenericDependent(callback::Function,startT::T,dependents::DependentsT) where {T} = 
-_GenericDependent(_call = callback, _startT = startT, _deps = dependents)
-
-GenericDependent{T}(callback::Function,startT,dependents::DependentsT) where {T} = 
-_GenericDependent(_call = callback, _startT = T(startT), _deps = dependents)
-
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
@@ -214,11 +182,11 @@ function _ParametricSurface(;
     return plan
 end
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT;transparent::Bool=false,color=(0.8,0.0,0.3)) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents,_transparent=transparent,_color=color)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT;transparent::Bool=false) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents,_transparent=transparent)
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transparent::Bool=false,color=(0.8,0.0,0.3)) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_transparent=transparent,_color=color)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transparent::Bool=false) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_transparent=transparent)
 
 # ? ---------------------------------
 # ! Toggle
@@ -313,9 +281,6 @@ function _Sphere(;
     return plan
 end
 
-Sphere() =
-_Sphere()
-
 Sphere(x,y,z,r) =
 _Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
 
@@ -329,7 +294,7 @@ function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306), tr
     return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
 end
 
-function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color = (0.031,0.337,0.412), transparent = false)
+function Sphere(center::PointPlan,radius::ValueHolderPlanDNA{Float64}; color = (0.031,0.337,0.412), transparent = false)
     deps = Vector{PlanDNA}([center,radius])
     call = function (center,radius)
         return (center,radius)
@@ -338,53 +303,11 @@ function Sphere(center::PointPlan,radius::GenericDependentPlan{Float64}; color =
     return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
 end
 
-function plane2planeIntersection(plane_n1,plane_n2,plane_p1,plane_p2)
-    
-    plane_d1 = dot(-plane_n1,plane_p1)
-    plane_d2 = dot(-plane_n2,plane_p2)
-
-    plane_n3 = cross(plane_n1,plane_n2)
-    
-    determinant = (norm(plane_n3))^2
-
-    line_p3 = Vec3D(NaN64,NaN64,NaN64)
-    if (determinant != 0.0)
-        line_p3 = (cross(plane_n3,plane_n2) * plane_d1 + cross(plane_n1,plane_n3) * plane_d2) / determinant
-    end
-
-    return (Vec3D(plane_n3),Vec3D(line_p3))
-end
-
-function line2PlaneIntersection(line_n,line_p,plane_n,plane_p)
-    t = dot(plane_p-line_p,plane_n) / dot(line_n,plane_n)
-    return line_p + t * line_n   
-end
-
-function sameDistancePlane(p1,p2)
-    plane_n = p2 - p1
-    plane_c = ((p2 - p1) / 2.0) + p1
-    return (plane_n,plane_c)
-end
-
-function sphereCenter(p1,p2,p3,p4)
-    plane_n12,plane_c12 = sameDistancePlane(p1,p2)
-    plane_n34,plane_c34 = sameDistancePlane(p3,p4)
-
-    line_n_12_34,line_p_12_34 = plane2planeIntersection(plane_n12,plane_n34,plane_c12,plane_c34)
-    
-    plane_n23,plane_c23 = sameDistancePlane(p2,p3)
-
-    c = line2PlaneIntersection(line_n_12_34,line_p_12_34,plane_n23,plane_c23)
-
-    return c
-end
-
 function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))
     deps = [p1,p2,p3,p4]
     call = function (p1,p2,p3,p4)
-        c = sphereCenter(p1,p2,p3,p4)
-        r = norm(p1 - c)
-        return (c,r)
+        s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
+        return s
     end
 
     return _Sphere(_call = call, _deps = deps, _col = color)

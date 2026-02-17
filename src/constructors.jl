@@ -115,6 +115,29 @@ function Segment(first::PointPlan,second::PointPlan;
 end
 
 # ? ---------------------------------
+# ! SegmentSequence
+# ? ---------------------------------
+
+function _SegmentSequence(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _break_every = 2,
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _col= (0.6,0.6,0.9),
+                         _type= CURVE_SOLID,
+                         _reversed= 0,
+                         _width= 5.0f0
+                         )::SegmentSequencePlan
+    plan = SegmentSequencePlan(_call,_deps,_col,_break_every,_type,_reversed,_width)
+    submit!(_app,plan)
+    return plan
+end
+
+SegmentSequence(callback::Function,break_every,dependents::DependentsT=Vector{PlanDNA}();
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
+_SegmentSequence(_call=callback,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
+
+# ? ---------------------------------
 # ! Mesh
 # ? ---------------------------------
 
@@ -306,6 +329,7 @@ PointCloud(positions) = PointCloud([Point(p...) for p in positions])
 export Point
 export ParametricCurve
 export Segment
+export SegmentSequence
 export Intersection
 export Mesh
 export ParametricSurface

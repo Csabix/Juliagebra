@@ -106,6 +106,7 @@ include("Dependents/gui_dependent.jl")
 include("Dependents/point.jl")
 include("Dependents/point_cloud.jl")
 include("Dependents/curve.jl")
+include("Dependents/segment_sequence.jl") # after curve include!
 include("Dependents/surface.jl")
 include("Dependents/toggle.jl")
 include("Dependents/slider.jl")

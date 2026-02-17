@@ -3,14 +3,21 @@
 # ! AirLockStates
 # ? ---------------------------------
 
+abstract type AirLockStatess end
 abstract type AirLockStates end
 
-struct BeforeExitOpens <: AirLockStates end
-struct AfterExitOpens <: AirLockStates end
-struct BeforeEntranceOpens <: AirLockStates end
-struct AfterEntranceOpens <: AirLockStates end
-struct ThreadWorkingInside <: AirLockStates end
-struct NoThreadsAtEntrance <: AirLockStates end
+
+struct BeforeExitOpens      <: AirLockStatess end
+struct AfterExitOpens       <: AirLockStatess end
+struct BeforeEntranceOpens  <: AirLockStatess end
+struct AfterEntranceOpens   <: AirLockStatess end
+struct ThreadWorkingInside  <: AirLockStatess end
+struct NoThreadsAtEntrance  <: AirLockStatess end
+
+struct AtExit <: AirLockStates end
+struct AtEntrance <: AirLockStates end
+struct ThreadInside <: AirLockStates end
+struct NoThreadsWaiting <: AirLockStates end
 
 # ? ---------------------------------
 # ! AirLock
@@ -110,3 +117,27 @@ function outsideAirLockProtocol(callback::Function, self::AirLock)
         callback(NoThreadsAtEntrance())
     end
 end
+
+function getAirLockState(self::AirLock)::AirLockStates
+    # ? check if someone is inside the AirLock.
+    if (getHasThreadInside(self))
+        # ? check if someone is at the exit of the AirLock.
+        if (checkExit(self))
+            return AtExit()
+        else
+            return ThreadInside()
+        end
+    # ? check if someone is at the entrance of the AirLock.
+    elseif (checkEntrance(self))
+        return AtEntrance()
+    else
+        return NoThreadsWaiting()
+    end
+end
+
+outsideAirLockProtocol(self::AirLock,::AtExit) = openExit(self)
+outsideAirLockProtocol(self::AirLock,::ThreadInside) = return nothing
+outsideAirLockProtocol(self::AirLock,::AtEntrance) = openEntrance(self)
+outsideAirLockProtocol(self::AirLock,::NoThreadsWaiting) = return nothing
+
+

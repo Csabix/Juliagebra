@@ -116,6 +116,8 @@ include("Dependents/intersections.jl")
 
 include("global_plan_optimizer.jl")
 
+include("synchronizer.jl")
+
 include("app.jl")
 
 include("constructors.jl")

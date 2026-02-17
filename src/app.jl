@@ -1,5 +1,9 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
 
+# ? ---------------------------------
+# ! App
+# ? ---------------------------------
+
 mutable struct App <: AppDNA
 
     _shrd::SharedData
@@ -13,6 +17,7 @@ mutable struct App <: AppDNA
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
+    _synchronizer::Synchronizer
 
     function App(
         name::String="Juliagebra",
@@ -32,7 +37,8 @@ mutable struct App <: AppDNA
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator)
+        synchronizer = Synchronizer()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator,synchronizer)
     end
 end
 
@@ -140,6 +146,13 @@ function handlePlans!(self::App)
     end
 end
 
+function build!(self::App,::Type{T}) where {T<:DependentDNA}
+    al = getCPUConstructorThreadAirLock(self._synchronizer)
+    insideAirLockProtocol(al) do 
+        println("Constructing: \"$(T)\"...")
+        # TODO: Continue here with construction stuff.
+    end
+end
 
 function build!(self::App, plan::PlanDNA) 
    dependent = buildFromPlan!(plan,self._graph)

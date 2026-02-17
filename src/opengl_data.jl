@@ -2,7 +2,8 @@ const _SPEHERE_RENDERER::UInt = 1
 const _SURFACE_RENDERER::UInt = 2
 const _CURVE_RENDERER::UInt   = 3
 const _POINT_RENDERER::UInt   = 4
-const _RENDERER_COUNT::UInt   = 4
+const _POINT_CLOUD_RENDERER::UInt = 5
+const _RENDERER_COUNT::UInt   = 5
 
 mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData

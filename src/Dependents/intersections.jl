@@ -157,7 +157,8 @@ end
 
 function InferPrimitivesT(geometry::PlanDNA)
     DependentT::Type = InferSingletonDefinitionFor(geometry,Plan2Dependent,DependentDNA)
-    PrimitivesOfT::Type = InferSingletonDefinitionFor(DependentT,PrimitivesOf,PrimitivesOf)
+    CallbackDpEntryT::Type = InferSingletonDefinitionFor(DependentT,evalCallbackDpEntry,Any)
+    PrimitivesOfT::Type = InferSingletonDefinitionFor(CallbackDpEntryT,PrimitivesOf,PrimitivesOf)
     return getPrimitivesT(PrimitivesOfT)
 end
 

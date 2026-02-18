@@ -1,5 +1,17 @@
 # ! All exported constructors should be defined, and exported from here.
 
+function _deps_collect(deps...)
+    result = Vector{Vec3D}()
+    for dep in deps
+        if dep isa Vector
+            append!(result,dep)
+        else
+            push!(result,dep)
+        end
+    end
+    return result
+end
+
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
@@ -133,9 +145,13 @@ function _SegmentSequence(;
     return plan
 end
 
-SegmentSequence(callback::Function,break_every,dependents::DependentsT=Vector{PlanDNA}();
+SegmentSequence(callback::Function,dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
 _SegmentSequence(_call=callback,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
+
+SegmentSequence(dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
+_SegmentSequence(_call=_deps_collect,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
 # ? ---------------------------------
 # ! Mesh
@@ -322,17 +338,6 @@ end
 PointCloud(callback::Function,dependents::DependentsT=Vector{PlanDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointCloudPlan =
 _PointCloud(_call=callback,_deps=dependents,_col=color,_width=width)
 
-function _deps_collect(deps...)
-    result = Vector{Vec3D}()
-    for dep in deps
-        if dep isa Vector
-            append!(result,dep)
-        else
-            push!(result,dep)
-        end
-    end
-    return result
-end
 PointCloud(dependents::DependentsT) = GenericValueHolder(_deps_collect,Vector{Vec3D},dependents)
 PointCloud(positions) = PointCloud([Point(p...) for p in positions])
 

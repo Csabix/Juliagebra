@@ -121,31 +121,30 @@ evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Tuple})  = se
 evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = insert_nans(self,[Vec3F(coord...) for coord in coords])
 evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = [Vec3FNan,Vec3FNan]
 
-# TODO current intersection cant handle nan values
+# TODO current intersection cant handle nan values, aka it doesnt work
+struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
+    _segseq::SegmentSequenceDependent
+end
+PrimitivesOf(self::SegmentSequenceDependent) = return PSegmentsOfSegmentSequence(self)
 
-#struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
-#    _segseq::SegmentSequenceDependent
-#end
-#PrimitivesOf(self::SegmentSequenceDependent) = return PSegmentsOfSegmentSequence(self)
-#
-## Could be more fine-grained
-#Base.length(self::PSegmentsOfSegmentSequence) = (max(length(self._segseq._values) - 1,0))
-#
-#function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::Union{Nothing, PSegment}
-#    if ((1 <= index) && (index <= length(self)))
-#        return PSegment(self._segseq._values[index], self._segseq._values[index + 1])
-#    else
-#        return nothing 
-#    end
-#end
-#
-#function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
-#    if ((1 <= index) && (index <= length(self)))
-#        return (self[index], (index + 1))
-#    else
-#        return nothing
-#    end
-#end
+# Could be more fine-grained
+Base.length(self::PSegmentsOfSegmentSequence) = (max(length(self._segseq._values) - 1,0))
+
+function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::Union{Nothing, PSegment}
+    if ((1 <= index) && (index <= length(self)))
+        return PSegment(self._segseq._values[index], self._segseq._values[index + 1])
+    else
+        return nothing 
+    end
+end
+
+function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
+    if ((1 <= index) && (index <= length(self)))
+        return (self[index], (index + 1))
+    else
+        return nothing
+    end
+end
 
 # ? ---------------------------------
 # ! SegmentSequenceRenderer

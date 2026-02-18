@@ -148,10 +148,10 @@ end
 =#
 
 # ? ---------------------------------
-# ! CurveRenderer
+# ! SegmentSequenceRenderer
 # ? ---------------------------------
 
-mutable struct SegmentSequenceRenderer <: RendererDNA{ParametricCurveDependent}
+mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
 
     _shader_predraw::ShaderProgram
@@ -161,6 +161,7 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{ParametricCurveDependent}
     _shaders_transparent::Vector{ShaderProgram}
 
     _update_me::Vector{Int32}
+    _draw_ranges::Vector{Tuple{Int,Int}}
 
     _coords::Vector{Vector{Vec3F}}
     _widths::Vector{Float32}
@@ -202,7 +203,7 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{ParametricCurveDependent}
         
         new(renderer,
             shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
-            Vector{Int32}(),
+            Vector{Int32}(),Vector{Tuple{Int, Int}}(undef, _CURVE_COUNT),
             coords,widths,colors,types,
             Vector{StaticBuffer}(),Vector{StaticBuffer}(),Vector{StaticBuffer}(),
             StaticBuffer(),StaticBuffer(),StaticBuffer(),StaticBuffer())
@@ -229,7 +230,7 @@ function addedAll!(self::SegmentSequenceRenderer)
     upload_colors = _preallocated_vec.(Float32, length.(self._coords))
     upload_position_widths = _preallocated_vec.(Vec4F, length.(self._coords))
 
-    Threads.@threads :greedy for i in 1:length(self._coords)
+    Threads.@threads for i in 1:length(self._coords)
         len = length(self._coords[i])
         # Color
         colors = upload_colors[i]
@@ -280,7 +281,7 @@ function syncAll!(self::SegmentSequenceRenderer)
     upload_colors = Vector{Union{Nothing,Vector{Float32}}}(nothing, length(self._update_me))
     upload_position_widths = Vector{Union{Nothing,Vector{Vec4F}}}(nothing, length(self._update_me))
 
-    Threads.@threads :greedy for i in 1:length(self._update_me)
+    Threads.@threads for i in 1:length(self._update_me)
         index = abs(self._update_me[i])
         coords = self._coords[index]
         len = length(coords)
@@ -334,10 +335,10 @@ function syncAll!(self::SegmentSequenceRenderer)
     empty!(self._update_me)
 end
 
-function _calc_distances!(self::SegmentSequenceRenderer,vp::Mat4,wh::Vec2F)
+@inbounds function _calc_distances!(self::SegmentSequenceRenderer,vp::Mat4,wh::Vec2F)
     @time_cpu_begin Dependent Segmnet_Sequence Distances
     upload_distances = [Vector{Float32}(undef,length(coords)) for coords in self._coords]
-    Threads.@threads :greedy for index in 1:length(self._coords)
+    Threads.@threads for index in 1:length(self._coords)
         coords = self._coords[index]
         distances = upload_distances[index]
         distance_sum = 0.0f0
@@ -390,7 +391,7 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
     bind_ssbo(self._sdf_buffer_out,6)
 
     offset = UInt32(0)
-    @time_gpu_begin Dependent Curve PRE_DRAW_PASS
+    @time_gpu_begin Dependent Segmnet_Sequence PRE_DRAW_PASS
     for i in 1:_CURVE_COUNT
         for j in 1:length(self._coords)
             if self._types[j] != i continue end
@@ -402,25 +403,41 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
             offset += UInt32(length(self._coords[j]))
         end
     end
-    @time_gpu_end Dependent Curve PRE_DRAW_PASS
+    @time_gpu_end Dependent Segmnet_Sequence PRE_DRAW_PASS
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+
+    counts = zeros(Int, _CURVE_COUNT)
+    for i in 1:length(self._coords)
+        counts[self._types[i]] += length(self._coords[i])
+    end
+
+    current_idx = 1
+    for i in 1:_CURVE_COUNT
+        len = counts[i]
+        if len > 0
+            self._draw_ranges[i] = (current_idx, current_idx + len - 1)
+        else
+            self._draw_ranges[i] = (typemax(Int),typemin(Int))
+        end
+        current_idx += len
+    end
 end
-# TODO
-#function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-#    bind_ssbo(self._position_distance_buffer_out,0)
-#    bind_ssbo(self._sdf_buffer_out,1)
-#
-#    baseInstance = 0s
-#    @time_gpu_begin Dependent Curve ID_PASS
-#    for type in 1:_CURVE_COUNT
-#        (first,last) = self._drawRanges[type]
-#        if first == typemax(Int) continue end
-#        activate(self._shaders_id[type])
-#        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-#        baseInstance += last-first
-#    end
-#    @time_gpu_end Dependent Curve ID_PASS
-#end
+
+function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._sdf_buffer_out,1)
+
+    baseInstance = 0
+    @time_gpu_begin Dependent Segmnet_Sequence ID_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._draw_ranges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_id[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Segmnet_Sequence ID_PASS
+end
 
 function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     bind_ssbo(self._position_distance_buffer_out,0)
@@ -428,84 +445,75 @@ function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Came
     bind_ssbo(self._light_buffer_out,2)
     bind_ssbo(self._sdf_buffer_out,3)
 
-    ###
-    counts = zeros(Int, _CURVE_COUNT)
-    for i in 1:length(self._coords)
-        counts[self._types[i]] += length(self._coords[i])
-    end
-
-    ranges = Vector{Tuple{Int, Int}}(undef, _CURVE_COUNT)
-    current_idx = 1
-    
-    for i in 1:_CURVE_COUNT
-        len = counts[i]
-        if len > 0
-            ranges[i] = (current_idx, current_idx + len - 1)
-        else
-            ranges[i] = (typemax(Int),typemin(Int))
-        end
-        current_idx += len
-    end
-    ###
-
     baseInstance = 0
     glEnable(GL_BLEND)
-    @time_gpu_begin Dependent Curve OPAQUE_PASS
+    @time_gpu_begin Dependent Segmnet_Sequence OPAQUE_PASS
     for type in 1:_CURVE_COUNT
-        (first,last) = ranges[type]
+        (first,last) = self._draw_ranges[type]
         if first == typemax(Int) continue end
         activate(self._shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
         baseInstance += last-first
     end
-    @time_gpu_end Dependent Curve OPAQUE_PASS
+    @time_gpu_end Dependent Segmnet_Sequence OPAQUE_PASS
     glDisable(GL_BLEND)
 end
 
 is_occluder(self::SegmentSequenceRenderer)::Bool = false
-# TODO
-#function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-#    bind_ssbo(self._position_distance_buffer_out,0)
-#    bind_ssbo(self._color_buffer_out,1)
-#    bind_ssbo(self._sdf_buffer_out,2)
-#
-#    baseInstance = 0
-#    @time_gpu_begin Dependent Curve BEHIND_OPAQUE_PASS
-#    for type in 1:_CURVE_COUNT
-#        (first,last) = self._drawRanges[type]
-#        if first == typemax(Int) continue end
-#        activate(self._shaders_behind_opaque[type])
-#        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-#        baseInstance += last-first
-#    end
-#    @time_gpu_end Dependent Curve BEHIND_OPAQUE_PASS
-#end
-# TODO
-#function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-#    bind_ssbo(self._position_distance_buffer_out,0)
-#    bind_ssbo(self._color_buffer_out,1)
-#    bind_ssbo(self._light_buffer_out,2)
-#    bind_ssbo(self._sdf_buffer_out,3)
-#
-#    baseInstance = 0
-#    glEnable(GL_BLEND)
-#    @time_gpu_begin Dependent Curve TRANSPARENT_PASS
-#    for type in 1:_CURVE_COUNT
-#        (first,last) = self._drawRanges[type]
-#        if first == typemax(Int) continue end
-#        activate(self._shaders_transparent[type])
-#        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-#        baseInstance += last-first
-#    end
-#    @time_gpu_end Dependent Curve TRANSPARENT_PASS
-#end
 
+function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._color_buffer_out,1)
+    bind_ssbo(self._sdf_buffer_out,2)
 
-# TODO
-function destroy!(self::SegmentSequenceRenderer)
+    baseInstance = 0
+    @time_gpu_begin Dependent Segmnet_Sequence BEHIND_OPAQUE_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._draw_ranges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_behind_opaque[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Segmnet_Sequence BEHIND_OPAQUE_PASS
 end
 
-# TODO
+function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    bind_ssbo(self._position_distance_buffer_out,0)
+    bind_ssbo(self._color_buffer_out,1)
+    bind_ssbo(self._light_buffer_out,2)
+    bind_ssbo(self._sdf_buffer_out,3)
+
+    baseInstance = 0
+    glEnable(GL_BLEND)
+    @time_gpu_begin Dependent Segmnet_Sequence TRANSPARENT_PASS
+    for type in 1:_CURVE_COUNT
+        (first,last) = self._draw_ranges[type]
+        if first == typemax(Int) continue end
+        activate(self._shaders_transparent[type])
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
+        baseInstance += last-first
+    end
+    @time_gpu_end Dependent Segmnet_Sequence TRANSPARENT_PASS
+end
+
+function destroy!(self::SegmentSequenceRenderer)
+    destroy!(self._shader_predraw)
+    destroy!.(self._shaders_id)
+    destroy!.(self._shaders_opaque)
+    destroy!.(self._shaders_behind_opaque)
+    destroy!.(self._shaders_transparent)
+
+    destroy!.(self._distance_buffers_in)
+    destroy!.(self._color_type_buffers_in)
+    destroy!.(self._position_width_buffers_in)
+
+    destroy!(self._position_distance_buffer_out)
+    destroy!(self._color_buffer_out)
+    destroy!(self._light_buffer_out)
+    destroy!(self._sdf_buffer_out)
+end
+
 function Plan2Observer(self::OpenGLData,plan::SegmentSequencePlan)
     return SingleRendererTactic(self,_SEGMENT_SEQUENCE_RENDERER,SegmentSequenceRenderer)::SegmentSequenceRenderer
 end

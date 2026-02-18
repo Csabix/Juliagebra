@@ -300,6 +300,7 @@ function syncAll!(self::SegmentSequenceRenderer)
             upload_colors[i] = colors
             packed_colors = self._colors[index]
             current_color = 1
+            color_count = length(packed_colors)
             push!(colors, 0x0000000)
             for _ in 1:(len-2)
                 push!(colors, packed_colors[current_color])
@@ -314,9 +315,9 @@ function syncAll!(self::SegmentSequenceRenderer)
         position_widths = upload_position_widths[i]
         if self._update_me[i] < 0
             # Distance
-            self._distance_buffer_in[index] = create(self._distance_buffer_in[index],length(position_widths)*sizeof(GLfloat),GL_DYNAMIC_STORAGE_BIT)
+            self._distance_buffers_in[index] = create(self._distance_buffers_in[index],length(position_widths)*sizeof(GLfloat),GL_DYNAMIC_STORAGE_BIT)
             # Color
-            self._color_type_buffer_in[index] = create(self._color_type_buffer_in[index],upload_colors[i],UInt32(0))
+            self._color_type_buffers_in[index] = create(self._color_type_buffers_in[index],upload_colors[i],UInt32(0))
             # Position Width
             self._position_width_buffers_in[index] = create(self._position_width_buffers_in[index],position_widths,GL_DYNAMIC_STORAGE_BIT)
         else

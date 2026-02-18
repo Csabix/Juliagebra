@@ -113,6 +113,9 @@ include("Dependents/textbox.jl")
 include("Dependents/sphere.jl")
 include("Dependents/lazy_lbvh.jl")
 include("Dependents/intersections.jl")
+include("Dependents/segment.jl")
+include("Dependents/triangle.jl")
+include("Dependents/tetrahedra.jl")
 
 include("global_plan_optimizer.jl")
 

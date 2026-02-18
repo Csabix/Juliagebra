@@ -364,7 +364,7 @@ end
             b2 = b2 .* wh
 
             distances[i] = distance_sum
-            distance_sum += norm(a2 - b2)
+            distance_sum = !isnan(norm(a2 - b2)) ? distance_sum + norm(a2 - b2) : 0
         end
         distances[length(coords)-1] = distance_sum
     end

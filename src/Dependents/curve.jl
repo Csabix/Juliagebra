@@ -350,7 +350,7 @@ function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
             b2 = b2 .* wh
 
             self._distances[i] = distance_sum
-            distance_sum += norm(a2 - b2)
+            distance_sum = !isnan(norm(a2 - b2)) ? distance_sum + norm(a2 - b2) : 0
         end
         self._distances[last] = distance_sum
     end

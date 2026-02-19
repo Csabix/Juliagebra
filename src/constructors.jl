@@ -1,33 +1,6 @@
 # ! All exported constructors should be defined, and exported from here.
 
-# ? ---------------------------------
-# ! Point
-# ? ---------------------------------
-
-function _Point(;
-                _app::App = implicitApp,
-                _call::Function = DEFAULT_CALLBACK,
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _x = 0,
-                _y = 0,
-                _z = 0,
-                )::PointPlan
-    
-    if (_call === DEFAULT_CALLBACK)
-        _call = () -> (return Vec3D(_x,_y,_z))
-    end
-                
-    plan = PointPlan(_call,_deps,_x,_y,_z)
-    submit!(_app,plan)
-    return plan
-end
-
-Point(x::Real,y::Real,z::Real) = 
-_Point(_x=x,_y=y,_z=z)
-
-Point(callback::Function,dependents::DependentsT) = 
-_Point(_call=callback,_deps=dependents)
-
+struct PointPlan end
 
 # ? ---------------------------------
 # ! ParametricCurve

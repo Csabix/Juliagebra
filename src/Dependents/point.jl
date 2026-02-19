@@ -1,50 +1,15 @@
-# ? This file contains the code of the Point Dependable.
-# ? It is a very good starting point to understand how one can create
-# ? a Dependent, which is Rendered.
-
-# ? ---------------------------------
-# ! PointPlan
-# ? ---------------------------------
-
-# ? Firstly, for creating a Dependent, we have to design a Plan for it.
-# ? The main purpose of a Plan is, to have an objects, which is in the memory space, of the
-# ? user's script.
-# ? Also, the data, which is required for constructing a dependent should go here.
-# ? A Plan for a Rendered Dependentent must inherit from RenderedPlanDNA.
-mutable struct PointPlan <: RenderedPlanDNA
-    _plan::RenderedPlan
-    
-    _x::Float64
-    _y::Float64
-    _z::Float64
-    
-    function PointPlan(callback::Function,plans::Vector{T},x,y,z) where {T<:PlanDNA}
-        new(RenderedPlan(callback,plans),
-            x,y,z)
-    end
-end
-
-# ? To complete the DNA inheritance, we need to define the acces for the compositional RenderedPlan struct in
-# ? the "_RenderedPlan_" function.
-_RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
-Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._dependent))"
 
 # ? ---------------------------------
 # ! PointDependent
 # ? ---------------------------------
 
-# ? After we've defined a Plan, we need the Dependent itself.
-# ? Since it's a rendered dependent, it should inherit from RenderedDependentDNA.
-mutable struct PointDependent <:RenderedDependentDNA
+mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D 
 
-    function PointDependent(plan::PointPlan)
+    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},xyz::Vec3D)
         a = RenderedDependent(plan)
-        x = plan._x
-        y = plan._y
-        z = plan._z
-        coord = Vec3D(x,y,z)
+        coord = xyz
         new(a,coord)
     end
 end
@@ -54,13 +19,6 @@ getY(self::PointDependent) = return self._coord.y
 getZ(self::PointDependent) = return self._coord.z
 getCoord(self::PointDependent) = return self._coord
 
-# ? Every Dependent needs a "Plan2Dependent" function, which connects the above defined Dependent to the
-# ? Plan We've defined at the beggining of the file. The function must be able to construct a Dependent from a Plan.
-# ! Must have
-function Plan2Dependent(plan::PointPlan)::PointDependent
-    return PointDependent(plan)
-end
-
 _RenderedDependent_(self::PointDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
 
@@ -69,51 +27,17 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     evalGraph(self)
 end
 
-# ? Below are some fancy getter functions, enabling the "[:xyz]" syntax and so on.
 
-getPointField(self::PointDependent,fieldVal) = error("Unrecognized Symbol for Point's field!")
-
-getPointField(self::PointDependent,fieldVal::Val{:x}) = return self._coord.x
-getPointField(self::PointDependent,fieldVal::Val{:y}) = return self._coord.y
-getPointField(self::PointDependent,fieldVal::Val{:z}) = return self._coord.z
-
-getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return self._xyz
-
-Base.getindex(self::PointDependent,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
-
-function Base.getindex(self::PointDependent,fieldSymbols...)
-    
-    fieldValues = []
-
-    for fieldSymbol in fieldSymbols
-        push!(fieldValues,self[fieldSymbol])
-    end
-
-    return fieldValues
-end
-
-# ? Now we need to define, how the Dependent should act, when everything it depends on changes.
-# ? Note that for every Dependent, the "onNodeEval" only gets called once and in a way, where everything
-# ? it depends on is up-to date.
-# ? Since Point is a Dependent, for it to be able to depend on other objects, we have to define
-# ? what will it do, when it should be evaluated in the graph, that's what
-# ? "onNodeEval" does.
-# ? evalCallbackDp is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
-# ! Must have
 onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
 evalCallbackDpEntry(self::PointDependent)::Vec3D = self._coord
 
-# ? if "evalCallbackDpReturn" is defined for input types, then the returned value of "evalCallback" will be sipatched into this
-# ? function, as the name suggests.
 evalCallbackDpReturn(self::PointDependent,value) = self._coord = Vec3D(value)
 evalCallbackDpReturn(self::PointDependent,value::Tuple) = self._coord = Vec3D(value...)
 evalCallbackDpReturn(self::PointDependent,value::Vector) = self._coord = Vec3D(value...)
 evalCallbackDpReturn(self::PointDependent,value::Vec3F) = self._coord = Vec3D(value)
 evalCallbackDpReturn(self::PointDependent,value::Vec3D) = self._coord = value
 evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
-
-# ? Note that fancier callback evaluation can be seen in other Dependents than Point, that is why this system is needed.
 
 # ? ---------------------------------
 # ! PointRenderer
@@ -241,9 +165,39 @@ end
 # ? "SingleRendererTactic" basically allows only 1 Renderer to manage every type of Dependent
 # ? constructed from the incoming Plan. 
 # ! Must have
-function Plan2Observer(self::OpenGLData,plan::PointPlan)
+function Plan2Observer(self::OpenGLData,::PointDependent)
     return SingleRendererTactic(self,_POINT_RENDERER,PointRenderer)::PointRenderer
 end
 
 # ? Of course, in the case of renderers using views passed to Dependents is a very fast way to handee things,
 # ? for that, see examples in the "curve.jl" and "surface.jl" files.
+
+# ? ---------------------------------
+# ! Point
+# ? ---------------------------------
+
+function _Point(;
+                _app::AppDNA = implicitApp,
+                _call::Function = DEFAULT_CALLBACK,
+                _deps::DependentsT = Vector{PlanDNA}(),
+                _x = 0,
+                _y = 0,
+                _z = 0,
+                )::PointDependent
+    
+    if (_call === DEFAULT_CALLBACK)
+        _call = () -> (return Vec3D(_x,_y,_z))
+    end
+                
+    plan = PointPlan(_call,_deps,_x,_y,_z)
+    submit!(_app,plan)
+    return plan
+end
+
+function Point(x::Real,y::Real,z::Real)
+    println("Here1")
+    return build!(PointDependent; data=Tuple([Vec3D(x,y,z)]))
+end
+
+Point(callback::Function,dependents::Vector) = 
+build!(PointDependent; callback=callback, dependents=dependents, data=Tuple([Vec3DNan]))

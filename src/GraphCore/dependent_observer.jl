@@ -21,7 +21,7 @@ function add!!(collector::ObserverDNA,collected::ObservedDNA)
     observed._observer = collector
     observed._observerID = length(observer._observedItems)
 
-    added!(collector,collected)
+    # ! added!(collector,collected)
 
     push!(getChain(collected)._set,collector)
 end

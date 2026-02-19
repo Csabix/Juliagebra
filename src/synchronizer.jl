@@ -19,7 +19,7 @@ mutable struct Synchronizer
     _ConstructorAirLock::AirLock
     
     function Synchronizer()
-        appState = Viewing()
+        appState = Constructing()
         ConstructorAirLock = AirLock()
         new(appState,ConstructorAirLock)
     end
@@ -27,24 +27,27 @@ end
 
 getState(self::Synchronizer)::SynchronizerState = return self._appState
 
-function decideState(self::Synchronizer)
+function decideState(app::AppDNA)::SynchronizerState
+    self = getSynchronizer(app)
+    
     ConstructorState = getAirLockState(self._ConstructorAirLock)
     outsideAirLockProtocol(self._ConstructorAirLock,ConstructorState)
     ConstructorStateDecide(self,ConstructorState)
+    return self._appState
 end
 
 function ConstructorStateDecide(self::Synchronizer,::AtExit)
-    self._appState = Adding
+    self._appState = Adding()
 end
 
 function ConstructorStateDecide(self::Synchronizer,::AtEntrance)
-    self._appState = Constructing
+    self._appState = Constructing()
 end
 
 function ConstructorStateDecide(self::Synchronizer,::ThreadInside)
-    self._appState = Constructing
+    self._appState = Constructing()
 end
 
-function ConstructorStateDecide(self::Synchronizer,::NoThreadsAtEntrance)
-    self._appState = Viewing
+function ConstructorStateDecide(self::Synchronizer,::NoThreadsWaiting)
+    self._appState = Viewing()
 end

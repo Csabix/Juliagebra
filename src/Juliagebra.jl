@@ -79,10 +79,11 @@ include("Widgets/graph_viewer_window.jl")
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
+include("global_plan_optimizer.jl")
+include("synchronizer.jl")
+include("builder.jl")
 include("opengl_data.jl")
-
 include("imgui_data.jl")
-
 
 # ? ---------------------------------
 # ! Dependents
@@ -114,9 +115,7 @@ include("Dependents/sphere.jl")
 include("Dependents/lazy_lbvh.jl")
 include("Dependents/intersections.jl")
 
-include("global_plan_optimizer.jl")
 
-include("synchronizer.jl")
 
 include("app.jl")
 

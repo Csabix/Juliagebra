@@ -69,12 +69,16 @@ end
     return io.WantCaptureKeyboard
 end
 
-function update!(self::ImGuiData)
+function update!(self::ImGuiData,state::SynchronizerState)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
     
+    CImGui.Begin("STATE")
+    CImGui.Text("$(typeof(state))")
+    CImGui.End()
+
     for widget in self._widgets
         render(widget)
     end

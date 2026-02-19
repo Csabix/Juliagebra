@@ -18,6 +18,7 @@ mutable struct App <: AppDNA
     _cam::Camera
     _manipulator::CameraManipulator
     _synchronizer::Synchronizer
+    _builder::Builder
 
     function App(
         name::String="Juliagebra",
@@ -31,22 +32,26 @@ mutable struct App <: AppDNA
         imgui = nothing
         windowCreated = false
         graph = DependentGraph()
-        plans = Queue{PlanDNA}()
+        plans = Queue{PlanDNA}() # ! Remove???
         planOptimizer = GlobalPlanOptimizer()
         peripherals = Peripherals()
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
         synchronizer = Synchronizer()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator,synchronizer)
+        builder = Builder()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator,synchronizer,builder)
     end
 end
 
 getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
+getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
 getPlanQueue(self::App) = return self._plans
+getSynchronizer(self::App) = return self._synchronizer
+getBuilder(self::App) = return self._builder
 
 function submit!(self::AppDNA,plan::PlanDNA)
     enqueue!(getPlanQueue(self),plan)    
@@ -146,7 +151,8 @@ function handlePlans!(self::App)
     end
 end
 
-function build!(self::App,::Type{T}) where {T<:DependentDNA}
+function build!(::Type{T},data::Tuple,
+    callback::Function,dependents::DependentsT,) where {T<:DependentDNA}
     al = getCPUConstructorThreadAirLock(self._synchronizer)
     insideAirLockProtocol(al) do 
         println("Constructing: \"$(T)\"...")
@@ -236,12 +242,16 @@ function play!(self::App)
         handlePlans!(self)
         updateCam!(self)
         
-        update!(self._opengl,self._cam)
-        update!(self._imgui)
-        update!(self._shrd)
-        updateGizmo!(self)
-       
+        state = decideState(self)
         
+        update!(self._opengl,self._cam)
+        update!(self._imgui,state)
+        update!(self._shrd)
+
+        if (state == Viewing())
+            updateGizmo!(self)
+        end
+
         GLFW.SwapBuffers(self._glfw._window)
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)

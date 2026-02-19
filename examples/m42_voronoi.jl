@@ -16,16 +16,13 @@ triangulation = GenericValueHolder(Any,[movable_point_cloud]) do coords
 end
 voro = GenericValueHolder(voronoi,Any,[triangulation])
 
-SegmentSequence([movable_point_cloud,triangulation];color=(0,0,1),width=3.0) do coords, tri
+s1 = SegmentSequence([movable_point_cloud,triangulation];color=(0,0,1),width=3.0) do coords, tri
     real_edges = (e for e in each_edge(tri) if all(v > 0 for v in e))
     return [coords[index] for index in Iterators.flatten(real_edges)]
 end
 
-voro_points = PointCloud([voro];width=10.0,color=(1,1,0)) do voro
-    return [(x,y,0.1) for (x,y) = voro.polygon_points]
-end
-
-SegmentSequence([voro_points,voro];color=(0,0,0)) do coords, voro
+s2 = SegmentSequence([voro];color=(0,0,0)) do voro
+    coords = [vec3(x,y,0.1) for (x,y) = voro.polygon_points]
     edges = reduce(vcat, [
         [x, y] for vec in values(voro.polygons) 
         for (x, y) in zip(vec, @view vec[2:end]) 
@@ -35,5 +32,7 @@ SegmentSequence([voro_points,voro];color=(0,0,0)) do coords, voro
     real_edges = (e for e in edges if all(v > 0 for v in e))
     return [coords[index] for index in Iterators.flatten(real_edges)]
 end
+
+PointCloud(_deps_collect,[Intersection(s1,s2;maxIntersectionNum=300)])
 
 play!()

@@ -1,13 +1,20 @@
 # ! All exported constructors should be defined, and exported from here.
 
+_deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
+_deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
+function _deps_collect_add!(vec::Vector{Vec3D},intersectons::IntersectionCalculatorDependent)
+    i = 1
+    while true
+        v = intersectons[i]
+        if isnothing(v) return end
+        push!(vec,v)
+        i += 1
+    end
+end
 function _deps_collect(deps...)
     result = Vector{Vec3D}()
     for dep in deps
-        if dep isa Vector
-            append!(result,dep)
-        else
-            push!(result,dep)
-        end
+        _deps_collect_add!(result,dep)
     end
     return result
 end
@@ -319,3 +326,4 @@ export Slider
 export TextBox
 export Sphere
 export PointCloud
+export _deps_collect

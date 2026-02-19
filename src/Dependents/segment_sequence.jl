@@ -121,29 +121,57 @@ evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Tuple})  = se
 evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
 evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = [Vec3DNan,Vec3DNan]
 
-# TODO current intersection cant handle nan values, aka it doesnt work
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
     _segseq::SegmentSequenceDependent
 end
 PrimitivesOf(self::SegmentSequenceDependent) = return PSegmentsOfSegmentSequence(self)
 
-# Could be more fine-grained
-Base.length(self::PSegmentsOfSegmentSequence) = (max(length(self._segseq._values) - 1,0))
+function Base.length(self::PSegmentsOfSegmentSequence)
+    len = 0
+    values = self._segseq._values
+    for i in 1:length(values)-1
+        if !(any(isnan,values[i]) || any(isnan,values[i+1]))
+            len += 1
+        end
+    end
+    return len
+end
 
+# SLOOW O(N)
 function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::Union{Nothing, PSegment}
-    if ((1 <= index) && (index <= length(self)))
-        return PSegment(self._segseq._values[index], self._segseq._values[index + 1])
+    if index < 1 return nothing end
+
+    values = self._segseq._values
+    n = length(values)
+    i = 1
+
+    while i < n
+        if !(any(isnan,values[i]) || any(isnan,values[i+1]))
+            index -= 1
+            if index == 0 break end
+        end
+        i += 1
+    end
+
+    if index == 0
+        return PSegment(values[i], values[i + 1])
     else
-        return nothing 
+        return nothing
     end
 end
 
 function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
-    if ((1 <= index) && (index <= length(self)))
-        return (self[index], (index + 1))
-    else
-        return nothing
+    if index < 1 return nothing end
+
+    values = self._segseq._values
+    n = length(values)
+
+    while index < n && (any(isnan,values[index]) || any(isnan,values[index + 1]))
+        index += 1
     end
+
+    if index == n return nothing
+    else return (PSegment(values[index], values[index + 1]),index + 1) end
 end
 
 # ? ---------------------------------

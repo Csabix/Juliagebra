@@ -43,7 +43,7 @@ mutable struct SegmentSequenceDependent <: RenderedDependentDNA
     _type::UInt8
     _reversed::UInt8
 
-    _values::Vector{Vec3F}
+    _values::Vector{Vec3D}
 
     function SegmentSequenceDependent(plan::SegmentSequencePlan)
         a = RenderedDependent(plan)
@@ -70,32 +70,32 @@ function onNodeEval(self::SegmentSequenceDependent)
     evalCallbackDp(self)
 end
 
-function insert_nans(self::SegmentSequenceDependent,data::Vector{Vec3F})
+function insert_nans(self::SegmentSequenceDependent,data::Vector{Vec3D})
     N = self._break_every
     len = length(data)
     if len < 2
-        return [Vec3FNan,Vec3FNan]
+        return [Vec3DNan,Vec3DNan]
     end
 
     add_front = !any(isnan,data[1])
     add_back = !any(isnan,data[end])
 
     if N < 2
-        result = Vector{Vec3F}()
-        add_front && push!(result, Vec3FNan)
+        result = Vector{Vec3D}()
+        add_front && push!(result, Vec3DNan)
         append!(result, data)
-        add_back && push!(result, Vec3FNan)
+        add_back && push!(result, Vec3DNan)
         return result
     end
 
     num_interior_nans = div(len - 1, N)
     
     total_size = len + num_interior_nans + (add_front ? 1 : 0) + (add_back ? 1 : 0)
-    result = Vector{Vec3F}(undef, total_size)
+    result = Vector{Vec3D}(undef, total_size)
     
     curr = 1
     if add_front
-        result[curr] = Vec3FNan
+        result[curr] = Vec3DNan
         curr += 1
     end
 
@@ -103,23 +103,23 @@ function insert_nans(self::SegmentSequenceDependent,data::Vector{Vec3F})
         result[curr] = data[i]
         curr += 1
         if i % N == 0 && i != len
-            result[curr] = Vec3FNan
+            result[curr] = Vec3DNan
             curr += 1
         end
     end
 
     if add_back
-        result[curr] = Vec3FNan
+        result[curr] = Vec3DNan
     end
 
     return result
 end
 
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3D})  = self._values = insert_nans(self,[Vec3F(coord...) for coord in coords])
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3F})  = self._values = insert_nans(self,coords)
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Tuple})  = self._values = insert_nans(self,[Vec3F(coord...) for coord in coords])
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = insert_nans(self,[Vec3F(coord...) for coord in coords])
-evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = [Vec3FNan,Vec3FNan]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3D})  = self._values = insert_nans(self,coords)
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3F})  = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Tuple})  = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
+evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = [Vec3DNan,Vec3DNan]
 
 # TODO current intersection cant handle nan values, aka it doesnt work
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}

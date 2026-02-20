@@ -88,7 +88,7 @@ function added!(self::PointRenderer,point::PointDependent)
     
     aID = 0
     coord = point._coord
-
+    @log "$(point._coord)"
     push!(self._coords,Vec3F(coord))
     push!(self._ids,Float32(aID))
 end
@@ -195,7 +195,7 @@ function _Point(;
 end
 
 function Point(x::Real,y::Real,z::Real)
-    return build!(PointDependent; data=Tuple([Vec3D(x,y,z)]))
+    return build!(PointDependent; data=Tuple([Vec3D(x,y,z)]), callback = (() -> (return Vec3D(x,y,z))))
 end
 
 Point(callback::Function,dependents::Vector) = 

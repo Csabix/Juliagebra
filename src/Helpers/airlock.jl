@@ -47,12 +47,16 @@ end
 
 function wait4Entrance(self::AirLock)
     @atomic self._entranceButton = true
-    while (@atomic self._entranceClosed) end
+    while (@atomic self._entranceClosed)
+        yield()
+    end
 end
 
 function wait4Exit(self::AirLock)
     @atomic self._exitButton = true
-    while (@atomic self._exitClosed) end
+    while (@atomic self._exitClosed) 
+        yield()
+    end
 end
 
 function checkEntrance(self::AirLock)::Bool

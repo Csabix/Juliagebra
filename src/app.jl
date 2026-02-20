@@ -249,7 +249,7 @@ function play!(self::App)
         update!(self._imgui,state)
         update!(self._shrd)
 
-        if (state == Viewing())
+        if (state == NoThreadsWaiting())
             updateGizmo!(self)
         end
 

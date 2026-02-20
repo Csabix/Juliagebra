@@ -30,10 +30,35 @@ getState(self::Synchronizer)::SynchronizerState = return self._appState
 function decideState(app::AppDNA)
     self = getSynchronizer(app)
     
-    ConstructorState = getAirLockState(self._ConstructorAirLock)
-    outsideAirLockProtocol(self._ConstructorAirLock,ConstructorState)
-    ConstructorStateDecide(self,ConstructorState)
-    return ConstructorState
+    # ? Check the Current AirLock state:
+    ConstructorAirLockState::AirLockStates = getAirLockState(self._ConstructorAirLock)
+    
+    if (ConstructorAirLockState === AtExit())
+        #println("AtExit1")
+        builder = getBuilder(app)
+        #println("AtExit2")
+        recentlyBuilt = getRecentlyBuilt(builder)
+        #println("AtExit3")
+        observer = getObserver(recentlyBuilt)
+        #println("AtExit4")
+
+        # ? Call added events for recently built
+        # ! Only works for Observed Dependents
+        
+        #println("AtExit5 $(typeof(observer)) - $(typeof(recentlyBuilt))")
+        added!(observer,recentlyBuilt)
+        
+        #println("AtExit6")
+        setRenderedID!(observer,recentlyBuilt,getGraphID(recentlyBuilt) + ID_LOWER_BOUND)
+
+        #println("AtExit7 $(typeof(observer))")
+        addedAll!(observer)
+    end
+
+    # ? Let the AirLock work, based on the checked state:
+    outsideAirLockProtocol(self._ConstructorAirLock,ConstructorAirLockState)
+    #return ConstructorStateDecide(self,ConstructorAirLockState)
+    return ConstructorAirLockState
 end
 
 function ConstructorStateDecide(self::Synchronizer,::AtExit)

@@ -15,7 +15,8 @@ using GLFW
 using ModernGL
 using CImGui
 using DataStructures
-#using ThreadPinning
+using ThreadPinning
+pinthreads(:cores)
 
 include("performance_metrics.jl")
 

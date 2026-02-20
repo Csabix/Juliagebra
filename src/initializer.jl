@@ -15,7 +15,7 @@ function Init(callback::Function)
     global implicitApp
     implicitApp = App()
 
-    task = Threads.@spawn begin
+    task = ThreadPinning.@spawnat 2 begin
         startConstructor(callback)
     end 
     

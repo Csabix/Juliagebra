@@ -195,7 +195,6 @@ function _Point(;
 end
 
 function Point(x::Real,y::Real,z::Real)
-    println("Here1")
     return build!(PointDependent; data=Tuple([Vec3D(x,y,z)]))
 end
 

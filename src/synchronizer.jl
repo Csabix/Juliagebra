@@ -27,13 +27,13 @@ end
 
 getState(self::Synchronizer)::SynchronizerState = return self._appState
 
-function decideState(app::AppDNA)::SynchronizerState
+function decideState(app::AppDNA)
     self = getSynchronizer(app)
     
     ConstructorState = getAirLockState(self._ConstructorAirLock)
     outsideAirLockProtocol(self._ConstructorAirLock,ConstructorState)
     ConstructorStateDecide(self,ConstructorState)
-    return self._appState
+    return ConstructorState
 end
 
 function ConstructorStateDecide(self::Synchronizer,::AtExit)

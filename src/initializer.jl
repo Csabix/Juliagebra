@@ -5,10 +5,10 @@ function Init(callback::Function)
     global implicitApp
     implicitApp = App()
     
-    Threads.@spawn begin
-        callback()
-    end
     
-    play!(implicitApp)
+    worker = Threads.@spawn :default callback()
+   
+    play!(implicitApp,worker)
 
+    println("Main Thread ended!")
 end

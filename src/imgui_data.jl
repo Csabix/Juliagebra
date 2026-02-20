@@ -69,7 +69,7 @@ end
     return io.WantCaptureKeyboard
 end
 
-function update!(self::ImGuiData,state::SynchronizerState)
+function update!(self::ImGuiData,state)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()

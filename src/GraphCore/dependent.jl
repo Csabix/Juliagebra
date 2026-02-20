@@ -4,7 +4,7 @@
 
 mutable struct Dependent
     _graphID::Int                       
-    _graphParents::Vector{DependentDNA} # ? Who do I Depend on?
+    _graphParents::Vector{<:DependentDNA} # ? Who do I Depend on?
     _entryNodes::Vector{Any}
     _dependentChain::DependentChain # ? Who Depends on me (collectively)?
     _callback::Function
@@ -28,7 +28,7 @@ function _setEntryNodes(self::Dependent)
     end
 end
 
-function Dependent(callback::Function,graphParents::Vector{DependentDNA})
+function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
     dependentChain = DependentChain()
     entryNodes = Vector{Any}(undef,length(graphParents))
     

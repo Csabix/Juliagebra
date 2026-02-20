@@ -19,7 +19,6 @@ mutable struct App <: AppDNA
     _manipulator::CameraManipulator
     _synchronizer::Synchronizer
     _builder::Builder
-    _lolz::Bool
 
     function App(
         name::String="Juliagebra",
@@ -41,7 +40,7 @@ mutable struct App <: AppDNA
         manipulator = create_orbital_manipulator(cam)
         synchronizer = Synchronizer()
         builder = Builder()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator,synchronizer,builder,true)
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator,synchronizer,builder)
     end
 end
 
@@ -234,19 +233,17 @@ function updateGizmo!(self::App)
     end
 end
 
-function play!(self::App,worker)
+function play!(self::App)
     
     init!(self)
     while(!self._shrd._gameOver)
+        yield()
         perf_get_results()
         updateDeltaTime!(self)
         handlePlans!(self)
         updateCam!(self)
         
         state = decideState(self)
-        if (!istaskdone(worker))
-            self._lolz = false
-        end
 
         update!(self._opengl,self._cam)
         update!(self._imgui,state)
@@ -264,7 +261,7 @@ function play!(self::App,worker)
     
 end
 
-play!() = play!(implicitApp,worker)
+play!() = play!(implicitApp)
 
 function init!(self::App)
     if self._windowCreated

@@ -8,9 +8,9 @@ mutable struct PointDependent <: RenderedDependentDNA
     _coord::Vec3D 
 
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},xyz::Vec3D)
-        a = RenderedDependent(plan)
+        renderedDependent = RenderedDependent(callback,dependents)
         coord = xyz
-        new(a,coord)
+        new(renderedDependent,coord)
     end
 end
 

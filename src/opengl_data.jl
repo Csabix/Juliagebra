@@ -113,13 +113,17 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        new(shrd,widgets,renderers,
+        self = new(shrd,widgets,renderers,
             transparent_combinerShader,combinerShader,centerShader,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,idFBO,behindOpaqueFBO,transparentFBO,widgetFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
+
+        SingleRendererTactic(self,_POINT_RENDERER,PointRenderer)
+        
+        return self
     end
 end
 

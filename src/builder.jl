@@ -7,19 +7,19 @@ const DEFAULT_DEPENDENTS = Vector{DependentDNA}()
 # ? ---------------------------------
 
 mutable struct Builder
-    _recentlyBuild::Union{DependentDNA,Nothing}
+    _recentlyBuilt::Union{DependentDNA,Nothing}
 
     function Builder()
         new(nothing)
     end
 end
 
-getRecentlyBuilt(self::Builder) = return self._recentlyBuild
+getRecentlyBuilt(self::Builder) = return self._recentlyBuilt
 
 function build!(::Type{T};
     app::AppDNA = implicitApp,
     callback::Function = DEFAULT_CALLBACK_FUNC,
-    dependents::Vector{DependentDNA} = DEFAULT_DEPENDENTS,
+    dependents::Vector{<:DependentDNA} = DEFAULT_DEPENDENTS,
     data::Tuple = Tuple([]),
     data_named::NamedTuple = NamedTuple()
     ) where {T<:DependentDNA}
@@ -30,11 +30,10 @@ function build!(::Type{T};
     self = getBuilder(app)
     insideAirLockProtocol(al) do 
         println("Constructing: \"$(T)\"...")
-        sleep(1.0)
         dependent = T(callback,dependents,data...;data_named...)
         _build(app,dependent)
-        
         self._recentlyBuilt = dependent
+        println("Constructing Ended!")
     end
 
     return dependent
@@ -61,7 +60,7 @@ function _build(app::AppDNA, rendered::RenderedDependentDNA)
 
     add!!(renderer,rendered)
     add!!(graph,rendered)
-    setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
+    #setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
     
     return rendered
 end

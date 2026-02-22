@@ -350,25 +350,11 @@ function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
             b2 = b2 .* wh
 
             self._distances[i] = distance_sum
-            distance_sum += norm(a2 - b2)
+            distance_sum = !isnan(norm(a2 - b2)) ? distance_sum + norm(a2 - b2) : 0
         end
         self._distances[last] = distance_sum
     end
     @time_cpu_end Dependent Curve Distances
-end
-function _draw_visible(self::CurveRenderer,vp,cam,shrd)
-    (cam_light, side_light) = get_lights(cam)
-    for type in 1:_CURVE_COUNT
-        (first,last) = self._drawRanges[type]
-        if first == typemax(Int) continue end
-        activate(self._shaders[type])
-        setUniform!(self._shaders[type],"VP",vp)
-        setUniform!(self._shaders[type],"Eye",cam._eye)
-        setUniform!(self._shaders[type],"lightDirCam", cam_light)
-        setUniform!(self._shaders[type],"lightDirSide",side_light)
-        setUniform!(self._shaders[type],"W_H_NEAR_FAR",Vec4F(shrd._width, shrd._height, cam._zNear, cam._zFar))
-        glDrawArrays(GL_LINE_STRIP_ADJACENCY, first, last-first); 
-    end
 end
 
 function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing

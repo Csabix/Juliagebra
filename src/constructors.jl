@@ -1,5 +1,24 @@
 # ! All exported constructors should be defined, and exported from here.
 
+_deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
+_deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
+function _deps_collect_add!(vec::Vector{Vec3D},intersectons::IntersectionCalculatorDependent)
+    i = 1
+    while true
+        v = intersectons[i]
+        if isnothing(v) return end
+        push!(vec,v)
+        i += 1
+    end
+end
+function _deps_collect(deps...)
+    result = Vector{Vec3D}()
+    for dep in deps
+        _deps_collect_add!(result,dep)
+    end
+    return result
+end
+
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
@@ -79,40 +98,31 @@ ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Dep
 _ParametricCurve(_call=callback,_deps=dependents,_range=range,_col=color,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
 # ? ---------------------------------
-# ! Segment
+# ! SegmentSequence
 # ? ---------------------------------
 
-"""
-    Segment(first, second; kwargs...) -> ParametricCurvePlan
-
-Construct a plan for a straight line segment connecting two points.
-
-# Arguments
-- `first::PointPlan`: The starting point of the segment.
-- `second::PointPlan`: The ending point of the segment.
-
-# Keyword Arguments
-- `color=(0.6, 0.6, 0.9)`: The RGB tuple or array of tuples defining the segment's color.
-- `width=5.0f0`: The line thickness.
-- `type=CURVE_SOLID`: The visual style of the curve (e.g., solid, dashed).
-- `reversed=false`: Whether to flip the line pattern.
-
-# Returns
-- `ParametricCurvePlan`: A `PlanDNA` representing the linear path between the two points.
-
-# Example
-App();
-
-Segment(Point(0,0,0),Point(1,1,1));
-
-play!();
-"""
-function Segment(first::PointPlan,second::PointPlan;
-                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
-    return ParametricCurve(range(0,1,length=2),[first,second],color=color,type=type,width=width,reversed=reversed) do t,a,b
-        return b .* t .+ (1-t) .* a
-    end
+function _SegmentSequence(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _break_every = 2,
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _col= (0.6,0.6,0.9),
+                         _type= CURVE_SOLID,
+                         _reversed= 0,
+                         _width= 5.0f0
+                         )::SegmentSequencePlan
+    plan = SegmentSequencePlan(_call,_deps,_col,_break_every,_type,_reversed,_width)
+    submit!(_app,plan)
+    return plan
 end
+
+SegmentSequence(callback::Function,dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
+_SegmentSequence(_call=callback,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
+
+SegmentSequence(dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
+_SegmentSequence(_call=_deps_collect,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
 # ? ---------------------------------
 # ! Intersections
@@ -182,11 +192,13 @@ function _ParametricSurface(;
     return plan
 end
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT;transparent::Bool=false) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents,_transparent=transparent)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT;transparent::Bool=false,color=(0.8,0.0,0.3)) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents,
+_transparent=transparent,_color=color)
 
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transparent::Bool=false) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_transparent=transparent)
+ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transparent::Bool=false,color=(0.8,0.0,0.3)) =
+_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,
+_transparent=transparent,_color=color)
 
 # ? ---------------------------------
 # ! Toggle
@@ -338,10 +350,32 @@ TriangleCluster(mesh;
     transparent::Bool=false,color=(0.6,0.6,0.9))::TriangleClusterPlan =
 _TriangleCluster(mesh,_col=color,_transparent=transparent)
 
-export GenericDependent
+# ? ---------------------------------
+# ! PointCloud
+# ? ---------------------------------
+
+function _PointCloud(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _col=(0.0,1.0,1.0),
+                         _width=25.0f0
+                         )::PointCloudPlan
+    plan = PointCloudPlan(_call,_deps,_col,_width)
+    submit!(_app,plan)
+    return plan
+end
+
+PointCloud(callback::Function,dependents::DependentsT=Vector{PlanDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointCloudPlan =
+_PointCloud(_call=callback,_deps=dependents,_col=color,_width=width)
+
+PointCloud(dependents::DependentsT) = GenericValueHolder(_deps_collect,Vector{Vec3D},dependents)
+PointCloud(positions) = PointCloud([Point(p...) for p in positions])
+
 export Point
 export ParametricCurve
 export Segment
+export SegmentSequence
 export Intersection
 export Mesh
 export ParametricSurface
@@ -350,3 +384,5 @@ export Slider
 export TextBox
 export Sphere
 export TriangleCluster
+export PointCloud
+export _deps_collect

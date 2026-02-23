@@ -462,7 +462,7 @@ function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,s
         if first == typemax(Int) continue end
         activate(self._shaders_id[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence ID_PASS
 end
@@ -481,7 +481,7 @@ function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Came
         if first == typemax(Int) continue end
         activate(self._shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence OPAQUE_PASS
     glDisable(GL_BLEND)
@@ -501,7 +501,7 @@ function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},ca
         if first == typemax(Int) continue end
         activate(self._shaders_behind_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence BEHIND_OPAQUE_PASS
 end
@@ -520,7 +520,7 @@ function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam:
         if first == typemax(Int) continue end
         activate(self._shaders_transparent[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence TRANSPARENT_PASS
 end

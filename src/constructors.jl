@@ -1,5 +1,24 @@
 # ! All exported constructors should be defined, and exported from here.
 
+_deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
+_deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
+function _deps_collect_add!(vec::Vector{Vec3D},intersectons::IntersectionCalculatorDependent)
+    i = 1
+    while true
+        v = intersectons[i]
+        if isnothing(v) return end
+        push!(vec,v)
+        i += 1
+    end
+end
+function _deps_collect(deps...)
+    result = Vector{Vec3D}()
+    for dep in deps
+        _deps_collect_add!(result,dep)
+    end
+    return result
+end
+
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
@@ -77,6 +96,33 @@ play!();
 ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT=Vector{PlanDNA}();
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan =
 _ParametricCurve(_call=callback,_deps=dependents,_range=range,_col=color,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
+
+# ? ---------------------------------
+# ! SegmentSequence
+# ? ---------------------------------
+
+function _SegmentSequence(;
+                         _app::App = implicitApp,
+                         _call::Function = () -> (),
+                         _break_every = 2,
+                         _deps::DependentsT = Vector{PlanDNA}(),
+                         _col= (0.6,0.6,0.9),
+                         _type= CURVE_SOLID,
+                         _reversed= 0,
+                         _width= 5.0f0
+                         )::SegmentSequencePlan
+    plan = SegmentSequencePlan(_call,_deps,_col,_break_every,_type,_reversed,_width)
+    submit!(_app,plan)
+    return plan
+end
+
+SegmentSequence(callback::Function,dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
+_SegmentSequence(_call=callback,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
+
+SegmentSequence(dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
+_SegmentSequence(_call=_deps_collect,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
 # ? ---------------------------------
 # ! Mesh
@@ -265,23 +311,13 @@ end
 PointCloud(callback::Function,dependents::DependentsT=Vector{PlanDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointCloudPlan =
 _PointCloud(_call=callback,_deps=dependents,_col=color,_width=width)
 
-function _deps_collect(deps...)
-    result = Vector{Vec3D}()
-    for dep in deps
-        if dep isa Vector
-            append!(result,dep)
-        else
-            push!(result,dep)
-        end
-    end
-    return result
-end
 PointCloud(dependents::DependentsT) = GenericValueHolder(_deps_collect,Vector{Vec3D},dependents)
 PointCloud(positions) = PointCloud([Point(p...) for p in positions])
 
 export Point
 export ParametricCurve
 export Segment
+export SegmentSequence
 export Intersection
 export Mesh
 export ParametricSurface
@@ -290,3 +326,4 @@ export Slider
 export TextBox
 export Sphere
 export PointCloud
+export _deps_collect

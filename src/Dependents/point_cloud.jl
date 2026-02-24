@@ -44,9 +44,9 @@ evalCallbackDpEntry(self::PointCloudDependent)::Vector{Vec3D} = self._coords
 
 evalCallbackDpReturn(self::PointCloudDependent,coords) = self._coords  = coords
 evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Vec3D})  = self._coords = coords
-evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Vec3F})  = self._coords = [Vec3F(coord) for coord in coords]
-evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Tuple})  = self._coords = [Vec3F(coord...) for coord in coords]
-evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Vector}) = self._coords = [Vec3F(coord...) for coord in coords]
+evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Vec3F})  = self._coords = [Vec3D(coord) for coord in coords]
+evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Tuple})  = self._coords = [Vec3D(coord...) for coord in coords]
+evalCallbackDpReturn(self::PointCloudDependent,coords::Vector{Vector}) = self._coords = [Vec3D(coord...) for coord in coords]
 evalCallbackDpReturn(self::PointCloudDependent,::Nothing) = self._coords = []
 
 # ? ---------------------------------

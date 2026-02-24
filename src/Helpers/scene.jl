@@ -1,32 +1,25 @@
 struct Mesh
-    positions::Vector{Vec3F}
-    normals::Vector{Vec3F}
-    indices::Vector{UInt32}
+    positions::Vector{Vec3D}
+    indices::Union{Nothing,Vector{UInt32}}
 end
 
 get_positions(self::Mesh) = self.positions
-get_normals(self::Mesh) = self.normals
 get_indices(self::Mesh) = self.indices
 
 get_positions_it(mesh) = get_positions(mesh)
-get_normals_it(mesh) = get_normals(mesh)
 get_indices_it(mesh) = get_indices(mesh)
 
-Base.string(self::Mesh)::String = return "Vertex count: $(length(self.positions)) Index count: $(length(self.indices))"
+Base.string(self::Mesh)::String = return "Vertex count: $(length(self.positions))"
 Base.show(io::IO, self::Mesh) =  print(io, string(self))
 
 struct MeshProxy
     _mesh::Mesh
-    _transform::Mat4x4T{Float32}
+    _transform::Mat4x4T{Float64}
 end
 
 function get_positions(self::MeshProxy)
     M = self._transform
     return [let p = M * Vec4F(v.x, v.y, v.z, 1.0); Vec3F(p.x, p.y, p.z) end for v in self._mesh.positions]
-end
-function get_normals(self::MeshProxy)
-    N_mat = transpose(inv(self._transform))
-    return [let n = N_mat * Vec4F(v.x, v.y, v.z, 0.0); Vec3F(n.x, n.y, n.z) end for v in self._mesh.normals]
 end
 get_indices(self::MeshProxy) = self._mesh.indices
 
@@ -34,22 +27,18 @@ function get_positions_it(self::MeshProxy)
     M = self._transform
     return (let p = M * Vec4F(v.x, v.y, v.z, 1.0); Vec3F(p.x, p.y, p.z) end for v in self._mesh.positions)
 end
-function get_normals_it(self::MeshProxy)
-    N_mat = transpose(inv(self._transform))
-    return [let n = N_mat * Vec4F(v.x, v.y, v.z, 0.0); Vec3F(n.x, n.y, n.z) end for v in self._mesh.normals]
-end
 
 struct Scene
     mesh_instances::Vector{MeshProxy}
     base_meshes::Vector{Mesh}
 end
 
-Base.length(s::Scene) = length(s.mesh_instances)
-Base.firstindex(s::Scene) = 1
-Base.lastindex(s::Scene) = length(s.mesh_instances)
+@inline Base.length(s::Scene) = length(s.mesh_instances)
+@inline Base.firstindex(s::Scene) = 1
+@inline Base.lastindex(s::Scene) = length(s.mesh_instances)
 
-Base.getindex(s::Scene, i::Int) = s.mesh_instances[i]
-Base.iterate(s::Scene, state=1) = state > length(s) ? nothing : (s[state], state + 1)
+@inline Base.getindex(s::Scene, i::Int) = s.mesh_instances[i]
+@inline Base.iterate(s::Scene, state::Int=1) = state > length(s) ? nothing : (s[state], state + 1)
 
 function _get_scene_meshes(
     node_ptr::Ptr{aiNode},
@@ -66,7 +55,7 @@ function _get_scene_meshes(
 
         for assimp_mesh_idx in mesh_indices
             mat_array = reinterpret(Float32, [transform[]])
-            push!(scene.mesh_instances, MeshProxy(scene.base_meshes[assimp_mesh_idx+1],transpose(Mat4x4T{Float32}(mat_array))))
+            push!(scene.mesh_instances, MeshProxy(scene.base_meshes[assimp_mesh_idx+1],transpose(Mat4x4T{Float64}(mat_array))))
         end
     end
 
@@ -79,8 +68,9 @@ function _get_scene_meshes(
 end
 
 
-function load_scene(path::String;smooth_normals::Bool=true,scale_factor::Float32=1.0f0,drop_normals::Bool=false,z_up::Bool=false)::Scene
+function load_scene(path::String;scale_factor::Float32=1.0f0,z_up::Bool=false)::Scene
     components_to_remove =
+        aiComponent_NORMALS |
         aiComponent_TANGENTS_AND_BITANGENTS |
         aiComponent_COLORS |
         aiComponent_TEXCOORDS |
@@ -89,8 +79,7 @@ function load_scene(path::String;smooth_normals::Bool=true,scale_factor::Float32
         aiComponent_TEXTURES |
         aiComponent_LIGHTS |
         aiComponent_CAMERAS |
-        aiComponent_MATERIALS |
-        (drop_normals ? aiComponent_NORMALS : 0)
+        aiComponent_MATERIALS
 
     props = aiCreatePropertyStore()
 
@@ -105,8 +94,7 @@ function load_scene(path::String;smooth_normals::Bool=true,scale_factor::Float32
         aiProcess_ImproveCacheLocality |
         aiProcess_FindInvalidData |
         aiProcess_GlobalScale |
-        aiProcess_FlipWindingOrder |
-        (smooth_normals ? aiProcess_GenSmoothNormals : aiProcess_GenNormals)
+        aiProcess_FlipWindingOrder
 
     scene_ptr = aiImportFileExWithProperties(path, flags, C_NULL, props)
     aiReleasePropertyStore(props);
@@ -121,9 +109,7 @@ function load_scene(path::String;smooth_normals::Bool=true,scale_factor::Float32
         mesh = unsafe_load(unsafe_load(scene.mMeshes, i))
 
         pos_raw = unsafe_wrap(Array, mesh.mVertices, mesh.mNumVertices)
-        positions = [Vec3F(v.x, v.y, v.z) for v in pos_raw]
-        norm_raw = unsafe_wrap(Array, mesh.mNormals, mesh.mNumVertices)
-        normals = [Vec3F(n.x, n.y, n.z) for n in norm_raw]
+        positions = [Vec3D(v.x, v.y, v.z) for v in pos_raw]
         indices = Vector{UInt32}()
         faces = unsafe_wrap(Array, mesh.mFaces, mesh.mNumFaces)
 
@@ -131,7 +117,7 @@ function load_scene(path::String;smooth_normals::Bool=true,scale_factor::Float32
             f_indices = unsafe_wrap(Array, face.mIndices, face.mNumIndices)
             append!(indices, f_indices)
         end
-        push!(my_scene.base_meshes, Mesh(positions,normals,indices))
+        push!(my_scene.base_meshes, Mesh(positions,indices))
     end
 
     root_transform = z_up ?
@@ -152,7 +138,6 @@ function load_scene(path::String;smooth_normals::Bool=true,scale_factor::Float32
 
     aiReleaseImport(scene_ptr)
     return my_scene
-
 end
 
 export Scene

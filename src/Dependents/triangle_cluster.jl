@@ -11,7 +11,6 @@ mutable struct TriangleClusterPlan <: RenderedPlanDNA
     function TriangleClusterPlan(callback::Function,plans::Vector{T},mesh,color,transparent) where {T<:PlanDNA}
         _mesh = Mesh(
             collect(get_positions_it(mesh)),
-            collect(get_normals_it(mesh)),
             collect(get_indices_it(mesh))
         )
         new(RenderedPlan(callback,plans),_mesh,color,transparent)
@@ -37,22 +36,54 @@ mutable struct TriangleClusterDependent <: RenderedDependentDNA
     end
 end
 
-# ! Must have
-function Plan2Dependent(plan::TriangleClusterPlan)::TriangleClusterDependent
-    return TriangleClusterDependent(plan)
-end
+Plan2Dependent(plan::TriangleClusterPlan)::TriangleClusterDependent = TriangleClusterDependent(plan)
 
 Base.string(self::TriangleClusterDependent)::String =  return "Triangle cluster"
 _RenderedDependent_(self::TriangleClusterDependent)::RenderedDependent = return self._renderedDependent
 
-function onNodeEval(self::TriangleClusterDependent)
-    runCallbacks(self)
-end
+onNodeEval(self::TriangleClusterDependent) = evalCallbackDp(self)
 
 evalCallbackDpReturn(self::TriangleClusterDependent,v) = begin end
 evalCallbackDpReturn(self::TriangleClusterDependent,v::Vec3D) = begin end
 evalCallbackDpReturn(self::TriangleClusterDependent,v::Vec3F) = begin end
 evalCallbackDpReturn(self::TriangleClusterDependent,v::Nothing) = begin end
+
+# ? ---------------------------------
+# ! TriangleCluster
+# ? ---------------------------------
+
+struct TriangleCluster
+    positions::Vector{Vec3D}
+    indices::Union{Nothing,Vector{UInt32}}
+
+    function TriangleCluster(dep::TriangleClusterDependent)
+        return new(dep._mesh.positions,dep._mesh.indices)
+    end
+end
+
+evalCallbackDpEntry(self::TriangleClusterDependent)::TriangleCluster = TriangleCluster(self)
+
+@inline _get_triangle(p, ::Nothing, i) = SA[p[i], p[i+1], p[i+2]]
+@inline _get_triangle(p, idxs, i)      = SA[p[idxs[i]], p[idxs[i+1]], p[idxs[i+2]]]
+@inline function Base.iterate(self::TriangleCluster, state::Int=1)
+    source = isnothing(self.indices) ? self.positions : self.indices
+    state + 2 > length(source) && return nothing
+    
+    return (_get_triangle(self.positions, self.indices, state), state + 3)
+end
+
+@inline Base.firstindex(self::TriangleCluster) = 1
+@inline function Base.lastindex(self::TriangleCluster)
+    len = isnothing(self.indices) ? length(self.positions) : length(self.indices)
+    return div(len,3)
+end
+@inline function Base.getindex(self::TriangleCluster, index::Int)
+    @boundscheck if index < firstindex(self) && index > lastindex(self)
+        throw(BoundsError(self, index))
+    end
+    offset::Int = (index - 1) * 3 + 1
+    return _get_triangle(self.positions, self.indices, offset)
+end
 
 # ? ---------------------------------
 # ! TriangleClusterRenderer
@@ -69,27 +100,23 @@ mutable struct TriangleClusterRenderer <: RendererDNA{TriangleClusterDependent}
     _buffer_transparent::IndexedTypedBufferArray
 
     _positions_opaque::Vector{Vec3F}
-    _normals_opaque::Vector{Vec3F}
     _colors_opaque::Vector{Vec3F}
-    _indices_opaque::Vector{UInt32}
 
     _positions_transparent::Vector{Vec3F}
-    _normals_transparent::Vector{Vec3F}
     _colors_transparent::Vector{Vec3F}
-    _indices_transparent::Vector{UInt32}
 
     function TriangleClusterRenderer(context::OpenGLData)
         renderer = Renderer{TriangleClusterDependent}(context)
 
         id = ShaderProgram(sp("surface/surface_id.vert"),sp("surface/surface_id.frag"),["VP"])
         opaque = ShaderProgram(sp("surface/surface.vert"),sp("surface/surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
-        transparent = ShaderProgram(sp(".\\surface\\surface.vert"),sp(".\\surface\\surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
+        transparent = ShaderProgram(sp("surface/surface.vert"),sp(".surface/surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
 
         new(renderer,
             id,opaque,transparent,
             IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),
-            Vector{Vec3F}(),Vector{Vec3F}(),Vector{Vec3F}(),Vector{UInt32}(),
-            Vector{Vec3F}(),Vector{Vec3F}(),Vector{Vec3F}(),Vector{UInt32}())
+            Vector{Vec3F}(),Vector{Vec3F}(),
+            Vector{Vec3F}(),Vector{Vec3F}())
     end
 end
 

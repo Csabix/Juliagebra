@@ -31,7 +31,21 @@ function upload!(self::Buffer{T},data::Vector,usage::GLuint) where T
     #println("$(sizeof(data)) - $(length(data))")
 end
 
+function reserve!(self::Buffer{T},count::Int,usage::GLuint) where T
+    glBindBuffer(T,self._id)
+    self._numOfItems = count
+
+    if self._numOfItems > 0
+        println(T)
+        @assert isbitstype(T) "Input array for Buffer upload is not contiguous in memory"
+    end
+
+    glBufferData(T,sizeof(T)*self._numOfItems,C_NULL,usage)
+end
+
+
 Base.length(self::Buffer)::Int = self._numOfItems
+bind_ssbo(self::Buffer, location) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,location,self._id)
 activate(self::Buffer{T}) where T = glBindBuffer(T,self._id)
 deactivate(self::Buffer{T}) where T = glBindBuffer(T,0)
 destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
@@ -55,11 +69,17 @@ function upload!(self::TypedBuffer{T},data::Vector{T},usage::GLuint) where {T<:U
     deactivate(self)
 end
 
+function reserve!(self::TypedBuffer{T},count::Int,usage::GLuint) where {T<:Union{StaticArray,Real}}
+    reserve!(self._buffer,count,usage)
+    deactivate(self)
+end
+
 function tSize(self::TypedBuffer{T})::Int where {T<:Union{StaticArray,Real}}
     return sizeof(T)
 end
 
 Base.length(self::TypedBuffer)::Int = return length(self._buffer)
+bind_ssbo(self::TypedBuffer, location) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,location,self._id)
 activate(self::TypedBuffer) = activate(self._buffer)
 deactivate(self::TypedBuffer) = deactivate(self._buffer)
 destroy!(self::TypedBuffer) = destroy!(self._buffer)
@@ -116,5 +136,5 @@ end
 
 Base.length(self::StaticBuffer)::Int = self._numOfItems
 bind(self::StaticBuffer, target::GLuint) = glBindBuffer(target, self._id)
-bind_ssbo(self::StaticBuffer, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,self._id)
+bind_ssbo(self::StaticBuffer, location) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,location,self._id)
 destroy!(self::StaticBuffer) = if self._id != 0 glDeleteBuffers(1,[self._id]) end

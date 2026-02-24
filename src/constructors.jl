@@ -334,9 +334,10 @@ function _TriangleCluster(_mesh;
                            _call::Function = () -> (),
                            _deps::DependentsT = Vector{PlanDNA}(),
                            _col = (0.6,0.6,0.9),
-                           _transparent = false
+                           _transparent = false,
+                           _transform = dmat4(1.0)
                            )::TriangleClusterPlan
-    plan = TriangleClusterPlan(_call,_deps,_mesh,_col,_transparent)
+    plan = TriangleClusterPlan(_call,_deps,_mesh,_transform,_col,_transparent)
     submit!(_app,plan)
     return plan
 end

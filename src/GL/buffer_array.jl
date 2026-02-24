@@ -21,9 +21,9 @@ mutable struct BufferArray <: OpenGLWrapper
     end
 end
 
-
+bind_ssbo(self::BufferArray,location::Int) = bind_ssbo(self._buffer,location)
 upload!(self::BufferArray,data::Vector) = (self._numOfItems=length(data);upload!(self._buffer,data,self._usage);deactivate(self._buffer))
-
+reserve!(self::BufferArray,count::Vector) = (self._numOfItems=count;reserve!(self._buffer,count,self._usage);deactivate(self._buffer))
 draw(self::BufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,self._numOfItems))
 destroy!(self::BufferArray) = (destroy!(self._vertexArray);destroy!(self._buffer))
 
@@ -58,8 +58,10 @@ function destroy!(self::TypedBufferArray)
 end
 
 Base.length(self::TypedBufferArray)::Int = return length(self._typedBuffers[1])
+bind_ssbo(self::TypedBufferArray,index::Int,location::Int) = bind_ssbo(self._typedBuffers[index],location)
 draw(self::TypedBufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,length(self)))
 upload!(self::TypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffers[index],data,usage)
+reserve!(self::TypedBufferArray,index::Int,count::Int,usage::GLuint) = reserve!(self._typedBuffers[index],count,usage)
 activate(self::TypedBufferArray) = activate(self._vertexArray)
 
 # ? ---------------------------------
@@ -91,7 +93,9 @@ function destroy!(self::IndexedTypedBufferArray)
 end
 
 Base.length(self::IndexedTypedBufferArray)::Int = return length(self._typedBuffer)
+bind_ssbo(self::IndexedTypedBufferArray,index::Int,location::Int)  = bind_ssbo(self._typedBuffer,index,location)
 upload!(self::IndexedTypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffer,index,data,usage)
+reserve!(self::IndexedTypedBufferArray,index::Int,count::Int,usage::GLuint) = reserve!(self._typedBuffer,index,count,usage)
 uploadIndexes!(self::IndexedTypedBufferArray,data::Vector,usage::GLuint) = upload!(self._indexBuffer,data,usage)
 
 function draw(self::IndexedTypedBufferArray,mode::GLuint)

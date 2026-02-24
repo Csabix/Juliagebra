@@ -6,11 +6,7 @@ mutable struct OrthoGizmoGL <: OpenGLWidgetDNA
     function OrthoGizmoGL()
         widget = OpenGLWidget()
 
-        lineShader = ShaderProgram(
-            sp("ortho_gizmo.vert"),
-            sp("gizmo.geom"),
-            sp("gizmo.frag"),
-            ["VP","WH"])
+        lineShader = ShaderProgram(["ortho_gizmo.vert","gizmo.geom","gizmo.frag"],["VP","WH"])
 
         new(widget,
             lineShader)
@@ -22,8 +18,8 @@ _OpenGLWidget_(self::OrthoGizmoGL)::OpenGLWidget = return self._widget
 function draw(self::OrthoGizmoGL,cam::Camera,wh::Vec2F)
     vp,_,_ = get_matrices(cam,3)
     activate(self._lineShader)
-    setUniform!(self._lineShader,"VP",vp)
-    setUniform!(self._lineShader,"WH",wh)
+    uniform(self._lineShader,"VP",vp)
+    uniform(self._lineShader,"WH",wh)
     glDrawArrays(GL_LINES, 0, 12)
 end
 

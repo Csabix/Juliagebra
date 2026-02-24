@@ -239,9 +239,9 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         
-        shader_id = ShaderProgram(sp("./surface/surface_id.vert"),sp("./surface/surface_id.frag"),["VP"])
-        shader_opaque = ShaderProgram(sp("./surface/surface.vert"),sp("./surface/surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
-        shader_transparent = ShaderProgram(sp("./surface/surface.vert"),sp("./surface/surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
+        shader_id = ShaderProgram(["surface/surface_id.vert","surface/surface_id.frag"],["VP"])
+        shader_opaque = ShaderProgram(["surface/surface.vert","surface/surface_opaque.frag"],["VP","lightDirCam","lightDirSide"])
+        shader_transparent = ShaderProgram(["surface/surface.vert","surface/surface_transparent.frag"],["VP","lightDirCam","lightDirSide"])
 
         new(renderer,
         shader_id,shader_opaque,shader_transparent,
@@ -311,7 +311,7 @@ function id_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera
     glDisable(GL_CULL_FACE)
     
     activate(self._shader_id)
-    setUniform!(self._shader_id,"VP",vp)
+    uniform(self._shader_id,"VP",vp)
     @time_gpu_begin Dependent Surface ID_PASS
     if !isempty(self._indexes_opaque) draw(self._buffer_opaque,GL_TRIANGLES) end
     if !isempty(self._indexes_transparent) draw(self._buffer_transparent,GL_TRIANGLES) end
@@ -328,9 +328,9 @@ function opaque_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Ca
     glDisable(GL_CULL_FACE)
     
     activate(self._shader_opaque)
-    setUniform!(self._shader_opaque,"VP",vp)
-    setUniform!(self._shader_opaque,"lightDirCam",-cam_light)
-    setUniform!(self._shader_opaque,"lightDirSide",-side_light)
+    uniform(self._shader_opaque,"VP",vp)
+    uniform(self._shader_opaque,"lightDirCam",-cam_light)
+    uniform(self._shader_opaque,"lightDirSide",-side_light)
     @time_gpu_begin Dependent Surface OPAQUE_PASS
     draw(self._buffer_opaque,GL_TRIANGLES)
     @time_gpu_end Dependent Surface OPAQUE_PASS
@@ -346,9 +346,9 @@ function transparent_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},ca
     glDisable(GL_CULL_FACE)
     
     activate(self._shader_transparent)
-    setUniform!(self._shader_transparent,"VP",vp)
-    setUniform!(self._shader_transparent,"lightDirCam",-cam_light)
-    setUniform!(self._shader_transparent,"lightDirSide",-side_light)
+    uniform(self._shader_transparent,"VP",vp)
+    uniform(self._shader_transparent,"lightDirCam",-cam_light)
+    uniform(self._shader_transparent,"lightDirSide",-side_light)
     @time_gpu_begin Dependent Surface TRANSPARENT_PASS
     draw(self._buffer_transparent,GL_TRIANGLES)
     @time_gpu_end Dependent Surface TRANSPARENT_PASS

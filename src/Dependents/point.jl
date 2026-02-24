@@ -131,8 +131,8 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
     _ids::Vector{Float32}
     
     function PointRenderer(context::OpenGLData) 
-        shader_id = ShaderProgram(sp("./point/point_id.vert"), sp("./point/point_id.frag"),["VP"])
-        shader_opaque = ShaderProgram(sp("./point/point.vert"), sp("./point/point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
+        shader_id = ShaderProgram(["point/point_id.vert","point/point_id.frag"],["VP"])
+        shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
         buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
@@ -201,7 +201,7 @@ end
 
 function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     activate(self._shader_id)
-    setUniform!(self._shader_id,"VP",vp)
+    uniform(self._shader_id,"VP",vp)
     @time_gpu_begin Dependent Point ID_PASS
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point ID_PASS
@@ -213,10 +213,10 @@ function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::S
     (_, side_light) = get_lights(cam)
 
     activate(self._shader_opaque)
-    setUniform!(self._shader_opaque,"VP",vp)
-    setUniform!(self._shader_opaque,"selectedID",shrd._selectedID)
-    setUniform!(self._shader_opaque,"pickedID",shrd._pickedID)
-    setUniform!(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
+    uniform(self._shader_opaque,"VP",vp)
+    uniform(self._shader_opaque,"selectedID",shrd._selectedID)
+    uniform(self._shader_opaque,"pickedID",shrd._pickedID)
+    uniform(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
     @time_gpu_begin Dependent Point OPAQUE_PASS
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point OPAQUE_PASS

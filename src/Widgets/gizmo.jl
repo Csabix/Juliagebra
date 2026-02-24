@@ -13,16 +13,12 @@ mutable struct GizmoGL <: OpenGLWidgetDNA
     function GizmoGL()
         widget = OpenGLWidget()
         
-        lineShader = ShaderProgram(
-            sp("move_gizmo.vert"),
-            sp("gizmo.geom"),
-            sp("gizmo.frag"),
-            ["VP","gizmoCenter","gizmoScale","selectedID","nanVal","WH"])
+        lineShader = ShaderProgram(["move_gizmo.vert","gizmo.geom","gizmo.frag"],["VP","gizmoCenter","gizmoScale","selectedID","nanVal","WH"])
         
         id2Axis = [Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1)]
 
         activate(lineShader)
-        setUniform!(lineShader,"nanVal",NaN32) 
+        uniform(lineShader,"nanVal",NaN32) 
 
         new(widget,
             lineShader,
@@ -38,12 +34,12 @@ function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32,wh::Vec2F)
     gs = norm(cam._at - cam._eye) * self._size
 
     activate(self._lineShader)
-    setUniform!(self._lineShader,"VP",vp)
+    uniform(self._lineShader,"VP",vp)
 
-    setUniform!(self._lineShader,"gizmoCenter",self._pos)
-    setUniform!(self._lineShader,"gizmoScale",gs)
-    setUniform!(self._lineShader,"selectedID",gID)
-    setUniform!(self._lineShader,"WH",wh)
+    uniform(self._lineShader,"gizmoCenter",self._pos)
+    uniform(self._lineShader,"gizmoScale",gs)
+    uniform(self._lineShader,"selectedID",gID)
+    uniform(self._lineShader,"WH",wh)
     glDrawArrays(GL_LINES, 0, 12)
 end
 

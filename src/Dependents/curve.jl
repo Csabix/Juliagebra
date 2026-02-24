@@ -161,21 +161,21 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     function CurveRenderer(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
 
-        shader_predraw = ShaderProgram(sp("curve/curve_vertex.comp"),["VP","WH","Eye","lightDirCam","lightDirSide"])
+        shader_predraw = ShaderProgram(["curve/curve_vertex.comp"],["VP","WH","Eye","lightDirCam","lightDirSide"])
 
         types = ["solid","dashed","dotted","wave","dash_dot","arrow"]
 
         shaders_id = Vector{ShaderProgram}()
-        for type in types push!(shaders_id,ShaderProgram(sp("curve/id/curve.vert"),sp("curve/id/curve_$type.frag"))) end
+        for type in types push!(shaders_id,ShaderProgram(["curve/id/curve.vert","curve/id/curve_$type.frag"])) end
 
         shaders_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_opaque,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/opaque/curve_$type.frag"))) end
+        for type in types push!(shaders_opaque,ShaderProgram(["curve/opaque/curve.vert","curve/opaque/curve_$type.frag"])) end
 
         shaders_behind_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_behind_opaque,ShaderProgram(sp("curve/behind_opaque/curve.vert"),sp("curve/behind_opaque/curve_$type.frag"))) end
+        for type in types push!(shaders_behind_opaque,ShaderProgram(["curve/behind_opaque/curve.vert","curve/behind_opaque/curve_$type.frag"])) end
 
         shaders_transparent = Vector{ShaderProgram}()
-        for type in types push!(shaders_transparent,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/transparent/curve_$type.frag"))) end
+        for type in types push!(shaders_transparent,ShaderProgram(["curve/opaque/curve.vert","curve/transparent/curve_$type.frag"])) end
 
         ranges = Vector{Tuple{Int,Int,Int}}()
         drawRanges = fill((0,0),_CURVE_COUNT)
@@ -371,11 +371,11 @@ function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
 
     (cam_light, side_light) = get_lights(cam)
     activate(self._shader_predraw)
-    setUniform!(self._shader_predraw,"VP",vp)
-    setUniform!(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    setUniform!(self._shader_predraw,"Eye",cam._eye)
-    setUniform!(self._shader_predraw,"lightDirCam", cam_light)
-    setUniform!(self._shader_predraw,"lightDirSide",side_light)
+    uniform(self._shader_predraw,"VP",vp)
+    uniform(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    uniform(self._shader_predraw,"Eye",cam._eye)
+    uniform(self._shader_predraw,"lightDirCam", cam_light)
+    uniform(self._shader_predraw,"lightDirSide",side_light)
     @time_gpu_begin Dependent Curve PRE_DRAW_PASS
     glDispatchCompute(cld(length(self._coords),32),1,1);
     @time_gpu_end Dependent Curve PRE_DRAW_PASS 

@@ -207,21 +207,21 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     function SegmentSequenceRenderer(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
 
-        shader_predraw = ShaderProgram(sp("curve/segseq_vertex.comp"),["VP","WH","Eye","lightDirCam","lightDirSide","offset"])
+        shader_predraw = ShaderProgram(["curve/segseq_vertex.comp"],["VP","WH","Eye","lightDirCam","lightDirSide","offset"])
 
         types = ["solid","dashed","dotted","wave","dash_dot","arrow"]
 
         shaders_id = Vector{ShaderProgram}()
-        for type in types push!(shaders_id,ShaderProgram(sp("curve/id/curve.vert"),sp("curve/id/curve_$type.frag"))) end
+        for type in types push!(shaders_id,ShaderProgram(["curve/id/curve.vert","curve/id/curve_$type.frag"])) end
 
         shaders_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_opaque,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/opaque/curve_$type.frag"))) end
+        for type in types push!(shaders_opaque,ShaderProgram(["curve/opaque/curve.vert","curve/opaque/curve_$type.frag"])) end
 
         shaders_behind_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_behind_opaque,ShaderProgram(sp("curve/behind_opaque/curve.vert"),sp("curve/behind_opaque/curve_$type.frag"))) end
+        for type in types push!(shaders_behind_opaque,ShaderProgram(["curve/behind_opaque/curve.vert","curve/behind_opaque/curve_$type.frag"])) end
 
         shaders_transparent = Vector{ShaderProgram}()
-        for type in types push!(shaders_transparent,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/transparent/curve_$type.frag"))) end
+        for type in types push!(shaders_transparent,ShaderProgram(["curve/opaque/curve.vert","curve/transparent/curve_$type.frag"])) end
 
         coords = Vector{Vector{Vec3F}}()
         widths = Vector{Float32}()
@@ -408,11 +408,11 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
 
     (cam_light, side_light) = get_lights(cam)
     activate(self._shader_predraw)
-    setUniform!(self._shader_predraw,"VP",vp)
-    setUniform!(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    setUniform!(self._shader_predraw,"Eye",cam._eye)
-    setUniform!(self._shader_predraw,"lightDirCam", cam_light)
-    setUniform!(self._shader_predraw,"lightDirSide",side_light)
+    uniform(self._shader_predraw,"VP",vp)
+    uniform(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    uniform(self._shader_predraw,"Eye",cam._eye)
+    uniform(self._shader_predraw,"lightDirCam", cam_light)
+    uniform(self._shader_predraw,"lightDirSide",side_light)
     bind_ssbo(self._position_distance_buffer_out,3)
     bind_ssbo(self._color_buffer_out,4)
     bind_ssbo(self._light_buffer_out,5)
@@ -426,7 +426,7 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
             bind_ssbo(self._distance_buffers_in[j],0)
             bind_ssbo(self._color_type_buffers_in[j],1)
             bind_ssbo(self._position_width_buffers_in[j],2)
-            setUniform!(self._shader_predraw,"offset",offset)
+            uniform(self._shader_predraw,"offset",offset)
             glDispatchCompute(cld(length(self._coords[j]),32),1,1);
             offset += UInt32(length(self._coords[j]))
         end

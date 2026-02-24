@@ -64,8 +64,8 @@ mutable struct PointCloudRenderer <:RendererDNA{PointCloudDependent}
     
     function PointCloudRenderer(context::OpenGLData) 
         renderer = Renderer{PointCloudDependent}(context)
-        shader_id = ShaderProgram(sp("./point_cloud/point_cloud.vert"), sp("./point_cloud/point_cloud_id.frag"),["VP","pointSize"])
-        shader_opaque = ShaderProgram(sp("./point_cloud/point_cloud.vert"), sp("./point_cloud/point_cloud.frag"),["VP","pointSize","lightDirSideView","drawColor"])
+        shader_id = ShaderProgram(["point_cloud/point_cloud.vert","point_cloud/point_cloud_id.frag"],["VP","pointSize"])
+        shader_opaque = ShaderProgram(["point_cloud/point_cloud.vert","point_cloud/point_cloud.frag"],["VP","pointSize","lightDirSideView","drawColor"])
 
         new(
             renderer,
@@ -108,10 +108,10 @@ syncAll!(self::PointCloudRenderer) = return nothing
 
 function id_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     activate(self._shader_id)
-    setUniform!(self._shader_id,"VP",vp)
+    uniform(self._shader_id,"VP",vp)
     @time_gpu_begin Dependent Point_Cloud ID_PASS
     for i in 1:length(self._buffers)
-        setUniform!(self._shader_id,"pointSize",self._widths[i])
+        uniform(self._shader_id,"pointSize",self._widths[i])
         draw(self._buffers[i],GL_POINTS)
     end
     @time_gpu_end Dependent Point_Cloud ID_PASS
@@ -123,12 +123,12 @@ function opaque_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,sh
     (_, side_light) = get_lights(cam)
 
     activate(self._shader_opaque)
-    setUniform!(self._shader_opaque,"VP",vp)
-    setUniform!(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
+    uniform(self._shader_opaque,"VP",vp)
+    uniform(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
     @time_gpu_begin Dependent Point_Cloud OPAQUE_PASS
     for i in 1:length(self._buffers)
-        setUniform!(self._shader_opaque,"pointSize",self._widths[i])
-        setUniform!(self._shader_opaque,"drawColor",self._colors[i])
+        uniform(self._shader_opaque,"pointSize",self._widths[i])
+        uniform(self._shader_opaque,"drawColor",self._colors[i])
         draw(self._buffers[i],GL_POINTS)
     end
     @time_gpu_end Dependent Point_Cloud OPAQUE_PASS

@@ -17,6 +17,7 @@ mutable struct App <: AppDNA
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
+    
     _synchronizer::Synchronizer
     _builder::Builder
 

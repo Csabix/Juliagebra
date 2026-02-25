@@ -79,10 +79,7 @@ function setRenderedID!(self::PointRenderer,item::PointDependent,id)
     self._ids[getObserverID(item)] = Float32(id)
 end
 
-# ? We need a function, which gets called, when a Dependent is assigned to this renderer.
-# ? this "added!" function gets called every time a dependent is added.
-# ? The function should be used to copy data to CPU datastructures used for GPU parsing.
-# ! Must have
+# Green Thread
 function added!(self::PointRenderer,point::PointDependent)
     onNodeEval(point)
     
@@ -93,18 +90,13 @@ function added!(self::PointRenderer,point::PointDependent)
     push!(self._ids,Float32(aID))
 end
 
-# ? This function gets called if there was at least 1 or more Dependent which got assigned to this Renderer.
-# ? Actual Data Transfer to GPU VRAM should happen here.
-# ! Must have
+# Green Thread
 function addedAll!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
 end
 
-# ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
-# ? So the function is used to copy Dependent data into CPU datastructures. 
-# ? The function is called only once after change happens in that frame for every changed Dependent.
-# ! Must have
+# Green Thread
 function sync!(self::PointRenderer,point::PointDependent)
     id = getObserverID(point)
     coord = point._coord
@@ -112,10 +104,7 @@ function sync!(self::PointRenderer,point::PointDependent)
     self._coords[id] = Vec3F(coord)
 end
 
-# ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,
-# ? but when 1 or more "flag!" happens
-# ? Actual CPU to GPU data transfer happens here.
-# ! Must have
+# Green Thread
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
@@ -195,7 +184,7 @@ function _Point(;
 end
 
 function Point(x::Real,y::Real,z::Real)
-    return build!(PointDependent; data=Tuple([Vec3D(x,y,z)]), callback = (() -> (return Vec3D(x,y,z))))
+    return build!((x=x,y=y,z=z) -> ())
 end
 
 Point(callback::Function,dependents::Vector) = 

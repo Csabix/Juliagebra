@@ -15,11 +15,32 @@ function Init(callback::Function)
     global implicitApp
     implicitApp = App()
 
-    task = ThreadPinning.@spawnat 2 begin
-        startConstructor(callback)
-    end 
+    #redTask = Threads.@spawn begin
+    #    startConstructor(callback)
+    #end 
     
-    startOpengl()
-    wait(task)
+    greenTask = ThreadPinning.@spawnat 1 begin
+        startOpengl()
+    end
+
+    #greenTask = Task() do 
+    #    startOpengl()
+    #end
+    redTask = ThreadPinning.@spawnat 2 begin
+        startConstructor(callback)
+    end
+
+    #redTask.sticky = false
+    #Base.Threads._spawn_set_thrpool(redTask,:default)
+
+    
+
+    #schedule(greenTask)
+    #schedule(redTask)
+
+    #wait(greenTask)
+    #wait(redTask)
+    
+    return greenTask
     println("Main Thread ended!")
 end

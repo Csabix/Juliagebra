@@ -15,17 +15,14 @@ struct Evaluating <: SynchronizerState end
 # ? ---------------------------------
 
 mutable struct Synchronizer
-    _appState::SynchronizerState
     _ConstructorAirLock::AirLock
-    
+
     function Synchronizer()
         appState = Constructing()
         ConstructorAirLock = AirLock()
         new(appState,ConstructorAirLock)
     end
 end
-
-getState(self::Synchronizer)::SynchronizerState = return self._appState
 
 function decideState(app::AppDNA)
     self = getSynchronizer(app)

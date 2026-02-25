@@ -3,66 +3,86 @@ const DEFAULT_CALLBACK_FUNC() = return nothing
 const DEFAULT_DEPENDENTS = Vector{DependentDNA}()
 
 # ? ---------------------------------
-# ! Builder
+# ! Synchronizer
 # ? ---------------------------------
 
-mutable struct Builder
-    _recentlyBuilt::Union{DependentDNA,Nothing}
+mutable struct Synchronizer
+    _lock::ReentrantLock
+    _channel::Channel{DependentDNA}
 
-    function Builder()
-        new(nothing)
+    function Synchronizer()
+        lock = ReentrantLock()
+        channel = Channel{DependentDNA}(32) # ? 32 elements max, otherwise wait
+        new(lock,channel)
     end
 end
 
-getRecentlyBuilt(self::Builder) = return self._recentlyBuilt
+# GREEN Thread
+function updateState(app::AppDNA)
+    s::Builder = getSynchronizer(app)
 
-function build!(::Type{T};
-    app::AppDNA = implicitApp,
-    callback::Function = DEFAULT_CALLBACK_FUNC,
-    dependents::Vector{<:DependentDNA} = DEFAULT_DEPENDENTS,
-    data::Tuple = Tuple([]),
-    data_named::NamedTuple = NamedTuple()
-    ) where {T<:DependentDNA}
+    if trylock(s._lock)
+        # ? locked succesfully, no one can start constructing this frame,
+        # ? unlock this lock at the end of the frame.
+    else
+        # ? someone is building...
+    end
+end
 
-    local dependent::T
+# YELLOW Thread
+function build!(lambda::Function,app::AppDNA = implicitApp)::DependentDNA
+    
+    # ? Start constructing on the Blue Thread
+    blueTask = ThreadPinning.@spawnat 2 begin
+        return _build1(lambda,app)
+    end
 
-    al = getSynchronizer(app)._ConstructorAirLock
-    self = getBuilder(app)
-    insideAirLockProtocol(al) do 
-        #println("Constructing: \"$(T)\"...")
-        dependent = T(callback,dependents,data...;data_named...)
+    return Base.fetch(blueTask)
+end
+
+# BLUE Thread
+function _build1(lambda::Function,app::AppDNA)
+    s::Synchronizer = getSynchronizer(app)
+    local dependent::DependentDNA
+        
+    lock(s._lock) do 
+        dependent = lambda()
         _build(app,dependent)
-        self._recentlyBuilt = dependent
-        #println("Constructing Ended!")
+        put!(s._channel,dependent)
     end
 
     return dependent
 end
 
-function _build(app::AppDNA,dependent::DependentDNA)
+# BLUE Thread
+function _build2(app::AppDNA,dependent::DependentDNA)
     graph = getGraph(app)
     add!!(graph,dependent)
+
+    onNodeEval(dependent)
 end
 
-function _build(app::AppDNA,observed::ObservedDNA)
+# BLUE Thread
+function _build2(app::AppDNA,observed::ObservedDNA)
     graph = getGraph(app)
     observer = getObserverFrom(app,observed)
 
     add!!(observer,observed)
     add!!(graph,observed)
-    
-    return observed
+
+    onNodeEval(observed)
 end
 
-function _build(app::AppDNA, rendered::RenderedDependentDNA)
+# BLUE Thread
+function _build2(app::AppDNA, rendered::RenderedDependentDNA)
     graph = getGraph(app)
     renderer = getObserverFrom(app,rendered)
 
     add!!(renderer,rendered)
     add!!(graph,rendered)
     #setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
-    
-    return rendered
+
+    onNodeEval(rendered)
 end
 
 getObserverFrom(app::AppDNA,rendered::RenderedDependentDNA) = return Plan2Observer(getOpenGL(app),rendered)

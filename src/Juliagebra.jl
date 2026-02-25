@@ -16,7 +16,7 @@ using ModernGL
 using CImGui
 using DataStructures
 using ThreadPinning
-pinthreads(:cores)
+#pinthreads(:cores)
 
 include("performance_metrics.jl")
 
@@ -82,7 +82,7 @@ include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
 include("global_plan_optimizer.jl")
-include("synchronizer.jl")
+#include("synchronizer.jl")
 include("builder.jl")
 include("opengl_data.jl")
 include("imgui_data.jl")

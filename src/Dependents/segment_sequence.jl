@@ -404,6 +404,16 @@ end
 end
 
 function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    # Quick fix
+    glClearNamedBufferSubData(
+    self._position_distance_buffer_out._id,
+    GL_R32F,
+    0,
+    self._position_distance_buffer_out._size,
+    GL_RED,
+    GL_FLOAT,
+    [NaN32])
+    # Quick fix end
     _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
 
     (cam_light, side_light) = get_lights(cam)

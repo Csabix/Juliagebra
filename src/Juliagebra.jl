@@ -33,7 +33,6 @@ include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/infer.jl")
-include("Helpers/airlock.jl")
 
 # ? ---------------------------------
 # ! Primitives
@@ -81,9 +80,7 @@ include("Widgets/graph_viewer_window.jl")
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
-include("global_plan_optimizer.jl")
-#include("synchronizer.jl")
-include("builder.jl")
+include("synchronizer.jl")
 include("opengl_data.jl")
 include("imgui_data.jl")
 
@@ -122,7 +119,5 @@ include("Dependents/intersections.jl")
 include("app.jl")
 
 include("constructors.jl")
-
-include("initializer.jl")
 
 end

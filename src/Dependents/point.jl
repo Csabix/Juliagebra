@@ -7,17 +7,12 @@ mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D 
 
-    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},xyz::Vec3D)
+    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
         renderedDependent = RenderedDependent(callback,dependents)
-        coord = xyz
+        coord = Vec3DNan
         new(renderedDependent,coord)
     end
 end
-
-getX(self::PointDependent) = return self._coord.x
-getY(self::PointDependent) = return self._coord.y
-getZ(self::PointDependent) = return self._coord.z
-getCoord(self::PointDependent) = return self._coord
 
 _RenderedDependent_(self::PointDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
@@ -26,7 +21,6 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     self._coord = Vec3D(x,y,z)
     evalGraph(self)
 end
-
 
 onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
@@ -43,7 +37,6 @@ evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 # ! PointRenderer
 # ? ---------------------------------
 
-# ? Now we can move on to creating a renderer, which uses GPU resources to render RenderedDependents.
 mutable struct PointRenderer <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
 
@@ -81,11 +74,9 @@ end
 
 # Green Thread
 function added!(self::PointRenderer,point::PointDependent)
-    onNodeEval(point)
-    
     aID = 0
     coord = point._coord
-    @log "$(point._coord)"
+    #@log "$(point._coord)"
     push!(self._coords,Vec3F(coord))
     push!(self._ids,Float32(aID))
 end
@@ -109,7 +100,7 @@ function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     @time_cpu_end Dependent Point
-    @log "Uploaded Coordinate buffer!" INFO
+    #@log "Uploaded Coordinate buffer!" INFO
 end
 
 function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
@@ -183,9 +174,9 @@ function _Point(;
     return plan
 end
 
-function Point(x::Real,y::Real,z::Real)
-    return build!((x=x,y=y,z=z) -> ())
+function Point(x::Real,y::Real,z::Real)::PointDependent
+    return build!((x=x,y=y,z=z) -> (PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}())))
 end
 
 Point(callback::Function,dependents::Vector) = 
-build!(PointDependent; callback=callback, dependents=dependents, data=Tuple([Vec3DNan]))
+build!((callback=callback,dependents=dependents) -> (PointDependent(callback,dependents)))

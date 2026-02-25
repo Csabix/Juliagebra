@@ -57,7 +57,7 @@ function buildFromPlan!(plan::ObservedPlanDNA,graph::DependentGraphDNA,builder::
     return (observer,observed)
 end
 
-function fetch(self::DependentGraphDNA,id::Integer)::DependentDNA
+function Base.getindex(self::DependentGraphDNA,id::Integer)::DependentDNA
     graph = _DependentGraph_(self)
     return graph._dependentObjects[id - ID_LOWER_BOUND]
 end

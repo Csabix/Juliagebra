@@ -1,75 +1,180 @@
 
-# ? ---------------------------------
-# ! SynchronizerState
-# ? ---------------------------------
+const DEFAULT_CALLBACK_FUNC() = return nothing
+const DEFAULT_DEPENDENTS = Vector{DependentDNA}()
 
-abstract type SynchronizerState end
+global implicitApp::Union{AppDNA,Nothing} = nothing
+global greenTask::Union{Any,Nothing} = nothing
 
-struct Viewing <: SynchronizerState end
-struct Constructing <: SynchronizerState end
-struct Adding <: SynchronizerState end
-struct Evaluating <: SynchronizerState end
+abstract type FrameState end
+struct BuildingState <: FrameState end
+struct ViewingState <: FrameState end
+
+const ADDED_CHANNEL_SIZE = 64
+const ADDED_PER_FRAME_MAX = 64
 
 # ? ---------------------------------
 # ! Synchronizer
 # ? ---------------------------------
 
 mutable struct Synchronizer
-    _ConstructorAirLock::AirLock
+    _lock::ReentrantLock
+    _channel::Channel{DependentDNA}
+    _initLock::ReentrantLock
+    _initCondition::Threads.Condition
 
     function Synchronizer()
-        appState = Constructing()
-        ConstructorAirLock = AirLock()
-        new(appState,ConstructorAirLock)
+        lock = ReentrantLock()
+        # ? ADDED_CHANNEL_SIZE elements max on the BLUE Thread, otherwise wait
+        channel = Channel{DependentDNA}(ADDED_CHANNEL_SIZE)
+        initLock = ReentrantLock()
+        initCondition = Threads.Condition(initLock)
+        new(lock,channel,initLock,initCondition)
     end
 end
 
-function decideState(app::AppDNA)
-    self = getSynchronizer(app)
-    
-    # ? Check the Current AirLock state:
-    ConstructorAirLockState::AirLockStates = getAirLockState(self._ConstructorAirLock)
-    
-    if (ConstructorAirLockState === AtExit())
-        #println("AtExit1")
-        builder = getBuilder(app)
-        #println("AtExit2")
-        recentlyBuilt = getRecentlyBuilt(builder)
-        #println("AtExit3")
-        observer = getObserver(recentlyBuilt)
-        #println("AtExit4")
+# GREEN Thread
+function decideFrameState(app::AppDNA)::FrameState
+    s::Synchronizer = getSynchronizer(app)
 
-        # ? Call added events for recently built
-        # ! Only works for Observed Dependents
-        
-        #println("AtExit5 $(typeof(observer)) - $(typeof(recentlyBuilt))")
-        added!(observer,recentlyBuilt)
-        
-        #println("AtExit6")
-        setRenderedID!(observer,recentlyBuilt,getGraphID(recentlyBuilt) + ID_LOWER_BOUND)
+    if trylock(s._lock)
+        # ? locked succesfully, no one can start constructing this frame,
+        # ? unlock this lock at the end of the frame.
+        return ViewingState()
+    else
+        # ? failed locking, must have started building...
+        return BuildingState()
+    end
+end
 
-        #println("AtExit7 $(typeof(observer))")
+# Green Thread
+function handleAddedCalls(app::AppDNA)
+    s::Synchronizer = getSynchronizer(app)
+    builtDependentsNum = Base.n_avail(s._channel)
+    # ? at max process ADDED_PER_FRAME_MAX dependents in this frame.
+    takeNum = min(builtDependentsNum,ADDED_PER_FRAME_MAX)
+    addedAllSet = Set{ObserverDNA}()
+    
+    for i in 1:takeNum
+
+        dependent::DependentDNA = take!(s._channel)
+        observer = _handleAddedCalls1(dependent,app)
+
+        if !isnothing(observer)
+            push!(addedAllSet,observer)
+        end
+    end
+    
+    for observer in addedAllSet
         addedAll!(observer)
     end
 
-    # ? Let the AirLock work, based on the checked state:
-    outsideAirLockProtocol(self._ConstructorAirLock,ConstructorAirLockState)
-    #return ConstructorStateDecide(self,ConstructorAirLockState)
-    return ConstructorAirLockState
+    if takeNum > 1
+        @log "Built $(takeNum)!"
+    end
 end
 
-function ConstructorStateDecide(self::Synchronizer,::AtExit)
-    self._appState = Adding()
+# Green Thread
+function _handleAddedCalls1(dependent::DependentDNA,app::AppDNA)
+    # ? The BLUE Thread already did the required building work.
+    return nothing
 end
 
-function ConstructorStateDecide(self::Synchronizer,::AtEntrance)
-    self._appState = Constructing()
+# Green Thread
+function _handleAddedCalls1(rendered::RenderedDependentDNA,app::AppDNA)
+    renderer::ObserverDNA = getObserver(rendered)
+    added!(renderer,rendered)
+    setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
+
+    return renderer
 end
 
-function ConstructorStateDecide(self::Synchronizer,::ThreadInside)
-    self._appState = Constructing()
+# GREEN THREAD
+function startOpengl()
+    global implicitApp
+    println("OpenGL: $(Threads.threadid())")
+    play!(implicitApp)
 end
 
-function ConstructorStateDecide(self::Synchronizer,::NoThreadsWaiting)
-    self._appState = Viewing()
+# YELLOW Thread
+function Wait()
+    global greenTask
+    
+    wait(greenTask)
+    println("Main Thread ended!")
 end
+
+# YELLOW Thread
+function build!(lambda::Function)::DependentDNA    
+    global implicitApp
+    global greenTask
+    
+    if isnothing(implicitApp)
+        implicitApp = App()
+        
+        greenTask = ThreadPinning.@spawnat 1 begin
+            startOpengl()
+        end
+        errormonitor(greenTask)
+        
+        s::Synchronizer = getSynchronizer(implicitApp)
+        lock(s._initCondition)
+        wait(s._initCondition)
+        unlock(s._initCondition)
+    end
+
+    # ? Start constructing on the Blue Thread
+    blueTask = Threads.@spawn begin
+        return _build1(lambda,implicitApp)
+    end
+    
+    return fetch(blueTask)
+end
+
+# BLUE Thread
+function _build1(lambda::Function,app::AppDNA)
+    s::Synchronizer = getSynchronizer(app)
+    local dependent::DependentDNA
+
+    lock(s._lock) do 
+        dependent = lambda()
+        _build2(app,dependent)
+        put!(s._channel,dependent)
+    end
+
+    return dependent
+end
+
+# BLUE Thread
+function _build2(app::AppDNA,dependent::DependentDNA)
+    graph = getGraph(app)
+    add!!(graph,dependent)
+
+    onNodeEval(dependent)
+end
+
+# BLUE Thread
+function _build2(app::AppDNA,observed::ObservedDNA)
+    graph = getGraph(app)
+    observer = getObserverFrom(app,observed)
+
+    add!!(observer,observed)
+    add!!(graph,observed)
+
+    onNodeEval(observed)
+end
+
+# BLUE Thread
+function _build2(app::AppDNA, rendered::RenderedDependentDNA)
+    graph = getGraph(app)
+    renderer = getObserverFrom(app,rendered)
+
+    add!!(renderer,rendered)
+    add!!(graph,rendered)
+    #setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
+
+    onNodeEval(rendered)
+end
+
+getObserverFrom(app::AppDNA,rendered::RenderedDependentDNA) = return Plan2Observer(getOpenGL(app),rendered)
+getObserverFrom(app::AppDNA,rendered::GuiDependentDNA) = return Plan2Observer(getImGui(app),rendered)
+destroy!(self::Synchronizer) = close(self._channel)

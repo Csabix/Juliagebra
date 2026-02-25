@@ -1,6 +1,6 @@
 const _SHADER_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Shaders")
 
-mutable struct ShaderProgram <: OpenGLWrapper
+struct ShaderProgram <: OpenGLWrapper
     _id::GLuint
     _uniforms::Dict{String,GLint}
 

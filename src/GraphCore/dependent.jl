@@ -70,7 +70,7 @@ function evalCallbackDp(self::DependentDNA; callbackParams = (), returnParams = 
     
     entryNodes = getEntryNodes(self)
     
-    returnVal = @invokelatest getCallback(self)(callbackParams...,entryNodes...)
+    returnVal = getCallback(self)(callbackParams...,entryNodes...)
     evalCallbackDpReturn(self,returnVal,returnParams...)
 end
 

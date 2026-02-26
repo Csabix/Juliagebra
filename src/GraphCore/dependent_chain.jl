@@ -22,6 +22,11 @@ dependentsOf(self::DependentChain) = return self._vec
 observersOf(self::DependentChain) = return self._set
 
 function evalChain(self::DependentChain)
+    @invokelatest _evalChain(self)
+end
+
+function _evalChain(self::DependentChain)
+     
     for item in dependentsOf(self)
         beforeNodeEval(item)
         onNodeEval(item)
@@ -31,4 +36,5 @@ function evalChain(self::DependentChain)
     for item in observersOf(self)
         postGraphEval(item)
     end
+    
 end

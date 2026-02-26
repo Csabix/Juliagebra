@@ -2,119 +2,166 @@
 # ! Buffer
 # ? ---------------------------------
 
+#@inline copy(read::Buffer, write::_BufferBase, read_offset::GLintptr, write_offset::GLintptr, size::GLsizeiptr)
 
-mutable struct Buffer{T} <:OpenGLWrapper
+# TODO @clear(self::Buffer,value)
+# TODO @clear(self::_BufferBase,value,offset,count)
+# TODO memory map
+
+mutable struct Buffer{Mutable,T} <: OpenGLWrapper where{Mutable,T}
     _id::GLuint
-    _numOfItems::Int
+    _size::Int
 
-    function Buffer{T}() where T
-        id = Ref{GLuint}(0)
-        glGenBuffers(1,id)
-        id = id[]
-        self = new(id,0)
-        return self
+    function Buffer{M,T}() where {M, T}
+        @assert isbitstype(T) "OpenGL requires bitstypes."
+        id = Ref{GLuint}()
+        glCreateBuffers(1,id)
+        new{M,T}(id[],0)
+    end
+
+    function Buffer{M,Any}() where M
+        id = Ref{GLuint}()
+        glCreateBuffers(1,id)
+        new{M,Any}(id[],0)
     end
 end
 
-Buffer() = Buffer{GL_ARRAY_BUFFER}()
-
-function upload!(self::Buffer{T},data::Vector,usage::GLuint) where T
-    glBindBuffer(T,self._id)
-    self._numOfItems = length(data)
-
-    if self._numOfItems > 0
-        @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
-        #println(reinterpret(Float32, data))
-        #println(self._id)
-    end
-    glBufferData(T,sizeof(data),data,usage)
-    #println("$(sizeof(data)) - $(length(data))")
-end
-
-Base.length(self::Buffer)::Int = self._numOfItems
-activate(self::Buffer{T}) where T = glBindBuffer(T,self._id)
-deactivate(self::Buffer{T}) where T = glBindBuffer(T,0)
-destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
-
-
 # ? ---------------------------------
-# ! TypedBuffer
+# ! Helpers
 # ? ---------------------------------
 
-mutable struct TypedBuffer{T}<:OpenGLWrapper where {T<:Union{StaticArray,Real}} 
-    _buffer::Buffer
+const BufferM = Buffer{:Mutable, Any}
+const BufferMT{T} = Buffer{:Mutable, T}
 
-    function TypedBuffer{T}(arrayMode=GL_ARRAY_BUFFER) where {T<:Union{StaticArray,Real}}
-        buffer = Buffer{arrayMode}()
-        new(buffer)
-    end
-end
+const BufferI = Buffer{:Immutable, Any}
+const BufferIT{T} = Buffer{:Immutable, T}
 
-function upload!(self::TypedBuffer{T},data::Vector{T},usage::GLuint) where {T<:Union{StaticArray,Real}}
-    upload!(self._buffer,data,usage)
-    deactivate(self)
-end
-
-function tSize(self::TypedBuffer{T})::Int where {T<:Union{StaticArray,Real}}
-    return sizeof(T)
-end
-
-Base.length(self::TypedBuffer)::Int = return length(self._buffer)
-activate(self::TypedBuffer) = activate(self._buffer)
-deactivate(self::TypedBuffer) = deactivate(self._buffer)
-destroy!(self::TypedBuffer) = destroy!(self._buffer)
+const IndexBufferI = Buffer{:Immutable, UInt32}
+const IndexBufferM = Buffer{:Mutable, UInt32}
 
 # ? ---------------------------------
-# ! IndexBuffer
+# ! Methods
 # ? ---------------------------------
 
-IndexBuffer() = TypedBuffer{UInt32}(GL_ELEMENT_ARRAY_BUFFER)
+@inline Base.eltype(::Buffer{M, T}) where {M, T} = T
+@inline Base.eltype(::Buffer{M,Any}) where {M} = error("Can't querry type of an untyped buffer")
+@inline Base.length(self::Buffer{M,T}) where {M,T} = count(self)
+@inline Base.length(::Buffer{M,Any}) where {M} = error("Can't querry length of an untyped buffer")
+@inline size(self::Buffer)::GLuint = self._size
+@inline id(self::Buffer)::GLuint = self._id
 
-# TODO: Implement binding for every buffer.
+@inline destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
 
-struct StaticBuffer <:OpenGLWrapper
-    _id::GLuint
-    _size::GLsizeiptr
-    _numOfItems::Int
-
-    function StaticBuffer(id=0,size=0,numOfItems=0)
-        return new(id,size,numOfItems)
-    end
+@inline function count(self::Buffer{M,Any}, ::Type{T})::Int where {M,T}
+    div(self._size,sizeof(T))
+end
+@inline function count(self::Buffer{M,T})::Int where {M,T}
+    div(self._size,sizeof(T))
 end
 
-function create(self::StaticBuffer,size::GLsizeiptr,flags::GLuint)::StaticBuffer
-    if self._id != 0 glDeleteBuffers(1,[self._id]) end
-    id = Ref{GLuint}(0)
+@inline function reserve!(self::Buffer{:Mutable,Any}, size::GLsizeiptr, usage::GLenum)
+    glNamedBufferData(self._id,size,C_NULL,usage)
+    self._size = size
+end
+@inline function reserve!(self::Buffer{:Mutable,T}, count::Int, usage::GLenum) where T
+    glNamedBufferData(self._id,count*sizeof(T),C_NULL,usage)
+    self._size = count*sizeof(T)
+end
+@inline function reserve!(self::Buffer{:Immutable,Any}, size::GLsizeiptr, flags::GLbitfield)
+    @assert size != 0
+    self._size != 0 && _recreate!(self)
+    glNamedBufferStorage(self._id,size,C_NULL,flags)
+    self._size = size
+end
+@inline function reserve!(self::Buffer{:Immutable,T}, count::Int, flags::GLbitfield) where T
+    @assert count != 0
+    self._size != 0 && _recreate!(self)
+    glNamedBufferStorage(self._id,count*sizeof(T),C_NULL,flags)
+    self._size = count*sizeof(T)
+end
+
+@inline function upload!(self::Buffer{:Mutable,Any}, data::AbstractVector{T}, usage::GLenum) where T
+    @assert isbitstype(T) "OpenGL requires bitstypes."
+    glNamedBufferData(self._id,length(data)*sizeof(T),data,usage)
+    self._size = length(data)*sizeof(T)
+end
+@inline function upload!(self::Buffer{:Mutable,T}, data::AbstractVector{T}, usage::GLenum) where T
+    glNamedBufferData(self._id,length(data)*sizeof(T),data,usage)
+    self._size = length(data)*sizeof(T)
+end
+@inline function upload!(self::Buffer{:Immutable,Any}, data::AbstractVector{T}, flags::GLbitfield) where T
+    @assert isbitstype(T) "OpenGL requires bitstypes."
+    @assert length(data) > 0
+    self._size != 0 && _recreate!(self)
+    glNamedBufferStorage(self._id,length(data)*sizeof(T),data,flags)
+    self._size = length(data)*sizeof(T)
+end
+@inline function upload!(self::Buffer{:Immutable,T}, data::AbstractVector{T}, flags::GLbitfield) where T
+    @assert length(data) > 0
+    self._size != 0 && _recreate!(self)
+    glNamedBufferStorage(self._id,length(data)*sizeof(T),data,flags)
+    self._size = length(data)*sizeof(T)
+end
+
+@inline function upload!(self::Buffer{M,Any}, data::AbstractVector{T}) where {M,T}
+    @assert isbitstype(T) "OpenGL requires bitstypes."
+    if length(data) == 0 return end
+    invalidate!(self)
+    glNamedBufferSubData(self._id,0,length(data)*sizeof(T),data)
+end
+@inline function upload!(self::Buffer{M,T}, data::AbstractVector{T}) where {M,T}
+    if length(data) == 0 return end
+    invalidate!(self)
+    glNamedBufferSubData(self._id,0,length(data)*sizeof(T),data)
+end
+@inline function upload!(self::Buffer{M,Any}, data::AbstractVector{T}, offset::Int) where {M,T}
+    @assert isbitstype(T) "OpenGL requires bitstypes."
+    if length(data) == 0 return end
+    glNamedBufferSubData(self._id,offset*sizeof(T),length(data)*sizeof(T),data)
+end
+@inline function upload!(self::Buffer{M,T}, data::AbstractVector{T}, offset::Int) where {M,T}
+    if length(data) == 0 return end
+    glNamedBufferSubData(self._id,offset*sizeof(T),length(data)*sizeof(T),data)
+end
+
+@inline function data(self::Buffer{M,Any}, ::Type{T}, out_vec=Vector{T}())::Vector{T}() where {M, T}
+    @assert isbitstype(T) "OpenGL requires bitstypes."
+    n = count(self,T)
+    Base.resize!(out_vec,n)
+    if n == 0 return out_vec end
+    glGetNamedBufferSubData(self._id,0,n*sizeof(T),out_vec)
+    return out_vec
+end
+@inline function data(self::Buffer{M,T}, out_vec=Vector{T}())::Vector{T}() where {M, T}
+    n = count(self)
+    Base.resize!(out_vec,n)
+    if n == 0 return out_vec end
+    glGetNamedBufferSubData(self._id,0,n*sizeof(T),out_vec)
+    return out_vec
+end
+@inline function data(self::Buffer{M,Any}, ::Type{T}, offset::Int, count::Int, out_vec=Vector{T}())::Vector{T}() where {M, T}
+    @assert isbitstype(T) "OpenGL requires bitstypes."
+    Base.resize!(out_vec,count)
+    if n == 0 return out_vec end
+    glGetNamedBufferSubData(self._id,offset*sizeof(T),count*sizeof(T),out_vec)
+    return out_vec
+end
+@inline function data(self::Buffer{M,T}, offset::Int, count::Int, out_vec=Vector{T}())::Vector{T}() where {M, T}
+    Base.resize!(out_vec,count)
+    if n == 0 return out_vec end
+    glGetNamedBufferSubData(self._id,offset*sizeof(T),count*sizeof(T),out_vec)
+    return out_vec
+end
+
+@inline invalidate!(self::Buffer) = glInvalidateBufferData(self._id)
+
+@inline bind_ssbo(self::Buffer, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,self._id)
+
+@inline function _recreate!(self::Buffer)
+    @assert self._size != 0
+    glDeleteBuffers(1,[self._id])
+    id = Ref{GLuint}()
     glCreateBuffers(1,id)
-
-    glNamedBufferStorage(id[],size,C_NULL,flags)
-
-    return StaticBuffer(id[],size)
+    self._id = id[]
+    self._size = 0
 end
-
-function create(self::StaticBuffer,data::Vector,flags::GLuint)::StaticBuffer
-    @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
-
-    if self._id != 0 glDeleteBuffers(1,[self._id]) end
-    id = Ref{GLuint}(0)
-    glCreateBuffers(1,id)
-
-    numOfItems::Int = length(data)
-    size::GLsizeiptr = sizeof(data)
-    glNamedBufferStorage(id[],size,data,flags)
-    return StaticBuffer(id[],size,numOfItems)
-end
-
-function upload!(self::StaticBuffer,data::Vector)
-    @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
-    if sizeof(data) > self._size
-        @log "Imput data is larger than the size of StaticBuffer, create a new StaticBuffer for the data" ERR
-    end
-
-    glNamedBufferSubData(self._id,0,sizeof(data),data)
-end
-
-Base.length(self::StaticBuffer)::Int = self._numOfItems
-bind(self::StaticBuffer, target::GLuint) = glBindBuffer(target, self._id)
-bind_ssbo(self::StaticBuffer, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,self._id)
-destroy!(self::StaticBuffer) = if self._id != 0 glDeleteBuffers(1,[self._id]) end

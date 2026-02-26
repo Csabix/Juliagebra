@@ -58,7 +58,7 @@ mutable struct PointCloudRenderer <:RendererDNA{PointCloudDependent}
 
     _shader_id::ShaderProgram
     _shader_opaque::ShaderProgram
-    _buffers::Vector{TypedBufferArray}
+    _buffers::Vector{BufferArray}
     _widths::Vector{Float32}
     _colors::Vector{Vec3F}
     
@@ -70,7 +70,7 @@ mutable struct PointCloudRenderer <:RendererDNA{PointCloudDependent}
         new(
             renderer,
             shader_id,shader_opaque,
-            Vector{TypedBufferArray}(),
+            Vector{BufferArray}(),
             Vector{Float32}(),
             Vector{Vec3F}())
     end
@@ -83,7 +83,7 @@ setRenderedID!(self::PointCloudRenderer,item::PointCloudDependent,id) = return n
 
 function added!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     onNodeEval(point_cloud)
-    buffer = TypedBufferArray{Tuple{Vec3F}}()
+    buffer = BufferArray{Tuple{Vec3F}}()
     upload!(buffer,
             1,
             [Vec3F(coord) for coord in point_cloud._coords],

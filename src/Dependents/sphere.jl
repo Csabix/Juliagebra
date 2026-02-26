@@ -138,8 +138,8 @@ mutable struct SphereRenderer <: RendererDNA{SphereDependent}
     _shader_opaque::ShaderProgram
     _shader_transparent::ShaderProgram
 
-    _buffer_opaque::TypedBufferArray
-    _buffer_transparent::TypedBufferArray
+    _buffer_opaque::BufferArray
+    _buffer_transparent::BufferArray
 
     _centers_opaque::Vector{Vec3F}
     _radiuses_opaque::Vector{Float32}
@@ -157,8 +157,8 @@ function SphereRenderer(context::OpenGLData)
     shader_opaque = ShaderProgram(["sphere/sphere.vert","sphere/sphere.geom","sphere/sphere_opaque.frag"],["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
     shader_transparent = ShaderProgram(["sphere/sphere.vert","sphere/sphere.geom","sphere/sphere_transparent.frag"],["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
 
-    buffer_opaque = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
-    buffer_transparent = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
+    buffer_opaque = BufferArray{Tuple{Vec3F,Float32,Vec3F}}()
+    buffer_transparent = BufferArray{Tuple{Vec3F,Float32,Vec3F}}()
 
     return SphereRenderer(
         renderer,

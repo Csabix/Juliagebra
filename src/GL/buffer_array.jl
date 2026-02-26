@@ -2,107 +2,69 @@
 # ! BufferArray
 # ? ---------------------------------
 
-draw(mode::GLuint,length::Real) = glDrawArrays(mode,0,length)
+struct BufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{Buffer}}}
+    _vbos::T
+    _vao::VertexArray
 
-mutable struct BufferArray <: OpenGLWrapper
-    _numOfItems::GLuint
-    _usage::GLuint
-    _buffer::Buffer
-    _vertexArray::VertexArray
-    
-    function BufferArray(itemType::DataType,usage::GLuint=GL_STATIC_DRAW,data::Vector=[])
-        buffer = Buffer()
-        activate(buffer)
-        vertexArray = VertexArray(itemType)
-        self = new(length(data),usage,buffer,vertexArray)
-        
-        upload!(self,data)
-        return self
-    end
-end
-
-
-upload!(self::BufferArray,data::Vector) = (self._numOfItems=length(data);upload!(self._buffer,data,self._usage);deactivate(self._buffer))
-
-draw(self::BufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,self._numOfItems))
-destroy!(self::BufferArray) = (destroy!(self._vertexArray);destroy!(self._buffer))
-
-# ? ---------------------------------
-# ! TypedBufferArray
-# ? ---------------------------------
-
-mutable struct TypedBufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{TypedBuffer}}}
-    
-    _typedBuffers::T
-    _vertexArray::VertexArray
-
-    function TypedBufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        
-        buffers = Vector{TypedBuffer}()
-        for type in T.parameters
-            push!(buffers,TypedBuffer{type}())
+    function BufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
+        buffers = Buffer[]
+        sizehint!(buffers, length(T.parameters))
+        for Type in T.parameters
+            push!(buffers, Buffer{:Mutable, Type}())
         end
-        buffers = Tuple(buffers)
 
-        vertexArray = VertexArray(buffers)
+        vao = VertexArray()
+        bind_buffers!(vao, buffers)
 
-        new{typeof(buffers)}(buffers,vertexArray)
+        buffer_tuple = Tuple(buffers)
+        return new{typeof(buffer_tuple)}(buffer_tuple, vao)
     end
 end
 
-function destroy!(self::TypedBufferArray)
-    destroy!(self._vertexArray)
-    for buffer in self._typedBuffers
-        destroy!(buffer)
-    end
+function destroy!(self::BufferArray)
+    destroy!(self._vao)
+    destroy!.(self._vbos)
 end
 
-Base.length(self::TypedBufferArray)::Int = return length(self._typedBuffers[1])
-draw(self::TypedBufferArray,mode::GLuint) = (activate(self._vertexArray);draw(mode,length(self)))
-upload!(self::TypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffers[index],data,usage)
-activate(self::TypedBufferArray) = activate(self._vertexArray)
+Base.length(self::BufferArray)::Int = return length(self._vbos[1])
+draw(self::BufferArray,mode::GLuint) = (activate(self);glDrawArrays(mode,0,length(self)))
+activate(self::BufferArray) = activate(self._vao)
+
+reserve!(self::BufferArray,index::Int,count::Int,usage::GLenum) = reserve(self._vbos[index],count,usage)
+upload!(self::BufferArray,index::Int,data::AbstractVector{T},usage::GLenum) where T = upload!(self._vbos[index],data,usage)
+upload!(self::BufferArray,index::Int,data::AbstractVector{T}) where T = upload!(self._vbos[index],data)
 
 # ? ---------------------------------
-# ! IndexedTypedBufferArray
+# ! IndexedBufferArray
 # ? ---------------------------------
 
-mutable struct IndexedTypedBufferArray{T} <: OpenGLWrapper
-    _typedBuffer::TypedBufferArray
-    _indexBuffer::TypedBuffer
+mutable struct IndexedBufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{Buffer}}}
+    _buffer_array::BufferArray
+    _ebo::Buffer{:Mutable, UInt32}
 
-    function IndexedTypedBufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        
-        indexBuffer = IndexBuffer()
-        typedBuffer = TypedBufferArray{T}()
+    function IndexedBufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
+        buffer_array = BufferArray{T}()
+        ebo = IndexBufferM()
 
-        activate(typedBuffer._vertexArray)        
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer._buffer._id);
-        
-        glBindVertexArray(0)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        bind_ebo!(buffer_array._vao,ebo)
 
-        new(typedBuffer,indexBuffer)
+        new(buffer_array,ebo)
     end
 end
 
-function destroy!(self::IndexedTypedBufferArray)
-    destroy!(self._typedBuffer)
-    destroy!(self._indexBuffer)
+function destroy!(self::IndexedBufferArray)
+    destroy!(self._ebo)
+    destroy!(self._buffer_array)
 end
 
-Base.length(self::IndexedTypedBufferArray)::Int = return length(self._typedBuffer)
-upload!(self::IndexedTypedBufferArray,index::Int,data::Vector,usage::GLuint) = upload!(self._typedBuffer,index,data,usage)
-uploadIndexes!(self::IndexedTypedBufferArray,data::Vector,usage::GLuint) = upload!(self._indexBuffer,data,usage)
+Base.length(self::IndexedBufferArray)::Int = return length(self.vbos[1])
+draw(self::IndexedBufferArray,mode::GLuint) = (activate(self);glDrawElements(mode,length(self._ebo),GL_UNSIGNED_INT,C_NULL))
+activate(self::IndexedBufferArray) = activate(self._buffer_array)
 
-function draw(self::IndexedTypedBufferArray,mode::GLuint)
-    #println("$(length(self._indexBuffer))")
-    #println("$(length(self._typedBuffer._typedBuffers[1]))")
-    #println("$(length(self._typedBuffer._typedBuffers[2]))")
-    #println("$(length(self._typedBuffer._typedBuffers[3]))")
+reserve!(self::IndexedBufferArray,index::Int,count::Int,usage::GLenum) = reserve(self._buffer_array,index,count,usage)
+upload!(self::IndexedBufferArray,index::Int,data::AbstractVector{T},usage::GLenum) where T = upload!(self._buffer_array,index,data,usage)
+upload!(self::IndexedBufferArray,index::Int,data::AbstractVector{T}) where T = upload!(self._buffer_array,index,data)
 
-    activate(self._typedBuffer._vertexArray)
-    #activate(self._indexBuffer)
-    glDrawElements(mode, length(self._indexBuffer), GL_UNSIGNED_INT, C_NULL);
-end
-
-activate(self::IndexedTypedBufferArray) = activate(self._typedBuffer._vertexArray)
+reserve_indices!(self::IndexedBufferArray,count::Int,usage::GLenum) = reserve(self._ebo,count,usage)
+upload_indices!(self::IndexedBufferArray,data::AbstractVector{UInt32},usage::GLenum) = upload!(self._ebo,data,usage)
+data_indices!(self::IndexedBufferArray,data::AbstractVector{UInt32}) = upload!(self._ebo,data)

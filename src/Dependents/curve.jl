@@ -131,6 +131,7 @@ end
 
 mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
+    _emptyVAO::VertexArray
 
     _shader_predraw::ShaderProgram
     _shaders_id::Vector{ShaderProgram}
@@ -149,14 +150,14 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _position_width::Vector{Vec4F}
     _needMaintance::Bool
 
-    _distance_buffer_in::StaticBuffer
-    _color_type_buffer_in::StaticBuffer
-    _position_width_buffer_in::StaticBuffer
+    _distance_buffer_in::BufferIT{Float32}
+    _color_type_buffer_in::BufferIT{Float32}
+    _position_width_buffer_in::BufferIT{Vec4F}
 
-    _position_distance_buffer_out::StaticBuffer
-    _color_buffer_out::StaticBuffer
-    _light_buffer_out::StaticBuffer
-    _sdf_buffer_out::StaticBuffer
+    _position_distance_buffer_out::BufferIT{Vec4F}
+    _color_buffer_out::BufferIT{UVec2}
+    _light_buffer_out::BufferIT{Vec4F}
+    _sdf_buffer_out::BufferIT{Vec4F}
 
     function CurveRenderer(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
@@ -188,12 +189,13 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
         
         needMaintance = false
         new(renderer,
+            VertexArray(),
             shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
             ranges,drawRanges,
             coords,widths,colors,
             distances,position_width,needMaintance,
-            StaticBuffer(),StaticBuffer(),StaticBuffer(),
-            StaticBuffer(),StaticBuffer(),StaticBuffer(),StaticBuffer())
+            BufferIT{Float32}(),BufferIT{Float32}(),BufferIT{Vec4F}(),
+            BufferIT{Vec4F}(),BufferIT{UVec2}(),BufferIT{Vec4F}(),BufferIT{Vec4F}())
     end
 end
 
@@ -245,7 +247,7 @@ function _maintainCurveRenderer!(self::CurveRenderer)
 
     self._needMaintance = false
 
-    self._color_type_buffer_in = create(self._color_type_buffer_in,self._colors,UInt32(0))
+    upload!(self._color_type_buffer_in,self._colors,UInt32(0))
     _upload_positon_width(self)
 end
 
@@ -292,13 +294,13 @@ function addedAll!(self::CurveRenderer)
     self._distances = Vector{Float32}(undef,length(self._coords))
     self._position_width = fill(Vec4FNan, length(self._coords))
     
-    self._distance_buffer_in = create(self._distance_buffer_in, length(self._coords)*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
-    self._position_width_buffer_in = create(self._position_width_buffer_in, length(self._coords)*4*sizeof(GLfloat), GL_DYNAMIC_STORAGE_BIT)
+    reserve!(self._distance_buffer_in,length(self._coords),GL_DYNAMIC_STORAGE_BIT)
+    reserve!(self._position_width_buffer_in,length(self._coords),GL_DYNAMIC_STORAGE_BIT)
 
-    self._position_distance_buffer_out = create(self._position_distance_buffer_out, 5 * length(self._coords)*4*sizeof(GLfloat), UInt32(0))
-    self._color_buffer_out = create(self._color_buffer_out, length(self._coords)*2*sizeof(GLuint), UInt32(0))
-    self._light_buffer_out = create(self._light_buffer_out, length(self._coords)*4*sizeof(GLfloat), UInt32(0))
-    self._sdf_buffer_out = create(self._sdf_buffer_out, 5 * length(self._coords)*4*sizeof(GLfloat), UInt32(0))
+    reserve!(self._position_distance_buffer_out,5*length(self._coords),UInt32(0))
+    reserve!(self._color_buffer_out,length(self._coords),UInt32(0))
+    reserve!(self._light_buffer_out,length(self._coords),UInt32(0))
+    reserve!(self._sdf_buffer_out,5*length(self._coords),UInt32(0))
 
     _maintainCurveRenderer!(self)
 end
@@ -383,6 +385,7 @@ function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
 end
 
 function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._sdf_buffer_out,1)
 
@@ -399,6 +402,7 @@ function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Share
 end
 
 function opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._light_buffer_out,2)
@@ -421,6 +425,7 @@ end
 is_occluder(self::CurveRenderer)::Bool = false
 
 function behind_opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._sdf_buffer_out,2)
@@ -438,6 +443,7 @@ function behind_opaque_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,
 end
 
 function transparent_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._light_buffer_out,2)
@@ -459,11 +465,12 @@ end
 
 # ! Must have
 function destroy!(self::CurveRenderer)
+    destroy!(self._emptyVAO)
     destroy!(self._shader_predraw)
-    foreach(destroy!, self._shaders_id)
-    foreach(destroy!, self._shaders_opaque)
-    foreach(destroy!, self._shaders_behind_opaque)
-    foreach(destroy!, self._shaders_transparent)
+    destroy!.(self._shaders_id)
+    destroy!.(self._shaders_opaque)
+    destroy!.(self._shaders_behind_opaque)
+    destroy!.(self._shaders_transparent)
 
     destroy!(self._distance_buffer_in)
     destroy!(self._color_type_buffer_in)

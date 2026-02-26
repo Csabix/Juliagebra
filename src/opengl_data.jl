@@ -94,9 +94,10 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         widgetAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
         widgetFBO = FrameBuffer(widgetAttachments)
 
-
-        dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
-        centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
+        dummyBufferArray = BufferArray{Tuple{Vec3F}}()
+        upload!(dummyBufferArray,1,getAPlane(),GL_STATIC_DRAW)
+        centerBufferArray = BufferArray{Tuple{Vec3F}}()
+        upload!(centerBufferArray,1,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]),GL_STATIC_DRAW)
         
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)

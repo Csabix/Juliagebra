@@ -223,8 +223,8 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     _shader_opaque::ShaderProgram
     _shader_transparent::ShaderProgram
 
-    _buffer_opaque::IndexedTypedBufferArray
-    _buffer_transparent::IndexedTypedBufferArray
+    _buffer_opaque::IndexedBufferArray
+    _buffer_transparent::IndexedBufferArray
 
     _indexes_opaque::Vector{UInt32}
     _vertexes_opaque::FlatMatrixManager{Vec3F}
@@ -245,7 +245,7 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
 
         new(renderer,
         shader_id,shader_opaque,shader_transparent,
-        IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),IndexedTypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),
+        IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),
         Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),
         Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}())
     end
@@ -284,12 +284,12 @@ function addedAll!(self::ParametricSurfaceRenderer)
     upload!(self._buffer_opaque,1,data(self._vertexes_opaque),GL_DYNAMIC_DRAW)
     upload!(self._buffer_opaque,2,data(self._normals_opaque),GL_DYNAMIC_DRAW)
     upload!(self._buffer_opaque,3,data(self._colors_opaque),GL_STATIC_DRAW)
-    uploadIndexes!(self._buffer_opaque,self._indexes_opaque,GL_STATIC_DRAW)
+    upload_indices!(self._buffer_opaque,self._indexes_opaque,GL_STATIC_DRAW)
 
     upload!(self._buffer_transparent,1,data(self._vertexes_transparent),GL_DYNAMIC_DRAW)
     upload!(self._buffer_transparent,2,data(self._normals_transparent),GL_DYNAMIC_DRAW)
     upload!(self._buffer_transparent,3,data(self._colors_transparent),GL_STATIC_DRAW)
-    uploadIndexes!(self._buffer_transparent,self._indexes_transparent,GL_STATIC_DRAW)
+    upload_indices!(self._buffer_transparent,self._indexes_transparent,GL_STATIC_DRAW)
 end
 
 # ! Must have

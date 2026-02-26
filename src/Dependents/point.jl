@@ -125,7 +125,7 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
 
     _shader_id::ShaderProgram
     _shader_opaque::ShaderProgram
-    _buffer::TypedBufferArray    
+    _buffer::BufferArray
     
     _coords::Vector{Vec3F}
     _ids::Vector{Float32}
@@ -135,7 +135,7 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
         shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
-        buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
+        buffer = BufferArray{Tuple{Vec3F,Float32}}()
         coords = Vector{Vec3F}()
         ids    = Vector{Float32}()
 
@@ -194,7 +194,7 @@ end
 # ! Must have
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
-    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    upload!(self._buffer,1,self._coords)
     @time_cpu_end Dependent Point
     @log "Uploaded Coordinate buffer!" INFO
 end

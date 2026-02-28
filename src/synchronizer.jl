@@ -104,6 +104,9 @@ function Wait()
 end
 
 # YELLOW Thread
+"""
+The lambda must only construct a single Dependent, and return it.
+"""
 function build!(lambda::Function)::DependentDNA    
     global implicitApp
     global greenTask
@@ -153,24 +156,12 @@ function _build2(app::AppDNA,dependent::DependentDNA)
 end
 
 # BLUE Thread
-#function _build2(app::AppDNA,observed::ObservedDNA)
-#    graph = getGraph(app)
-#    observer = Dependent2Observer(app,observed)
-#
-#    add!!(observer,observed)
-#    add!!(graph,observed)
-#
-#    onNodeEval(observed)
-#end
-
-# BLUE Thread
 function _build2(app::AppDNA, rendered::RenderedDependentDNA)
     graph = getGraph(app)
     renderer = Dependent2Observer(app,rendered)
 
     add!!(renderer,rendered)
     add!!(graph,rendered)
-    #setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
 
     onNodeEval(rendered)
 end

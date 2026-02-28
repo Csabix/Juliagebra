@@ -1,7 +1,5 @@
 using Juliagebra
 
-App()
-
 Center = Point(0,0,0)
 
 Axis1 = Point([Center]) do c
@@ -41,4 +39,4 @@ ParametricCurve(range(0,2*pi,51),[Center,Axis2,Axis3]) do t, c, a2, a3
     return [x,y,z] + c
 end
 
-play!()
+Juliagebra.Wait()

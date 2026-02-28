@@ -158,13 +158,13 @@ end
 # BLUE Thread
 # ! Dependent2Observer(app::AppDNA,::SphereDependent)::SphereRenderer                       = getOpenGL(app)._passive_renderers[1]
 # ! Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._passive_renderers[2]
-# ! Dependent2Observer(app::AppDNA,::ParametricCurveDependent)::CurveRenderer               = getOpenGL(app)._passive_renderers[3]
+# * Dependent2Observer(app::AppDNA,::ParametricCurveDependent)::CurveRenderer               = getOpenGL(app)._passive_renderers[3]
 # * Dependent2Observer(app::AppDNA,::PointDependent)::PointRenderer                         = getOpenGL(app)._passive_renderers[4]
 
 # GREEN Thread
 # ! unpassive!(app::AppDNA,::SphereRenderer)            = getOpenGL(app)._renderers[1] = getOpenGL(app)._passive_renderers[1]
 # ! unpassive!(app::AppDNA,::ParametricSurfaceRenderer) = getOpenGL(app)._renderers[2] = getOpenGL(app)._passive_renderers[2]
-# ! unpassive!(app::AppDNA,::CurveRenderer)             = getOpenGL(app)._renderers[3] = getOpenGL(app)._passive_renderers[3]
+# * unpassive!(app::AppDNA,::CurveRenderer)             = getOpenGL(app)._renderers[3] = getOpenGL(app)._passive_renderers[3]
 # * unpassive!(app::AppDNA,::PointRenderer)             = getOpenGL(app)._renderers[4] = getOpenGL(app)._passive_renderers[4]
 
 function glError2String(msg::GLenum)::String

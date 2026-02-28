@@ -3,55 +3,6 @@
 struct PointPlan end
 
 # ? ---------------------------------
-# ! ParametricCurve
-# ? ---------------------------------
-
-function _ParametricCurve(;
-                         _app::App = implicitApp,
-                         _call::Function = () -> (),
-                         _deps::DependentsT = Vector{PlanDNA}(),
-                         _range= range(0.0,1.0,length=1000),
-                         _col= (0.6,0.6,0.9),
-                         _type= CURVE_SOLID,
-                         _reversed= 0,
-                         _width= 5.0f0
-                         )::ParametricCurvePlan
-    plan = ParametricCurvePlan(_call,_deps,_range,_col,_type,_reversed,_width)
-    submit!(_app,plan)
-    return plan
-end
-
-"""
-    ParametricCurve(callback, range, [dependents]; kwargs...) -> ParametricCurvePlan
-
-Construct a plan for a parametric curve defined by a generator function over a specific interval.
-
-# Arguments
-- `callback::Function`: A function (typically `t,dependents... -> Point`) that defines the curve's path.
-- `range::AbstractRange{Float64}`: The interval and step size over which the `callback` is evaluated.
-- `dependents::DependentsT`: A collection of `PlanDNA` objects that this curve depends on. Defaults to an empty vector.
-
-# Keyword Arguments
-- `color=(0.6, 0.6, 0.9)`: The RGB tuple or array of tuples defining the curve's color.
-- `width=5.0f0`: The line thickness.
-- `type=CURVE_SOLID`: The visual style of the curve (e.g., solid, dashed).
-- `reversed=false`: Whether to flip the line pattern.
-
-# Returns
-- `ParametricCurvePlan`: A `PlanDNA` for further use in dependencies.
-
-# Example
-App();
-
-curve = ParametricCurve(t -> (cos(t), sin(t), 0.0), 0:0.1:2π; color=(1, 0, 0));
-
-play!();
-"""
-ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::DependentsT=Vector{PlanDNA}();
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan =
-_ParametricCurve(_call=callback,_deps=dependents,_range=range,_col=color,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
-
-# ? ---------------------------------
 # ! Segment
 # ? ---------------------------------
 

@@ -72,6 +72,7 @@ end
 _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
+# GREEN Thread
 function setRenderedID!(self::PointRenderer,item::PointDependent,id)
     self._ids[getObserverID(item)] = Float32(id)
 end
@@ -155,5 +156,5 @@ Point(x::Real,y::Real,z::Real)::PointDependent =
 build!((x=x,y=y,z=z) -> (PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}())))
 
 # YELLOW Thread
-Point(callback::Function,dependents::Vector) = 
+Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
 build!((callback=callback,dependents=dependents) -> (PointDependent(callback,dependents)))

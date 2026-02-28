@@ -47,6 +47,54 @@ _Point(_x=x,_y=y,_z=z)
 Point(callback::Function,dependents::DependentsT) = 
 _Point(_call=callback,_deps=dependents)
 
+macro Point(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+
+    # TODO: unit tests
+    free_syms = _collect_free_vars(callback)
+
+    body = esc(callback.args[2])
+
+    gs_captured_deps = gensym(:captured_deps)
+    gs_callback_args = gensym(:callback_args)
+    gs_callback_wrapper = gensym(:callback_wrapper)
+
+    init_block = Expr(:block)
+    inner_let_bindings = Expr(:block)
+    for sym in free_syms
+        sym_gs = gensym(Symbol(:ctor_arg_, sym))
+
+        push!(init_block.args, quote
+            $sym_gs = 0
+
+            if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa PlanDNA
+                push!($gs_captured_deps, $(esc(sym)))
+                $sym_gs = length($gs_captured_deps)
+            end
+        end)
+
+        inner_let_rhs = :($sym_gs > 0 ?
+            $gs_callback_args[$sym_gs] :
+            ($(esc(:(@isdefined($sym)))) ?
+                $(esc(sym)) :
+                @warn "Failed to find symbol '" * String(sym) * "' in the calling context of @Point constructor. This could be because of an internal deficiency of the macro system, but it could be a user-side error as well. Execution will continue, as things may work without any problems, especially if the symbol does not refer to a dependent. Use the constructors with explicit dependency lists if experiencing any errors, or incorrect behavior, and please open an issue in the Juliagebra github repo."))
+        push!(inner_let_bindings.args, Expr(:(=), esc(sym), inner_let_rhs))
+    end
+
+    return quote
+        $gs_captured_deps = Vector{PlanDNA}()
+
+        $init_block
+
+        $gs_callback_wrapper = ($gs_callback_args...) -> begin
+            let $(inner_let_bindings.args...);
+                $body
+            end
+        end
+
+        $Juliagebra.Point($gs_callback_wrapper, $gs_captured_deps)
+    end
+end
 
 # ? ---------------------------------
 # ! ParametricCurve
@@ -315,6 +363,7 @@ PointCloud(dependents::DependentsT) = GenericValueHolder(_deps_collect,Vector{Ve
 PointCloud(positions) = PointCloud([Point(p...) for p in positions])
 
 export Point
+export @Point
 export ParametricCurve
 export Segment
 export SegmentSequence

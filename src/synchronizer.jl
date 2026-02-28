@@ -65,7 +65,7 @@ function handleAddedCalls(app::AppDNA)
     end
     
     for observer in addedAllSet
-        addedAll!(observer)
+        addedAll!(app,observer)
     end
 
     if takeNum > 1
@@ -74,7 +74,7 @@ function handleAddedCalls(app::AppDNA)
 end
 
 # Green Thread
-function _handleAddedCalls1(dependent::DependentDNA,app::AppDNA)
+function _handleAddedCalls1(::DependentDNA,::AppDNA)
     # ? The BLUE Thread already did the required building work.
     return nothing
 end
@@ -153,20 +153,20 @@ function _build2(app::AppDNA,dependent::DependentDNA)
 end
 
 # BLUE Thread
-function _build2(app::AppDNA,observed::ObservedDNA)
-    graph = getGraph(app)
-    observer = getObserverFrom(app,observed)
-
-    add!!(observer,observed)
-    add!!(graph,observed)
-
-    onNodeEval(observed)
-end
+#function _build2(app::AppDNA,observed::ObservedDNA)
+#    graph = getGraph(app)
+#    observer = Dependent2Observer(app,observed)
+#
+#    add!!(observer,observed)
+#    add!!(graph,observed)
+#
+#    onNodeEval(observed)
+#end
 
 # BLUE Thread
 function _build2(app::AppDNA, rendered::RenderedDependentDNA)
     graph = getGraph(app)
-    renderer = getObserverFrom(app,rendered)
+    renderer = Dependent2Observer(app,rendered)
 
     add!!(renderer,rendered)
     add!!(graph,rendered)
@@ -175,6 +175,6 @@ function _build2(app::AppDNA, rendered::RenderedDependentDNA)
     onNodeEval(rendered)
 end
 
-getObserverFrom(app::AppDNA,rendered::RenderedDependentDNA) = return Plan2Observer(getOpenGL(app),rendered)
-getObserverFrom(app::AppDNA,rendered::GuiDependentDNA) = return Plan2Observer(getImGui(app),rendered)
+
+getObserverFor(app::AppDNA,rendered::GuiDependentDNA) = return Plan2Observer(getImGui(app),rendered)
 destroy!(self::Synchronizer) = close(self._channel)

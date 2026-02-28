@@ -7,6 +7,7 @@ mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D 
 
+    # BLUE Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
         renderedDependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
@@ -22,6 +23,8 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     evalGraph(self)
 end
 
+# BLUE Thread
+# RED Thread
 onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
 evalCallbackDpEntry(self::PointDependent)::Vec3D = self._coord
@@ -46,7 +49,8 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
     
     _coords::Vector{Vec3F}
     _ids::Vector{Float32}
-    
+
+    # GREEN Thread
     function PointRenderer(context::OpenGLData) 
         shader_id = ShaderProgram(sp("./point/point_id.vert"), sp("./point/point_id.frag"),["VP"])
         shader_opaque = ShaderProgram(sp("./point/point.vert"), sp("./point/point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
@@ -72,7 +76,7 @@ function setRenderedID!(self::PointRenderer,item::PointDependent,id)
     self._ids[getObserverID(item)] = Float32(id)
 end
 
-# Green Thread
+# GREEN Thread
 function added!(self::PointRenderer,point::PointDependent)
     aID = 0
     coord = point._coord
@@ -81,13 +85,13 @@ function added!(self::PointRenderer,point::PointDependent)
     push!(self._ids,Float32(aID))
 end
 
-# Green Thread
+# GREEN Thread
 function addedAll!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
     upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
 end
 
-# Green Thread
+# GREEN Thread
 function sync!(self::PointRenderer,point::PointDependent)
     id = getObserverID(point)
     coord = point._coord
@@ -95,7 +99,7 @@ function sync!(self::PointRenderer,point::PointDependent)
     self._coords[id] = Vec3F(coord)
 end
 
-# Green Thread
+# GREEN Thread
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
     upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
@@ -129,54 +133,27 @@ end
 
 is_occluder(self::PointRenderer)::Bool = false
 
-# ? Free GPU resources here.
-# ! Must have
+# GREEN Thread
 function destroy!(self::PointRenderer) 
     destroy!(self._shader_id)
     destroy!(self._shader_opaque)
     destroy!(self._buffer)
 end
 
-# ? And finally, connect the plan to a rendered with a function, so the library knows
-# ? which Plan is connected to which Dependent and Renderer, and thus
-# ? which Renderer renders which Dependents.
-# ? Here we can also specify, when a plan arrives, if we should create a new renderer to manage it,
-# ? or use an existing one.
-# ? "SingleRendererTactic" basically allows only 1 Renderer to manage every type of Dependent
-# ? constructed from the incoming Plan. 
-# ! Must have
-function Plan2Observer(self::OpenGLData,::PointDependent)
-    return SingleRendererTactic(self,_POINT_RENDERER,PointRenderer)::PointRenderer
-end
+# BLUE Thread
+Dependent2Observer(app::AppDNA,::PointDependent)::PointRenderer = getOpenGL(app)._passive_renderers[_POINT_RENDERER]
 
-# ? Of course, in the case of renderers using views passed to Dependents is a very fast way to handee things,
-# ? for that, see examples in the "curve.jl" and "surface.jl" files.
+# GREEN Thread
+unpassive!(app::AppDNA,::PointRenderer) = getOpenGL(app)._renderers[_POINT_RENDERER] = getOpenGL(app)._passive_renderers[_POINT_RENDERER]
 
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
 
-function _Point(;
-                _app::AppDNA = implicitApp,
-                _call::Function = DEFAULT_CALLBACK,
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _x = 0,
-                _y = 0,
-                _z = 0,
-                )::PointDependent
-    
-    if (_call === DEFAULT_CALLBACK)
-        _call = () -> (return Vec3D(_x,_y,_z))
-    end
-                
-    plan = PointPlan(_call,_deps,_x,_y,_z)
-    submit!(_app,plan)
-    return plan
-end
+# YELLOW Thread
+Point(x::Real,y::Real,z::Real)::PointDependent =
+build!((x=x,y=y,z=z) -> (PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}())))
 
-function Point(x::Real,y::Real,z::Real)::PointDependent
-    return build!((x=x,y=y,z=z) -> (PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}())))
-end
-
+# YELLOW Thread
 Point(callback::Function,dependents::Vector) = 
 build!((callback=callback,dependents=dependents) -> (PointDependent(callback,dependents)))

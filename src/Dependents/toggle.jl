@@ -21,6 +21,8 @@ mutable struct ToggleDependent <: GuiDependentDNA
     _dependent::GuiDependent
     _toggled::Bool
 
+    # TODO: Continue here
+
     function ToggleDependent(plan::TogglePlan)
         dependent = GuiDependent(plan)
         toggled = false

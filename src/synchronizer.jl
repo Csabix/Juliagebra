@@ -167,6 +167,17 @@ function _build2(app::AppDNA, rendered::RenderedDependentDNA)
     onNodeEval(rendered)
 end
 
+# BLUE Thread
+function _build2(app::AppDNA, rendered::GuiDependentDNA)
+    graph = getGraph(app)
+    renderer = Dependent2Observer(app,rendered)
+
+    add!!(renderer,rendered)
+    add!!(graph,rendered)
+
+    onNodeEval(rendered)
+end
+
 
 getObserverFor(app::AppDNA,rendered::GuiDependentDNA) = return Plan2Observer(getImGui(app),rendered)
 destroy!(self::Synchronizer) = close(self._channel)

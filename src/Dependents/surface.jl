@@ -310,10 +310,10 @@ function destroy!(self::ParametricSurfaceRenderer)
 end
 
 # BLUE Thread
-Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._passive_renderers[2]
+Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._passive_renderers[_SURFACE_RENDERER]
 
 # GREEN Thread
-unpassive!(app::AppDNA,::ParametricSurfaceRenderer) = getOpenGL(app)._renderers[2] = getOpenGL(app)._passive_renderers[2]
+unpassive!(app::AppDNA,::ParametricSurfaceRenderer) = getOpenGL(app)._renderers[_SURFACE_RENDERER] = getOpenGL(app)._passive_renderers[_SURFACE_RENDERER]
 
 # ? ---------------------------------
 # ! ParametricSurface

@@ -39,22 +39,27 @@ mutable struct SphereDependent <: RenderedDependentDNA
     _color::Vec3F
     _transparent::Bool
     _index::UInt
+
+    # BLUE Thread
+    function SphereDependent(
+        callback::Function,dependents::Vector{<:DependentDNA},
+        color::Vec3F,transparent::Bool
+        )
+
+        dependent = RenderedDependent(callback,dependents)
+        center  = Vec3DNan
+        radius = 0.0
+
+        return new(dependent,center,radius,color,transparent,0)
+    end
 end
 
-function SphereDependent(plan::SpherePlan)
-    dependent = RenderedDependent(plan)
-    center  = plan._center
-    radius = plan._radius
-    color = plan._color
-    transparent = plan._transparent
 
-    return SphereDependent(dependent,center,radius,color,transparent,0)
-end
 
 _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dependent
 
-Plan2Dependent(plan::SpherePlan)::SphereDependent = return SphereDependent(plan)
-
+# BLUE Thread
+# RED Thread
 onNodeEval(self::SphereDependent) = evalCallbackDp(self)
 
 function evalCallbackDpReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
@@ -148,30 +153,35 @@ mutable struct SphereRenderer <: RendererDNA{SphereDependent}
     _centers_transparent::Vector{Vec3F}
     _radiuses_transparent::Vector{Float32}
     _colors_transparent::Vector{Vec3F}
+    
+    # GREEN Thread
+    function SphereRenderer(context::OpenGLData)
+        renderer = Renderer{SphereDependent}(context)
+
+        shader_id = ShaderProgram(sp("./sphere/sphere_id.vert"),sp("./sphere/sphere_id.geom"),sp("./sphere/sphere_id.frag"),["VP","cam","at","ASPECT_FOV_RESOLUTION"])
+        shader_opaque = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_opaque.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
+        shader_transparent = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_transparent.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
+
+        buffer_opaque = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
+        buffer_transparent = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
+
+        return new(
+            renderer,
+            shader_id,shader_opaque,shader_transparent,
+            buffer_opaque,buffer_transparent,
+            Vector{Vec3F}(),Vector{Float32}(),Vector{Vec3F}(),
+            Vector{Vec3F}(),Vector{Float32}(),Vector{Vec3F}())
+    end
 end
 
-function SphereRenderer(context::OpenGLData)
-    renderer = Renderer{SphereDependent}(context)
 
-    shader_id = ShaderProgram(sp("./sphere/sphere_id.vert"),sp("./sphere/sphere_id.geom"),sp("./sphere/sphere_id.frag"),["VP","cam","at","ASPECT_FOV_RESOLUTION"])
-    shader_opaque = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_opaque.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
-    shader_transparent = ShaderProgram(sp("./sphere/sphere.vert"),sp("./sphere/sphere.geom"),sp("./sphere/sphere_transparent.frag"),["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
-
-    buffer_opaque = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
-    buffer_transparent = TypedBufferArray{Tuple{Vec3F,Float32,Vec3F}}()
-
-    return SphereRenderer(
-        renderer,
-        shader_id,shader_opaque,shader_transparent,
-        buffer_opaque,buffer_transparent,
-        Vector{Vec3F}(),Vector{Float32}(),Vector{Vec3F}(),
-        Vector{Vec3F}(),Vector{Float32}(),Vector{Vec3F}())
-end
 
 _Renderer_(self::SphereRenderer)::Renderer = return self._renderer
 
+# GREEN Thread
 setRenderedID!(self::SphereRenderer,_,_) = return nothing
 
+# GREEN Thread
 function added!(self::SphereRenderer,sphere::SphereDependent)
     evalCallbackDp(sphere)
 
@@ -184,10 +194,9 @@ function added!(self::SphereRenderer,sphere::SphereDependent)
     push!(colors,  Vec3F(sphere._color))
 
     sphere._index = length(centers)
-
-    @log "Added Sphere as: $(sphere._center) ~ $(sphere._radius)" INFO
 end
 
+# GREEN Thread
 function addedAll!(self::SphereRenderer)
     upload!(self._buffer_opaque,1,self._centers_opaque ,GL_DYNAMIC_DRAW)
     upload!(self._buffer_opaque,2,self._radiuses_opaque,GL_DYNAMIC_DRAW)
@@ -196,18 +205,17 @@ function addedAll!(self::SphereRenderer)
     upload!(self._buffer_transparent,1,self._centers_transparent ,GL_DYNAMIC_DRAW)
     upload!(self._buffer_transparent,2,self._radiuses_transparent,GL_DYNAMIC_DRAW)
     upload!(self._buffer_transparent,3,self._colors_transparent  ,GL_STATIC_DRAW)
-
-    @log "AddedAll Spheres!" INFO
 end
 
+# GREEN Thread
 function sync!(self::SphereRenderer,sphere::SphereDependent)
     centers  = sphere._transparent ? self._centers_transparent  : self._centers_opaque
     radiuses = sphere._transparent ? self._radiuses_transparent : self._radiuses_opaque
     centers[sphere._index] = sphere._center
     radiuses[sphere._index] = sphere._radius
-    @log "Synced Sphere[$(getObserverID(sphere))]!" INFO
 end
 
+# GREEN Thread
 function syncAll!(self::SphereRenderer)
     @time_cpu_begin Dependent Sphere
 
@@ -218,7 +226,6 @@ function syncAll!(self::SphereRenderer)
     upload!(self._buffer_transparent,2,self._radiuses_transparent,GL_DYNAMIC_DRAW)
 
     @time_cpu_end Dependent Sphere
-    @log "Synced all Spheres!" INFO
 end
 
 function id_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
@@ -291,4 +298,52 @@ function destroy!(self::SphereRenderer)
     destroy!(self._buffer_transparent)
 end
 
-Plan2Observer(builder::OpenGLData, _::SpherePlan) = SingleRendererTactic(builder,_SPEHERE_RENDERER,SphereRenderer)::SphereRenderer
+# BLUE Thread
+Dependent2Observer(app::AppDNA,::SphereDependent)::SphereRenderer = getOpenGL(app)._passive_renderers[_SPEHERE_RENDERER]
+
+# GREEN Thread
+unpassive!(app::AppDNA,::SphereRenderer) = getOpenGL(app)._renderers[_SPEHERE_RENDERER] = getOpenGL(app)._passive_renderers[_SPEHERE_RENDERER]
+
+# ? ---------------------------------
+# ! Sphere
+# ? ---------------------------------
+
+# YELLOW Thread
+function Sphere(center::PointDependent,p1::PointDependent; color = (0.980,0.467,0.306), transparent = false)::SphereDependent
+    deps = Vector{DependentDNA}([center,p1])
+    call = function (center,p1)
+        radius = norm(center - p1) 
+        return (center,radius)
+    end
+
+    return build!() do 
+        SphereDependent(call,deps,Vec3F(color),transparent)
+    end
+end
+
+# YELLOW Thread
+function Sphere(center::PointDependent,radius::ValueHolderDNA{Float64}; color = (0.031,0.337,0.412), transparent = false)
+    deps = Vector{DependentDNA}([center,radius])
+    call = function (center,radius)
+        return (center,radius)
+    end
+
+    return build!() do 
+        SphereDependent(call,deps,Vec3F(color),transparent)
+    end
+end
+
+# YELLOW Thread
+function Sphere(p1::PointDependent,p2::PointDependent,p3::PointDependent,p4::PointDependent; color = (0.697,0.230,0.958), transparent = false)
+    deps = [p1,p2,p3,p4]
+    call = function (p1,p2,p3,p4)
+        s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
+        return s
+    end
+
+   return build!() do 
+        SphereDependent(call,deps,Vec3F(color),transparent)
+    end
+end
+
+export Sphere

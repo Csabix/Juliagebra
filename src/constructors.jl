@@ -52,34 +52,6 @@ Mesh(vertexes,normals,color) =
 Mesh(vertexes,normals,color,implicitApp)
 
 # ? ---------------------------------
-# ! ParametricSurface
-# ? ---------------------------------
-
-function _ParametricSurface(;
-                           _app::App = implicitApp,
-                           _call::Function = () -> (),
-                           _deps::DependentsT = Vector{PlanDNA}(),
-                           _width = 50,
-                           _height = 50,
-                           _uStart = 0.0,
-                           _uEnd = 1.0,
-                           _vStart = 0.0,
-                           _vEnd = 0.0,
-                           _color = (0.8,0.0,0.3),
-                           _transparent = false
-                           )::ParametricSurfacePlan
-    plan = ParametricSurfacePlan(_call,_deps,_width,_height,_uStart,_uEnd,_vStart,_vEnd,_color,_transparent)
-    submit!(_app,plan)
-    return plan
-end
-
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd,dependents::DependentsT;transparent::Bool=false) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_deps=dependents,_transparent=transparent)
-
-ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transparent::Bool=false) =
-_ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,_transparent=transparent)
-
-# ? ---------------------------------
 # ! Toggle
 # ? ---------------------------------
 

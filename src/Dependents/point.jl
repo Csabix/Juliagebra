@@ -158,3 +158,5 @@ build!((x=x,y=y,z=z) -> (PointDependent(() -> (return Vec3D(x,y,z)),Vector{Depen
 # YELLOW Thread
 Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
 build!((callback=callback,dependents=dependents) -> (PointDependent(callback,dependents)))
+
+export Point

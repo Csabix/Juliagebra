@@ -23,6 +23,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
         colors::Vector{<:Tuple{Real,Real,Real}},
         type::UInt8,reversed::UInt8,width::Real
         )
+
         color = [Vec3F(c[1],c[2],c[3]) for c in colors]
         rd = RenderedDependent(callback,dependents)
         tValues = Vector{Vec3D}(undef,lenght(range))
@@ -247,6 +248,7 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     #runCallbacks(curve)
 end
 
+# GREEN Thread
 setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) = return nothing
 
 # GREEN Thread
@@ -507,5 +509,3 @@ build!((_callback=callback,_range=range,_dependents=dependents,_color=color,_wid
 -> (ParametricCurveDependent(_callback,_dependents,_range,_color,_type,_reversed,_width)))
 
 export ParametricCurve
-
-#_ParametricCurve(_call=callback,_deps=dependents,_range=range,_col=color,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)

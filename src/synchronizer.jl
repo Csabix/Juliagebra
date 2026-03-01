@@ -129,7 +129,8 @@ function build!(lambda::Function)::DependentDNA
     blueTask = Threads.@spawn begin
         return _build1(lambda,implicitApp)
     end
-    
+    errormonitor(blueTask)
+
     return fetch(blueTask)
 end
 

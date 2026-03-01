@@ -1,8 +1,6 @@
 using Juliagebra
 using JuliaGLM
 
-App()
-
 cursor = Point(-15,0,0)
 
 function gravField(fieldHeight,fieldStrengthDistance,u,v,p) 
@@ -22,12 +20,12 @@ function gravField(fieldHeight,fieldStrengthDistance,u,v,p)
     return Vec3D(x,y,z)
 end
 
-field1 = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0,[cursor]) do u,v,p
+field1 = ParametricSurface(range(-10.0,10.0,50),range(-10.0,10.0,50),[cursor]) do u,v,p
     return gravField(-5.0,5.0,u,v,p)
 end
 
-field2 = ParametricSurface(50,50,-10.0,10.0,-10.0,10.0,[cursor]) do u,v,p
+field2 = ParametricSurface(range(-10.0,10.0,50),range(-10.0,10.0,50),[cursor]) do u,v,p
     return gravField(5.0,5.0,u,v,p)
 end
 
-play!()
+Juliagebra.Wait()

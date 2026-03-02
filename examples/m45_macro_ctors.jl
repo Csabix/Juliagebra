@@ -1,4 +1,4 @@
-import Juliagebra as JG
+import Juliagebra as JG # no using + renaming to test macro hygiene
 using JuliaGLM
 
 JG.App()

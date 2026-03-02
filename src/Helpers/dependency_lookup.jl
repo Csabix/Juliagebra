@@ -49,7 +49,7 @@ end
 Helper for "fixing" default arguments overriden by macro kw_args.
 For example for the macro m(x=2,kw_args...) in the call @m(k=5) the expr k=5 will override x instead of being put in kw_args
 """
-function _kw_arg_or_default!(arg, default, kw_args::Tuple)
+function _kw_arg_or_default(arg, default, kw_args::Tuple)
     if Meta.isexpr(arg, :(=))
         return (default, (kw_args..., arg))
     end
@@ -89,7 +89,7 @@ end
 
 function _validate_callback_expr(callback, arg_count::Integer)
     if !MacroTools.isdef(callback)
-        error("Expected function in callback argument to $(_get_caller())")
+        error("Expected function definition expression in 'callback' argument to $(_get_caller())")
     end
 
     callback = MacroTools.longdef(callback)
@@ -98,6 +98,10 @@ function _validate_callback_expr(callback, arg_count::Integer)
     if Meta.isexpr(callback.args[1], :call)
         popfirst!(callback.args[1].args)
         callback.args[1].head = :tuple
+    end
+
+    if Meta.isexpr(callback.args[1], :(...))
+        callback.args[1] = Expr(:tuple, callback.args[1])
     end
 
     @assert Meta.isexpr(callback.args[1], :tuple) "Unexpected function definition expression structure in callback passed to $(_get_caller()):\n$callback"
@@ -145,9 +149,13 @@ function _process_lhs!(lhs, current_scope::Set{Symbol}, walk_fn)
 
         # a::T = <...>
         # a, b... = <...>
+        elseif lhs.head === :(::) || lhs.head === :(...)
+            _process_lhs!(lhs.args[1], current_scope, walk_fn)
+
         # f(x = 2) / f(; x = 2)
         # :(=) is safe-guard for nested kw/named assignment stuff
-        elseif lhs.head in (:(::), :(...), :kw, :(=))
+        elseif lhs.head === :kw || lhs.head === :(=)
+            walk_fn(lhs.args[2], current_scope)
             _process_lhs!(lhs.args[1], current_scope, walk_fn)
 
         # A[i] = <...>
@@ -169,7 +177,7 @@ function _process_fn_sig!(sig, inner_scope::Set{Symbol}, outer_scope::Set{Symbol
             if T isa Symbol
                 push!(inner_scope, T)
             elseif Meta.isexpr(T, :(<:)) # supertype-specified type param
-                walk_fn(T.args[2], inner_scope)
+                # walk_fn(T.args[2], inner_scope)
                 if T.args[1] isa Symbol
                     push!(inner_scope, T.args[1])
                 end
@@ -205,14 +213,11 @@ Extracts and returns a set of symbols corresponding to the free variables of the
 Free variable symbols are referenced symbols inside `def` that cannot be resolved to a declared/defined symbol inside the function and will (presumably) be captured from the defining scope.
 """
 function _collect_free_vars(def::Expr, mod::Module)
-    # TODO: unit tests
-    def = macroexpand(mod, def)
-
     free_vars = Set{Symbol}()
 
     function walk!(ex, current_scope::Set{Symbol})
         if ex isa Symbol
-            if ex !== :(:) && !(ex in current_scope)
+            if !(ex in (:(:), :nothing, :missing)) && !(ex in current_scope)
                 push!(free_vars, ex)
             end
         elseif ex isa Expr
@@ -259,9 +264,11 @@ function _collect_free_vars(def::Expr, mod::Module)
                         push!(free_vars, arg)
                     elseif Meta.isexpr(arg, :(=))
                         walk!(arg.args[2], current_scope) # walk rhs in current scope
-                        walk!(arg.args[1], Set{Symbol}()) # hacky, but this way every used symbol is marked as free
-                    else
-                        walk!(arg, Set{Symbol}())
+                        # :: type specifiers are only allowed at the top scope
+                        # this should be caught by the Julia compiler as an error anyways
+                        if arg.args[1] isa Symbol
+                            push!(free_vars, arg.args[1])
+                        end
                     end
                 end
 
@@ -388,7 +395,8 @@ function _collect_free_vars(def::Expr, mod::Module)
         end
     end
 
-    @assert MacroTools.isdef(def) "Non-function-definition expression passed to collect_free_var_syms"
+    def = macroexpand(mod, def)
+    @assert MacroTools.isdef(def) "Non function definition expression passed to collect_free_var_syms"
 
     def = MacroTools.longdef(def)
 

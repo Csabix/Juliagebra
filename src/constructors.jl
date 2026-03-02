@@ -135,7 +135,7 @@ SegmentSequence(dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
 _SegmentSequence(_call=_deps_collect,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
 macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
-    (break_every, kw_args) = _kw_arg_or_default!(break_every, 2, kw_args)
+    (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
 
     parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
     callback = _validate_callback_expr(callback, 0)

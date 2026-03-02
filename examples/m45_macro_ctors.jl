@@ -13,9 +13,8 @@ p3 = let
     test_local = 2
 
     JG.@Point() do
-        global test_global
-        println(test_global)
-        println(test_local)
+        println("test_global is: $test_global")
+        println("test_local is: $test_local")
 
         (p1["x"], p1["y"], p2["z"] + 2)
     end
@@ -30,7 +29,8 @@ JG.@ParametricCurve(range(-2pi,2pi,500)) do t
     @avg(p2, p3) .+ (t,0,cos(t))
 end
 
-JG.@ParametricCurve(range(-2pi,2pi,500), color=[(0,1,0),(0,0,1)], type=JG.CURVE_ARROW, reversed=true, width=17) do t
+color = [(0,1,0),(0,0,1)]
+JG.@ParametricCurve(range(-2pi,2pi,500), color, type=JG.CURVE_ARROW, reversed=true, width=17) do t
     @avg(p2, p3) .+ (t,0,cos(t)) .- (0,0,1)
 end
 

@@ -180,6 +180,7 @@ end
 
 mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
+    _emptyVAO::VertexArray
 
     _shader_predraw::ShaderProgram
     _shaders_id::Vector{ShaderProgram}
@@ -195,45 +196,45 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     _colors::Vector{Vector{Float32}}
     _types::Vector{UInt8}
 
-    _distance_buffers_in::Vector{StaticBuffer}
-    _color_type_buffers_in::Vector{StaticBuffer}
-    _position_width_buffers_in::Vector{StaticBuffer}
+    _distance_buffers_in::Vector{Buffer{Float32}}
+    _color_type_buffers_in::Vector{Buffer{Float32}}
+    _position_width_buffers_in::Vector{Buffer{Vec4F}}
 
-    _position_distance_buffer_out::StaticBuffer
-    _color_buffer_out::StaticBuffer
-    _light_buffer_out::StaticBuffer
-    _sdf_buffer_out::StaticBuffer
+    _position_distance_buffer_out::Buffer{Vec4F}
+    _color_buffer_out::Buffer{UVec2}
+    _light_buffer_out::Buffer{Vec4F}
+    _sdf_buffer_out::Buffer{Vec4F}
 
     function SegmentSequenceRenderer(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
 
-        shader_predraw = ShaderProgram(sp("curve/segseq_vertex.comp"),["VP","WH","Eye","lightDirCam","lightDirSide","offset"])
+        shader_predraw = ShaderProgram(["curve/segseq_vertex.comp"],["VP","WH","Eye","lightDirCam","lightDirSide","offset"])
 
         types = ["solid","dashed","dotted","wave","dash_dot","arrow"]
 
         shaders_id = Vector{ShaderProgram}()
-        for type in types push!(shaders_id,ShaderProgram(sp("curve/id/curve.vert"),sp("curve/id/curve_$type.frag"))) end
+        for type in types push!(shaders_id,ShaderProgram(["curve/id/curve.vert","curve/id/curve_$type.frag"])) end
 
         shaders_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_opaque,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/opaque/curve_$type.frag"))) end
+        for type in types push!(shaders_opaque,ShaderProgram(["curve/opaque/curve.vert","curve/opaque/curve_$type.frag"])) end
 
         shaders_behind_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_behind_opaque,ShaderProgram(sp("curve/behind_opaque/curve.vert"),sp("curve/behind_opaque/curve_$type.frag"))) end
+        for type in types push!(shaders_behind_opaque,ShaderProgram(["curve/behind_opaque/curve.vert","curve/behind_opaque/curve_$type.frag"])) end
 
         shaders_transparent = Vector{ShaderProgram}()
-        for type in types push!(shaders_transparent,ShaderProgram(sp("curve/opaque/curve.vert"),sp("curve/transparent/curve_$type.frag"))) end
+        for type in types push!(shaders_transparent,ShaderProgram(["curve/opaque/curve.vert","curve/transparent/curve_$type.frag"])) end
 
         coords = Vector{Vector{Vec3F}}()
         widths = Vector{Float32}()
         colors = Vector{Vector{Float32}}()
         types = Vector{UInt8}()
         
-        new(renderer,
+        new(renderer,VertexArray(),
             shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
             Vector{Int32}(),Vector{Tuple{Int, Int}}(undef, _CURVE_COUNT),
             coords,widths,colors,types,
-            Vector{StaticBuffer}(),Vector{StaticBuffer}(),Vector{StaticBuffer}(),
-            StaticBuffer(),StaticBuffer(),StaticBuffer(),StaticBuffer())
+            Vector{Buffer{Float32}}(),Vector{Buffer{Float32}}(),Vector{Buffer{Vec4F}}(),
+            Buffer{Vec4F}(),Buffer{UVec2}(),Buffer{Vec4F}(),Buffer{Vec4F}())
     end
 end
 
@@ -281,18 +282,28 @@ function addedAll!(self::SegmentSequenceRenderer)
 
     for i in 1:length(self._coords)
         # Distance
-        push!(self._distance_buffers_in,create(StaticBuffer(),length(self._coords[i])*sizeof(GLfloat),GL_DYNAMIC_STORAGE_BIT))
+        distance_buffer = Buffer{Float32}()
+        reserve!(distance_buffer,length(self._coords[i]),GL_DYNAMIC_STORAGE_BIT)
+        push!(self._distance_buffers_in,distance_buffer)
         # Color
-        push!(self._color_type_buffers_in,create(StaticBuffer(),upload_colors[i],UInt32(0)))
+        color_buffer = Buffer{Float32}()
+        upload!(color_buffer,upload_colors[i],0)
+        push!(self._color_type_buffers_in,color_buffer)
         # Position Width
-        push!(self._position_width_buffers_in,create(StaticBuffer(),upload_position_widths[i],GL_DYNAMIC_STORAGE_BIT))
+        position_width_buffer = Buffer{Vec4F}()
+        upload!(position_width_buffer,upload_position_widths[i],GL_DYNAMIC_STORAGE_BIT)
+        push!(self._position_width_buffers_in,position_width_buffer)
     end
 
     total_coord = sum(length,self._coords)
-    self._position_distance_buffer_out = create(self._position_distance_buffer_out, 5 * total_coord*4*sizeof(GLfloat), UInt32(0))
-    self._color_buffer_out = create(self._color_buffer_out, total_coord*2*sizeof(GLuint), UInt32(0))
-    self._light_buffer_out = create(self._light_buffer_out, total_coord*4*sizeof(GLfloat), UInt32(0))
-    self._sdf_buffer_out = create(self._sdf_buffer_out, 5 * total_coord*4*sizeof(GLfloat), UInt32(0))
+    self._position_distance_buffer_out = Buffer{Vec4F}()
+    reserve!(self._position_distance_buffer_out,5*total_coord,0)
+    self._color_buffer_out = Buffer{Vec2T{UInt32}}()
+    reserve!(self._color_buffer_out,total_coord,0)
+    self._light_buffer_out = Buffer{Vec4F}()
+    reserve!(self._light_buffer_out,total_coord,0)
+    self._sdf_buffer_out = Buffer{Vec4F}()
+    reserve!(self._sdf_buffer_out,5*total_coord,0)
 end
 
 # ! Must have
@@ -342,11 +353,11 @@ function syncAll!(self::SegmentSequenceRenderer)
         position_widths = upload_position_widths[i]
         if self._update_me[i] < 0
             # Distance
-            self._distance_buffers_in[index] = create(self._distance_buffers_in[index],length(position_widths)*sizeof(GLfloat),GL_DYNAMIC_STORAGE_BIT)
+            reserve!(self._distance_buffers_in[index],length(position_widths),GL_DYNAMIC_STORAGE_BIT)
             # Color
-            self._color_type_buffers_in[index] = create(self._color_type_buffers_in[index],upload_colors[i],UInt32(0))
+            upload!(self._color_type_buffers_in[index],upload_colors[i],0)
             # Position Width
-            self._position_width_buffers_in[index] = create(self._position_width_buffers_in[index],position_widths,GL_DYNAMIC_STORAGE_BIT)
+            upload!(self._position_width_buffers_in[index],position_widths,GL_DYNAMIC_STORAGE_BIT)
         else
             upload!(self._position_width_buffers_in[index],position_widths)
         end
@@ -354,10 +365,10 @@ function syncAll!(self::SegmentSequenceRenderer)
 
     if any(x -> x < 0, self._update_me)
         total_coord = sum(length,self._coords)
-        self._position_distance_buffer_out = create(self._position_distance_buffer_out, 5 * total_coord*4*sizeof(GLfloat), UInt32(0) )
-        self._color_buffer_out = create(self._color_buffer_out, total_coord*2*sizeof(GLuint),  UInt32(0))
-        self._light_buffer_out = create(self._light_buffer_out, total_coord*4*sizeof(GLfloat), UInt32(0))
-        self._sdf_buffer_out = create(self._sdf_buffer_out, 5 * total_coord*4*sizeof(GLfloat), UInt32(0))
+        reserve!(self._position_distance_buffer_out,5*total_coord,0)
+        reserve!(self._color_buffer_out,total_coord,0)
+        reserve!(self._light_buffer_out,total_coord,0)
+        reserve!(self._sdf_buffer_out,5*total_coord,0)
     end
 
     empty!(self._update_me)
@@ -404,15 +415,25 @@ end
 end
 
 function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    # Quick fix
+    glClearNamedBufferSubData(
+    self._position_distance_buffer_out._id,
+    GL_R32F,
+    0,
+    self._position_distance_buffer_out._size,
+    GL_RED,
+    GL_FLOAT,
+    [NaN32])
+    # Quick fix end
     _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
 
     (cam_light, side_light) = get_lights(cam)
     activate(self._shader_predraw)
-    setUniform!(self._shader_predraw,"VP",vp)
-    setUniform!(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    setUniform!(self._shader_predraw,"Eye",cam._eye)
-    setUniform!(self._shader_predraw,"lightDirCam", cam_light)
-    setUniform!(self._shader_predraw,"lightDirSide",side_light)
+    uniform(self._shader_predraw,"VP",vp)
+    uniform(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    uniform(self._shader_predraw,"Eye",cam._eye)
+    uniform(self._shader_predraw,"lightDirCam", cam_light)
+    uniform(self._shader_predraw,"lightDirSide",side_light)
     bind_ssbo(self._position_distance_buffer_out,3)
     bind_ssbo(self._color_buffer_out,4)
     bind_ssbo(self._light_buffer_out,5)
@@ -426,7 +447,7 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
             bind_ssbo(self._distance_buffers_in[j],0)
             bind_ssbo(self._color_type_buffers_in[j],1)
             bind_ssbo(self._position_width_buffers_in[j],2)
-            setUniform!(self._shader_predraw,"offset",offset)
+            uniform(self._shader_predraw,"offset",offset)
             glDispatchCompute(cld(length(self._coords[j]),32),1,1);
             offset += UInt32(length(self._coords[j]))
         end
@@ -452,6 +473,7 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
 end
 
 function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._sdf_buffer_out,1)
 
@@ -462,12 +484,13 @@ function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,s
         if first == typemax(Int) continue end
         activate(self._shaders_id[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence ID_PASS
 end
 
 function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._light_buffer_out,2)
@@ -481,7 +504,7 @@ function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Came
         if first == typemax(Int) continue end
         activate(self._shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence OPAQUE_PASS
     glDisable(GL_BLEND)
@@ -490,6 +513,7 @@ end
 is_occluder(self::SegmentSequenceRenderer)::Bool = false
 
 function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._sdf_buffer_out,2)
@@ -501,12 +525,13 @@ function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},ca
         if first == typemax(Int) continue end
         activate(self._shaders_behind_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence BEHIND_OPAQUE_PASS
 end
 
 function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._light_buffer_out,2)
@@ -520,12 +545,13 @@ function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam:
         if first == typemax(Int) continue end
         activate(self._shaders_transparent[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first
+        baseInstance += last-first+1
     end
     @time_gpu_end Dependent Segmnet_Sequence TRANSPARENT_PASS
 end
 
 function destroy!(self::SegmentSequenceRenderer)
+    destroy!(self._emptyVAO)
     destroy!(self._shader_predraw)
     destroy!.(self._shaders_id)
     destroy!.(self._shaders_opaque)

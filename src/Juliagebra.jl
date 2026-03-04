@@ -15,6 +15,7 @@ using GLFW
 using ModernGL
 using CImGui
 using DataStructures
+import MacroTools
 
 include("performance_metrics.jl")
 
@@ -34,6 +35,7 @@ include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/scene.jl")
 include("Helpers/infer.jl")
+include("Helpers/dependency_lookup.jl")
 
 # ? ---------------------------------
 # ! Primitives

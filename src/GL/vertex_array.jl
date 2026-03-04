@@ -2,63 +2,47 @@
 # ! VertexArray
 # ? ---------------------------------
 
-mutable struct VertexArray <: OpenGLWrapper
+struct VertexArray <: OpenGLWrapper
     _id::GLuint
     
-    function VertexArray(itemType::DataType)
-        id = Ref{GLuint}(0)
-        glGenVertexArrays(1,id)
-        id = id[]
-        self = new(id)
-        
-        activate(self)
-        _vertexAttribs(itemType)
-        return self
-    end
-
-    function VertexArray(buffers::Tuple{Vararg{TypedBuffer}})
-        id = Ref{GLuint}(0)
-        glGenVertexArrays(1,id)
-        id = id[]
-        self = new(id)
-
-        activate(self)
-
-        stride = 0
-        for buffer in buffers
-            stride += tSize(buffer)
-        end
-
-        index = 0
-        offset = UInt(0)
-        for buffer in buffers
-            offset += _vertexAttribs(index,buffer,stride,offset)
-            index += 1
-        end
-        deactivate(buffers[1])
-
-        return self
+    function VertexArray()
+        id = Ref{GLuint}()
+        glCreateVertexArrays(1,id)
+        return new(id[])
     end
 end
-destroy!(x::VertexArray) = glDeleteVertexArrays(1,[x._id])
-activate(vao::VertexArray) = glBindVertexArray(vao._id)
 
-const JuliaType2OpenGL = Dict([
-    Float16 => GL_HALF_FLOAT,
-    Float32 => GL_FLOAT,
-    Float64 => GL_DOUBLE,
-    Int8    => GL_BYTE,
-    Int16   => GL_SHORT,
-    Int32   => GL_INT,
-    UInt8   => GL_UNSIGNED_BYTE,
-    UInt16  => GL_UNSIGNED_SHORT,
-    UInt32  => GL_UNSIGNED_INT,
-])
+function bind_buffers!(self::VertexArray,buffers::AbstractVector{BufferBase})
+    index = 0
+    for (i,buffer) in enumerate(buffers)
+        new_index = _vertexAttribs(self._id,index,buffer)
+        glVertexArrayVertexBuffer(self._id,i-1,id(buffer),0,sizeof(eltype(buffer)))
+        for j in index:new_index-1
+            glVertexArrayAttribBinding(self._id, j, i-1)
+        end
+        index = new_index 
+    end
+end
+bind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
+rebind_buffer!(self::VertexArray, index::Int, buffer::BufferBase) = glVertexArrayVertexBuffer(self._id,index-1,id(buffer),0,sizeof(eltype(buffer)))
+rebind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
+
+destroy!(self::VertexArray) = glDeleteVertexArrays(1,[self._id])
+activate(self::VertexArray) = glBindVertexArray(self._id)
+
+function vao_buffer_method!(vao::VertexArray, buffer::BufferBase, index, f, args...)
+    if f(buffer, args...) rebind_buffer!(vao, index, buffer) end
+end
+
+function vao_ebo_method!(vao::VertexArray, buffer::BufferBase, f, args...)
+    if f(buffer, args...) rebind_ebo!(vao, buffer) end
+end
 
 """
-Function to create a vertexAttribPointer.
+Function to create a vertexAttribFormat.
 
 # Arguments:
+- `vao`    -> vertex array buffer object
 - `index`  -> layout(location = index)
 - `atype`  -> The type of the attribute data (Float32, Vec3 ...)
 - `stride` -> how mutch to jump to find the start of the next element for all this attribute
@@ -75,43 +59,33 @@ If `vec3`, `vec2`, `float` is 1 big element in a buffer, then `layout (location 
 `0` for `vec3`, `sizeof(vec3)` for `vec2`, `sizeof(vec3) + sizeof(vec2)` for `float`.
 
 """
-function _vertexAttrib(index::Int, atype::DataType, stride::Int = sizeof(atype), offset::UInt = UInt(0))
+function _vertexAttrib(vao::GLuint, index::Int, atype::DataType, stride::Int = sizeof(atype), offset::UInt = UInt(0))
     #get number of components (3 for vec3)
     size::GLint = atype <: StaticArray ? length(atype) : 1
     @assert 1<=size<=4 "invalid vertex attrib size"
     elem::DataType = atype <: StaticArray ? eltype(atype) : atype
-    @assert 1<=sizeof(elem)<=8 "invalid base type for vertex"
+    @assert haskey(JuliaType2OpenGL,elem) "invalid base type for vertex"
     type::GLenum = JuliaType2OpenGL[elem]                       # dictionary
     normalized::GLenum = elem <: Integer ? GL_TRUE : GL_FALSE   # normalized by default
-    glEnableVertexAttribArray(GLuint(index))
+    glEnableVertexArrayAttrib(vao,GLuint(index))
     #stride needs to be converted into GLsizei type | pointer to offset (where the pointer doesnt know tha data it's reffering to, hence why Nothing is passed)    
-    glVertexAttribPointer(GLuint(index),size,type,normalized,GLsizei(stride),Ptr{Nothing}(offset))
+    glVertexArrayAttribFormat(vao,GLuint(index),size,type,normalized,offset)
     
     #println("\tglVertexAttribPointer(index=$index,size=$size,type=$type,normalized=$normalized,stride=$stride,offset=$offset)");
 end
 
-"""
-Shorter function to automatically create a vertexAttribPointer from arguments.
-
-# Arguments:
-- `vtype` -> could be a single type, like vec3 or it could be a complex struct type.
-
-"""
-function _vertexAttribs(vtype::DataType,index::Int = 0)
+function _vertexAttribs(vao::GLuint,index::Int,buffer::BufferBase)::Int
+    vtype = eltype(buffer)
     if vtype <: StaticArray || vtype <: Real
-        _vertexAttrib(index,vtype)
+        _vertexAttrib(vao,index,vtype)
+        index += 1
     else
         stride::Int = sizeof(vtype)
-        ltypes = vtype.types
-        for i in eachindex(ltypes)
+        for type in vtype.types
             # fieldoffset tells the byte offset of the i-th type in vtype.
-            _vertexAttrib(i-1 + index,ltypes[i],stride,UInt(fieldoffset(vtype,i)))
+            _vertexAttrib(vao,index,type,stride,UInt(fieldoffset(vtype,i)))
+            index += 1
         end
     end
-end
-
-function _vertexAttribs(index::Int,buffer::TypedBuffer{T},stride::Int,offset::UInt)::UInt where {T<:Union{StaticArray,Real}}
-    activate(buffer)
-    _vertexAttrib(index,T)
-    return UInt(sizeof(T))
+    return index
 end

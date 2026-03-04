@@ -58,19 +58,19 @@ mutable struct PointCloudRenderer <:RendererDNA{PointCloudDependent}
 
     _shader_id::ShaderProgram
     _shader_opaque::ShaderProgram
-    _buffers::Vector{TypedBufferArray}
+    _buffers::Vector{BufferArray}
     _widths::Vector{Float32}
     _colors::Vector{Vec3F}
     
     function PointCloudRenderer(context::OpenGLData) 
         renderer = Renderer{PointCloudDependent}(context)
-        shader_id = ShaderProgram(sp("./point_cloud/point_cloud.vert"), sp("./point_cloud/point_cloud_id.frag"),["VP","pointSize"])
-        shader_opaque = ShaderProgram(sp("./point_cloud/point_cloud.vert"), sp("./point_cloud/point_cloud.frag"),["VP","pointSize","lightDirSideView","drawColor"])
+        shader_id = ShaderProgram(["point_cloud/point_cloud.vert","point_cloud/point_cloud_id.frag"],["VP","pointSize"])
+        shader_opaque = ShaderProgram(["point_cloud/point_cloud.vert","point_cloud/point_cloud.frag"],["VP","pointSize","lightDirSideView","drawColor"])
 
         new(
             renderer,
             shader_id,shader_opaque,
-            Vector{TypedBufferArray}(),
+            Vector{BufferArray}(),
             Vector{Float32}(),
             Vector{Vec3F}())
     end
@@ -83,11 +83,8 @@ setRenderedID!(self::PointCloudRenderer,item::PointCloudDependent,id) = return n
 
 function added!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     onNodeEval(point_cloud)
-    buffer = TypedBufferArray{Tuple{Vec3F}}()
-    upload!(buffer,
-            1,
-            [Vec3F(coord) for coord in point_cloud._coords],
-            GL_DYNAMIC_DRAW)
+    buffer = BufferArray{Tuple{Vec3F}}(MappedBuffer)
+    upload!(buffer,1,[Vec3F(coord) for coord in point_cloud._coords],0)
     push!(self._buffers,buffer)
     push!(self._widths,point_cloud._width)
     push!(self._colors,point_cloud._color)
@@ -96,10 +93,12 @@ end
 addedAll!(self::PointCloudRenderer) = return nothing
 
 function sync!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
-    upload!(self._buffers[getObserverID(point_cloud)],
-            1,
-            [Vec3F(coord) for coord in point_cloud._coords],
-            GL_DYNAMIC_DRAW)
+    if length(self._buffers[getObserverID(point_cloud)][1]) == length(point_cloud._coords)
+        wait(self._buffers[getObserverID(point_cloud)][1])
+        copyto!(self._buffers[getObserverID(point_cloud)][1],[Vec3F(coord) for coord in point_cloud._coords])
+    else
+        upload!(self._buffers[getObserverID(point_cloud)],1,[Vec3F(coord) for coord in point_cloud._coords],0)
+    end
     self._widths[getObserverID(point_cloud)] = point_cloud._width
     self._colors[getObserverID(point_cloud)] = point_cloud._color
 end
@@ -108,10 +107,10 @@ syncAll!(self::PointCloudRenderer) = return nothing
 
 function id_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     activate(self._shader_id)
-    setUniform!(self._shader_id,"VP",vp)
+    uniform(self._shader_id,"VP",vp)
     @time_gpu_begin Dependent Point_Cloud ID_PASS
     for i in 1:length(self._buffers)
-        setUniform!(self._shader_id,"pointSize",self._widths[i])
+        uniform(self._shader_id,"pointSize",self._widths[i])
         draw(self._buffers[i],GL_POINTS)
     end
     @time_gpu_end Dependent Point_Cloud ID_PASS
@@ -123,13 +122,14 @@ function opaque_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,sh
     (_, side_light) = get_lights(cam)
 
     activate(self._shader_opaque)
-    setUniform!(self._shader_opaque,"VP",vp)
-    setUniform!(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
+    uniform(self._shader_opaque,"VP",vp)
+    uniform(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
     @time_gpu_begin Dependent Point_Cloud OPAQUE_PASS
     for i in 1:length(self._buffers)
-        setUniform!(self._shader_opaque,"pointSize",self._widths[i])
-        setUniform!(self._shader_opaque,"drawColor",self._colors[i])
+        uniform(self._shader_opaque,"pointSize",self._widths[i])
+        uniform(self._shader_opaque,"drawColor",self._colors[i])
         draw(self._buffers[i],GL_POINTS)
+        lock(self._buffers[i][1])
     end
     @time_gpu_end Dependent Point_Cloud OPAQUE_PASS
     return nothing

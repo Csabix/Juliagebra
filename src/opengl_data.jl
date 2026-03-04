@@ -6,6 +6,22 @@ const _POINT_CLOUD_RENDERER::UInt = 5
 const _SEGMENT_SEQUENCE_RENDERER::UInt = 6
 const _RENDERER_COUNT::UInt   = 6
 
+function opengl_debug_callback(source, type, id, severity, len, message, userParam)
+    # Convert the C-string pointer to a Julia string
+    msg = unsafe_string(message, len)
+    
+    # Format the output with a bit of style
+    println("--- OpenGL Debug Message ---")
+    println("Source:   ", source)
+    println("Type:     ", type)
+    println("ID:       ", id)
+    println("Severity: ", severity)
+    println("Message:  ", msg)
+    println("----------------------------")
+    if glGetError() != 0 error("asd") end
+    return nothing
+end
+
 mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
@@ -44,6 +60,13 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _camPos::Vec3F
 
     function OpenGLData(glfw::GLFWData,shrd::SharedData)
+        glEnable(GL_DEBUG_OUTPUT)
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS)
+        debug_callback_ptr = @cfunction(opengl_debug_callback, Nothing, 
+            (GLenum, GLenum, GLuint, GLenum, GLsizei, Ptr{GLchar}, Ptr{Cvoid}))
+        glDebugMessageCallback(debug_callback_ptr, C_NULL)
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, C_NULL, GL_TRUE)
+        
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearStencil(0)
         glStencilMask(0xFF);
@@ -95,9 +118,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         widgetFBO = FrameBuffer(widgetAttachments)
 
         dummyBufferArray = BufferArray{Tuple{Vec3F}}()
-        upload!(dummyBufferArray,1,getAPlane(),GL_STATIC_DRAW)
+        upload!(dummyBufferArray[1],getAPlane(),0)
         centerBufferArray = BufferArray{Tuple{Vec3F}}()
-        upload!(centerBufferArray,1,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]),GL_STATIC_DRAW)
+        upload!(centerBufferArray[1],Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]),0)
         
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)

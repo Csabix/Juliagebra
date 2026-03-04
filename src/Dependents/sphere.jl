@@ -157,8 +157,8 @@ function SphereRenderer(context::OpenGLData)
     shader_opaque = ShaderProgram(["sphere/sphere.vert","sphere/sphere.geom","sphere/sphere_opaque.frag"],["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
     shader_transparent = ShaderProgram(["sphere/sphere.vert","sphere/sphere.geom","sphere/sphere_transparent.frag"],["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"])
 
-    buffer_opaque = BufferArray{Tuple{Vec3F,Float32,Vec3F}}()
-    buffer_transparent = BufferArray{Tuple{Vec3F,Float32,Vec3F}}()
+    buffer_opaque = BufferArray{Tuple{Vec3F,Float32,Vec3F}}(MappedBuffer,MappedBuffer,Buffer)
+    buffer_transparent = BufferArray{Tuple{Vec3F,Float32,Vec3F}}(MappedBuffer,MappedBuffer,Buffer)
 
     return SphereRenderer(
         renderer,
@@ -189,13 +189,13 @@ function added!(self::SphereRenderer,sphere::SphereDependent)
 end
 
 function addedAll!(self::SphereRenderer)
-    upload!(self._buffer_opaque,1,self._centers_opaque ,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,2,self._radiuses_opaque,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,3,self._colors_opaque  ,GL_STATIC_DRAW)
+    upload!(self._buffer_opaque[1],self._centers_opaque ,0)
+    upload!(self._buffer_opaque[2],self._radiuses_opaque,0)
+    upload!(self._buffer_opaque[3],self._colors_opaque  ,0)
 
-    upload!(self._buffer_transparent,1,self._centers_transparent ,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,2,self._radiuses_transparent,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,3,self._colors_transparent  ,GL_STATIC_DRAW)
+    upload!(self._buffer_transparent[1],self._centers_transparent ,0)
+    upload!(self._buffer_transparent[2],self._radiuses_transparent,0)
+    upload!(self._buffer_transparent[3],self._colors_transparent  ,0)
 
     @log "AddedAll Spheres!" INFO
 end
@@ -210,12 +210,15 @@ end
 
 function syncAll!(self::SphereRenderer)
     @time_cpu_begin Dependent Sphere
+    wait(self._buffer_opaque[1])
+    copyto!(self._buffer_opaque[1],self._centers_opaque)
+    wait(self._buffer_opaque[2])
+    copyto!(self._buffer_opaque[2],self._radiuses_opaque)
 
-    upload!(self._buffer_opaque,1,self._centers_opaque,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,2,self._radiuses_opaque,GL_DYNAMIC_DRAW)
-
-    upload!(self._buffer_transparent,1,self._centers_transparent,GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,2,self._radiuses_transparent,GL_DYNAMIC_DRAW)
+    wait(self._buffer_transparent[1])
+    copyto!(self._buffer_transparent[1],self._centers_transparent)
+    wait(self._buffer_transparent[1])
+    copyto!(self._buffer_transparent[2],self._radiuses_transparent)
 
     @time_cpu_end Dependent Sphere
     @log "Synced all Spheres!" INFO
@@ -256,6 +259,8 @@ function opaque_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::
     @time_gpu_begin Dependent Sphere OPAQUE_PASS
     draw(self._buffer_opaque,GL_POINTS)
     @time_gpu_end Dependent Sphere OPAQUE_PASS
+    lock(self._buffer_opaque[1])
+    lock(self._buffer_opaque[2])
 
     glEnable(GL_CULL_FACE)
     return nothing
@@ -278,6 +283,8 @@ function transparent_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,s
     @time_gpu_begin Dependent Sphere TRANSPARENT_PASS
     draw(self._buffer_transparent,GL_POINTS)
     @time_gpu_end Dependent Sphere TRANSPARENT_PASS
+    lock(self._buffer_transparent[1])
+    lock(self._buffer_transparent[2])
 
     glEnable(GL_CULL_FACE)
     return nothing

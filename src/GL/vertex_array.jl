@@ -12,7 +12,7 @@ struct VertexArray <: OpenGLWrapper
     end
 end
 
-function bind_buffers!(self::VertexArray,buffers::AbstractVector{Buffer})
+function bind_buffers!(self::VertexArray,buffers::AbstractVector{BufferBase})
     index = 0
     for (i,buffer) in enumerate(buffers)
         new_index = _vertexAttribs(self._id,index,buffer)
@@ -23,10 +23,20 @@ function bind_buffers!(self::VertexArray,buffers::AbstractVector{Buffer})
         index = new_index 
     end
 end
-bind_ebo!(self::VertexArray,buffer::Buffer) = glVertexArrayElementBuffer(self._id,id(buffer))
+bind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
+rebind_buffer!(self::VertexArray, index::Int, buffer::BufferBase) = glVertexArrayVertexBuffer(self._id,index-1,id(buffer),0,sizeof(eltype(buffer)))
+rebind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
 
 destroy!(self::VertexArray) = glDeleteVertexArrays(1,[self._id])
 activate(self::VertexArray) = glBindVertexArray(self._id)
+
+function vao_buffer_method!(vao::VertexArray, buffer::BufferBase, index, f, args...)
+    if f(buffer, args...) rebind_buffer!(vao, index, buffer) end
+end
+
+function vao_ebo_method!(vao::VertexArray, buffer::BufferBase, f, args...)
+    if f(buffer, args...) rebind_ebo!(vao, buffer) end
+end
 
 """
 Function to create a vertexAttribFormat.
@@ -64,7 +74,7 @@ function _vertexAttrib(vao::GLuint, index::Int, atype::DataType, stride::Int = s
     #println("\tglVertexAttribPointer(index=$index,size=$size,type=$type,normalized=$normalized,stride=$stride,offset=$offset)");
 end
 
-function _vertexAttribs(vao::GLuint,index::Int,buffer::Buffer)::Int
+function _vertexAttribs(vao::GLuint,index::Int,buffer::BufferBase)::Int
     vtype = eltype(buffer)
     if vtype <: StaticArray || vtype <: Real
         _vertexAttrib(vao,index,vtype)
@@ -78,9 +88,4 @@ function _vertexAttribs(vao::GLuint,index::Int,buffer::Buffer)::Int
         end
     end
     return index
-end
-
-function _vertexAttribs(vao::GLuint, index::Int, buffer::Buffer{M, Any})::Int where {M}
-    error("Buffer type cannot be 'Any'. Please use a concrete type like Float32 or Vec3F.")
-    return 0
 end

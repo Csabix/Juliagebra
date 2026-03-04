@@ -83,11 +83,8 @@ setRenderedID!(self::PointCloudRenderer,item::PointCloudDependent,id) = return n
 
 function added!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     onNodeEval(point_cloud)
-    buffer = BufferArray{Tuple{Vec3F}}()
-    upload!(buffer,
-            1,
-            [Vec3F(coord) for coord in point_cloud._coords],
-            GL_DYNAMIC_DRAW)
+    buffer = BufferArray{Tuple{Vec3F}}(MappedBuffer)
+    upload!(buffer,1,[Vec3F(coord) for coord in point_cloud._coords],0)
     push!(self._buffers,buffer)
     push!(self._widths,point_cloud._width)
     push!(self._colors,point_cloud._color)
@@ -96,10 +93,12 @@ end
 addedAll!(self::PointCloudRenderer) = return nothing
 
 function sync!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
-    upload!(self._buffers[getObserverID(point_cloud)],
-            1,
-            [Vec3F(coord) for coord in point_cloud._coords],
-            GL_DYNAMIC_DRAW)
+    if length(self._buffers[getObserverID(point_cloud)][1]) == length(point_cloud._coords)
+        wait(self._buffers[getObserverID(point_cloud)][1])
+        copyto!(self._buffers[getObserverID(point_cloud)][1],[Vec3F(coord) for coord in point_cloud._coords])
+    else
+        upload!(self._buffers[getObserverID(point_cloud)],1,[Vec3F(coord) for coord in point_cloud._coords],0)
+    end
     self._widths[getObserverID(point_cloud)] = point_cloud._width
     self._colors[getObserverID(point_cloud)] = point_cloud._color
 end
@@ -130,6 +129,7 @@ function opaque_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,sh
         uniform(self._shader_opaque,"pointSize",self._widths[i])
         uniform(self._shader_opaque,"drawColor",self._colors[i])
         draw(self._buffers[i],GL_POINTS)
+        lock(self._buffers[i][1])
     end
     @time_gpu_end Dependent Point_Cloud OPAQUE_PASS
     return nothing

@@ -245,7 +245,7 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
 
         new(renderer,
         shader_id,shader_opaque,shader_transparent,
-        IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(),
+        IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(MappedBuffer,MappedBuffer,Buffer),IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(MappedBuffer,MappedBuffer,Buffer),
         Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),
         Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}())
     end
@@ -281,15 +281,15 @@ setRenderedID!(renderer::ParametricSurfaceRenderer,dependent::ParametricSurfaceD
 
 # ! Must have
 function addedAll!(self::ParametricSurfaceRenderer)
-    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,2,data(self._normals_opaque),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,3,data(self._colors_opaque),GL_STATIC_DRAW)
-    upload_indices!(self._buffer_opaque,self._indexes_opaque,GL_STATIC_DRAW)
+    upload!(self._buffer_opaque[1],data(self._vertexes_opaque),0)
+    upload!(self._buffer_opaque[2],data(self._normals_opaque),0)
+    upload!(self._buffer_opaque[3],data(self._colors_opaque),0)
+    upload!(self._buffer_opaque[:index],self._indexes_opaque,0)
 
-    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,2,data(self._normals_transparent),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,3,data(self._colors_transparent),GL_STATIC_DRAW)
-    upload_indices!(self._buffer_transparent,self._indexes_transparent,GL_STATIC_DRAW)
+    upload!(self._buffer_transparent[1],data(self._vertexes_transparent),0)
+    upload!(self._buffer_transparent[2],data(self._normals_transparent),0)
+    upload!(self._buffer_transparent[3],data(self._colors_transparent),0)
+    upload!(self._buffer_transparent[:index],self._indexes_transparent,0)
 end
 
 # ! Must have
@@ -300,10 +300,15 @@ end
 # ! Must have
 function syncAll!(self::ParametricSurfaceRenderer)
     @time_cpu_begin Dependent Surface
-    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_opaque,2,data(self._normals_opaque),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),GL_DYNAMIC_DRAW)
-    upload!(self._buffer_transparent,2,data(self._normals_transparent),GL_DYNAMIC_DRAW)
+    wait(self._buffer_opaque[1])
+    copyto!(self._buffer_opaque[1],data(self._vertexes_opaque))
+    wait(self._buffer_opaque[2])
+    copyto!(self._buffer_opaque[2],data(self._normals_opaque))
+    
+    wait(self._buffer_transparent[1])
+    copyto!(self._buffer_transparent[1],data(self._vertexes_transparent))
+    wait(self._buffer_transparent[2])
+    copyto!(self._buffer_transparent[2],data(self._normals_transparent))
     @time_cpu_end Dependent Surface
 end
 
@@ -336,6 +341,8 @@ function opaque_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Ca
     @time_gpu_end Dependent Surface OPAQUE_PASS
 
     glEnable(GL_CULL_FACE)
+    lock(self._buffer_opaque[1])
+    lock(self._buffer_opaque[2])
     return nothing
 end
 
@@ -354,6 +361,8 @@ function transparent_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},ca
     @time_gpu_end Dependent Surface TRANSPARENT_PASS
 
     glEnable(GL_CULL_FACE)
+    lock(self._buffer_transparent[1])
+    lock(self._buffer_transparent[2])
     return nothing
 end
 

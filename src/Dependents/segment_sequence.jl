@@ -180,6 +180,7 @@ end
 
 mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
+    _emptyVAO::VertexArray
 
     _shader_predraw::ShaderProgram
     _shaders_id::Vector{ShaderProgram}
@@ -195,14 +196,14 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     _colors::Vector{Vector{Float32}}
     _types::Vector{UInt8}
 
-    _distance_buffers_in::Vector{BufferMT{Float32}}
-    _color_type_buffers_in::Vector{BufferMT{Float32}}
-    _position_width_buffers_in::Vector{BufferMT{Vec4F}}
+    _distance_buffers_in::Vector{Buffer{Float32}}
+    _color_type_buffers_in::Vector{Buffer{Float32}}
+    _position_width_buffers_in::Vector{Buffer{Vec4F}}
 
-    _position_distance_buffer_out::BufferMT{Vec4F}
-    _color_buffer_out::BufferMT{UVec2}
-    _light_buffer_out::BufferMT{Vec4F}
-    _sdf_buffer_out::BufferMT{Vec4F}
+    _position_distance_buffer_out::Buffer{Vec4F}
+    _color_buffer_out::Buffer{UVec2}
+    _light_buffer_out::Buffer{Vec4F}
+    _sdf_buffer_out::Buffer{Vec4F}
 
     function SegmentSequenceRenderer(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
@@ -228,12 +229,12 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
         colors = Vector{Vector{Float32}}()
         types = Vector{UInt8}()
         
-        new(renderer,
+        new(renderer,VertexArray(),
             shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
             Vector{Int32}(),Vector{Tuple{Int, Int}}(undef, _CURVE_COUNT),
             coords,widths,colors,types,
-            Vector{BufferMT{Float32}}(),Vector{BufferMT{Float32}}(),Vector{BufferMT{Vec4F}}(),
-            BufferMT{Vec4F}(),BufferMT{UVec2}(),BufferMT{Vec4F}(),BufferMT{Vec4F}())
+            Vector{Buffer{Float32}}(),Vector{Buffer{Float32}}(),Vector{Buffer{Vec4F}}(),
+            Buffer{Vec4F}(),Buffer{UVec2}(),Buffer{Vec4F}(),Buffer{Vec4F}())
     end
 end
 
@@ -281,28 +282,28 @@ function addedAll!(self::SegmentSequenceRenderer)
 
     for i in 1:length(self._coords)
         # Distance
-        distance_buffer = BufferMT{Float32}()
-        reserve!(distance_buffer,length(self._coords[i]),GL_DYNAMIC_DRAW)
+        distance_buffer = Buffer{Float32}()
+        reserve!(distance_buffer,length(self._coords[i]),GL_DYNAMIC_STORAGE_BIT)
         push!(self._distance_buffers_in,distance_buffer)
         # Color
-        color_buffer = BufferMT{Float32}()
-        upload!(color_buffer,upload_colors[i],GL_STATIC_DRAW)
+        color_buffer = Buffer{Float32}()
+        upload!(color_buffer,upload_colors[i],0)
         push!(self._color_type_buffers_in,color_buffer)
         # Position Width
-        position_width_buffer = BufferMT{Vec4F}()
-        upload!(position_width_buffer,upload_position_widths[i],GL_DYNAMIC_DRAW)
+        position_width_buffer = Buffer{Vec4F}()
+        upload!(position_width_buffer,upload_position_widths[i],GL_DYNAMIC_STORAGE_BIT)
         push!(self._position_width_buffers_in,position_width_buffer)
     end
 
     total_coord = sum(length,self._coords)
-    self._position_distance_buffer_out = BufferMT{Vec4F}()
-    reserve!(self._position_distance_buffer_out,5*total_coord,GL_STATIC_DRAW)
-    self._color_buffer_out = BufferMT{Vec2T{UInt32}}()
-    reserve!(self._color_buffer_out,total_coord,GL_STATIC_DRAW)
-    self._light_buffer_out = BufferMT{Vec4F}()
-    reserve!(self._light_buffer_out,total_coord,GL_STATIC_DRAW)
-    self._sdf_buffer_out = BufferMT{Vec4F}()
-    reserve!(self._sdf_buffer_out,5*total_coord,GL_STATIC_DRAW)
+    self._position_distance_buffer_out = Buffer{Vec4F}()
+    reserve!(self._position_distance_buffer_out,5*total_coord,0)
+    self._color_buffer_out = Buffer{Vec2T{UInt32}}()
+    reserve!(self._color_buffer_out,total_coord,0)
+    self._light_buffer_out = Buffer{Vec4F}()
+    reserve!(self._light_buffer_out,total_coord,0)
+    self._sdf_buffer_out = Buffer{Vec4F}()
+    reserve!(self._sdf_buffer_out,5*total_coord,0)
 end
 
 # ! Must have
@@ -352,11 +353,11 @@ function syncAll!(self::SegmentSequenceRenderer)
         position_widths = upload_position_widths[i]
         if self._update_me[i] < 0
             # Distance
-            reserve!(self._distance_buffers_in[index],length(position_widths),GL_DYNAMIC_DRAW)
+            reserve!(self._distance_buffers_in[index],length(position_widths),GL_DYNAMIC_STORAGE_BIT)
             # Color
-            upload!(self._color_type_buffers_in[index],upload_colors[i],GL_STATIC_DRAW)
+            upload!(self._color_type_buffers_in[index],upload_colors[i],0)
             # Position Width
-            upload!(self._position_width_buffers_in[index],position_widths,GL_DYNAMIC_DRAW)
+            upload!(self._position_width_buffers_in[index],position_widths,GL_DYNAMIC_STORAGE_BIT)
         else
             upload!(self._position_width_buffers_in[index],position_widths)
         end
@@ -364,10 +365,10 @@ function syncAll!(self::SegmentSequenceRenderer)
 
     if any(x -> x < 0, self._update_me)
         total_coord = sum(length,self._coords)
-        reserve!(self._position_distance_buffer_out,5*total_coord,GL_STATIC_DRAW)
-        reserve!(self._color_buffer_out,total_coord,GL_STATIC_DRAW)
-        reserve!(self._light_buffer_out,total_coord,GL_STATIC_DRAW)
-        reserve!(self._sdf_buffer_out,5*total_coord,GL_STATIC_DRAW)
+        reserve!(self._position_distance_buffer_out,5*total_coord,0)
+        reserve!(self._color_buffer_out,total_coord,0)
+        reserve!(self._light_buffer_out,total_coord,0)
+        reserve!(self._sdf_buffer_out,5*total_coord,0)
     end
 
     empty!(self._update_me)
@@ -472,6 +473,7 @@ function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,
 end
 
 function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._sdf_buffer_out,1)
 
@@ -488,6 +490,7 @@ function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,s
 end
 
 function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._light_buffer_out,2)
@@ -510,6 +513,7 @@ end
 is_occluder(self::SegmentSequenceRenderer)::Bool = false
 
 function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._sdf_buffer_out,2)
@@ -527,6 +531,7 @@ function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},ca
 end
 
 function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+    activate(self._emptyVAO)
     bind_ssbo(self._position_distance_buffer_out,0)
     bind_ssbo(self._color_buffer_out,1)
     bind_ssbo(self._light_buffer_out,2)
@@ -546,6 +551,7 @@ function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam:
 end
 
 function destroy!(self::SegmentSequenceRenderer)
+    destroy!(self._emptyVAO)
     destroy!(self._shader_predraw)
     destroy!.(self._shaders_id)
     destroy!.(self._shaders_opaque)

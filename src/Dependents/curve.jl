@@ -150,14 +150,14 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _position_width::Vector{Vec4F}
     _needMaintance::Bool
 
-    _distance_buffer_in::BufferIT{Float32}
-    _color_type_buffer_in::BufferIT{Float32}
-    _position_width_buffer_in::BufferIT{Vec4F}
+    _distance_buffer_in::MappedBuffer{Float32}
+    _color_type_buffer_in::Buffer{Float32}
+    _position_width_buffer_in::MappedBuffer{Vec4F}
 
-    _position_distance_buffer_out::BufferIT{Vec4F}
-    _color_buffer_out::BufferIT{UVec2}
-    _light_buffer_out::BufferIT{Vec4F}
-    _sdf_buffer_out::BufferIT{Vec4F}
+    _position_distance_buffer_out::Buffer{Vec4F}
+    _color_buffer_out::Buffer{UVec2}
+    _light_buffer_out::Buffer{Vec4F}
+    _sdf_buffer_out::Buffer{Vec4F}
 
     function CurveRenderer(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
@@ -194,8 +194,8 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
             ranges,drawRanges,
             coords,widths,colors,
             distances,position_width,needMaintance,
-            BufferIT{Float32}(),BufferIT{Float32}(),BufferIT{Vec4F}(),
-            BufferIT{Vec4F}(),BufferIT{UVec2}(),BufferIT{Vec4F}(),BufferIT{Vec4F}())
+            MappedBuffer{Float32}(),Buffer{Float32}(),MappedBuffer{Vec4F}(),
+            Buffer{Vec4F}(),Buffer{UVec2}(),Buffer{Vec4F}(),Buffer{Vec4F}())
     end
 end
 
@@ -208,8 +208,8 @@ end
             self._position_width[i] = Vec4F(p.x,p.y,p.z,width)
         end
     end
-
-    upload!(self._position_width_buffer_in, self._position_width)
+    wait(self._position_width_buffer_in)
+    copyto!(self._position_width_buffer_in,self._position_width)
     @time_cpu_end Dependent Curve UPLOAD_POSITION
 end
 
@@ -357,11 +357,12 @@ function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
         self._distances[last] = distance_sum
     end
     @time_cpu_end Dependent Curve Distances
+    wait(self._distance_buffer_in)
+    copyto!(self._distance_buffer_in, self._distances)
 end
 
 function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
-    upload!(self._distance_buffer_in,self._distances)
 
     bind_ssbo(self._distance_buffer_in,0)
     bind_ssbo(self._color_type_buffer_in,1)
@@ -382,6 +383,9 @@ function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
     glDispatchCompute(cld(length(self._coords),32),1,1);
     @time_gpu_end Dependent Curve PRE_DRAW_PASS 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+    lock(self._distance_buffer_in)
+    lock(self._position_width_buffer_in)
+    return nothing
 end
 
 function id_pass!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing

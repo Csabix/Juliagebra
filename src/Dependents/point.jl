@@ -135,7 +135,7 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
         shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
-        buffer = BufferArray{Tuple{Vec3F,Float32}}()
+        buffer = BufferArray{Tuple{Vec3F,Float32}}(MappedBuffer,Buffer)
         coords = Vector{Vec3F}()
         ids    = Vector{Float32}()
 
@@ -173,8 +173,8 @@ end
 # ? Actual Data Transfer to GPU VRAM should happen here.
 # ! Must have
 function addedAll!(self::PointRenderer)
-    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
-    upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
+    upload!(self._buffer,1,self._coords,0)
+    upload!(self._buffer,2,self._ids,0)
 end
 
 # ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
@@ -194,7 +194,8 @@ end
 # ! Must have
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
-    upload!(self._buffer,1,self._coords)
+    wait(self._buffer[1])
+    copyto!(self._buffer[1],self._coords)
     @time_cpu_end Dependent Point
     @log "Uploaded Coordinate buffer!" INFO
 end
@@ -220,6 +221,7 @@ function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::S
     @time_gpu_begin Dependent Point OPAQUE_PASS
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point OPAQUE_PASS
+    lock(self._buffer[1])
     return nothing
 end
 

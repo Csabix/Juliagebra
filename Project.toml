@@ -17,8 +17,6 @@ assimp_jll = "54ae6823-98c6-5a7c-8365-5a43b909f91f"
 [compat]
 CEnum = "0.5.0"
 assimp_jll = "5.2.5"
-
-[compat]
 MacroTools = "0.5.16"
 
 [extras]

@@ -133,10 +133,7 @@ mutable struct TriangleClusterPlan <: RenderedPlanDNA
     _transparent::Bool
 
     function TriangleClusterPlan(callback::Function,plans::Vector{T},mesh,transform,color,transparent) where {T<:PlanDNA}
-        _mesh = Mesh(
-            collect(get_positions_it(mesh)),
-            collect(get_indices_it(mesh))
-        )
+        _mesh = Mesh(get_positions(mesh),get_indices(mesh))
         new(RenderedPlan(callback,plans),_mesh,transform,color,transparent)
     end
 end
@@ -167,10 +164,9 @@ _RenderedDependent_(self::TriangleClusterDependent)::RenderedDependent = return 
 
 onNodeEval(self::TriangleClusterDependent) = evalCallbackDp(self)
 
-evalCallbackDpReturn(self::TriangleClusterDependent,v) = begin end
-evalCallbackDpReturn(self::TriangleClusterDependent,v::Vec3D) = begin end
-evalCallbackDpReturn(self::TriangleClusterDependent,v::Vec3F) = begin end
-evalCallbackDpReturn(self::TriangleClusterDependent,v::Nothing) = begin end
+evalCallbackDpReturn(self::TriangleClusterDependent,v::Mesh) = self._mesh = v
+evalCallbackDpReturn(self::TriangleClusterDependent,v::AbstractMatrix) = self._transform = Mat4T{Float64}(v)
+evalCallbackDpReturn(self::TriangleClusterDependent,v::Nothing) = self._transform = dmat4(0.0)
 
 function _get_positions(self::TriangleClusterDependent)
     return isnothing(self._mesh.indices) ? [Vec4F(pos...,1) for pos in self._mesh.positions] : [Vec4F(self._mesh.positions[index+1]...,1) for index in self._mesh.indices]
@@ -180,7 +176,7 @@ end
 # ! TriangleClusterRenderer
 # ? ---------------------------------
 
-mutable struct DynamicTriangleClusterRenderer <: RendererDNA{TriangleClusterDependent}
+mutable struct TriangleClusterRenderer <: RendererDNA{TriangleClusterDependent}
     _renderer::Renderer{TriangleClusterDependent}
 
     _shader_calc_normals::ShaderProgram
@@ -188,114 +184,140 @@ mutable struct DynamicTriangleClusterRenderer <: RendererDNA{TriangleClusterDepe
     _shader_opaque::ShaderProgram
     _shader_transparent::ShaderProgram
 
-    _buffers_opaque::Vector{TypedBufferArray}
-    _matrices_opaque::Vector{Mat4T{Float32}}
+    _buffers::Vector{BufferArray}
+    _matrices::Vector{Mat4T{Float32}}
+    _transparent::Vector{Bool}
 
-    _buffers_transparent::Vector{TypedBufferArray}
-    _matrices_transparent::Vector{Mat4T{Float32}}
+    _need_barrier::Bool
 
 
-    function DynamicTriangleClusterRenderer(context::OpenGLData)
+    function TriangleClusterRenderer(context::OpenGLData)
         renderer = Renderer{TriangleClusterDependent}(context)
 
-        id = ShaderProgram(sp("surface/surface_id.vert"),sp("surface/surface_id.frag"),["VP"])
-        opaque = ShaderProgram(sp("surface/surface.vert"),sp("surface/surface_opaque.frag"),["VP","lightDirCam","lightDirSide"])
-        transparent = ShaderProgram(sp("surface/surface.vert"),sp("surface/surface_transparent.frag"),["VP","lightDirCam","lightDirSide"])
-        calc_normals = ShaderProgram(sp("calc_normals.comp"))
+        id = ShaderProgram([("mesh/mesh.vert",["ID"]),("mesh/mesh.frag",["ID"])],["MVP"])
+        opaque = ShaderProgram([("mesh/mesh.vert",["OPAQUE"]),("mesh/mesh.frag",["OPAQUE"])],["MVP","MIT","lightDirCam","lightDirSide"])
+        transparent = ShaderProgram([("mesh/mesh.vert",["TRANSPARENT"]),("mesh/mesh.frag",["TRANSPARENT"])],["MVP","MIT","lightDirCam","lightDirSide"])
+        calc_normals = ShaderProgram(["calc_normals.comp"])
 
         new(renderer,
             calc_normals,id,opaque,transparent,
-            Vector{TypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}}(),Vector{Mat4T{Float32}}(),
-            Vector{TypedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}}(),Vector{Mat4T{Float32}}())
+            Vector{BufferArray}(),Vector{Mat4T{Float32}}(),Vector{Bool}(),
+            false)
     end
 end
 
-_Renderer_(self::DynamicTriangleClusterRenderer) = return self._renderer
-Base.string(self::DynamicTriangleClusterRenderer) = return "Triangle cluster renderer"
+_Renderer_(self::TriangleClusterRenderer) = return self._renderer
+Base.string(self::TriangleClusterRenderer) = return "Triangle cluster renderer"
 
-function added!(self::DynamicTriangleClusterRenderer,cluster::TriangleClusterDependent)
-    dst_buffers  = cluster._transparent ? self._buffers_transparent  : self._buffers_opaque
-    dst_matrices = cluster._transparent ? self._matrices_transparent : self._matrices_opaque
-    
-    buffer = TypedBufferArray{Tuple{Vec4F,Vec4F,Vec3F}}()
+function added!(self::TriangleClusterRenderer,cluster::TriangleClusterDependent)
+    onNodeEval(cluster)
+    buffer = BufferArray{Tuple{Vec4F,Vec4F,Vec3F}}()
     positions = _get_positions(cluster)
-    upload!(buffer,1,positions,GL_DYNAMIC_DRAW)
-    reserve!(buffer,2,length(positions),GL_STATIC_DRAW)
-    upload!(buffer,3,fill(color,length(positions)),GL_STATIC_DRAW)
+    upload!(buffer,1,positions,GL_DYNAMIC_STORAGE_BIT)
+    reserve!(buffer,2,length(positions),0)
+    upload!(buffer,3,fill(cluster._color,length(positions)),0)
 
-    push!(dst_buffers,buffer)
-    push!(dst_matrices,cluster._transform)
+    push!(self._buffers,buffer)
+    push!(self._matrices,cluster._transform)
+    push!(self._transparent,cluster._transparent)
 
     activate(self._shader_calc_normals)
-    bind_ssbo!(buffer,1,0)
-    bind_ssbo!(buffer,2,1)
+    bind_ssbo(buffer[1],0)
+    bind_ssbo(buffer[2],1)
     glDispatchCompute(cld(length(positions),64),1,1);
 end
 
-function addedAll!(self::DynamicTriangleClusterRenderer)
+setRenderedID!(renderer::TriangleClusterRenderer,dependent::TriangleClusterDependent,id) = return nothing
+
+function addedAll!(self::TriangleClusterRenderer)
     glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
 end
 
-function sync!(self::DynamicTriangleClusterRenderer,curve::TriangleClusterDependent)
+function sync!(self::TriangleClusterRenderer,cluster::TriangleClusterDependent)
+    buffer = self._buffers[getObserverID(cluster)]
+    if cluster._transform != self._matrices[getObserverID(cluster)]
+        self._matrices[getObserverID(cluster)] = cluster._transform
+    else
+        positions = _get_positions(cluster)
+        if length(positions) != length(buffer[1])
+            upload!(buffer,1,positions,GL_DYNAMIC_STORAGE_BIT)
+            reserve!(buffer,2,length(positions),0)
+            upload!(buffer,3,fill(cluster._color,length(positions)),0)
+        else
+            upload!(buffer,1,positions)
+        end
+        activate(self._shader_calc_normals)
+        bind_ssbo(buffer[1],0)
+        bind_ssbo(buffer[2],1)
+        glDispatchCompute(cld(length(positions),64),1,1);
+        self._need_barrier = true
+    end
 end
 
-syncAll!(self::DynamicTriangleClusterRenderer) = return nothing
+function syncAll!(self::TriangleClusterRenderer)
+    if self._need_barrier
+        glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
+        self._need_barrier = false
+    end
+end
 
-function id_pass!(self::DynamicTriangleClusterRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
+function id_pass!(self::TriangleClusterRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     glDisable(GL_CULL_FACE)
     
     activate(self._shader_id)
-    for i in 1:length(self._buffers_opaque)
-        setUniform!(self._shader_id,"VP",vp*self._matrices_opaque[i])
-        if length(self._buffers_opaque[i]) != 0 draw(self._buffers_opaque[i],GL_TRIANGLES) end
+    for i in 1:length(self._buffers)
+        if self._transparent[i] || length(self._buffers[i]) == 0 continue end
+        uniform(self._shader_id,"MVP",vp*self._matrices[i])
+        draw(self._buffers[i],GL_TRIANGLES)
     end
 
     glEnable(GL_CULL_FACE)
     return nothing
 end
 
-function opaque_pass!(self::DynamicTriangleClusterRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    if length(self._buffers_opaque) == 0 return nothing end
+function opaque_pass!(self::TriangleClusterRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     (cam_light, side_light) = get_lights(cam)
     glDisable(GL_CULL_FACE)
     
     activate(self._shader_opaque)
-    setUniform!(self._shader_opaque,"lightDirCam",-cam_light)
-    setUniform!(self._shader_opaque,"lightDirSide",-side_light)
-    for i in 1:length(self._buffers_opaque)
-        setUniform!(self._shader_opaque,"VP",vp*self._matrices_opaque[i])
-        if length(self._buffers_opaque[i]) != 0 draw(self._buffers_opaque[i],GL_TRIANGLES) end
+    uniform(self._shader_opaque,"lightDirCam",-cam_light)
+    uniform(self._shader_opaque,"lightDirSide",-side_light)
+    for i in 1:length(self._buffers)
+        if self._transparent[i] || length(self._buffers[i]) == 0 continue end
+        uniform(self._shader_opaque,"MVP",vp*self._matrices[i])
+        uniform(self._shader_opaque,"MIT",inv(transpose(self._matrices[i])))
+        draw(self._buffers[i],GL_TRIANGLES)
     end
 
     glEnable(GL_CULL_FACE)
     return nothing
 end
 
-function transparent_pass!(self::DynamicTriangleClusterRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    if length(self._buffers_transparent) == 0 return nothing end
+function transparent_pass!(self::TriangleClusterRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     (cam_light, side_light) = get_lights(cam)
     glDisable(GL_CULL_FACE)
     
     activate(self._shader_transparent)
-    setUniform!(self._shader_transparent,"lightDirCam",-cam_light)
-    setUniform!(self._shader_transparent,"lightDirSide",-side_light)
-    for i in 1:length(self._buffers_transparent)
-        setUniform!(self._shader_transparent,"VP",vp*self._matrices_transparent[i])
-        if length(self._buffers_transparent[i]) != 0 draw(self._buffers_transparent[i],GL_TRIANGLES) end
+    uniform(self._shader_transparent,"lightDirCam",-cam_light)
+    uniform(self._shader_transparent,"lightDirSide",-side_light)
+    for i in 1:length(self._buffers)
+        if !self._transparent[i] || length(self._buffers[i]) == 0 continue end
+        uniform(self._shader_opaque,"MVP",vp*self._matrices[i])
+        uniform(self._shader_opaque,"MIT",inv(transpose(self._matrices[i])))
+        draw(self._buffers[i],GL_TRIANGLES)
     end
 
     glEnable(GL_CULL_FACE)
     return nothing
 end
 
-function destroy!(self::DynamicTriangleClusterRenderer)
+function destroy!(self::TriangleClusterRenderer)
     destroy!(self._shader_id)
     destroy!(self._shader_opaque)
     destroy!(self._shader_transparent)
-    destroy!.(self._buffers_opaque)
-    destroy!.(self._buffers_transparent)
+    destroy!.(self._buffers)
 end
 
 function Plan2Observer(self::OpenGLData,plan::TriangleClusterPlan)
-    return SingleRendererTactic(self,_TRIANGLE_CLUSTER_RENDERER,DynamicTriangleClusterRenderer)::DynamicTriangleClusterRenderer
+    return SingleRendererTactic(self,_TRIANGLE_CLUSTER_RENDERER,TriangleClusterRenderer)::TriangleClusterRenderer
 end

@@ -3,11 +3,8 @@ struct Mesh
     indices::Union{Nothing,Vector{UInt32}}
 end
 
-get_positions(self::Mesh) = self.positions
-get_indices(self::Mesh) = self.indices
-
-get_positions_it(mesh) = get_positions(mesh)
-get_indices_it(mesh) = get_indices(mesh)
+get_positions(self::Mesh)::Vector{Vec3D} = copy(self.positions)
+get_indices(self::Mesh)::Union{Nothing,Vector{UInt32}} = isnothing(self.indices) ? nothing : copy(self.indices)
 
 Base.string(self::Mesh)::String = return "Vertex count: $(length(self.positions))"
 Base.show(io::IO, self::Mesh) =  print(io, string(self))
@@ -17,16 +14,11 @@ struct MeshProxy
     _transform::Mat4x4T{Float64}
 end
 
-function get_positions(self::MeshProxy)
+function get_positions(self::MeshProxy)::Vector{Vec3D}
     M = self._transform
-    return [let p = M * Vec4F(v.x, v.y, v.z, 1.0); Vec3F(p.x, p.y, p.z) end for v in self._mesh.positions]
+    return [let p = M * Vec4D(v.x, v.y, v.z, 1.0); Vec3D(p.x, p.y, p.z) end for v in self._mesh.positions]
 end
-get_indices(self::MeshProxy) = self._mesh.indices
-
-function get_positions_it(self::MeshProxy)
-    M = self._transform
-    return (let p = M * Vec4F(v.x, v.y, v.z, 1.0); Vec3F(p.x, p.y, p.z) end for v in self._mesh.positions)
-end
+get_indices(self::MeshProxy) = get_indices(self._mesh)
 
 struct Scene
     mesh_instances::Vector{MeshProxy}

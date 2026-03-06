@@ -47,6 +47,10 @@ _Point(_x=x,_y=y,_z=z)
 Point(callback::Function,dependents::DependentsT) = 
 _Point(_call=callback,_deps=dependents)
 
+macro Point(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point)
+end
 
 # ? ---------------------------------
 # ! ParametricCurve
@@ -97,6 +101,12 @@ ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Dep
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan =
 _ParametricCurve(_call=callback,_deps=dependents,_range=range,_col=color,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
 
+macro ParametricCurve(callback::Expr,range,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 1)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve, (cb, deps) -> (cb, range, deps); parsed_kw_args...)
+end
+
 # ? ---------------------------------
 # ! SegmentSequence
 # ? ---------------------------------
@@ -123,6 +133,14 @@ _SegmentSequence(_call=callback,_deps=dependents,_col=color,_break_every=break_e
 SegmentSequence(dependents::DependentsT=Vector{PlanDNA}(),break_every=2;
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequencePlan =
 _SegmentSequence(_call=_deps_collect,_deps=dependents,_col=color,_break_every=break_every,_type=type,_reversed=reversed ? 0x1 : 0x0,_width=width)
+
+macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
+    (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
+
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence, (cb, deps) -> (cb, deps, break_every); parsed_kw_args...)
+end
 
 # ? ---------------------------------
 # ! Mesh
@@ -167,6 +185,14 @@ ParametricSurface(callback::Function,width,height,uStart,uEnd,vStart,vEnd;transp
 _ParametricSurface(_call=callback,_width=width,_height=height,_uStart=uStart,_uEnd=uEnd,_vStart=vStart,_vEnd=vEnd,
 _transparent=transparent,_color=color)
 
+macro ParametricSurface(callback::Expr,width,height,uStart,uEnd,vStart,vEnd,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:transparent, :color], kw_args...)
+    callback = _validate_callback_expr(callback, 2)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricSurface,
+        (cb, deps) -> (cb, width, height, uStart, uEnd, vStart, vEnd, deps);
+        parsed_kw_args...)
+end
+
 # ? ---------------------------------
 # ! Toggle
 # ? ---------------------------------
@@ -186,6 +212,11 @@ _Toggle()
 
 Toggle(callback::Function,dependents::DependentsT) =
 _Toggle(_call = callback, _deps=dependents)
+
+macro Toggle(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Toggle)
+end
 
 # ? ---------------------------------
 # ! Slider
@@ -216,6 +247,11 @@ _Slider(_minVal = minVal, _startVal = clamp(startVal,minVal,maxVal) ,_maxVal = m
 Slider(callback::Function,minVal,maxVal,dependents::DependentsT) =
 _Slider(_call = callback, _minVal = minVal ,_maxVal = maxVal, _deps=dependents)
 
+macro Slider(callback::Expr,minVal,maxVal)
+    _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Slider, (cb, deps) -> (cb,minVal,maxVal,deps))
+end
+
 # ? ---------------------------------
 # ! TextBox
 # ? ---------------------------------
@@ -239,6 +275,11 @@ _TextBox(_text = text)
 
 TextBox(callback::Function,dependents::DependentsT) =
 _TextBox(_call = callback, _deps = dependents)
+
+macro TextBox(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.TextBox)
+end
 
 # ? ---------------------------------
 # ! Sphere
@@ -314,16 +355,30 @@ _PointCloud(_call=callback,_deps=dependents,_col=color,_width=width)
 PointCloud(dependents::DependentsT) = GenericValueHolder(_deps_collect,Vector{Vec3D},dependents)
 PointCloud(positions) = PointCloud([Point(p...) for p in positions])
 
+macro PointCloud(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.PointCloud; parsed_kw_args...)
+end
+
 export Point
+export @Point
 export ParametricCurve
+export @ParametricCurve
 export Segment
 export SegmentSequence
+export @SegmentSequence
 export Intersection
 export Mesh
 export ParametricSurface
+export @ParametricSurface
 export Toggle
+export @Toggle
 export Slider
+export @Slider
 export TextBox
+export @TextBox
 export Sphere
 export PointCloud
+export @PointCloud
 export _deps_collect

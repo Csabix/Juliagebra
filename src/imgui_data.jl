@@ -10,7 +10,6 @@ mutable struct ImGuiData <: ObserverBuilderDNA
 
     _widgets::Vector{ImGuiWidgetDNA}
     _dock::Dock
-    _guiDependentsWindow::GuiDependentsWindow
 
     function ImGuiData(app::AppDNA )
         
@@ -29,9 +28,9 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         widgets = Vector{ImGuiWidgetDNA}()
         
         dock = Dock(shrd._width,shrd._height)
-        guiDependentsWindow = GuiDependentsWindow()
 
-        add!(dock,guiDependentsWindow)
+        # TODO: Continue this.
+        add!(dock,GuiDependentsWindow())
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
         add!(dock,PerformanceWindow())
@@ -39,8 +38,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
 
         push!(widgets,dock)
 
-        self = new(shrd,io,0,0,0,0,widgets,
-                   dock,guiDependentsWindow)
+        self = new(shrd,io,0,0,0,0,widgets,dock)
         
         resize!(self)
 

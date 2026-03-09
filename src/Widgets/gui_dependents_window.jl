@@ -1,23 +1,37 @@
 
+# ? ---------------------------------
+# ! GuiDependentsWindow
+# ? ---------------------------------
+
+Type2Id(::Type{ToggleRenderer}) = 1
+Type2Id(::Type{SliderRenderer}) = 2
+Type2Id(::Type{TextBoxRenderer}) = 3
+
 mutable struct GuiDependentsWindow <: WindowDNA
     _window::Window
-    _guiRenderers::Dict{<:DataType,Vector{<:GuiRendererDNA}}
-end
-
-function GuiDependentsWindow()
+    _pool::ObserverPool{GuiRendererDNA}
+    
+    function GuiDependentsWindow()
         window = Window()
-        guiDependents = Dict{DataType,Vector{<:GuiRendererDNA}}()
+        pool = ObserverPool{GuiRendererDNA}()
+        fill!(pool,[
+            ToggleRenderer() # ? 1
+            SliderRenderer() # ? 2
+            TextBoxRenderer() # ? 3
+            ])
 
-        GuiDependentsWindow(window,guiDependents)
+        new(window,pool)
+    end
 end
 
 _Window_(self::GuiDependentsWindow)::Window = self._window
 getWindowName(self::GuiDependentsWindow) = return "GuiDependents"
 
 function renderContent(self::GuiDependentsWindow)
-    for (_,guiRendererVec) in self._guiRenderers
-        for guiRenderer in guiRendererVec
-            render!(guiRenderer)
+    for activeRenderer in self._pool
+        # TODO: Continue this.
+        if !isnothing(activeRenderer)
+            render!(activeRenderer)
         end
     end
 end

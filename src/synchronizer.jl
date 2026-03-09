@@ -12,20 +12,26 @@ struct ViewingState <: FrameState end
 const ADDED_CHANNEL_SIZE = 64
 const ADDED_PER_FRAME_MAX = 64
 
+struct BuildData
+    dependent::Union{DependentDNA,Nothing}
+    observer::Union{ObserverDNA,Nothing}
+    pool::Union{ObserverPool,Nothing}
+end
+
 # ? ---------------------------------
 # ! Synchronizer
 # ? ---------------------------------
 
 mutable struct Synchronizer
     _lock::ReentrantLock
-    _channel::Channel{DependentDNA}
+    _channel::Channel{BuildData}
     _initLock::ReentrantLock
     _initCondition::Threads.Condition
 
     function Synchronizer()
         lock = ReentrantLock()
         # ? ADDED_CHANNEL_SIZE elements max on the BLUE Thread, otherwise wait
-        channel = Channel{DependentDNA}(ADDED_CHANNEL_SIZE)
+        channel = Channel{BuildData}(ADDED_CHANNEL_SIZE)
         initLock = ReentrantLock()
         initCondition = Threads.Condition(initLock)
         new(lock,channel,initLock,initCondition)
@@ -52,20 +58,26 @@ function handleAddedCalls(app::AppDNA)
     builtDependentsNum = Base.n_avail(s._channel)
     # ? at max process ADDED_PER_FRAME_MAX dependents in this frame.
     takeNum = min(builtDependentsNum,ADDED_PER_FRAME_MAX)
-    addedAllSet = Set{ObserverDNA}()
+    addedAllSet = Set{Tuple{ObserverDNA,ObserverPool}}()
     
     for i in 1:takeNum
 
-        dependent::DependentDNA = take!(s._channel)
-        observer = _handleAddedCalls1(dependent,app)
+        data::BuildData = take!(s._channel)
+        dependent = data.dependent
+        observer = data.observer
+        pool = data.pool
+        
+        _handleAddedCalls1(dependent,app)
 
         if !isnothing(observer)
-            push!(addedAllSet,observer)
+            push!(addedAllSet,(observer,pool))
         end
     end
     
-    for observer in addedAllSet
-        addedAll!(app,observer)
+    for (observer,pool) in addedAllSet
+        # TODO: Continue this.
+        addedAll!(pool,observer)
+        # activate!(pool,Type2Id(typeof(observer)))
     end
 
     if takeNum > 1
@@ -84,8 +96,12 @@ function _handleAddedCalls1(rendered::RenderedDependentDNA,app::AppDNA)
     renderer::ObserverDNA = getObserver(rendered)
     added!(renderer,rendered)
     setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
+end
 
-    return renderer
+# Green Thread
+function _handleAddedCalls1(rendered::GuiDependentDNA,::AppDNA)
+    renderer::ObserverDNA = getObserver(rendered)
+    added!(renderer,rendered)
 end
 
 # GREEN THREAD
@@ -141,8 +157,9 @@ function _build1(lambda::Function,app::AppDNA)
 
     lock(s._lock) do 
         dependent = lambda()
-        _build2(app,dependent)
-        put!(s._channel,dependent)
+        observer, pool = _build2(app,dependent)
+        data = BuildData(dependent,observer,pool)
+        put!(s._channel,data)
     end
 
     return dependent
@@ -150,14 +167,18 @@ end
 
 # BLUE Thread
 function _build2(app::AppDNA,dependent::DependentDNA)
+    # TODO: Continue this.
     graph = getGraph(app)
     add!!(graph,dependent)
 
     onNodeEval(dependent)
+
+    return (nothing,nothing)
 end
 
 # BLUE Thread
 function _build2(app::AppDNA, rendered::RenderedDependentDNA)
+    # TODO: Continue this.
     graph = getGraph(app)
     renderer = Dependent2Observer(app,rendered)
 
@@ -165,19 +186,26 @@ function _build2(app::AppDNA, rendered::RenderedDependentDNA)
     add!!(graph,rendered)
 
     onNodeEval(rendered)
+
+    return (renderer,nothing)
 end
 
 # BLUE Thread
 function _build2(app::AppDNA, rendered::GuiDependentDNA)
+    # TODO: Continue this.
     graph = getGraph(app)
-    renderer = Dependent2Observer(app,rendered)
+    renderer = getRendererFor(app,rendered)
+    pool = getPoolFor(app,renderer)
 
     add!!(renderer,rendered)
     add!!(graph,rendered)
 
     onNodeEval(rendered)
+
+    return (renderer,pool)
 end
 
+getRendererFor(app::AppDNA,d::GuiDependentDNA) = return getImGui(app)._dock._windows[1]._pool[Type2Id(Dependent2ObserverT(d)),Val(:all)]
+getPoolFor(app::AppDNA,::GuiRendererDNA) = return getImGui(app)._dock._windows[1]._pool
 
-getObserverFor(app::AppDNA,rendered::GuiDependentDNA) = return Plan2Observer(getImGui(app),rendered)
 destroy!(self::Synchronizer) = close(self._channel)

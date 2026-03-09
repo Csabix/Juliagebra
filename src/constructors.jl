@@ -52,26 +52,6 @@ Mesh(vertexes,normals,color) =
 Mesh(vertexes,normals,color,implicitApp)
 
 # ? ---------------------------------
-# ! Toggle
-# ? ---------------------------------
-
-function _Toggle(;
-                _app::App = implicitApp,
-                _call::Function = () -> (return nothing),
-                _deps::DependentsT = Vector{PlanDNA}(),
-                )::TogglePlan
-    plan = TogglePlan(_call,_deps)
-    submit!(_app,plan)
-    return plan
-end
-
-Toggle() =
-_Toggle()
-
-Toggle(callback::Function,dependents::DependentsT) =
-_Toggle(_call = callback, _deps=dependents)
-
-# ? ---------------------------------
 # ! Slider
 # ? ---------------------------------
 

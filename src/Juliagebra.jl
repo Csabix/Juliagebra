@@ -70,7 +70,7 @@ include("Widgets/opengl_widget.jl")
 include("Widgets/imgui_widget.jl")
 include("Widgets/dock.jl")
 include("Widgets/window.jl")
-include("Widgets/gui_dependents_window.jl")
+
 include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
@@ -80,7 +80,7 @@ include("Widgets/graph_viewer_window.jl")
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
-include("synchronizer.jl")
+
 include("opengl_data.jl")
 include("imgui_data.jl")
 
@@ -114,7 +114,10 @@ include("Dependents/sphere.jl")
 include("Dependents/lazy_lbvh.jl")
 include("Dependents/intersections.jl")
 
-
+# TODO: Continue this.
+include("GraphCore/observer_pool.jl")
+include("synchronizer.jl")
+include("Widgets/gui_dependents_window.jl")
 
 include("app.jl")
 

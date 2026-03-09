@@ -1,31 +1,30 @@
 using Juliagebra
 
-App()
-
+# TODO: Continue this.
 t1 = Toggle()
 
-p1 = Point([t1]) do t1
-    if (t1)
-        return (1,1,1)
-    end
+#p1 = Point([t1]) do t1
+#    if (t1)
+#        return (1,1,1)
+#    end
+#
+#    return (2,2,2)
+#end
 
-    return (2,2,2)
-end
+#t2 = Toggle([t1]) do t1
+#    if(t1)
+#        return false
+#    end
+#
+#    return true
+#end
 
-t2 = Toggle([t1]) do t1
-    if(t1)
-        return false
-    end
+#p2 = Point([p1,t2]) do p1,t2
+#    if(t2)
+#        return p1 .* -1
+#    end
+#
+#    return (p1 .* -3)
+#end
 
-    return true
-end
-
-p2 = Point([p1,t2]) do p1,t2
-    if(t2)
-        return p1 .* -1
-    end
-
-    return (p1 .* -3)
-end
-
-play!()
+Juliagebra.Wait()

@@ -6,9 +6,8 @@
 mutable struct GuiDependent <: ObservedDNA
     _observed::Observed
 
-    function GuiDependent(plan::GuiPlanDNA)
-        observed = Observed(plan)
-        return GuiDependent(observed)
+    function GuiDependent(callback::Function, dependents::Vector{<:DependentDNA})
+        return new(Observed(callback,dependents))
     end
 end
 

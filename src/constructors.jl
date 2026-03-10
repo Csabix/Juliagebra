@@ -52,30 +52,6 @@ Mesh(vertexes,normals,color) =
 Mesh(vertexes,normals,color,implicitApp)
 
 # ? ---------------------------------
-# ! TextBox
-# ? ---------------------------------
-
-function _TextBox(;
-                _app::App = implicitApp,
-                _call::Function = () -> (return nothing),
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _text::String = ""
-                )::TextBoxPlan
-    plan = TextBoxPlan(_call,_deps,_text)
-    submit!(_app,plan)
-    return plan
-end
-
-TextBox() =
-_TextBox()
-
-TextBox(text) =
-_TextBox(_text = text)
-
-TextBox(callback::Function,dependents::DependentsT) =
-_TextBox(_call = callback, _deps = dependents)
-
-# ? ---------------------------------
 # ! Sphere
 # ? ---------------------------------
 

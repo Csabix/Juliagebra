@@ -1,6 +1,13 @@
-struct Mesh
+abstract type BaseMesh end
+
+struct Mesh <: BaseMesh
     positions::Vector{Vec3D}
     indices::Union{Nothing,Vector{UInt32}}
+
+    Mesh() = new(Vector{Vec3D}(),nothing)
+    Mesh(positions::Vector{Vec3D}) = new(positions,nothing)
+    Mesh(positions::Vector{Vec3D},indices::Vector{UInt32}) = new(positions,indices)
+    Mesh(positions::Vector{Vec3D},::Nothing) = new(positions,nothing)
 end
 
 get_positions(self::Mesh)::Vector{Vec3D} = copy(self.positions)
@@ -9,7 +16,7 @@ get_indices(self::Mesh)::Union{Nothing,Vector{UInt32}} = isnothing(self.indices)
 Base.string(self::Mesh)::String = return "Vertex count: $(length(self.positions))"
 Base.show(io::IO, self::Mesh) =  print(io, string(self))
 
-struct MeshProxy
+struct MeshProxy <: BaseMesh
     _mesh::Mesh
     _transform::Mat4x4T{Float64}
 end

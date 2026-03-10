@@ -370,7 +370,7 @@ end
 # ! TriangleCluster
 # ? ---------------------------------
 
-function _TriangleCluster(_mesh;
+function _TriangleCluster(_mesh::BaseMesh;
                            _app::App = implicitApp,
                            _call::Function = () -> (),
                            _deps::DependentsT = Vector{PlanDNA}(),
@@ -383,12 +383,15 @@ function _TriangleCluster(_mesh;
     return plan
 end
 
-# TODO we don't use the callback at the moment
-TriangleCluster(callback::Function,mesh,dependents::DependentsT=Vector{PlanDNA}();
+TriangleCluster(callback::Function,mesh::BaseMesh,dependents::DependentsT=Vector{PlanDNA}();
     transparent::Bool=false,color=(0.6,0.6,0.9))::TriangleClusterPlan =
 _TriangleCluster(mesh,_call=callback,_deps=dependents,_col=color,_transparent=transparent)
 
-TriangleCluster(mesh;
+TriangleCluster(callback::Function,dependents::DependentsT=Vector{PlanDNA}();
+    transparent::Bool=false,color=(0.6,0.6,0.9))::TriangleClusterPlan =
+_TriangleCluster(Mesh(),_call=callback,_deps=dependents,_col=color,_transparent=transparent)
+
+TriangleCluster(mesh::BaseMesh;
     transparent::Bool=false,color=(0.6,0.6,0.9))::TriangleClusterPlan =
 _TriangleCluster(mesh,_col=color,_transparent=transparent)
 

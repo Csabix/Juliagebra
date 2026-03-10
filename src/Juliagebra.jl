@@ -82,7 +82,6 @@ include("Widgets/ortho_gizmo.jl")
 
 
 include("opengl_data.jl")
-include("imgui_data.jl")
 
 # ? ---------------------------------
 # ! Dependents
@@ -119,6 +118,8 @@ include("GraphCore/observer_pool.jl")
 include("synchronizer.jl")
 include("Widgets/gui_dependents_window.jl")
 
+
+include("imgui_data.jl")
 include("app.jl")
 
 include("constructors.jl")

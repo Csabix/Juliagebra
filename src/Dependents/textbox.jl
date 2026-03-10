@@ -93,10 +93,10 @@ function render!(self::TextBoxRenderer)
     end
 end
 
-function Plan2Observer(self::ImGuiData,plan::TextBoxPlan)
-    return SingleGuiRendererByGuiDependentsWindow(self,TextBoxRenderer)
-end
-
-function Plan2Dependent(plan::TextBoxPlan)
-    return TextBoxDependent(plan)
-end
+#function Plan2Observer(self::ImGuiData,plan::TextBoxPlan)
+#    return SingleGuiRendererByGuiDependentsWindow(self,TextBoxRenderer)
+#end
+#
+#function Plan2Dependent(plan::TextBoxPlan)
+#    return TextBoxDependent(plan)
+#end

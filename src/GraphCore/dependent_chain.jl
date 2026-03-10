@@ -13,7 +13,8 @@ end
 
 function enchain!(self::DependentChain,item::ObservedDNA)
     observer = _Observed_(item)._observer
-    
+    @assert !isnothing(observer) "Observer of Observed can't be nothing!"
+
     push!(self._vec,item)
     push!(self._set,observer)
 end

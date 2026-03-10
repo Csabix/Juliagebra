@@ -4,47 +4,32 @@
 # ? ---------------------------------
 
 @kwdef mutable struct ObserverPool{T<:ObserverDNA}
-    # ? 0 or more Observed are observed, has all Observers in pool.
     _observers::Vector{T} = Vector{T}()
-    # ? 1 or more Observed are observed, is subset of _observers.
-    _active::Vector{Union{T,Nothing}} = Vector{Union{T,Nothing}}()
+    _active::Vector{Bool} = Vector{Bool}()
 end
 
-function Base.size(self::ObserverPool)::Tuple{Int,Int}
-    all::Int = length(self._observers)
-    active::Int = length(self._active)
-
-    return (all,active)
-end
-
-function add!!(self::ObserverPool{T}, observer::U) where {T,U<:T} 
+function add!!(self::ObserverPool{T}, observer::U) where {T,U<:T}  
     push!(self._observers,observer)
-    push!(self._active,nothing)
+    push!(self._active,false)
 end
 
-function activate!(self::ObserverPool,id::Int)
-    self._active[id] = self._observers[id]
-end
+activate!(self::ObserverPool,id::Int) = self._active[id] = true
+Base.length(self::ObserverPool)::Int = return length(self._observers)
 
-function Base.getindex(self::ObserverPool{T},idx::Int,::Val{:active}) where {T}
-    return self._active[idx]
-end
-
-function Base.getindex(self::ObserverPool{T},idx::Int,::Val{:all}) where {T}
+function Base.getindex(self::ObserverPool{T},idx::Int)::T where {T}
     return self._observers[idx]
 end
 
-function Base.length(self::ObserverPool)::Int
-    return length(self._active)
-end
-
 function Base.iterate(self::ObserverPool, state = 1)
-    # TODO: Continue this.
-    if state > length(self)
-        return nothing
+    all = length(self._observers)
+    
+    for i in state:all
+        if self._active[i]
+            return (self._observers[i],i+1)
+        end
     end
 
-    return (self[state,Val(:active)],state+1)
+    return nothing
 end
 
 # ? After empty!, a pool can be reused.

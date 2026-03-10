@@ -12,26 +12,20 @@ struct ViewingState <: FrameState end
 const ADDED_CHANNEL_SIZE = 64
 const ADDED_PER_FRAME_MAX = 64
 
-struct BuildData
-    dependent::Union{DependentDNA,Nothing}
-    observer::Union{ObserverDNA,Nothing}
-    pool::Union{ObserverPool,Nothing}
-end
-
 # ? ---------------------------------
 # ! Synchronizer
 # ? ---------------------------------
 
 mutable struct Synchronizer
     _lock::ReentrantLock
-    _channel::Channel{BuildData}
+    _channel::Channel{DependentDNA}
     _initLock::ReentrantLock
     _initCondition::Threads.Condition
 
     function Synchronizer()
         lock = ReentrantLock()
         # ? ADDED_CHANNEL_SIZE elements max on the BLUE Thread, otherwise wait
-        channel = Channel{BuildData}(ADDED_CHANNEL_SIZE)
+        channel = Channel{DependentDNA}(ADDED_CHANNEL_SIZE)
         initLock = ReentrantLock()
         initCondition = Threads.Condition(initLock)
         new(lock,channel,initLock,initCondition)
@@ -58,26 +52,22 @@ function handleAddedCalls(app::AppDNA)
     builtDependentsNum = Base.n_avail(s._channel)
     # ? at max process ADDED_PER_FRAME_MAX dependents in this frame.
     takeNum = min(builtDependentsNum,ADDED_PER_FRAME_MAX)
-    addedAllSet = Set{Tuple{ObserverDNA,ObserverPool}}()
+    addedAllSet = Set{ObserverDNA}()
     
     for i in 1:takeNum
 
-        data::BuildData = take!(s._channel)
-        dependent = data.dependent
-        observer = data.observer
-        pool = data.pool
-        
-        _handleAddedCalls1(dependent,app)
+        dependent = take!(s._channel)
+        observer = _handleAddedCalls1(app,dependent)
 
         if !isnothing(observer)
-            push!(addedAllSet,(observer,pool))
+            # ? An Observer was assigned to this dependent.
+            push!(addedAllSet,observer)
         end
     end
     
-    for (observer,pool) in addedAllSet
-        # TODO: Continue this.
-        addedAll!(pool,observer)
-        # activate!(pool,Type2Id(typeof(observer)))
+    for observer in addedAllSet        
+        # ? Must call addedAll! and activate!
+        addedAll!(observer)
     end
 
     if takeNum > 1
@@ -92,16 +82,11 @@ function _handleAddedCalls1(::DependentDNA,::AppDNA)
 end
 
 # Green Thread
-function _handleAddedCalls1(rendered::RenderedDependentDNA,app::AppDNA)
-    renderer::ObserverDNA = getObserver(rendered)
-    added!(renderer,rendered)
-    setRenderedID!(renderer,rendered,getGraphID(rendered) + ID_LOWER_BOUND)
-end
-
-# Green Thread
-function _handleAddedCalls1(rendered::GuiDependentDNA,::AppDNA)
-    renderer::ObserverDNA = getObserver(rendered)
-    added!(renderer,rendered)
+function _handleAddedCalls1(::AppDNA,observed::ObservedDNA)
+    observer = getObserver(observed)
+    added!(observer,observed)
+    _setHasInstance!(observer)
+    return observer
 end
 
 # GREEN THREAD
@@ -157,9 +142,8 @@ function _build1(lambda::Function,app::AppDNA)
 
     lock(s._lock) do 
         dependent = lambda()
-        observer, pool = _build2(app,dependent)
-        data = BuildData(dependent,observer,pool)
-        put!(s._channel,data)
+        _build2(app,dependent)
+        put!(s._channel,dependent)
     end
 
     return dependent
@@ -177,35 +161,14 @@ function _build2(app::AppDNA,dependent::DependentDNA)
 end
 
 # BLUE Thread
-function _build2(app::AppDNA, rendered::RenderedDependentDNA)
-    # TODO: Continue this.
+function _build2(app::AppDNA, observed::ObservedDNA)
     graph = getGraph(app)
-    renderer = Dependent2Observer(app,rendered)
+    observer = Dependent2Observer(app,observed)
+    
+    add!!(observer,observed)
+    add!!(graph,observed)
 
-    add!!(renderer,rendered)
-    add!!(graph,rendered)
-
-    onNodeEval(rendered)
-
-    return (renderer,nothing)
+    onNodeEval(observed)
 end
-
-# BLUE Thread
-function _build2(app::AppDNA, rendered::GuiDependentDNA)
-    # TODO: Continue this.
-    graph = getGraph(app)
-    renderer = getRendererFor(app,rendered)
-    pool = getPoolFor(app,renderer)
-
-    add!!(renderer,rendered)
-    add!!(graph,rendered)
-
-    onNodeEval(rendered)
-
-    return (renderer,pool)
-end
-
-getRendererFor(app::AppDNA,d::GuiDependentDNA) = return getImGui(app)._dock._windows[1]._pool[Type2Id(Dependent2ObserverT(d)),Val(:all)]
-getPoolFor(app::AppDNA,::GuiRendererDNA) = return getImGui(app)._dock._windows[1]._pool
 
 destroy!(self::Synchronizer) = close(self._channel)

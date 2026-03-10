@@ -100,10 +100,10 @@ function render!(self::SliderRenderer)
     end
 end
 
-function Plan2Observer(self::ImGuiData,plan::SliderPlan)
-    return SingleGuiRendererByGuiDependentsWindow(self,SliderRenderer)
-end
-
-function Plan2Dependent(plan::SliderPlan)
-    return SliderDependent(plan)
-end
+#function Plan2Observer(self::ImGuiData,plan::SliderPlan)
+#    return SingleGuiRendererByGuiDependentsWindow(self,SliderRenderer)
+#end
+#
+#function Plan2Dependent(plan::SliderPlan)
+#    return SliderDependent(plan)
+#end

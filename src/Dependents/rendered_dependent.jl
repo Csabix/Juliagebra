@@ -11,7 +11,5 @@ mutable struct RenderedDependent <: ObservedDNA
     end
 end
 
-
-
 _RenderedDependent_(self::RenderedDependentDNA)::RenderedDependent = error("Missing \"_RenderedDependent_\" func for instance of RenderedDependentDNA")
 _Observed_(self::RenderedDependentDNA)::Observed = _RenderedDependent_(self)._observed

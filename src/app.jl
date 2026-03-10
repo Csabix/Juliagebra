@@ -184,15 +184,13 @@ end
 # GREEN Thread
 function play!(self::App)
     
-    #println("GREEM: Here1")
     init!(self)
-    #println("GREEM: Here2")
+    
     lock(self._synchronizer._initCondition)
     notify(self._synchronizer._initCondition)
     unlock(self._synchronizer._initCondition)
-    #println("GREEM: Here3")
     #yield()
-    #println("GREEM: Here4")
+
     while(!self._shrd._gameOver)
         yield()
         perf_get_results()

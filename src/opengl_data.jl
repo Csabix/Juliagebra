@@ -7,12 +7,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
-    # TODO: Talk this over with others.
-    # ? Theese renderers have at least 1 rendered
-    _renderers::Vector{Union{Nothing,RendererDNA}}
-    # ? Theese renderers have 0 rendered.
-    # ? passive-s become active, when someone gets assigned to them.
-    _passive_renderers::Vector{RendererDNA}
+    _renderers::Vector{RendererDNA}
 
     # ! Shaders
     _transparent_combinerShader::ShaderProgram
@@ -111,16 +106,15 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         
         glEnable(GL_PROGRAM_POINT_SIZE)
 
-        # ? Theese are empty because of "reset!".
-        renderers::Vector{Union{Nothing,RendererDNA}} = []
-        passive_renderers::Vector{RendererDNA} = []
+        # ? It's empty because of "reset!".
+        renderers::Vector{RendererDNA} = []
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(shrd,widgets,renderers,passive_renderers,
+        self = new(shrd,widgets,renderers,
             transparent_combinerShader,combinerShader,centerShader,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,idFBO,behindOpaqueFBO,transparentFBO,widgetFBO,
@@ -133,39 +127,26 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     end
 end
 
-const _SPEHERE_RENDERER::UInt = 1
-const _SURFACE_RENDERER::UInt = 2
-const _CURVE_RENDERER::UInt   = 3
-const _POINT_RENDERER::UInt   = 4
-const _RENDERER_COUNT::UInt   = 4
+# BLUE Thread
+#Dependent2Observer(app::AppDNA,::SphereDependent) = getOpenGL(app)._renderers[1]
+#Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent) = getOpenGL(app)._renderers[2]
+#Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getOpenGL(app)._renderers[3]
+#Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
 
 function reset!(self::OpenGLData)
     # ? Clean up all Renderers.
-    for renderer in self._passive_renderers
+    for renderer in self._renderers
         destroy!(renderer)
     end
     
     # ? Reset Renderer Vectors.
-    self._passive_renderers::Vector{RendererDNA} = [
+    self._renderers::Vector{RendererDNA} = [
         SphereRenderer(self),
         ParametricSurfaceRenderer(self),
         CurveRenderer(self),
         PointRenderer(self)
     ]
-    self._renderers::Vector{Union{Nothing,RendererDNA}} = [nothing for _ in self._passive_renderers]
 end
-
-# BLUE Thread
-# * Dependent2Observer(app::AppDNA,::SphereDependent)::SphereRenderer                       = getOpenGL(app)._passive_renderers[1]
-# * Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._passive_renderers[2]
-# * Dependent2Observer(app::AppDNA,::ParametricCurveDependent)::CurveRenderer               = getOpenGL(app)._passive_renderers[3]
-# * Dependent2Observer(app::AppDNA,::PointDependent)::PointRenderer                         = getOpenGL(app)._passive_renderers[4]
-
-# GREEN Thread
-# * unpassive!(app::AppDNA,::SphereRenderer)            = getOpenGL(app)._renderers[1] = getOpenGL(app)._passive_renderers[1]
-# * unpassive!(app::AppDNA,::ParametricSurfaceRenderer) = getOpenGL(app)._renderers[2] = getOpenGL(app)._passive_renderers[2]
-# * unpassive!(app::AppDNA,::CurveRenderer)             = getOpenGL(app)._renderers[3] = getOpenGL(app)._passive_renderers[3]
-# * unpassive!(app::AppDNA,::PointRenderer)             = getOpenGL(app)._renderers[4] = getOpenGL(app)._passive_renderers[4]
 
 function glError2String(msg::GLenum)::String
     if msg == GL_INVALID_ENUM
@@ -244,7 +225,7 @@ end
 
 function _pre_draw!(self::OpenGLData,cam::Camera)
     for renderer in self._renderers
-        if renderer !== nothing pre_draw!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) pre_draw!(renderer,self._vp,cam,self._shrd) end
     end
 end
 
@@ -254,7 +235,7 @@ function _id_pass!(self::OpenGLData,cam::Camera)
     glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
     glClearBufferiv(GL_COLOR, 0, clear_value)
     for renderer in self._renderers
-        if renderer !== nothing id_pass!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) id_pass!(renderer,self._vp,cam,self._shrd) end
     end
     glInvalidateFramebuffer(GL_FRAMEBUFFER,1,[GL_DEPTH_STENCIL_ATTACHMENT])
 end
@@ -267,14 +248,14 @@ function _opaque_pass!(self::OpenGLData,cam::Camera)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
     for renderer in self._renderers
-        if renderer !== nothing && is_occluder(renderer)
+        if hasInstance(renderer) && is_occluder(renderer)
             opaque_pass!(renderer,self._vp,cam,self._shrd)
         end
     end
 
     glEnable(GL_STENCIL_TEST)
     for renderer in self._renderers
-        if renderer !== nothing && !is_occluder(renderer)
+        if hasInstance(renderer) && !is_occluder(renderer)
             opaque_pass!(renderer,self._vp,cam,self._shrd)
         end
     end
@@ -297,7 +278,7 @@ function _behind_opaque_pass!(self::OpenGLData,cam::Camera)
 
     glEnable(GL_STENCIL_TEST);
     for renderer in self._renderers
-        if renderer !== nothing behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
     end
     glDisable(GL_STENCIL_TEST);
 end
@@ -316,7 +297,7 @@ function _transparent_pass!(self::OpenGLData,cam::Camera)
     glClearBufferfv(GL_COLOR, 1, clear_value_one)
 
     for renderer in self._renderers
-        if renderer !== nothing transparent_pass!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) transparent_pass!(renderer,self._vp,cam,self._shrd) end
     end
 
     glDepthFunc(GL_ALWAYS);
@@ -378,13 +359,7 @@ end
 
 
 function destroy!(self::OpenGLData)
-    #for renderer in self._renderers
-    #    if renderer !== nothing
-    #        destroy!(renderer)
-    #    end
-    #end
-    
-    for renderer in self._passive_renderers
+    for renderer in self._renderers
         destroy!(renderer)
     end
 

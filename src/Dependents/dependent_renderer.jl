@@ -25,7 +25,4 @@ transparent_pass!(self::RendererDNA,vp::Mat4T{Float32},cam::Camera,shrd::SharedD
 destroy!(self::RendererDNA) = error("Missing \"destroy!\" func for instance of RendererDNA")
 (plan2Dependent(self::RendererDNA{T},plan::PlanDNA)::T) where {T<:RenderedDependentDNA} = error("Missing func for $(typeof(self)) - $(typeof(plan))!")
 addedAll!(self::RendererDNA) = error("Missing func!")
-unpassive!(app::AppDNA,self::RendererDNA) = error("Missing func!")
-
-addedAll!(app::AppDNA,self::RendererDNA) = (addedAll!(self);unpassive!(app,self))
 

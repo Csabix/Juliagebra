@@ -73,15 +73,10 @@ _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
 # GREEN Thread
-function setRenderedID!(self::PointRenderer,item::PointDependent,id)
-    self._ids[getObserverID(item)] = Float32(id)
-end
-
-# GREEN Thread
 function added!(self::PointRenderer,point::PointDependent)
-    aID = 0
+    aID = Float32(getGraphID(point) + ID_LOWER_BOUND)
     coord = point._coord
-    #@log "$(point._coord)"
+    
     push!(self._coords,Vec3F(coord))
     push!(self._ids,Float32(aID))
 end
@@ -141,11 +136,7 @@ function destroy!(self::PointRenderer)
     destroy!(self._buffer)
 end
 
-# BLUE Thread
-Dependent2Observer(app::AppDNA,::PointDependent)::PointRenderer = getOpenGL(app)._passive_renderers[_POINT_RENDERER]
-
-# GREEN Thread
-unpassive!(app::AppDNA,::PointRenderer) = getOpenGL(app)._renderers[_POINT_RENDERER] = getOpenGL(app)._passive_renderers[_POINT_RENDERER]
+Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
 
 # ? ---------------------------------
 # ! Point

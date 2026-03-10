@@ -8,8 +8,8 @@ mutable struct ToggleDependent <: GuiDependentDNA
     _state::Bool
 
     # BLUE Thread
-    function ToggleDependent(callback::Function,dependents::Vector{<:DependentDNA})
-        dependent = GuiDependent(callback,dependents)
+    function ToggleDependent(callback::Function,dependents::Vector{<:DependentDNA},label::String)
+        dependent = GuiDependent(callback,dependents,label)
         toggled = false
 
         new(dependent,toggled)
@@ -67,11 +67,12 @@ function render!(self::ToggleRenderer)
 
     for toggleIdx in eachindex(getObservedItems(self))
         toggle::ToggleDependent = self[toggleIdx]
+        label = getLabel(toggle)
 
         toggleState = toggle._state
         toggleStateRef = Ref(toggleState)
 
-        if(CImGui.Checkbox("Toggle[$(toggleIdx)]",toggleStateRef))
+        if(CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
             # ! Take into note, that the user can only click on one element at every frame,
             # ! so multiple evalGraph calls under a single frame can't happen!
             _flip!(toggle)
@@ -81,19 +82,16 @@ function render!(self::ToggleRenderer)
     end
 end
 
-# BLUE Thread
-Dependent2ObserverT(::ToggleDependent) = ToggleRenderer
-
 # ? ---------------------------------
 # ! Toggle
 # ? ---------------------------------
 
 # YELLOW Thread
-Toggle() =
-build!(() -> ToggleDependent(() -> (return false), Vector{DependentDNA}()))
+Toggle(; label="") =
+build!(() -> ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
 
 # YELLOW Thread
-Toggle(callback::Function,dependents::Vector{<:DependentDNA}) =
-build!(() -> ToggleDependent(callback, dependents))
+Toggle(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
+build!(() -> ToggleDependent(callback, dependents,label))
 
 export Toggle

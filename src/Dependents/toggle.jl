@@ -7,7 +7,7 @@ mutable struct ToggleDependent <: GuiDependentDNA
     _dependent::GuiDependent
     _state::Bool
 
-    # BLUE Thread
+    # YELLOW Thread
     function ToggleDependent(callback::Function,dependents::Vector{<:DependentDNA},label::String)
         dependent = GuiDependent(callback,dependents,label)
         toggled = false
@@ -22,7 +22,7 @@ _GuiDependent_(self::ToggleDependent) = return self._dependent
 _flip!(self::ToggleDependent) = self._state = !self._state
 
 
-# BLUE Thread
+# YELLOW Thread
 # RED Thread
 onNodeEval(self::ToggleDependent) = evalCallbackDp(self)
 
@@ -88,10 +88,10 @@ end
 
 # YELLOW Thread
 Toggle(; label="") =
-build!(() -> ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
+build!(ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
 
 # YELLOW Thread
 Toggle(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
-build!(() -> ToggleDependent(callback, dependents,label))
+build!(ToggleDependent(callback, dependents,label))
 
 export Toggle

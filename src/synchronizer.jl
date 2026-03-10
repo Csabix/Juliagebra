@@ -104,13 +104,24 @@ function Wait()
     println("Main Thread ended!")
 end
 
+function Window(callback::Function)
+    yellowTask = Threads.@spawn begin
+        callback()
+    end
+    
+    wait(yellowTask)
+    Wait()
+end
+
 # YELLOW Thread
 """
 The lambda must only construct a single Dependent, and return it.
 """
-function build!(lambda::Function)::DependentDNA    
+function build!(dependent::DependentDNA)::DependentDNA    
     global implicitApp
     global greenTask
+    
+    local s::Synchronizer
     
     if isnothing(implicitApp)
         implicitApp = App()
@@ -120,47 +131,40 @@ function build!(lambda::Function)::DependentDNA
         end
         errormonitor(greenTask)
         
-        s::Synchronizer = getSynchronizer(implicitApp)
+        s = getSynchronizer(implicitApp)
         lock(s._initCondition)
         wait(s._initCondition)
         unlock(s._initCondition)
     end
 
-    # ? Start constructing on the Blue Thread
-    blueTask = Threads.@spawn begin
-        return _build1(lambda,implicitApp)
-    end
-    errormonitor(blueTask)
-
-    return fetch(blueTask)
-end
-
-# BLUE Thread
-function _build1(lambda::Function,app::AppDNA)
-    s::Synchronizer = getSynchronizer(app)
-    local dependent::DependentDNA
-
+    s = getSynchronizer(implicitApp)
+    
     lock(s._lock) do 
-        dependent = lambda()
-        _build2(app,dependent)
+        _build2(implicitApp,dependent)
         put!(s._channel,dependent)
     end
 
     return dependent
 end
 
-# BLUE Thread
+# YELLOW Thread
+function _build1(lambda::Function,app::AppDNA)
+    s::Synchronizer = getSynchronizer(app)
+    local dependent::DependentDNA
+
+    
+end
+
+# YELLOW Thread
 function _build2(app::AppDNA,dependent::DependentDNA)
-    # TODO: Continue this.
     graph = getGraph(app)
+    
     add!!(graph,dependent)
 
     onNodeEval(dependent)
-
-    return (nothing,nothing)
 end
 
-# BLUE Thread
+# YELLOW Thread
 function _build2(app::AppDNA, observed::ObservedDNA)
     graph = getGraph(app)
     observer = Dependent2Observer(app,observed)

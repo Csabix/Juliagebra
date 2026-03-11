@@ -87,6 +87,41 @@ function render(self::Dock)
     end
 end
 
+function renderBuildingState(self::Dock,app::AppDNA)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding,11.0)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding,6.0)
+    
+    CImGui.SetNextWindowSize((self._width,self._height))
+    CImGui.SetNextWindowPos((self._collapsedPosX,self._collapsedPosY))
+    CImGui.SetNextWindowCollapsed(true,CImGui.ImGuiCond_Always)
+    
+    ANIM_TIME = 0.5
+    MAX_DOT_COUNT = 8
+
+    label = "("
+    dotCount::Int = floor(Int, rem(time(),ANIM_TIME) * (1.0/ANIM_TIME) * MAX_DOT_COUNT) + 1
+
+    #for _ in 1:dotCount 
+    #    label *= "~"
+    #end
+
+    beachBall = ["|", "/", "-", "\\", "|" ,"/", "-", "\\"]
+    label *= beachBall[dotCount]
+
+    #for _ in dotCount:MAX_DOT_COUNT in 
+    #    label *= " "
+    #end
+
+    label *= ")"
+
+    CImGui.Begin("Building: $(label)",C_NULL,
+        CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove | 
+        CImGui.ImGuiWindowFlags_HorizontalScrollbar | CImGui.ImGuiWindowFlags_NoSavedSettings) 
+    
+    CImGui.End()
+    CImGui.PopStyleVar(2)
+end
+
 function add!(self::Dock,window::WindowDNA)
     push!(self._windows,window)
 end

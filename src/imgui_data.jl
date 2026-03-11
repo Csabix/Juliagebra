@@ -84,18 +84,31 @@ end
     return io.WantCaptureKeyboard
 end
 
-function update!(self::ImGuiData,state)
+function update!(self::ImGuiData)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
-    
-    CImGui.Begin("STATE")
-    CImGui.Text("$(typeof(state))")
-    CImGui.End()
 
     for widget in self._widgets
         render(widget)
+    end
+
+    CImGui.Render()
+    CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
+end
+
+function renderBuildingState(::Any, ::AppDNA)
+    return nothing
+end
+
+function renderBuildingState(self::ImGuiData,app::AppDNA)
+    CImGui.ImGui_ImplOpenGL3_NewFrame()
+    CImGui.ImGui_ImplGlfw_NewFrame()
+    CImGui.NewFrame()
+
+    for widget in self._widgets
+        renderBuildingState(widget,app)
     end
 
     CImGui.Render()

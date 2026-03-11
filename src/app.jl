@@ -204,7 +204,7 @@ function play!(self::App)
         if state isa ViewingState
             
             update!(self._opengl,self._cam)
-            update!(self._imgui,state)
+            update!(self._imgui)
             update!(self._shrd)
             # ? do trailing added! and addedAll! calls
             handleAddedCalls(self)
@@ -216,7 +216,7 @@ function play!(self::App)
             # ? do added! and addedAll! calls
             handleAddedCalls(self)
             update!(self._opengl,self._cam)
-            update!(self._imgui,state)
+            renderBuildingState(self._imgui,self)
             update!(self._shrd)
         end
 

@@ -98,4 +98,11 @@ end)
 TextBox(callback::Function, dependents::Vector{<:DependentDNA}; label="") =
 build!(TextBoxDependent(callback,dependents,label))
 
+# YELLOW Thread
+macro TextBox(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.TextBox)
+end
+
 export TextBox
+export @TextBox

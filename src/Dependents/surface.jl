@@ -242,14 +242,14 @@ end
 # GREEN Thread
 function syncAll!(self::ParametricSurfaceRenderer)
     @time_cpu_begin Dependent Surface
-    waitt(self._buffer_opaque[1])
+    wait(self._buffer_opaque[1])
     copyto!(self._buffer_opaque[1],data(self._vertexes_opaque))
-    waitt(self._buffer_opaque[2])
+    wait(self._buffer_opaque[2])
     copyto!(self._buffer_opaque[2],data(self._normals_opaque))
     
-    waitt(self._buffer_transparent[1])
+    wait(self._buffer_transparent[1])
     copyto!(self._buffer_transparent[1],data(self._vertexes_transparent))
-    waitt(self._buffer_transparent[2])
+    wait(self._buffer_transparent[2])
     copyto!(self._buffer_transparent[2],data(self._normals_transparent))
     @time_cpu_end Dependent Surface
 end
@@ -283,8 +283,8 @@ function opaque_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Ca
     @time_gpu_end Dependent Surface OPAQUE_PASS
 
     glEnable(GL_CULL_FACE)
-    lockk(self._buffer_opaque[1])
-    lockk(self._buffer_opaque[2])
+    lock(self._buffer_opaque[1])
+    lock(self._buffer_opaque[2])
     return nothing
 end
 
@@ -303,8 +303,8 @@ function transparent_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},ca
     @time_gpu_end Dependent Surface TRANSPARENT_PASS
 
     glEnable(GL_CULL_FACE)
-    lockk(self._buffer_transparent[1])
-    lockk(self._buffer_transparent[2])
+    lock(self._buffer_transparent[1])
+    lock(self._buffer_transparent[2])
     return nothing
 end
 
@@ -331,4 +331,13 @@ dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
 transparent::Bool=false,color = Vec3F(0.8,0.0,0.3)) =
 build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,Vec3F(color...),transparent))
 
+macro ParametricSurface(callback::Expr,uRange,vRange,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:transparent, :color], kw_args...)
+    callback = _validate_callback_expr(callback, 2)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricSurface,
+        (cb, deps) -> (cb, uRange, vRange, deps);
+        parsed_kw_args...)
+end
+
 export ParametricSurface
+export @ParametricSurface

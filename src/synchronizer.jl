@@ -11,6 +11,7 @@ struct ViewingState <: FrameState end
 
 const ADDED_CHANNEL_SIZE = 64
 const ADDED_PER_FRAME_MAX = 64
+const ADDED_MIN_MS = 0.0003
 
 # ? ---------------------------------
 # ! Synchronizer
@@ -38,9 +39,7 @@ function decideFrameState(app::AppDNA)::FrameState
 
     if !isempty(s._channel)
         return BuildingState()
-    end
-
-    if trylock(s._lock)
+    elseif trylock(s._lock)
         # ? locked succesfully, no one can start constructing this frame,
         # ? unlock this lock at the end of the frame.
         return ViewingState()
@@ -54,8 +53,10 @@ end
 function handleAddedCalls(app::AppDNA)
     s::Synchronizer = getSynchronizer(app)
     builtDependentsNum = Base.n_avail(s._channel)
+    
     # ? at max process ADDED_PER_FRAME_MAX dependents in this frame.
     takeNum = min(builtDependentsNum,ADDED_PER_FRAME_MAX)
+    startTime = time()
     addedAllSet = Set{ObserverDNA}()
     
     for i in 1:takeNum
@@ -66,6 +67,11 @@ function handleAddedCalls(app::AppDNA)
         if !isnothing(observer)
             # ? An Observer was assigned to this dependent.
             push!(addedAllSet,observer)
+        end
+
+        if (time() - startTime)>(ADDED_MIN_MS/2.0)
+            takeNum = i
+            break
         end
     end
     

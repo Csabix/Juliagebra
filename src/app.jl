@@ -202,21 +202,23 @@ function play!(self::App)
         state = decideFrameState(self)
 
         if state isa ViewingState
-            
+            # ? do graph updates, aka sync! and syncAll! calls.
+            updateGizmo!(self)
+
+            # ? render scence and loading bar.
             update!(self._opengl,self._cam)
             update!(self._imgui)
             update!(self._shrd)
-            # ? do trailing added! and addedAll! calls
-            #handleAddedCalls(self)
-            # ? do graph updates
-            updateGizmo!(self)
-
+            
             unlock(self._synchronizer._lock)
         elseif state isa BuildingState
-            # ? do added! and addedAll! calls
+            # ? do added! and addedAll! calls.
             handleAddedCalls(self)
+            
+            # ? render scence and loading bar.
             update!(self._opengl,self._cam)
             renderBuildingState(self._imgui,self)
+            
             update!(self._shrd)
         end
 

@@ -26,7 +26,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
 
         color = [Vec3F(c[1],c[2],c[3]) for c in colors]
         rd = RenderedDependent(callback,dependents)
-        tValues = Vector{Vec3D}(undef,lenght(range))
+        tValues = Vector{Vec3D}(undef,length(range))
         new(rd,range,color,width,type,type,reversed,0,tValues)
     end
 
@@ -170,7 +170,7 @@ end
             self._position_width[i] = Vec4F(p.x,p.y,p.z,width)
         end
     end
-    waitt(self._position_width_buffer_in)
+    wait(self._position_width_buffer_in)
     copyto!(self._position_width_buffer_in,self._position_width)
     @time_cpu_end Dependent Curve UPLOAD_POSITION
 end
@@ -321,7 +321,7 @@ function _calc_distances!(self::CurveRenderer,vp::Mat4,wh::Vec2F)
         self._distances[last] = distance_sum
     end
     @time_cpu_end Dependent Curve Distances
-    waitt(self._distance_buffer_in)
+    wait(self._distance_buffer_in)
     copyto!(self._distance_buffer_in, self._distances)
 end
 
@@ -347,8 +347,8 @@ function pre_draw!(self::CurveRenderer,vp::Mat4T{Float32},cam::Camera,shrd::Shar
     glDispatchCompute(cld(length(self._coords),32),1,1);
     @time_gpu_end Dependent Curve PRE_DRAW_PASS 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
-    lockk(self._distance_buffer_in)
-    lockk(self._position_width_buffer_in)
+    lock(self._distance_buffer_in)
+    lock(self._position_width_buffer_in)
     return nothing
 end
 
@@ -497,5 +497,12 @@ play!();
 ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent =
 return build!(ParametricCurveDependent(callback,dependents,range,color,type,reversed ? 0x1 : 0x0,width))
-    
+
+macro ParametricCurve(callback::Expr,range,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 1)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve, (cb, deps) -> (cb, range, deps); parsed_kw_args...)
+end
+
 export ParametricCurve
+export @ParametricCurve

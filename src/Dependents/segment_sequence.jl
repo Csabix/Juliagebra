@@ -541,14 +541,37 @@ Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequenceRende
 # ! SegmentSequence
 # ? ---------------------------------
 
-# YELLOW Thread
-SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent =
-build!(SegmentSequenceDependent(callback, dependents, [Vec3F(color...)], break_every, type, reversed ? 0x1 : 0x0, width))
+_Colors(c::Tuple{Real,Real,Real})::Vector{Vec3F} = Vector{Vec3F}([Vec3F(c...)])
+_Colors(c::Vector)::Vector{Vec3F} = Vector{Vec3F}([Vec3F(cc...) for cc in c])
+
 
 # YELLOW Thread
-SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent =
-build!(SegmentSequenceDependent(_deps_collect, dependents, [color], break_every, type, reversed ? 0x1 : 0x0, width))
+function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
+    
+    colors::Vector{Vec3F} = _Colors(color)
+    
+    return build!(SegmentSequenceDependent(callback, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+end
 
-export  SegmentSequence
+# YELLOW Thread
+function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
+    
+    colors::Vector{Vec3F} = _Colors(color)
+
+    return build!(SegmentSequenceDependent(_deps_collect, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+end
+
+# YELLOW Thread
+macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
+    (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
+
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence, (cb, deps) -> (cb, deps, break_every); parsed_kw_args...)
+end
+
+
+export SegmentSequence
+export @SegmentSequence

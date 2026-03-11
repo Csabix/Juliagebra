@@ -80,7 +80,7 @@ addedAll!(self::PointCloudRenderer) = return nothing
 # GREEN Thread
 function sync!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     if length(self._buffers[getObserverID(point_cloud)][1]) == length(point_cloud._coords)
-        waitt(self._buffers[getObserverID(point_cloud)][1])
+        wait(self._buffers[getObserverID(point_cloud)][1])
         copyto!(self._buffers[getObserverID(point_cloud)][1],[Vec3F(coord) for coord in point_cloud._coords])
     else
         upload!(self._buffers[getObserverID(point_cloud)],1,[Vec3F(coord) for coord in point_cloud._coords],0)
@@ -116,7 +116,7 @@ function opaque_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,sh
         uniform(self._shader_opaque,"pointSize",self._widths[i])
         uniform(self._shader_opaque,"drawColor",self._colors[i])
         draw(self._buffers[i],GL_POINTS)
-        lockk(self._buffers[i][1])
+        lock(self._buffers[i][1])
     end
     @time_gpu_end Dependent Point_Cloud OPAQUE_PASS
     return nothing
@@ -165,8 +165,16 @@ PointCloud(dependents::Vector{<:DependentDNA}) = GenericValueHolder(_deps_collec
 
 # YELLOW Thread
 function PointCloud(positions) 
-    #println(positions)
     return PointCloud([Point(p...) for p in positions])
 end
 
+# YELLOW Thread
+macro PointCloud(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.PointCloud; parsed_kw_args...)
+end
+
+export _deps_collect
 export PointCloud
+export @PointCloud

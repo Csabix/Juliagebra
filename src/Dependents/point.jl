@@ -98,10 +98,9 @@ end
 # GREEN Thread
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
-    waitt(self._buffer[1])
+    wait(self._buffer[1])
     copyto!(self._buffer[1],self._coords)
     @time_cpu_end Dependent Point
-    #@log "Uploaded Coordinate buffer!" INFO
 end
 
 function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
@@ -125,7 +124,7 @@ function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::S
     @time_gpu_begin Dependent Point OPAQUE_PASS
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point OPAQUE_PASS
-    lockk(self._buffer[1])
+    lock(self._buffer[1])
     return nothing
 end
 
@@ -153,4 +152,11 @@ build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}()))
 Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
 build!(PointDependent(callback,dependents))
 
+# YELLOW Thread
+macro Point(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point)
+end
+
 export Point
+export @Point

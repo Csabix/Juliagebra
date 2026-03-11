@@ -17,9 +17,13 @@ Juliagebra.Window() do
 
     s1 = SegmentSequence([movable_point_cloud,triangulation];color=(0,0,1),width=3.0) do coords, tri
         real_edges = (e for e in each_edge(tri) if all(v > 0 for v in e))
-        return [coords[index] for index in Iterators.flatten(real_edges)]
+        
+        aa = [coords[index] for index in Iterators.flatten(real_edges)]
+        println("$(typeof(aa)) - $(length(aa))")
+        return aa
     end
 
+    # TODO: Fix GL_INVALID_VALUE!
     s2 = SegmentSequence([voro];color=(0,0,0)) do voro
         coords = [vec3(x,y,0.1) for (x,y) = voro.polygon_points]
         edges = reduce(vcat, [
@@ -29,8 +33,11 @@ Juliagebra.Window() do
         ], init=Int[])
                 
         real_edges = (e for e in edges if all(v > 0 for v in e))
-        return [coords[index] for index in Iterators.flatten(real_edges)]
+        
+        aa = [coords[index] for index in Iterators.flatten(real_edges)]
+        println("$(typeof(aa)) - $(length(aa))")
+        return aa
     end
 
-    #PointCloud(_deps_collect,[Intersection(s1,s2;maxIntersectionNum=300)])
+    PointCloud(_deps_collect,[Intersection(s1,s2;maxIntersectionNum=300)])
 end

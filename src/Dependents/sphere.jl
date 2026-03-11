@@ -161,15 +161,13 @@ end
 
 # GREEN Thread
 function addedAll!(self::SphereRenderer)
-    upload!(self._buffer_opaque[1],self._centers_opaque ,0)
-    upload!(self._buffer_opaque[2],self._radiuses_opaque,0)
-    upload!(self._buffer_opaque[3],self._colors_opaque  ,0)
+    upload!(self._buffer_opaque,1,self._centers_opaque ,0)
+    upload!(self._buffer_opaque,2,self._radiuses_opaque,0)
+    upload!(self._buffer_opaque,3,self._colors_opaque  ,0)
 
-    upload!(self._buffer_transparent[1],self._centers_transparent ,0)
-    upload!(self._buffer_transparent[2],self._radiuses_transparent,0)
-    upload!(self._buffer_transparent[3],self._colors_transparent  ,0)
-
-    @log "AddedAll Spheres!" INFO
+    upload!(self._buffer_transparent,1,self._centers_transparent ,0)
+    upload!(self._buffer_transparent,2,self._radiuses_transparent,0)
+    upload!(self._buffer_transparent,3,self._colors_transparent  ,0)
 end
 
 # GREEN Thread
@@ -183,14 +181,14 @@ end
 # GREEN Thread
 function syncAll!(self::SphereRenderer)
     @time_cpu_begin Dependent Sphere
-    waitt(self._buffer_opaque[1])
+    wait(self._buffer_opaque[1])
     copyto!(self._buffer_opaque[1],self._centers_opaque)
-    waitt(self._buffer_opaque[2])
+    wait(self._buffer_opaque[2])
     copyto!(self._buffer_opaque[2],self._radiuses_opaque)
 
-    waitt(self._buffer_transparent[1])
+    wait(self._buffer_transparent[1])
     copyto!(self._buffer_transparent[1],self._centers_transparent)
-    waitt(self._buffer_transparent[1])
+    wait(self._buffer_transparent[1])
     copyto!(self._buffer_transparent[2],self._radiuses_transparent)
 
     @time_cpu_end Dependent Sphere
@@ -231,8 +229,8 @@ function opaque_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,shrd::
     @time_gpu_begin Dependent Sphere OPAQUE_PASS
     draw(self._buffer_opaque,GL_POINTS)
     @time_gpu_end Dependent Sphere OPAQUE_PASS
-    lockk(self._buffer_opaque[1])
-    lockk(self._buffer_opaque[2])
+    lock(self._buffer_opaque[1])
+    lock(self._buffer_opaque[2])
 
     glEnable(GL_CULL_FACE)
     return nothing
@@ -255,8 +253,8 @@ function transparent_pass!(self::SphereRenderer,vp::Mat4T{Float32},cam::Camera,s
     @time_gpu_begin Dependent Sphere TRANSPARENT_PASS
     draw(self._buffer_transparent,GL_POINTS)
     @time_gpu_end Dependent Sphere TRANSPARENT_PASS
-    lockk(self._buffer_transparent[1])
-    lockk(self._buffer_transparent[2])
+    lock(self._buffer_transparent[1])
+    lock(self._buffer_transparent[2])
 
     glEnable(GL_CULL_FACE)
     return nothing

@@ -89,10 +89,10 @@ buffer_resized(self::IndexedBufferArray, index::Int) = buffer_resized(self._buff
 buffer_resized(self::IndexedBufferArray, ::Val{:index}) = rebind_ebo!(self._buffer_array._vao, self._ebo)
 buffer_resized(self::IndexedBufferArray, s::Symbol) = buffer_resized(self, Val(s))
 
-reserve!(self::IndexedBufferArray, index, count, flags) = vao_buffer_method!(self._buffer_array, index, reserve!, count, flags)
-upload!(self::IndexedBufferArray, index, data, flags)   = vao_buffer_method!(self._buffer_array, index, upload!, data, flags)
-upload!(self::IndexedBufferArray, index, data)          = vao_buffer_method!(self._buffer_array, index, uplodad!, data)
+reserve!(self::IndexedBufferArray, index, count, flags) = reserve!(self._buffer_array, index, count, flags)
+upload!(self::IndexedBufferArray, index, data, flags)   = upload!(self._buffer_array, index, data, flags)
+upload!(self::IndexedBufferArray, index, data)          = upload!(self._buffer_array, index, data)
 
-reserve_index!(self::IndexedBufferArray, count, flags) = vao_ebo_method!(self._vao, self._ebo, reserve!, count, flags)
-upload_index!(self::IndexedBufferArray, data, flags)   = vao_ebo_method!(self._vao, self._ebo, upload!, data, flags)
-upload_index!(self::IndexedBufferArray, data)          = vao_ebo_method!(self._vao, self._ebo, uplodad!, data)
+reserve_index!(self::IndexedBufferArray, count, flags) = vao_ebo_method!(self._buffer_array._vao, self._ebo, reserve!, count, flags)
+upload_index!(self::IndexedBufferArray, data, flags)   = vao_ebo_method!(self._buffer_array._vao, self._ebo, upload!, data, flags)
+upload_index!(self::IndexedBufferArray, data)          = vao_ebo_method!(self._buffer_array._vao, self._ebo, uplodad!, data)

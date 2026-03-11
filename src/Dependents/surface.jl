@@ -218,15 +218,15 @@ end
 
 # GREEN Thread
 function addedAll!(self::ParametricSurfaceRenderer)
-    upload!(self._buffer_opaque[1],data(self._vertexes_opaque),0)
-    upload!(self._buffer_opaque[2],data(self._normals_opaque),0)
-    upload!(self._buffer_opaque[3],data(self._colors_opaque),0)
-    upload!(self._buffer_opaque[:index],self._indexes_opaque,0)
+    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),0)
+    upload!(self._buffer_opaque,2,data(self._normals_opaque),0)
+    upload!(self._buffer_opaque,3,data(self._colors_opaque),0)
+    upload_index!(self._buffer_opaque,self._indexes_opaque,0)
 
-    upload!(self._buffer_transparent[1],data(self._vertexes_transparent),0)
-    upload!(self._buffer_transparent[2],data(self._normals_transparent),0)
-    upload!(self._buffer_transparent[3],data(self._colors_transparent),0)
-    upload!(self._buffer_transparent[:index],self._indexes_transparent,0)
+    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),0)
+    upload!(self._buffer_transparent,2,data(self._normals_transparent),0)
+    upload!(self._buffer_transparent,3,data(self._colors_transparent),0)
+    upload_index!(self._buffer_transparent,self._indexes_transparent,0)
 end
 
 # GREEN Thread

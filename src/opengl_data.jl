@@ -56,9 +56,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,gizmoGL)
         push!(widgets,orthoGizmoGL)
 
-        transparent_combinerShader = ShaderProgram(sp("combiner_transparent.vert"),sp("combiner_transparent.frag"))
-        combinerShader  = ShaderProgram(sp("dflt_combiner.vert"),sp("dflt_combiner.frag"),["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
-        centerShader    = ShaderProgram(sp("center.vert")       ,sp("center.frag"))
+        transparent_combinerShader = ShaderProgram(["combiner_transparent.vert","combiner_transparent.frag"])
+        combinerShader  = ShaderProgram(["dflt_combiner.vert","dflt_combiner.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
+        centerShader    = ShaderProgram(["center.vert","center.frag"])
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -94,9 +94,10 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         widgetAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
         widgetFBO = FrameBuffer(widgetAttachments)
 
-
-        dummyBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,getAPlane())
-        centerBufferArray = BufferArray(Vec3F,GL_STATIC_DRAW,Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]))
+        dummyBufferArray = BufferArray{Tuple{Vec3F}}()
+        upload!(dummyBufferArray[1],getAPlane(),0)
+        centerBufferArray = BufferArray{Tuple{Vec3F}}()
+        upload!(centerBufferArray[1],Vector{Vec3F}([Vec3F(0.0,0.0,-1.0)]),0)
         
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
@@ -312,12 +313,12 @@ function update!(self::OpenGLData,cam::Camera)
 
     distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
     activate(self._combinerShader)
-    setUniform!(self._combinerShader,"frameTex",Int32(0))
-    setUniform!(self._combinerShader,"depthTex",Int32(1))
-    setUniform!(self._combinerShader,"EYE",cam._eye)
-    setUniform!(self._combinerShader,"AT",cam._at)
-    setUniform!(self._combinerShader,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
-    setUniform!(self._combinerShader,"ASPECT_FOV",Vec2F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov)))
+    uniform(self._combinerShader,"frameTex",Int32(0))
+    uniform(self._combinerShader,"depthTex",Int32(1))
+    uniform(self._combinerShader,"EYE",cam._eye)
+    uniform(self._combinerShader,"AT",cam._at)
+    uniform(self._combinerShader,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
+    uniform(self._combinerShader,"ASPECT_FOV",Vec2F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov)))
     activate(self._rgbaTexture,GL_TEXTURE0)
     activate(self._depthstencilTexture,GL_TEXTURE1)
     draw(self._dummyBufferArray,GL_TRIANGLES)

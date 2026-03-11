@@ -125,17 +125,17 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
 
     _shader_id::ShaderProgram
     _shader_opaque::ShaderProgram
-    _buffer::TypedBufferArray    
+    _buffer::BufferArray
     
     _coords::Vector{Vec3F}
     _ids::Vector{Float32}
     
     function PointRenderer(context::OpenGLData) 
-        shader_id = ShaderProgram(sp("./point/point_id.vert"), sp("./point/point_id.frag"),["VP"])
-        shader_opaque = ShaderProgram(sp("./point/point.vert"), sp("./point/point.frag"),["VP","selectedID","pickedID","lightDirSideView"])
+        shader_id = ShaderProgram(["point/point_id.vert","point/point_id.frag"],["VP"])
+        shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
         renderer = Renderer{PointDependent}(context)
 
-        buffer = TypedBufferArray{Tuple{Vec3F,Float32}}()
+        buffer = BufferArray{Tuple{Vec3F,Float32}}(MappedBuffer,Buffer)
         coords = Vector{Vec3F}()
         ids    = Vector{Float32}()
 
@@ -173,8 +173,8 @@ end
 # ? Actual Data Transfer to GPU VRAM should happen here.
 # ! Must have
 function addedAll!(self::PointRenderer)
-    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
-    upload!(self._buffer,2,self._ids,GL_STATIC_DRAW)
+    upload!(self._buffer,1,self._coords,0)
+    upload!(self._buffer,2,self._ids,0)
 end
 
 # ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
@@ -194,14 +194,15 @@ end
 # ! Must have
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
-    upload!(self._buffer,1,self._coords,GL_DYNAMIC_DRAW)
+    wait(self._buffer[1])
+    copyto!(self._buffer[1],self._coords)
     @time_cpu_end Dependent Point
     @log "Uploaded Coordinate buffer!" INFO
 end
 
 function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
     activate(self._shader_id)
-    setUniform!(self._shader_id,"VP",vp)
+    uniform(self._shader_id,"VP",vp)
     @time_gpu_begin Dependent Point ID_PASS
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point ID_PASS
@@ -213,13 +214,14 @@ function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::S
     (_, side_light) = get_lights(cam)
 
     activate(self._shader_opaque)
-    setUniform!(self._shader_opaque,"VP",vp)
-    setUniform!(self._shader_opaque,"selectedID",shrd._selectedID)
-    setUniform!(self._shader_opaque,"pickedID",shrd._pickedID)
-    setUniform!(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
+    uniform(self._shader_opaque,"VP",vp)
+    uniform(self._shader_opaque,"selectedID",shrd._selectedID)
+    uniform(self._shader_opaque,"pickedID",shrd._pickedID)
+    uniform(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
     @time_gpu_begin Dependent Point OPAQUE_PASS
     draw(self._buffer,GL_POINTS)
     @time_gpu_end Dependent Point OPAQUE_PASS
+    lock(self._buffer[1])
     return nothing
 end
 

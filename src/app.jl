@@ -17,6 +17,7 @@ mutable struct App <: AppDNA
     _manipulator::CameraManipulator
     
     _synchronizer::Synchronizer
+    _optimizer::GlobalDependentOptimizer
 
     function App(
         name::String="Juliagebra",
@@ -35,7 +36,8 @@ mutable struct App <: AppDNA
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
         synchronizer = Synchronizer()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer)
+        optimizer = GlobalDependentOptimizer()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer)
     end
 end
 

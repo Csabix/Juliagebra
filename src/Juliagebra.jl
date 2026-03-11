@@ -118,6 +118,7 @@ include("GraphCore/observer_pool.jl")
 include("synchronizer.jl")
 include("Widgets/gui_dependents_window.jl")
 
+include("global_dependent_optimizer.jl")
 
 include("imgui_data.jl")
 include("app.jl")

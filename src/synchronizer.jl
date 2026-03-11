@@ -36,6 +36,10 @@ end
 function decideFrameState(app::AppDNA)::FrameState
     s::Synchronizer = getSynchronizer(app)
 
+    if !isempty(s._channel)
+        return BuildingState()
+    end
+
     if trylock(s._lock)
         # ? locked succesfully, no one can start constructing this frame,
         # ? unlock this lock at the end of the frame.
@@ -143,6 +147,7 @@ function build!(dependent::DependentDNA)::DependentDNA
         _build(implicitApp,dependent)
         put!(s._channel,dependent)
     end
+    yield()
 
     return dependent
 end

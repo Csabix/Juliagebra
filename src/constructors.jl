@@ -1,41 +1,22 @@
 # ! All exported constructors should be defined, and exported from here.
 
-struct PointPlan end
+macro Point(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point)
+end
 
-# ? ---------------------------------
-# ! Segment
-# ? ---------------------------------
+macro ParametricCurve(callback::Expr,range,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 1)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve, (cb, deps) -> (cb, range, deps); parsed_kw_args...)
+end
 
-"""
-    Segment(first, second; kwargs...) -> ParametricCurvePlan
+macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
+    (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
 
-Construct a plan for a straight line segment connecting two points.
-
-# Arguments
-- `first::PointPlan`: The starting point of the segment.
-- `second::PointPlan`: The ending point of the segment.
-
-# Keyword Arguments
-- `color=(0.6, 0.6, 0.9)`: The RGB tuple or array of tuples defining the segment's color.
-- `width=5.0f0`: The line thickness.
-- `type=CURVE_SOLID`: The visual style of the curve (e.g., solid, dashed).
-- `reversed=false`: Whether to flip the line pattern.
-
-# Returns
-- `ParametricCurvePlan`: A `PlanDNA` representing the linear path between the two points.
-
-# Example
-App();
-
-Segment(Point(0,0,0),Point(1,1,1));
-
-play!();
-"""
-function Segment(first::PointPlan,second::PointPlan;
-                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
-    return ParametricCurve(range(0,1,length=2),[first,second],color=color,type=type,width=width,reversed=reversed) do t,a,b
-        return b .* t .+ (1-t) .* a
-    end
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence, (cb, deps) -> (cb, deps, break_every); parsed_kw_args...)
 end
 
 # ? ---------------------------------
@@ -51,13 +32,46 @@ end
 Mesh(vertexes,normals,color) =
 Mesh(vertexes,normals,color,implicitApp)
 
-export Point
-export ParametricCurve
+macro ParametricSurface(callback::Expr,width,height,uStart,uEnd,vStart,vEnd,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:transparent, :color], kw_args...)
+    callback = _validate_callback_expr(callback, 2)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricSurface,
+        (cb, deps) -> (cb, width, height, uStart, uEnd, vStart, vEnd, deps);
+        parsed_kw_args...)
+end
+
+macro Toggle(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Toggle)
+end
+
+macro Slider(callback::Expr,minVal,maxVal)
+    _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Slider, (cb, deps) -> (cb,minVal,maxVal,deps))
+end
+
+macro TextBox(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.TextBox)
+end
+
+macro PointCloud(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.PointCloud; parsed_kw_args...)
+end
+
+
+export @Point
+export @ParametricCurve
 export Segment
-export Intersection
+export SegmentSequence
+export @SegmentSequence
 export Mesh
-export ParametricSurface
-export Toggle
-export Slider
-export TextBox
-export Sphere
+export @ParametricSurface
+export @Toggle
+export @Slider
+export @TextBox
+export PointCloud
+export @PointCloud
+export _deps_collect

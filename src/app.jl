@@ -207,7 +207,7 @@ function play!(self::App)
             update!(self._imgui)
             update!(self._shrd)
             # ? do trailing added! and addedAll! calls
-            handleAddedCalls(self)
+            #handleAddedCalls(self)
             # ? do graph updates
             updateGizmo!(self)
 

@@ -2,119 +2,163 @@
 # ! Buffer
 # ? ---------------------------------
 
+abstract type BufferBase{T} <: OpenGLWrapper where {T} end
 
-mutable struct Buffer{T} <:OpenGLWrapper
+mutable struct Buffer{T} <: BufferBase{T}
     _id::GLuint
-    _numOfItems::Int
+    _size::Int
 
-    function Buffer{T}() where T
+    function Buffer{T}() where {T}
+        @assert isbitstype(T) "OpenGL requires bitstypes."
         id = Ref{GLuint}(0)
-        glGenBuffers(1,id)
-        id = id[]
-        self = new(id,0)
-        return self
+        glCreateBuffers(1, id)
+        return new{T}(id[], 0)
     end
 end
 
-Buffer() = Buffer{GL_ARRAY_BUFFER}()
-
-function upload!(self::Buffer{T},data::Vector,usage::GLuint) where T
-    glBindBuffer(T,self._id)
-    self._numOfItems = length(data)
-
-    if self._numOfItems > 0
-        @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
-        #println(reinterpret(Float32, data))
-        #println(self._id)
-    end
-    glBufferData(T,sizeof(data),data,usage)
-    #println("$(sizeof(data)) - $(length(data))")
-end
-
-Base.length(self::Buffer)::Int = self._numOfItems
-activate(self::Buffer{T}) where T = glBindBuffer(T,self._id)
-deactivate(self::Buffer{T}) where T = glBindBuffer(T,0)
-destroy!(self::Buffer) = glDeleteBuffers(1,[self._id])
-
-
-# ? ---------------------------------
-# ! TypedBuffer
-# ? ---------------------------------
-
-mutable struct TypedBuffer{T}<:OpenGLWrapper where {T<:Union{StaticArray,Real}} 
-    _buffer::Buffer
-
-    function TypedBuffer{T}(arrayMode=GL_ARRAY_BUFFER) where {T<:Union{StaticArray,Real}}
-        buffer = Buffer{arrayMode}()
-        new(buffer)
-    end
-end
-
-function upload!(self::TypedBuffer{T},data::Vector{T},usage::GLuint) where {T<:Union{StaticArray,Real}}
-    upload!(self._buffer,data,usage)
-    deactivate(self)
-end
-
-function tSize(self::TypedBuffer{T})::Int where {T<:Union{StaticArray,Real}}
-    return sizeof(T)
-end
-
-Base.length(self::TypedBuffer)::Int = return length(self._buffer)
-activate(self::TypedBuffer) = activate(self._buffer)
-deactivate(self::TypedBuffer) = deactivate(self._buffer)
-destroy!(self::TypedBuffer) = destroy!(self._buffer)
-
-# ? ---------------------------------
-# ! IndexBuffer
-# ? ---------------------------------
-
-IndexBuffer() = TypedBuffer{UInt32}(GL_ELEMENT_ARRAY_BUFFER)
-
-# TODO: Implement binding for every buffer.
-
-struct StaticBuffer <:OpenGLWrapper
+mutable struct MappedBuffer{T} <: BufferBase{T}
     _id::GLuint
-    _size::GLsizeiptr
-    _numOfItems::Int
+    _size::Int
+    _mapped::AbstractVector{T}
+    _sync::GLsync
 
-    function StaticBuffer(id=0,size=0,numOfItems=0)
-        return new(id,size,numOfItems)
+    function MappedBuffer{T}() where {T}
+        @assert isbitstype(T) "OpenGL requires bitstypes."
+        id = Ref{GLuint}()
+        glCreateBuffers(1, id)
+        new{T}(id[], 0, Vector{T}(), C_NULL)
     end
 end
 
-function create(self::StaticBuffer,size::GLsizeiptr,flags::GLuint)::StaticBuffer
-    if self._id != 0 glDeleteBuffers(1,[self._id]) end
-    id = Ref{GLuint}(0)
-    glCreateBuffers(1,id)
+# ? ---------------------------------
+# ! Methods
+# ? ---------------------------------
 
-    glNamedBufferStorage(id[],size,C_NULL,flags)
+@inline Base.eltype(::BufferBase{T}) where {T} = T
+@inline Base.length(self::BufferBase{T}) where {T} = div(self._size, sizeof(T))
+@inline id(self::BufferBase)::GLuint = self._id
+@inline size(self::BufferBase)::Int = self._size
 
-    return StaticBuffer(id[],size)
+@inline destroy!(self::BufferBase) = glDeleteBuffers(1, [self._id])
+
+@inline function reserve!(self::Buffer{T}, count::Int, flags)::Bool where {T}
+    return _reserve!(self, count, GLbitfield(flags))
 end
 
-function create(self::StaticBuffer,data::Vector,flags::GLuint)::StaticBuffer
-    @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
-
-    if self._id != 0 glDeleteBuffers(1,[self._id]) end
-    id = Ref{GLuint}(0)
-    glCreateBuffers(1,id)
-
-    numOfItems::Int = length(data)
-    size::GLsizeiptr = sizeof(data)
-    glNamedBufferStorage(id[],size,data,flags)
-    return StaticBuffer(id[],size,numOfItems)
+@inline function upload!(self::Buffer{T}, data::AbstractVector{T}, flags)::Bool where {T}
+   return _upload!(self, data, GLbitfield(flags))
 end
 
-function upload!(self::StaticBuffer,data::Vector)
-    @assert isbitstype(eltype(data)) "Input array for Buffer upload is not contiguous in memory"
-    if sizeof(data) > self._size
-        @log "Imput data is larger than the size of StaticBuffer, create a new StaticBuffer for the data" ERR
+@inline function upload!(self::BufferBase{T}, data::AbstractVector{T})::Bool where {T}
+    if length(data) == 0 return end
+    glNamedBufferSubData(self._id, 0, length(data) * sizeof(T), data)
+    return false
+end
+
+@inline function data(self::BufferBase{T}, out_vec=Vector{T}())::Vector{T} where {T}
+    N = length(self)
+    Base.resize!(out_vec, N)
+    if N == 0 return out_vec end
+    glGetNamedBufferSubData(self._id, 0, N * sizeof(T), out_vec)
+    return out_vec
+end
+@inline function data(self::BufferBase{T}, count::Int, offset::Int, out_vec=Vector{T}())::Vector{T} where {T}
+    @assert count <= length(self)
+    Base.resize!(out_vec, count)
+    if count == 0 return out_vec end
+    glGetNamedBufferSubData(self._id, offset * sizeof(T), count * sizeof(T), out_vec)
+    return out_vec
+end
+
+@inline bind_ssbo(self::BufferBase, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, self._id)
+
+# ? ---------------------------------
+# ! Methods MappedBuffer
+# ? ---------------------------------
+
+@inline function reserve!(self::MappedBuffer{T}, count::Int, flags)::Bool where {T}
+    new_storage = _reserve!(self, count, GLbitfield(flags) | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    if new_storage
+        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+        self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     end
-
-    glNamedBufferSubData(self._id,0,sizeof(data),data)
+    return new_storage
 end
 
-Base.length(self::StaticBuffer)::Int = self._numOfItems
-bind(self::StaticBuffer, target::GLuint) = glBindBuffer(target, self._id)
-bind_ssbo(self::StaticBuffer, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,self._id)
-destroy!(self::StaticBuffer) = if self._id != 0 glDeleteBuffers(1,[self._id]) end
+@inline function upload!(self::MappedBuffer{T}, data::AbstractVector{T}, flags)::Bool where {T}
+    new_storage = _upload!(self, data, GLbitfield(flags) | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    if new_storage
+        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+        self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
+    end
+    return new_storage
+end
+
+@inline function upload!(self::MappedBuffer{T}, data::AbstractVector{T})::Bool where {T}
+    if length(data) == 0 return false end
+    glUnmapBuffer(self._id)
+    glNamedBufferSubData(self._id, 0, length(data) * sizeof(T), data)
+    ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
+    return false
+end
+
+function Base.setindex!(self::MappedBuffer{T}, value, index::Int) where {T}
+    val_converted = convert(T, value)
+    self._mapped[index] = val_converted
+    return self
+end
+
+function lockk(self::MappedBuffer)
+    if self._sync != C_NULL
+        glDeleteSync(self._sync)
+    end
+    self._sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+end
+
+function waitt(self::MappedBuffer)
+    if self._sync != C_NULL
+        while true
+            waitReturn = glClientWaitSync(self._sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000);
+            if waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED
+                return
+            end
+        end
+    end
+end
+
+function Base.copyto!(dest::MappedBuffer, src)
+    copyto!(dest._mapped, src)
+    return dest
+end
+
+# ? ---------------------------------
+# ! Private Methods
+# ? ---------------------------------
+
+@inline function _recreate!(self::BufferBase)
+    @assert self._size != 0
+    glDeleteBuffers(1, [self._id])
+    id = Ref{GLuint}()
+    glCreateBuffers(1, id)
+    self._id = id[]
+    self._size = 0
+end
+
+@inline function _reserve!(self::BufferBase{T}, count::Int, flags::GLbitfield)::Bool where {T}
+    if count == 0 return false end
+    self._size != 0 && _recreate!(self)
+    bytes = count * sizeof(T)
+    glNamedBufferStorage(self._id, bytes, C_NULL, flags)
+    self._size = bytes
+    return true
+end
+
+@inline function _upload!(self::BufferBase{T}, data::AbstractVector{T}, flags::GLbitfield)::Bool where {T}
+    if length(data) == 0 return false end
+    self._size != 0 && _recreate!(self)
+    bytes = length(data) * sizeof(T)
+    glNamedBufferStorage(self._id, bytes, data, flags)
+    self._size = bytes
+    return true
+end

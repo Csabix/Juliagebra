@@ -17,6 +17,7 @@ using CImGui
 using DataStructures
 using ThreadPinning
 #pinthreads(:cores)
+import MacroTools
 
 include("performance_metrics.jl")
 
@@ -33,6 +34,7 @@ include("Helpers/flat_matrix.jl")
 include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/infer.jl")
+include("Helpers/dependency_lookup.jl")
 
 # ? ---------------------------------
 # ! Primitives
@@ -112,6 +114,11 @@ include("Dependents/textbox.jl")
 include("Dependents/sphere.jl")
 include("Dependents/lazy_lbvh.jl")
 include("Dependents/intersections.jl")
+include("Dependents/segment.jl")
+include("Dependents/triangle.jl")
+include("Dependents/tetrahedra.jl")
+include("Dependents/segment_sequence.jl") # after curve include!
+include("Dependents/point_cloud.jl")
 
 # TODO: Continue this.
 include("GraphCore/observer_pool.jl")

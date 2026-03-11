@@ -57,7 +57,7 @@ function handleAddedCalls(app::AppDNA)
     for i in 1:takeNum
 
         dependent = take!(s._channel)
-        observer = _handleAddedCalls1(app,dependent)
+        observer = _handleAddedCalls(app,dependent)
 
         if !isnothing(observer)
             # ? An Observer was assigned to this dependent.
@@ -76,13 +76,13 @@ function handleAddedCalls(app::AppDNA)
 end
 
 # Green Thread
-function _handleAddedCalls1(::DependentDNA,::AppDNA)
+function _handleAddedCalls(::AppDNA,::DependentDNA)
     # ? The BLUE Thread already did the required building work.
     return nothing
 end
 
 # Green Thread
-function _handleAddedCalls1(::AppDNA,observed::ObservedDNA)
+function _handleAddedCalls(::AppDNA,observed::ObservedDNA)
     observer = getObserver(observed)
     added!(observer,observed)
     _setHasInstance!(observer)
@@ -140,7 +140,7 @@ function build!(dependent::DependentDNA)::DependentDNA
     s = getSynchronizer(implicitApp)
     
     lock(s._lock) do 
-        _build2(implicitApp,dependent)
+        _build(implicitApp,dependent)
         put!(s._channel,dependent)
     end
 
@@ -148,15 +148,7 @@ function build!(dependent::DependentDNA)::DependentDNA
 end
 
 # YELLOW Thread
-function _build1(lambda::Function,app::AppDNA)
-    s::Synchronizer = getSynchronizer(app)
-    local dependent::DependentDNA
-
-    
-end
-
-# YELLOW Thread
-function _build2(app::AppDNA,dependent::DependentDNA)
+function _build(app::AppDNA,dependent::DependentDNA)
     graph = getGraph(app)
     
     add!!(graph,dependent)
@@ -165,7 +157,7 @@ function _build2(app::AppDNA,dependent::DependentDNA)
 end
 
 # YELLOW Thread
-function _build2(app::AppDNA, observed::ObservedDNA)
+function _build(app::AppDNA, observed::ObservedDNA)
     graph = getGraph(app)
     observer = Dependent2Observer(app,observed)
     

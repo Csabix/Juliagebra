@@ -16,7 +16,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _ref::Int # ? Reference index for CurveRenderer
     _tValues::Vector{Vec3D} # ? Calculated value for each t
 
-    # BLUE Thread
+    # YELLOW Thread
     function ParametricCurveDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         range::AbstractRange{Float64},
@@ -30,7 +30,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
         new(rd,range,color,width,type,type,reversed,0,tValues)
     end
 
-    # BLUE Thread
+    # YELLOW Thread
     function ParametricCurveDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         range::AbstractRange{Float64},
@@ -47,7 +47,7 @@ end
 Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
 _RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
 
-# BLUE Thread
+# YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricCurveDependent)
     for index in 1:length(self._range)
@@ -247,9 +247,6 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
 
     #runCallbacks(curve)
 end
-
-# GREEN Thread
-setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) = return nothing
 
 # GREEN Thread
 function addedAll!(self::CurveRenderer)
@@ -455,11 +452,8 @@ function destroy!(self::CurveRenderer)
     destroy!(self._sdf_buffer_out)
 end
 
-# BLUE Thread
-Dependent2Observer(app::AppDNA,::ParametricCurveDependent)::CurveRenderer = getOpenGL(app)._passive_renderers[_CURVE_RENDERER]
-
-# GREEN Thread
-unpassive!(app::AppDNA,::CurveRenderer) = getOpenGL(app)._renderers[_CURVE_RENDERER] = getOpenGL(app)._passive_renderers[_CURVE_RENDERER]
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::ParametricCurveDependent)::CurveRenderer = getOpenGL(app)._renderers[3]
 
 # ? ---------------------------------
 # ! ParametricCurve
@@ -505,7 +499,6 @@ play!();
 """
 ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent =
-build!((_callback=callback,_range=range,_dependents=dependents,_color=color,_width=width,_type=type,_reversed=reversed ? 0x1 : 0x0) 
--> (ParametricCurveDependent(_callback,_dependents,_range,_color,_type,_reversed,_width)))
-
+return build!(ParametricCurveDependent(callback,dependents,range,color,type,reversed ? 0x1 : 0x0,width))
+    
 export ParametricCurve

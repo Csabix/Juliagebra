@@ -127,12 +127,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     end
 end
 
-# BLUE Thread
-#Dependent2Observer(app::AppDNA,::SphereDependent) = getOpenGL(app)._renderers[1]
-#Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent) = getOpenGL(app)._renderers[2]
-#Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getOpenGL(app)._renderers[3]
-#Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
-
 function reset!(self::OpenGLData)
     # ? Clean up all Renderers.
     for renderer in self._renderers

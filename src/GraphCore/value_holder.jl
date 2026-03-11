@@ -1,32 +1,14 @@
 
 # ? ---------------------------------
-# ! ValueHolderPlan{T}
-# ? ---------------------------------
-
-mutable struct ValueHolderPlan{T} <: PlanDNA
-    _plan::Plan
-
-    function ValueHolderPlan{T}(callback::Function,plans::Vector{<:PlanDNA}) where T
-        plan = Plan(callback,plans)
-        new(plan)
-    end
-end
-
-function _ValueHolderPlan_(self::ValueHolderPlanDNA{T})::ValueHolderPlan{T} where T
-    error("Missing func!") 
-end
-
-_Plan_(self::ValueHolderPlanDNA)::Plan = return _ValueHolderPlan_(self)._plan
-
-# ? ---------------------------------
 # ! ValueHolderDependent{T}
 # ? ---------------------------------
 
 mutable struct ValueHolderDependent{T} <: DependentDNA
     _dependent::Dependent
 
-    function ValueHolderDependent{T}(plan::ValueHolderPlanDNA{T}) where T
-        dependent = Dependent(plan)
+    # YELLOW Thread
+    function ValueHolderDependent{T}(callback::Function, dependents::Vector{<:DependentDNA}) where T
+        dependent = Dependent(callback,dependents)
         new(dependent)
     end
 end

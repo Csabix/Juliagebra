@@ -17,9 +17,13 @@ _Window_(self::GuiDependentsWindow)::Window = self._window
 getWindowName(self::GuiDependentsWindow) = return "GuiDependents"
 
 function renderContent(self::GuiDependentsWindow)
-    for observer in self._pool
-        if hasInstance(observer)
+    for idx in eachindex(self._pool)
+        observer = self._pool[idx]
+        
+        if hasInstance(observer)    
+            CImGui.PushID(idx)
             render!(observer)
+            CImGui.PopID()
         end
     end
 end

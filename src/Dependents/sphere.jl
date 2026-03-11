@@ -1,32 +1,3 @@
-# ? ---------------------------------
-# ! SpherePlan
-# ? ---------------------------------
-
-
-mutable struct SpherePlan <: RenderedPlanDNA
-    _plan::RenderedPlan
-    _center::Vec3D
-    _radius::Float64
-    _color::Vec3F
-    _transparent::Bool
-end
-
-function SpherePlan(callback::Function,plans::Vector{T},x,y,z,r,col,transparent) where {T<:PlanDNA}
-    plan = RenderedPlan(callback,plans)
-    center = Vec3D(x,y,z)
-    radius = Float64(r)
-    
-    r = Float32(col[1])
-    g = Float32(col[2])
-    b = Float32(col[3])
-
-    color = Vec3F(r,g,b)
-
-    return SpherePlan(plan,center,radius,color,transparent)
-end
-
-_RenderedPlan_(self::SpherePlan)::RenderedPlan = return self._plan
-
 
 # ? ---------------------------------
 # ! SphereDependent
@@ -40,7 +11,7 @@ mutable struct SphereDependent <: RenderedDependentDNA
     _transparent::Bool
     _index::UInt
 
-    # BLUE Thread
+    # YELLOW Thread
     function SphereDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         color::Vec3F,transparent::Bool
@@ -58,7 +29,7 @@ end
 
 _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dependent
 
-# BLUE Thread
+# YELLOW Thread
 # RED Thread
 onNodeEval(self::SphereDependent) = evalCallbackDp(self)
 
@@ -179,9 +150,6 @@ end
 _Renderer_(self::SphereRenderer)::Renderer = return self._renderer
 
 # GREEN Thread
-setRenderedID!(self::SphereRenderer,_,_) = return nothing
-
-# GREEN Thread
 function added!(self::SphereRenderer,sphere::SphereDependent)
     evalCallbackDp(sphere)
 
@@ -299,10 +267,7 @@ function destroy!(self::SphereRenderer)
 end
 
 # BLUE Thread
-Dependent2Observer(app::AppDNA,::SphereDependent)::SphereRenderer = getOpenGL(app)._passive_renderers[_SPEHERE_RENDERER]
-
-# GREEN Thread
-unpassive!(app::AppDNA,::SphereRenderer) = getOpenGL(app)._renderers[_SPEHERE_RENDERER] = getOpenGL(app)._passive_renderers[_SPEHERE_RENDERER]
+Dependent2Observer(app::AppDNA,::SphereDependent)::SphereRenderer = getOpenGL(app)._renderers[1]
 
 # ? ---------------------------------
 # ! Sphere
@@ -316,9 +281,7 @@ function Sphere(center::PointDependent,p1::PointDependent; color = (0.980,0.467,
         return (center,radius)
     end
 
-    return build!() do 
-        SphereDependent(call,deps,Vec3F(color),transparent)
-    end
+    return build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
 end
 
 # YELLOW Thread
@@ -328,9 +291,7 @@ function Sphere(center::PointDependent,radius::ValueHolderDNA{Float64}; color = 
         return (center,radius)
     end
 
-    return build!() do 
-        SphereDependent(call,deps,Vec3F(color),transparent)
-    end
+    return build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
 end
 
 # YELLOW Thread
@@ -341,9 +302,7 @@ function Sphere(p1::PointDependent,p2::PointDependent,p3::PointDependent,p4::Poi
         return s
     end
 
-   return build!() do 
-        SphereDependent(call,deps,Vec3F(color),transparent)
-    end
+   return build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
 end
 
 export Sphere

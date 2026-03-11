@@ -7,7 +7,7 @@ mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D 
 
-    # BLUE Thread
+    # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
         renderedDependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
@@ -23,7 +23,7 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     evalGraph(self)
 end
 
-# BLUE Thread
+# YELLOW Thread
 # RED Thread
 onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
@@ -136,6 +136,7 @@ function destroy!(self::PointRenderer)
     destroy!(self._buffer)
 end
 
+# YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
 
 # ? ---------------------------------

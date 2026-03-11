@@ -51,58 +51,6 @@ end
 Mesh(vertexes,normals,color) =
 Mesh(vertexes,normals,color,implicitApp)
 
-# ? ---------------------------------
-# ! Sphere
-# ? ---------------------------------
-
-function _Sphere(;
-                _app::App = implicitApp,
-                _call::Function = () -> (return nothing),
-                _deps::DependentsT = Vector{PlanDNA}(),
-                _x::Float64 = 0.0,
-                _y::Float64 = 0.0,
-                _z::Float64 = 0.0,
-                _r::Float64 = 1.0,
-                _col = (0.980,0.467,0.306),
-                _transparent = false
-                )::SpherePlan
-    plan = SpherePlan(_call,_deps,_x,_y,_z,_r,_col,_transparent)
-    submit!(_app,plan)
-    return plan
-end
-
-Sphere(x,y,z,r) =
-_Sphere(_x = Float64(x), _y = Float64(y), _z = Float64(z), _r = Float64(r))
-
-function Sphere(center::PointPlan,p1::PointPlan; color = (0.980,0.467,0.306), transparent = false)::SpherePlan
-    deps = Vector{PlanDNA}([center,p1])
-    call = function (center,p1)
-        radius = norm(center - p1) 
-        return (center,radius)
-    end
-
-    return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
-end
-
-function Sphere(center::PointPlan,radius::ValueHolderPlanDNA{Float64}; color = (0.031,0.337,0.412), transparent = false)
-    deps = Vector{PlanDNA}([center,radius])
-    call = function (center,radius)
-        return (center,radius)
-    end
-
-    return _Sphere(_call = call, _deps = deps, _col = color, _transparent = transparent)
-end
-
-function Sphere(p1::PointPlan,p2::PointPlan,p3::PointPlan,p4::PointPlan; color = (0.697,0.230,0.958))
-    deps = [p1,p2,p3,p4]
-    call = function (p1,p2,p3,p4)
-        s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
-        return s
-    end
-
-    return _Sphere(_call = call, _deps = deps, _col = color)
-end
-
 export Point
 export ParametricCurve
 export Segment

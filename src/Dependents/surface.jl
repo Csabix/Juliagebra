@@ -16,7 +16,7 @@ mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
     _color::Vec3F
     _transparent::Bool
 
-    # BLUE Thread
+    # YELLOW Thread
     function ParametricSurfaceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         uRange::AbstractRange{Float64},
@@ -72,7 +72,7 @@ function setNormal(self::ParametricSurfaceDependent,u,v;
     self._uvNormals[u,v] = normalize(cross(uVec,vVec))
 end
 
-# BLUE Thread
+# YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricSurfaceDependent)
     for v in eachindex(self._vRange)
@@ -215,9 +215,6 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
 end
 
 # GREEN Thread
-setRenderedID!(renderer::ParametricSurfaceRenderer,dependent::ParametricSurfaceDependent,id) = return nothing
-
-# GREEN Thread
 function addedAll!(self::ParametricSurfaceRenderer)
     upload!(self._buffer_opaque,1,data(self._vertexes_opaque),GL_DYNAMIC_DRAW)
     upload!(self._buffer_opaque,2,data(self._normals_opaque),GL_DYNAMIC_DRAW)
@@ -309,11 +306,8 @@ function destroy!(self::ParametricSurfaceRenderer)
     destroy!(self._buffer_transparent)
 end
 
-# BLUE Thread
-Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._passive_renderers[_SURFACE_RENDERER]
-
-# GREEN Thread
-unpassive!(app::AppDNA,::ParametricSurfaceRenderer) = getOpenGL(app)._renderers[_SURFACE_RENDERER] = getOpenGL(app)._passive_renderers[_SURFACE_RENDERER]
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._renderers[2]
 
 # ? ---------------------------------
 # ! ParametricSurface
@@ -324,7 +318,6 @@ ParametricSurface(callback::Function,
 uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
 dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
 transparent::Bool=false,color = Vec3F(0.8,0.0,0.3)) =
-build!((_callback=callback,_dependents=dependents,_uRange=uRange,_vRange=vRange,_transparent=transparent,_color=color)
--> (ParametricSurfaceDependent(_callback,_dependents,_uRange,_vRange,_color,_transparent)))
+build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,color,transparent))
 
 export ParametricSurface

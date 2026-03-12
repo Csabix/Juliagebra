@@ -221,6 +221,13 @@ _preallocated_vec(T, len) = sizehint!(Vector{T}(), len)
 
 # GREEN Thread
 function addedAll!(self::SegmentSequenceRenderer)
+    destroy!.(self._distance_buffers_in)
+    destroy!.(self._color_type_buffers_in)
+    destroy!.(self._position_width_buffers_in)
+    empty!(self._distance_buffers_in)
+    empty!(self._color_type_buffers_in)
+    empty!(self._position_width_buffers_in)
+
     upload_colors = _preallocated_vec.(Float32, length.(self._coords))
     upload_position_widths = _preallocated_vec.(Vec4F, length.(self._coords))
 

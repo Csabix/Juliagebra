@@ -19,7 +19,6 @@ Juliagebra.Window() do
         real_edges = (e for e in each_edge(tri) if all(v > 0 for v in e))
         
         aa = [coords[index] for index in Iterators.flatten(real_edges)]
-        println("$(typeof(aa)) - $(length(aa))")
         return aa
     end
 
@@ -35,7 +34,6 @@ Juliagebra.Window() do
         real_edges = (e for e in edges if all(v > 0 for v in e))
         
         aa = [coords[index] for index in Iterators.flatten(real_edges)]
-        println("$(typeof(aa)) - $(length(aa))")
         return aa
     end
 

@@ -95,9 +95,10 @@ Toggle(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
 build!(ToggleDependent(callback, dependents,label))
 
 # YELLOW Thread
-macro Toggle(callback::Expr)
+macro Toggle(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:label], kw_args...)
     callback = _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.Toggle)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Toggle; parsed_kw_args...)
 end
 
 

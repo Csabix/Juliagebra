@@ -39,4 +39,10 @@ build!(GenericValueHolderDependent{T}(callback, dependents))
 # YELLOW Thread
 ValueHolder(callback::Function,T::Type,dependents::Vector{<:DependentDNA}) = GenericValueHolder(callback,T,dependents)
 
+macro ValueHolder(callback::Expr, T)
+    _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ValueHolder, (cb, deps) -> (cb,T,deps))
+end
+
 export GenericValueHolder
+export @ValieHolder

@@ -111,9 +111,10 @@ end)
 Slider(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
 build!(SliderDependent(callback,dependents,label))
 
-macro Slider(callback::Expr)
+macro Slider(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:label], kw_args...)
     _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.Slider)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Slider; parsed_kw_args...)
 end
 
 export Slider

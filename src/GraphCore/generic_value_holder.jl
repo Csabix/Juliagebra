@@ -45,4 +45,4 @@ macro ValueHolder(callback::Expr, T)
 end
 
 export GenericValueHolder
-export @ValieHolder
+export @ValueHolder

@@ -191,7 +191,6 @@ function play!(self::App)
     lock(self._synchronizer._initCondition)
     notify(self._synchronizer._initCondition)
     unlock(self._synchronizer._initCondition)
-    #yield()
 
     while(!self._shrd._gameOver)
         yield()

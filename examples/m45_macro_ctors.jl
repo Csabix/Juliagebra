@@ -76,8 +76,18 @@ end
 t1 = JG.Toggle()
 JG.@Toggle(() -> t1)
 
-JG.@Slider(() -> (Vec3F(1,cone_height,4)))
+JG.@Slider(() -> (Vec3F(1,cone_height,4)), label="Slider 1")
 
 JG.@TextBox(() -> "Toggle is $(t1 ? "on" : "off"), cone_height slider is at $cone_height")
+
+t2 = JG.@Toggle(() -> t1, label="ValueHolder Toggle")
+
+v = JG.@ValueHolder(Bool) do 
+    return t2
+end
+
+JG.@TextBox(label="TextBox") do 
+    return "ValueHolder: $(v)"
+end
 
 JG.Wait()

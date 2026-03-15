@@ -11,7 +11,7 @@ struct ViewingState <: FrameState end
 
 const ADDED_CHANNEL_SIZE = 64
 const ADDED_PER_FRAME_MAX = 64
-const ADDED_MIN_MS = 0.0003
+const ADDED_MIN_MS = 0.001
 
 # ? ---------------------------------
 # ! Synchronizer
@@ -124,9 +124,6 @@ function Window(callback::Function)
 end
 
 # YELLOW Thread
-"""
-The lambda must only construct a single Dependent, and return it.
-"""
 function build!(dependent::DependentDNA)::DependentDNA    
     global implicitApp
     global greenTask

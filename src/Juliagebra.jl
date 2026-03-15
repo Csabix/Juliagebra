@@ -15,6 +15,8 @@ using GLFW
 using ModernGL
 using CImGui
 using DataStructures
+using ThreadPinning
+#pinthreads(:cores)
 import MacroTools
 
 include("performance_metrics.jl")
@@ -70,7 +72,7 @@ include("Widgets/opengl_widget.jl")
 include("Widgets/imgui_widget.jl")
 include("Widgets/dock.jl")
 include("Widgets/window.jl")
-include("Widgets/gui_dependents_window.jl")
+
 include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
@@ -80,10 +82,8 @@ include("Widgets/graph_viewer_window.jl")
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
+
 include("opengl_data.jl")
-
-include("imgui_data.jl")
-
 
 # ? ---------------------------------
 # ! Dependents
@@ -91,24 +91,20 @@ include("imgui_data.jl")
 
 include("GraphCore/dependent_chain.jl")
 include("GraphCore/dependent_graph.jl")
-include("GraphCore/plan.jl")
 include("GraphCore/dependent.jl")
 include("GraphCore/dependent_observer.jl")
 include("GraphCore/value_holder.jl")
 include("GraphCore/generic_value_holder.jl")
 include("GraphCore/source_value_holder.jl")
-include("GraphCore/unary_value_holder.jl")
+#include("GraphCore/unary_value_holder.jl")
 include("GraphCore/observed_dependent.jl")
 
-include("Dependents/plans.jl")
 include("Dependents/dependent_renderer.jl")
 include("Dependents/rendered_dependent.jl")
 include("Dependents/gui_renderer.jl")
 include("Dependents/gui_dependent.jl")
 include("Dependents/point.jl")
-include("Dependents/point_cloud.jl")
 include("Dependents/curve.jl")
-include("Dependents/segment_sequence.jl") # after curve include!
 include("Dependents/surface.jl")
 include("Dependents/toggle.jl")
 include("Dependents/slider.jl")
@@ -119,11 +115,17 @@ include("Dependents/intersections.jl")
 include("Dependents/segment.jl")
 include("Dependents/triangle.jl")
 include("Dependents/tetrahedra.jl")
+include("Dependents/segment_sequence.jl") # after curve include!
+include("Dependents/point_cloud.jl")
 
-include("global_plan_optimizer.jl")
+# TODO: Continue this.
+include("GraphCore/observer_pool.jl")
+include("synchronizer.jl")
+include("Widgets/gui_dependents_window.jl")
 
+include("global_dependent_optimizer.jl")
+
+include("imgui_data.jl")
 include("app.jl")
-
-include("constructors.jl")
 
 end

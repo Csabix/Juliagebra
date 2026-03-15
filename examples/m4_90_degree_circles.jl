@@ -1,7 +1,5 @@
 using Juliagebra
 
-App()
-
 function circle(radius,t)
     x = cos(t) * radius
     y = sin(t) * radius
@@ -29,4 +27,4 @@ crv3 = ParametricCurve(range(0,tMax,55),[Center]) do t,p1
     return (xx,yy,zz + 15)
 end
 
-play!()
+Juliagebra.Wait()

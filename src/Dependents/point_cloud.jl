@@ -1,19 +1,3 @@
-# ? ---------------------------------
-# ! PointCloudPlan
-# ? ---------------------------------
-
-mutable struct PointCloudPlan <: RenderedPlanDNA
-    _plan::RenderedPlan
-    _color::Vec3F
-    _width::Float32
-        
-    function PointCloudPlan(callback::Function,plans::Vector{T},color::Tuple{Real,Real,Real},width::Real) where {T<:PlanDNA}
-        new(RenderedPlan(callback,plans),color,width)
-    end
-end
-
-_RenderedPlan_(self::PointCloudPlan)::RenderedPlan = return self._plan
-Base.string(self::PointCloudPlan)::String = return "PointCloudPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._dependent))"
 
 # ? ---------------------------------
 # ! PointCloudDependent
@@ -25,19 +9,20 @@ mutable struct PointCloudDependent <:RenderedDependentDNA
     _color::Vec3F
     _width::Float32
 
-    function PointCloudDependent(plan::PointCloudPlan)
-        new(RenderedDependent(plan),Vector{Vec3D}(),plan._color,plan._width)
-    end
-end
+    # YELLOW Thread
+    function PointCloudDependent(callback::Function,dependents::Vector{<:DependentDNA},color::Tuple{Real,Real,Real},width::Real)
+        dependent = RenderedDependent(callback,dependents)
+        coords = Vector{Vec3D}()
 
-function Plan2Dependent(plan::PointCloudPlan)::PointCloudDependent
-    return PointCloudDependent(plan)
+        new(dependent,coords,color,width)
+    end
 end
 
 _RenderedDependent_(self::PointCloudDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::PointCloudDependent) = "PointCloud[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]"
 
-
+# YELLOW Thread
+# RED Thread
 onNodeEval(self::PointCloudDependent) = evalCallbackDp(self)
 
 evalCallbackDpEntry(self::PointCloudDependent)::Vector{Vec3D} = self._coords
@@ -61,7 +46,8 @@ mutable struct PointCloudRenderer <:RendererDNA{PointCloudDependent}
     _buffers::Vector{BufferArray}
     _widths::Vector{Float32}
     _colors::Vector{Vec3F}
-    
+
+    # GREEN Thread
     function PointCloudRenderer(context::OpenGLData) 
         renderer = Renderer{PointCloudDependent}(context)
         shader_id = ShaderProgram(["point_cloud/point_cloud.vert","point_cloud/point_cloud_id.frag"],["VP","pointSize"])
@@ -79,10 +65,8 @@ end
 _Renderer_(self::PointCloudRenderer) = return self._renderer
 Base.string(self::PointCloudRenderer) = return "PointCloudRenderer($(length(self._buffers)))"
 
-setRenderedID!(self::PointCloudRenderer,item::PointCloudDependent,id) = return nothing
-
+# GREEN Thread
 function added!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
-    onNodeEval(point_cloud)
     buffer = BufferArray{Tuple{Vec3F}}(MappedBuffer)
     upload!(buffer,1,[Vec3F(coord) for coord in point_cloud._coords],0)
     push!(self._buffers,buffer)
@@ -90,8 +74,10 @@ function added!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     push!(self._colors,point_cloud._color)
 end
 
+# GREEN Thread
 addedAll!(self::PointCloudRenderer) = return nothing
 
+# GREEN Thread
 function sync!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     if length(self._buffers[getObserverID(point_cloud)][1]) == length(point_cloud._coords)
         wait(self._buffers[getObserverID(point_cloud)][1])
@@ -103,6 +89,7 @@ function sync!(self::PointCloudRenderer,point_cloud::PointCloudDependent)
     self._colors[getObserverID(point_cloud)] = point_cloud._color
 end
 
+# GREEN Thread
 syncAll!(self::PointCloudRenderer) = return nothing
 
 function id_pass!(self::PointCloudRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
@@ -143,6 +130,51 @@ function destroy!(self::PointCloudRenderer)
     destroy!.(self._buffers)
 end
 
-function Plan2Observer(self::OpenGLData,plan::PointCloudPlan)
-    return SingleRendererTactic(self,_POINT_CLOUD_RENDERER,PointCloudRenderer)::PointCloudRenderer
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::PointCloudDependent)::PointCloudRenderer = getOpenGL(app)._renderers[5]
+
+# ? ---------------------------------
+# ! PointCloud
+# ? ---------------------------------
+
+_deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
+_deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
+function _deps_collect_add!(vec::Vector{Vec3D},intersectons::IntersectionCalculatorDependent)
+    i = 1
+    while true
+        v = intersectons[i]
+        if isnothing(v) return end
+        push!(vec,v)
+        i += 1
+    end
 end
+function _deps_collect(deps...)
+    result = Vector{Vec3D}()
+    for dep in deps
+        _deps_collect_add!(result,dep)
+    end
+    return result
+end
+
+# YELLOW Thread
+PointCloud(callback::Function,dependents=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointCloudDependent =
+build!(PointCloudDependent(callback,dependents,color,width))
+
+# YELLOW Thread
+PointCloud(dependents::Vector{<:DependentDNA}) = GenericValueHolder(_deps_collect,Vector{Vec3D},dependents)
+
+# YELLOW Thread
+function PointCloud(positions) 
+    return PointCloud([Point(p...) for p in positions])
+end
+
+# YELLOW Thread
+macro PointCloud(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.PointCloud; parsed_kw_args...)
+end
+
+export _deps_collect
+export PointCloud
+export @PointCloud

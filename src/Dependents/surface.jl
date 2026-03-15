@@ -1,116 +1,52 @@
 
 # ? ---------------------------------
-# ! ParametricSurfacePlan
-# ? ---------------------------------
-
-mutable struct ParametricSurfacePlan <:RenderedPlanDNA
-    _plan::RenderedPlan
-     
-    _width::Int
-    _height::Int
-    
-    _uStart::Float64
-    _uEnd::Float64
-    
-    _vStart::Float64
-    _vEnd::Float64
-
-    _color::Vec3F
-    _transparent::Bool
-    
-    function ParametricSurfacePlan(callback::Function,plans::Vector{T},width,height,uStart,uEnd,vStart,vEnd,color,transparent) where {T<:PlanDNA}
-        
-        r = Float32(color[1])
-        g = Float32(color[2])
-        b = Float32(color[3])
-        
-        new(RenderedPlan(callback,plans),
-            width,height,
-            uStart,uEnd,
-            vStart,vEnd,
-            Vec3F(r,g,b),transparent)
-    end
-end
-
-_RenderedPlan_(self::ParametricSurfacePlan)::RenderedPlan = return self._plan
-Base.string(self::ParametricSurfacePlan)::String = return "Surface"
-
-
-# ? ---------------------------------
 # ! ParametricSurfaceDependent
 # ? ---------------------------------
 
 mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
-    _uvValues::FlatMatrix
-    _uvNormals::FlatMatrix
+    _uvValues::FlatMatrix{Vec3D}
+    _uvNormals::FlatMatrix{Vec3D}
+    _layer::Int
 
-    _unmanagedWidth::Int
-    _unmanagedHeight::Int
-
-    _uStart::Float64
-    _uEnd::Float64
-    
-    _vStart::Float64
-    _vEnd::Float64
+    _uRange::AbstractRange{Float64}
+    _vRange::AbstractRange{Float64}
 
     _color::Vec3F
     _transparent::Bool
 
-    function ParametricSurfaceDependent(plan::ParametricSurfacePlan)
-        renderedDependent = RenderedDependent(plan)
-                
-        unmanagedWidth = plan._width
-        unmanagedHeight = plan._height
-        
-        uStart = plan._uStart
-        uEnd = plan._uEnd
-        
-        vStart = plan._vStart
-        vEnd = plan._vEnd
-        
-        color = plan._color
-        transparent = plan._transparent
+    # YELLOW Thread
+    function ParametricSurfaceDependent(
+        callback::Function,dependents::Vector{<:DependentDNA},
+        uRange::AbstractRange{Float64},
+        vRange::AbstractRange{Float64},
+        color::Vec3F,
+        transparent::Bool
+        )
 
-        new(renderedDependent,
-            EMPTY_FlatMatrix,
-            EMPTY_FlatMatrix,
-            unmanagedWidth,unmanagedHeight,
-            uStart,uEnd,
-            vStart,vEnd,
+        rd = RenderedDependent(callback,dependents)
+        uvValues = FlatMatrix{Vec3D}(length(uRange),length(vRange))        
+        uvNormals = FlatMatrix{Vec3D}(length(uRange),length(vRange))
+
+        new(rd,
+            uvValues,
+            uvNormals,
+            0,
+            uRange,
+            vRange,
             color,transparent)
     end
-end
-
-# ! Must have
-function Plan2Dependent(plan::ParametricSurfacePlan)::ParametricSurfaceDependent
-    return ParametricSurfaceDependent(plan)
 end
 
 _RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
 
-function evalCoordAtUV(self::ParametricSurfaceDependent,u,v)
-   
-    uf = Float64(u-1) / Float64(width(self._uvValues)-1)
-    vf = Float64(v-1) / Float64(height(self._uvValues)-1)
-
-    uf = uf * (self._uEnd - self._uStart) + self._uStart
-    vf = vf * (self._vEnd - self._vStart) + self._vStart
-
-    return evalCallbackDp(self;callbackParams = (uf,vf), returnParams = (u,v))
-end
-
-evalCallbackDpReturn(self::ParametricSurfaceDependent,value,u,v) = self._uvValues[u,v] = Vec3F(value)
-evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Tuple,u,v) = self._uvValues[u,v] = Vec3F(value...)
-evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3D,u,v) = self._uvValues[u,v] = Vec3F(value)
-evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3F,u,v) = self._uvValues[u,v] = value
-evalCallbackDpReturn(self::ParametricSurfaceDependent,::Nothing,u,v) = self._uvValues[u,v] = Vec3FNan
-
-function evalCallbackDpReturn(self::ParametricSurfaceDependent,u,v,::Nothing)
-    self._uvValues[u,v] = Vec3FNan
-end
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value,u,v) = self._uvValues[u,v] = Vec3D(value)
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Tuple,u,v) = self._uvValues[u,v] = Vec3D(value...)
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3F,u,v) = self._uvValues[u,v] = Vec3D(value)
+evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3D,u,v) = self._uvValues[u,v] = value
+evalCallbackDpReturn(self::ParametricSurfaceDependent,::Nothing,u,v) = self._uvValues[u,v] = Vec3DNan
 
 function setInlandNormal(self::ParametricSurfaceDependent,u,v)
     uVec = self._uvValues[u+1,v  ] - self._uvValues[u-1,v  ]
@@ -136,10 +72,15 @@ function setNormal(self::ParametricSurfaceDependent,u,v;
     self._uvNormals[u,v] = normalize(cross(uVec,vVec))
 end
 
-function runCallbacks(self::ParametricSurfaceDependent)
-    for v in 1:height(self._uvValues)
-        for u in 1:width(self._uvValues)
-            evalCoordAtUV(self,u,v)
+# YELLOW Thread
+# RED Thread
+function onNodeEval(self::ParametricSurfaceDependent)
+    for v in eachindex(self._vRange)
+        for u in eachindex(self._uRange)
+            uf = self._uRange[u]
+            vf = self._vRange[v]
+            
+            evalCallbackDp(self;callbackParams = (uf,vf), returnParams = (u,v))
         end
     end
     
@@ -195,10 +136,6 @@ function runCallbacks(self::ParametricSurfaceDependent)
 
 end
 
-function onNodeEval(self::ParametricSurfaceDependent)
-    runCallbacks(self)
-end
-
 # ? For Intersectable ParametricSurfaces.
 
 struct PTrianglesOfSurface <: PrimitivesOf{PTriangle}
@@ -236,6 +173,7 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     _normals_transparent::FlatMatrixManager{Vec3F}
     _colors_transparent::FlatMatrixManager{Vec3F}
 
+    # GREEN Thread
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         
@@ -254,10 +192,10 @@ end
 _Renderer_(self::ParametricSurfaceRenderer) = return self._renderer
 Base.string(self::ParametricSurfaceRenderer) = "ParametricSurfaceRenderer - [$(length(self._buffer))]"
 
-# ! Must have
+# GREEN Thread
 function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
-    width = surface._unmanagedWidth
-    height = surface._unmanagedHeight
+    width = length(surface._uRange)
+    height = length(surface._vRange)
     color = surface._color
 
     vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
@@ -269,35 +207,39 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     initMatrix(normals,width,height,Vec3FNan)
     initMatrix(colors,width,height,color)
     triangulateInto!(indexes,vertexes,layers(vertexes))
-    surface._uvValues  = FlatMatrix{Vec3F}(layers(vertexes),vertexes)
-    surface._uvNormals = FlatMatrix{Vec3F}(layers(vertexes),normals)
+    
+    # ? copy values
+    copy!(surface._uvValues,vertexes,layers(vertexes))
+    copy!(surface._uvNormals,normals,layers(normals))
+    surface._layer = layers(vertexes)
 
-    onNodeEval(surface)
-
-    @log "ParametricSurface added!" INFO
+    #println(surface._uvValues._data)
 end
 
-setRenderedID!(renderer::ParametricSurfaceRenderer,dependent::ParametricSurfaceDependent,id) = return nothing
-
-# ! Must have
+# GREEN Thread
 function addedAll!(self::ParametricSurfaceRenderer)
-    upload!(self._buffer_opaque[1],data(self._vertexes_opaque),0)
-    upload!(self._buffer_opaque[2],data(self._normals_opaque),0)
-    upload!(self._buffer_opaque[3],data(self._colors_opaque),0)
-    upload!(self._buffer_opaque[:index],self._indexes_opaque,0)
+    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),0)
+    upload!(self._buffer_opaque,2,data(self._normals_opaque),0)
+    upload!(self._buffer_opaque,3,data(self._colors_opaque),0)
+    upload_index!(self._buffer_opaque,self._indexes_opaque,0)
 
-    upload!(self._buffer_transparent[1],data(self._vertexes_transparent),0)
-    upload!(self._buffer_transparent[2],data(self._normals_transparent),0)
-    upload!(self._buffer_transparent[3],data(self._colors_transparent),0)
-    upload!(self._buffer_transparent[:index],self._indexes_transparent,0)
+    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),0)
+    upload!(self._buffer_transparent,2,data(self._normals_transparent),0)
+    upload!(self._buffer_transparent,3,data(self._colors_transparent),0)
+    upload_index!(self._buffer_transparent,self._indexes_transparent,0)
 end
 
-# ! Must have
+# GREEN Thread
 function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
-    @log "Synced ParametricSurface!" INFO
+    vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
+    normals = surface._transparent ? self._normals_transparent : self._normals_opaque
+    layer = surface._layer
+
+    copy!(surface._uvValues,vertexes,layer)
+    copy!(surface._uvNormals,normals,layer)
 end
 
-# ! Must have
+# GREEN Thread
 function syncAll!(self::ParametricSurfaceRenderer)
     @time_cpu_begin Dependent Surface
     wait(self._buffer_opaque[1])
@@ -375,7 +317,27 @@ function destroy!(self::ParametricSurfaceRenderer)
     destroy!(self._buffer_transparent)
 end
 
-# ! Must have
-function Plan2Observer(self::OpenGLData,plan::ParametricSurfacePlan)
-    return SingleRendererTactic(self,_SURFACE_RENDERER,ParametricSurfaceRenderer)::ParametricSurfaceRenderer
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._renderers[2]
+
+# ? ---------------------------------
+# ! ParametricSurface
+# ? ---------------------------------
+
+# YELLOW Thread
+ParametricSurface(callback::Function,
+uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
+dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
+transparent::Bool=false,color = Vec3F(0.8,0.0,0.3)) =
+build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,Vec3F(color...),transparent))
+
+macro ParametricSurface(callback::Expr,uRange,vRange,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:transparent, :color], kw_args...)
+    callback = _validate_callback_expr(callback, 2)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricSurface,
+        (cb, deps) -> (cb, uRange, vRange, deps);
+        parsed_kw_args...)
 end
+
+export ParametricSurface
+export @ParametricSurface

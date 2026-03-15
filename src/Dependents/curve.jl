@@ -1,48 +1,3 @@
-# ? ---------------------------------
-# ! ParametricCurvePlan
-# ? ---------------------------------
-
-const CURVE_SOLID::UInt8    = 1
-const CURVE_DASHED::UInt8   = 2
-const CURVE_DOTTED::UInt8   = 3
-const CURVE_WAVE::UInt8     = 4
-const CURVE_DASH_DOT::UInt8 = 5
-const CURVE_ARROW::UInt8    = 6
-const _CURVE_COUNT::UInt8   = 6
-
-export CURVE_SOLID, CURVE_DASHED, CURVE_DOTTED, 
-        CURVE_WAVE, CURVE_DASH_DOT, CURVE_ARROW
-
-mutable struct ParametricCurvePlan <: RenderedPlanDNA
-    _plan::RenderedPlan
-
-    _range::AbstractRange{Float64}
-    _colors::Vector{Vec3F}
-    _type::UInt8
-    _reversed::UInt8
-    _width::Float32
-    
-    function ParametricCurvePlan(callback::Function, plans::Vector{T},
-                                 range::AbstractRange{Float64},
-                                 color::Tuple{Real,Real,Real},
-                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA}
-        
-        ParametricCurvePlan(callback,plans,range,[color],type,reversed,width)
-    end
-
-    function ParametricCurvePlan(callback::Function,plans::Vector{T},
-                                 range::AbstractRange{Float64},
-                                 color::Vector{U},
-                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
-        
-        colors = [Vec3F(c[1],c[2],c[3]) for c in color]
-        new(RenderedPlan(callback,plans),range,colors,type,reversed,width)
-    end
-end
-
-_RenderedPlan_(self::ParametricCurvePlan)::RenderedPlan = return self._plan
-Base.string(self::ParametricCurvePlan)::String = return "Curve"
-
 
 # ? ---------------------------------
 # ! ParametricCurveDependent
@@ -58,40 +13,46 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _typeLast::UInt8
     _reversed::UInt8
 
-    _ref::Int
-    _tValues::Union{SubArray{Vec3D},Nothing}
+    _ref::Int # ? Reference index for CurveRenderer
+    _tValues::Vector{Vec3D} # ? Calculated value for each t
 
-    function ParametricCurveDependent(plan::ParametricCurvePlan)
-        a = RenderedDependent(plan)
-        range = plan._range
-        colors = plan._colors
-        width = plan._width
-        type = plan._type
-        reversed = plan._reversed
+    # YELLOW Thread
+    function ParametricCurveDependent(
+        callback::Function,dependents::Vector{<:DependentDNA},
+        range::AbstractRange{Float64},
+        colors::Vector{<:Tuple{Real,Real,Real}},
+        type::UInt8,reversed::UInt8,width::Real
+        )
 
-        new(a,range,colors,width,type,type,reversed,0,nothing)
+        color = [Vec3F(c[1],c[2],c[3]) for c in colors]
+        rd = RenderedDependent(callback,dependents)
+        tValues = Vector{Vec3D}(undef,length(range))
+        new(rd,range,color,width,type,type,reversed,0,tValues)
     end
-end
 
-# ! Must have
-function Plan2Dependent(plan::ParametricCurvePlan)::ParametricCurveDependent
-    return ParametricCurveDependent(plan)
+    # YELLOW Thread
+    function ParametricCurveDependent(
+        callback::Function,dependents::Vector{<:DependentDNA},
+        range::AbstractRange{Float64},
+        color::Tuple{Real,Real,Real},
+        type::UInt8,reversed::UInt8,width::Real
+        )
+
+        rd = RenderedDependent(callback,dependents)
+        tValues = Vector{Vec3D}(undef,length(range))
+        new(rd,range,[color],width,type,type,reversed,0,tValues)
+    end
 end
 
 Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
 _RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
 
-function runCallbacks(self::ParametricCurveDependent)
+# YELLOW Thread
+# RED Thread
+function onNodeEval(self::ParametricCurveDependent)
     for index in 1:length(self._range)
         evalCallbackDp(self; callbackParams = self._range[index], returnParams = (index))
     end
-end
-
-function onNodeEval(self::ParametricCurveDependent)
-    renderer::CurveRenderer = getObserver(self)
-    (first, last, _) = renderer._ranges[self._ref]
-    self._tValues = view(renderer._coords,first:last)
-    runCallbacks(self)
 end
 
 evalCallbackDpReturn(self::ParametricCurveDependent,v,index)          = ((x,y,z) = v ; self._tValues[index] = Vec3D(x,y,z))
@@ -159,6 +120,7 @@ mutable struct CurveRenderer <: RendererDNA{ParametricCurveDependent}
     _light_buffer_out::Buffer{Vec4F}
     _sdf_buffer_out::Buffer{Vec4F}
 
+    # GREEN Thread
     function CurveRenderer(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
 
@@ -265,7 +227,7 @@ function pack_color(color::Vec3F, reversed::Bool)::Float32
     return reinterpret(Float32,result)
 end
 
-# ! Must have
+# GREEN Thread
 function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     push!(self._ranges, (length(self._coords)+1,length(self._coords)+length(curve._range),curve._type))
     self._widths[length(self._coords)+1] = curve._width
@@ -273,23 +235,22 @@ function added!(self::CurveRenderer,curve::ParametricCurveDependent)
     color_count = length(curve._colors)
     packed_colors = [pack_color(color,curve._reversed != 0x0) for color in curve._colors]
     current_color = 1
-    for _ in 1:length(curve._range)
-        push!(self._coords, Vec3DNan)
+    for i in 1:length(curve._range)
+        # ? copy values
+        push!(self._coords, curve._tValues[i]) 
         push!(self._colors, packed_colors[current_color])
         current_color = mod1(current_color + 1, color_count)
     end
     push!(self._coords, Vec3DNan)
     push!(self._colors, 0x0000000)
 
-    (first, last, _) = self._ranges[curve._ref]
-    curve._tValues = view(self._coords, first : last)
+    #(first, last, _) = self._ranges[curve._ref]
+    #curve._tValues = view(self._coords, first : last)
 
-    runCallbacks(curve)
+    #runCallbacks(curve)
 end
 
-setRenderedID!(renderer::CurveRenderer,dependent::ParametricCurveDependent,id) = return nothing
-
-# ! Must have
+# GREEN Thread
 function addedAll!(self::CurveRenderer)
     self._distances = Vector{Float32}(undef,length(self._coords))
     self._position_width = fill(Vec4FNan, length(self._coords))
@@ -305,17 +266,20 @@ function addedAll!(self::CurveRenderer)
     _maintainCurveRenderer!(self)
 end
 
-# ! Must have
+# GREEN Thread
 function sync!(self::CurveRenderer,curve::ParametricCurveDependent)
+    # ? copy values
+    (first, last, _) = self._ranges[curve._ref]
+    self._coords[first:last] = curve._tValues
+    
     if curve._type != curve._typeLast
         self._needMaintance = true
-        (first, last, _) = self._ranges[curve._ref]
         self._ranges[curve._ref] = (first, last, curve._type)
         curve._typeLast = curve._type
     end
 end
 
-# ! Must have
+# GREEN Thread
 function syncAll!(self::CurveRenderer)
     @time_cpu_begin Dependent Curve
     if self._needMaintance
@@ -485,7 +449,60 @@ function destroy!(self::CurveRenderer)
     destroy!(self._sdf_buffer_out)
 end
 
-# ! Must have
-function Plan2Observer(self::OpenGLData,plan::ParametricCurvePlan)
-    return SingleRendererTactic(self,_CURVE_RENDERER,CurveRenderer)::CurveRenderer
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::ParametricCurveDependent)::CurveRenderer = getOpenGL(app)._renderers[3]
+
+# ? ---------------------------------
+# ! ParametricCurve
+# ? ---------------------------------
+
+const CURVE_SOLID::UInt8    = 1
+const CURVE_DASHED::UInt8   = 2
+const CURVE_DOTTED::UInt8   = 3
+const CURVE_WAVE::UInt8     = 4
+const CURVE_DASH_DOT::UInt8 = 5
+const CURVE_ARROW::UInt8    = 6
+const _CURVE_COUNT::UInt8   = 6
+
+export CURVE_SOLID, CURVE_DASHED, CURVE_DOTTED, 
+        CURVE_WAVE, CURVE_DASH_DOT, CURVE_ARROW
+
+# YELLOW Thread
+"""
+    ParametricCurve(callback, range, [dependents]; kwargs...) -> ParametricCurvePlan
+
+Construct a plan for a parametric curve defined by a generator function over a specific interval.
+
+# Arguments
+- `callback::Function`: A function (typically `t,dependents... -> Point`) that defines the curve's path.
+- `range::AbstractRange{Float64}`: The interval and step size over which the `callback` is evaluated.
+- `dependents::DependentsT`: A collection of `PlanDNA` objects that this curve depends on. Defaults to an empty vector.
+
+# Keyword Arguments
+- `color=(0.6, 0.6, 0.9)`: The RGB tuple or array of tuples defining the curve's color.
+- `width=5.0f0`: The line thickness.
+- `type=CURVE_SOLID`: The visual style of the curve (e.g., solid, dashed).
+- `reversed=false`: Whether to flip the line pattern.
+
+# Returns
+- `ParametricCurvePlan`: A `PlanDNA` for further use in dependencies.
+
+# Example
+App();
+
+curve = ParametricCurve(t -> (cos(t), sin(t), 0.0), 0:0.1:2π; color=(1, 0, 0));
+
+play!();
+"""
+ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent =
+return build!(ParametricCurveDependent(callback,dependents,range,color,type,reversed ? 0x1 : 0x0,width))
+
+macro ParametricCurve(callback::Expr,range,kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 1)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve, (cb, deps) -> (cb, range, deps); parsed_kw_args...)
 end
+
+export ParametricCurve
+export @ParametricCurve

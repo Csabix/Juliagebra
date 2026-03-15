@@ -28,23 +28,23 @@ Segment(Point(0,0,0),Point(1,1,1));
 
 play!();
 """
-function Segment(first::PointPlan,second::PointPlan;
-                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
+function Segment(first::PointDependent,second::PointDependent;
+                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent
     return ParametricCurve(range(0,1,length=2),[first,second],color=color,type=type,width=width,reversed=reversed) do t,a,b
         return b .* t .+ (1-t) .* a
     end
 end
 
-function Segment(first::PointPlan,second;
-                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
+function Segment(first::PointDependent,second;
+                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent
     b = Vec3D(second)
     return ParametricCurve(range(0,1,length=2),[first],color=color,type=type,width=width,reversed=reversed) do t,a
         return b .* t .+ (1-t) .* a
     end
 end
 
-function Segment(first,second::PointPlan;
-                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
+function Segment(first,second::PointDependent;
+                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent
     a = Vec3D(first)
     return ParametricCurve(range(0,1,length=2),[second],color=color,type=type,width=width,reversed=reversed) do t,b
         return b .* t .+ (1-t) .* a
@@ -52,7 +52,7 @@ function Segment(first,second::PointPlan;
 end
 
 function Segment(first,second;
-                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurvePlan
+                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent
     a = Vec3D(first)
     b = Vec3D(second)
     return ParametricCurve(range(0,1,length=2),color=color,type=type,width=width,reversed=reversed) do t

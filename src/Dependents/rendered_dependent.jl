@@ -4,11 +4,11 @@
 
 mutable struct RenderedDependent <: ObservedDNA
     _observed::Observed
-end
-
-function RenderedDependent(plan::RenderedPlanDNA)
-    observed = Observed(plan)
-    return RenderedDependent(observed)
+    
+    function RenderedDependent(callback::Function,dependents::Vector{<:DependentDNA})
+        observed = Observed(callback,dependents)
+        return new(observed)
+    end
 end
 
 _RenderedDependent_(self::RenderedDependentDNA)::RenderedDependent = error("Missing \"_RenderedDependent_\" func for instance of RenderedDependentDNA")

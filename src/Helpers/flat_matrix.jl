@@ -1,25 +1,29 @@
 
 mutable struct FlatMatrix{T}
-    _manager::FlatMatrixManager{T}
-    _layer::UInt32
+    _data::Vector{T}
+    _width::Int
+    _height::Int
 
-    function FlatMatrix{T}(layer::Int,manager::FlatMatrixManager{T}) where T
-        new(manager,UInt32(layer))
+    function FlatMatrix{T}(width::Int,height::Int) where T
+        data = Vector{T}(undef,width*height)
+        new(data,width,height)
     end
 end
 
+function fetchIndex(self::FlatMatrix,u,v)
+    return u + (v-1) * self._width
+end
+
 function Base.getindex(self::FlatMatrix{T},u,v)::T where T
-    return self._manager[self._layer,u,v]
+    return self._data[fetchIndex(self,u,v)]
 end
 
 function Base.setindex!(self::FlatMatrix{T},item::T,u,v) where T
-    self._manager[self._layer,u,v] = item
+    self._data[fetchIndex(self,u,v)] = item
 end
 
-Base.string(self::FlatMatrix{T}) where T = return "$(self._manager)[$(self._layer)]{$(T)}"
-
-height(self::FlatMatrix{T}) where T = return height(self._manager,self._layer)
-width(self::FlatMatrix{T}) where T = return width(self._manager,self._layer)
+height(self::FlatMatrix) = return self._height
+width(self::FlatMatrix)= return self._width
 
 struct TrianglesOf
     _vertexes::FlatMatrix
@@ -127,4 +131,10 @@ function Base.getindex(self::TrianglesOf, index::UInt)::Union{Nothing, PTriangle
     end
 end
 
-const EMPTY_FlatMatrix = FlatMatrix{Vec3F}(0,FlatMatrixManager{Vec3F}())
+function Base.copy!(a::FlatMatrix{T1},b::FlatMatrixManager{T2},layer) where {T1,T2}
+    for u in 1:width(a)
+        for v in 1:height(a)
+            b[layer,u,v] = T2(a[u,v])
+        end
+    end
+end

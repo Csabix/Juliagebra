@@ -1,34 +1,3 @@
-# ? ---------------------------------
-# ! SegmentSequencePlan
-# ? ---------------------------------
-
-mutable struct SegmentSequencePlan <: RenderedPlanDNA
-    _plan::RenderedPlan
-    _colors::Vector{Vec3F}
-    _break_every::Int32
-    _type::UInt8
-    _reversed::UInt8
-    _width::Float32
-    
-    function SegmentSequencePlan(callback::Function, plans::Vector{T},
-                                 color::Tuple{Real,Real,Real},break_every::Real,
-                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA}
-        
-        SegmentSequencePlan(callback,plans,[color],break_every,type,reversed,width)
-    end
-
-    function SegmentSequencePlan(callback::Function,plans::Vector{T},
-                                 color::Vector{U},break_every::Real,
-                                 type::UInt8,reversed::UInt8,width::Real) where {T<:PlanDNA, U<:Tuple{Real,Real,Real}}
-        
-        colors = [Vec3F(c[1],c[2],c[3]) for c in color]
-        new(RenderedPlan(callback,plans),colors,break_every,type,reversed,width)
-    end
-end
-
-_RenderedPlan_(self::SegmentSequencePlan)::RenderedPlan = return self._plan
-Base.string(self::SegmentSequencePlan)::String = return "Segment sequence"
-
 
 # ? ---------------------------------
 # ! SegmentSequenceDependent
@@ -45,27 +14,24 @@ mutable struct SegmentSequenceDependent <: RenderedDependentDNA
 
     _values::Vector{Vec3D}
 
-    function SegmentSequenceDependent(plan::SegmentSequencePlan)
-        a = RenderedDependent(plan)
-        colors = plan._colors
-        break_every = plan._break_every
-        width = plan._width
-        type = plan._type
-        reversed = plan._reversed
+    # YELLOW Thread
+    function SegmentSequenceDependent(
+        callback::Function,dependents::Vector{<:DependentDNA},
+        colors::Vector{Vec3F},break_every::Real,
+        type::UInt8,reversed::UInt8,width::Real)
+        
+        dependent = RenderedDependent(callback,dependents)
         values = Vector{Vec3F}()
 
-        new(a,colors,break_every,width,type,reversed,values)
+        new(dependent,colors,break_every,width,type,reversed,values)
     end
-end
-
-# ! Must have
-function Plan2Dependent(plan::SegmentSequencePlan)::SegmentSequenceDependent
-    return SegmentSequenceDependent(plan)
 end
 
 Base.string(self::SegmentSequenceDependent)::String =  return "Segment sequence: $(length(self._values))"
 _RenderedDependent_(self::SegmentSequenceDependent)::RenderedDependent = return self._renderedDependent
 
+# YELLOW Thread
+# RED Thread
 function onNodeEval(self::SegmentSequenceDependent)
     evalCallbackDp(self)
 end
@@ -205,6 +171,7 @@ mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
     _light_buffer_out::Buffer{Vec4F}
     _sdf_buffer_out::Buffer{Vec4F}
 
+    # GREEN Thread
     function SegmentSequenceRenderer(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
 
@@ -241,8 +208,8 @@ end
 _Renderer_(self::SegmentSequenceRenderer) = return self._renderer
 Base.string(self::SegmentSequenceRenderer) = return "SegmentSequenceRenderer[$(length(self._coords))]"
 
+# GREEN Thread
 function added!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
-    onNodeEval(segseq)
     push!(self._coords,segseq._values)
     packed_colors = [pack_color(color,segseq._reversed != 0x0) for color in segseq._colors]
     push!(self._colors,packed_colors)
@@ -250,11 +217,17 @@ function added!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
     push!(self._types,segseq._type)
 end
 
-setRenderedID!(renderer::SegmentSequenceRenderer,dependent::SegmentSequenceDependent,id) = return nothing
-
 _preallocated_vec(T, len) = sizehint!(Vector{T}(), len)
 
+# GREEN Thread
 function addedAll!(self::SegmentSequenceRenderer)
+    destroy!.(self._distance_buffers_in)
+    destroy!.(self._color_type_buffers_in)
+    destroy!.(self._position_width_buffers_in)
+    empty!(self._distance_buffers_in)
+    empty!(self._color_type_buffers_in)
+    empty!(self._position_width_buffers_in)
+
     upload_colors = _preallocated_vec.(Float32, length.(self._coords))
     upload_position_widths = _preallocated_vec.(Vec4F, length.(self._coords))
 
@@ -306,7 +279,7 @@ function addedAll!(self::SegmentSequenceRenderer)
     reserve!(self._sdf_buffer_out,5*total_coord,0)
 end
 
-# ! Must have
+# GREEN Thread
 function sync!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
     index = getObserverID(segseq)
     size_change = length(self._coords[index]) != length(segseq._values)
@@ -314,7 +287,7 @@ function sync!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
     push!(self._update_me,size_change ? -index : index)
 end
 
-# ! Must have
+# Green Thread
 function syncAll!(self::SegmentSequenceRenderer)
     upload_colors = Vector{Union{Nothing,Vector{Float32}}}(nothing, length(self._update_me))
     upload_position_widths = Vector{Union{Nothing,Vector{Vec4F}}}(nothing, length(self._update_me))
@@ -568,6 +541,44 @@ function destroy!(self::SegmentSequenceRenderer)
     destroy!(self._sdf_buffer_out)
 end
 
-function Plan2Observer(self::OpenGLData,plan::SegmentSequencePlan)
-    return SingleRendererTactic(self,_SEGMENT_SEQUENCE_RENDERER,SegmentSequenceRenderer)::SegmentSequenceRenderer
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequenceRenderer = getOpenGL(app)._renderers[6]
+
+# ? ---------------------------------
+# ! SegmentSequence
+# ? ---------------------------------
+
+_Colors(c::Tuple{Real,Real,Real})::Vector{Vec3F} = Vector{Vec3F}([Vec3F(c...)])
+_Colors(c::Vector)::Vector{Vec3F} = Vector{Vec3F}([Vec3F(cc...) for cc in c])
+
+
+# YELLOW Thread
+function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
+    
+    colors::Vector{Vec3F} = _Colors(color)
+    
+    return build!(SegmentSequenceDependent(callback, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
 end
+
+# YELLOW Thread
+function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
+                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
+    
+    colors::Vector{Vec3F} = _Colors(color)
+
+    return build!(SegmentSequenceDependent(_deps_collect, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+end
+
+# YELLOW Thread
+macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
+    (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
+
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence, (cb, deps) -> (cb, deps, break_every); parsed_kw_args...)
+end
+
+
+export SegmentSequence
+export @SegmentSequence

@@ -14,7 +14,7 @@ _Observed_(self::ObservedDNA)::Observed = error("Missing func!")
 getObserverID(self::ObservedDNA) = return _Observed_(self)._observerID
 getObserver(self::ObservedDNA) = return _Observed_(self)._observer
 
-function Observed(callback::Function,graphParents::Vector{DependentDNA})::Observed
+function Observed(callback::Function,graphParents::Vector{<:DependentDNA})::Observed
     dependent = Dependent(callback,graphParents)
     observer = nothing
     observerID = 0

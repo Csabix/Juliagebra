@@ -1,7 +1,5 @@
 using Juliagebra
 
-App()
-
 spring = function (t,c)
     tMax = (2*pi)*5
     x = cos(t)
@@ -24,4 +22,4 @@ ParametricCurve(spring,range(0,tMax,20000),[E],color=(0.3,0.8,0.3),type=CURVE_DA
 F = Point(2,2,1)
 ParametricCurve(spring,range(0,tMax,20000),[F],color=(0.3,0.8,0.3),type=CURVE_ARROW)
 
-play!()
+Juliagebra.Wait()

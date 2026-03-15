@@ -1,64 +1,18 @@
-# ? This file contains the code of the Point Dependable.
-# ? It is a very good starting point to understand how one can create
-# ? a Dependent, which is Rendered.
-
-# ? ---------------------------------
-# ! PointPlan
-# ? ---------------------------------
-
-# ? Firstly, for creating a Dependent, we have to design a Plan for it.
-# ? The main purpose of a Plan is, to have an objects, which is in the memory space, of the
-# ? user's script.
-# ? Also, the data, which is required for constructing a dependent should go here.
-# ? A Plan for a Rendered Dependentent must inherit from RenderedPlanDNA.
-mutable struct PointPlan <: RenderedPlanDNA
-    _plan::RenderedPlan
-    
-    _x::Float64
-    _y::Float64
-    _z::Float64
-    
-    function PointPlan(callback::Function,plans::Vector{T},x,y,z) where {T<:PlanDNA}
-        new(RenderedPlan(callback,plans),
-            x,y,z)
-    end
-end
-
-# ? To complete the DNA inheritance, we need to define the acces for the compositional RenderedPlan struct in
-# ? the "_RenderedPlan_" function.
-_RenderedPlan_(self::PointPlan)::RenderedPlan = return self._plan
-Base.string(self::PointPlan)::String = return "PointPlan[$(string(length(self._plans)))] -> $(string(_Plan_(self)._dependent))"
 
 # ? ---------------------------------
 # ! PointDependent
 # ? ---------------------------------
 
-# ? After we've defined a Plan, we need the Dependent itself.
-# ? Since it's a rendered dependent, it should inherit from RenderedDependentDNA.
-mutable struct PointDependent <:RenderedDependentDNA
+mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D 
 
-    function PointDependent(plan::PointPlan)
-        a = RenderedDependent(plan)
-        x = plan._x
-        y = plan._y
-        z = plan._z
-        coord = Vec3D(x,y,z)
-        new(a,coord)
+    # YELLOW Thread
+    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
+        renderedDependent = RenderedDependent(callback,dependents)
+        coord = Vec3DNan
+        new(renderedDependent,coord)
     end
-end
-
-getX(self::PointDependent) = return self._coord.x
-getY(self::PointDependent) = return self._coord.y
-getZ(self::PointDependent) = return self._coord.z
-getCoord(self::PointDependent) = return self._coord
-
-# ? Every Dependent needs a "Plan2Dependent" function, which connects the above defined Dependent to the
-# ? Plan We've defined at the beggining of the file. The function must be able to construct a Dependent from a Plan.
-# ! Must have
-function Plan2Dependent(plan::PointPlan)::PointDependent
-    return PointDependent(plan)
 end
 
 _RenderedDependent_(self::PointDependent)::RenderedDependent = return self._renderedDependent
@@ -69,43 +23,12 @@ function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
     evalGraph(self)
 end
 
-# ? Below are some fancy getter functions, enabling the "[:xyz]" syntax and so on.
-
-getPointField(self::PointDependent,fieldVal) = error("Unrecognized Symbol for Point's field!")
-
-getPointField(self::PointDependent,fieldVal::Val{:x}) = return self._coord.x
-getPointField(self::PointDependent,fieldVal::Val{:y}) = return self._coord.y
-getPointField(self::PointDependent,fieldVal::Val{:z}) = return self._coord.z
-
-getPointField(self::PointDependent,fieldVal::Val{:xyz}) = return self._xyz
-
-Base.getindex(self::PointDependent,fieldSymbol::Symbol) = return getPointField(self,Val(fieldSymbol))
-
-function Base.getindex(self::PointDependent,fieldSymbols...)
-    
-    fieldValues = []
-
-    for fieldSymbol in fieldSymbols
-        push!(fieldValues,self[fieldSymbol])
-    end
-
-    return fieldValues
-end
-
-# ? Now we need to define, how the Dependent should act, when everything it depends on changes.
-# ? Note that for every Dependent, the "onNodeEval" only gets called once and in a way, where everything
-# ? it depends on is up-to date.
-# ? Since Point is a Dependent, for it to be able to depend on other objects, we have to define
-# ? what will it do, when it should be evaluated in the graph, that's what
-# ? "onNodeEval" does.
-# ? evalCallbackDp is a helper function brought from DependentDNA, which helps dispatching on evaluating the callback function.
-# ! Must have
+# YELLOW Thread
+# RED Thread
 onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
 evalCallbackDpEntry(self::PointDependent)::Vec3D = self._coord
 
-# ? if "evalCallbackDpReturn" is defined for input types, then the returned value of "evalCallback" will be sipatched into this
-# ? function, as the name suggests.
 evalCallbackDpReturn(self::PointDependent,value) = self._coord = Vec3D(value)
 evalCallbackDpReturn(self::PointDependent,value::Tuple) = self._coord = Vec3D(value...)
 evalCallbackDpReturn(self::PointDependent,value::Vector) = self._coord = Vec3D(value...)
@@ -113,13 +36,10 @@ evalCallbackDpReturn(self::PointDependent,value::Vec3F) = self._coord = Vec3D(va
 evalCallbackDpReturn(self::PointDependent,value::Vec3D) = self._coord = value
 evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
-# ? Note that fancier callback evaluation can be seen in other Dependents than Point, that is why this system is needed.
-
 # ? ---------------------------------
 # ! PointRenderer
 # ? ---------------------------------
 
-# ? Now we can move on to creating a renderer, which uses GPU resources to render RenderedDependents.
 mutable struct PointRenderer <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
 
@@ -129,7 +49,8 @@ mutable struct PointRenderer <:RendererDNA{PointDependent}
     
     _coords::Vector{Vec3F}
     _ids::Vector{Float32}
-    
+
+    # GREEN Thread
     function PointRenderer(context::OpenGLData) 
         shader_id = ShaderProgram(["point/point_id.vert","point/point_id.frag"],["VP"])
         shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
@@ -151,36 +72,22 @@ end
 _Renderer_(self::PointRenderer) = return self._renderer
 Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
 
-function setRenderedID!(self::PointRenderer,item::PointDependent,id)
-    self._ids[getObserverID(item)] = Float32(id)
-end
-
-# ? We need a function, which gets called, when a Dependent is assigned to this renderer.
-# ? this "added!" function gets called every time a dependent is added.
-# ? The function should be used to copy data to CPU datastructures used for GPU parsing.
-# ! Must have
+# GREEN Thread
 function added!(self::PointRenderer,point::PointDependent)
-    onNodeEval(point)
-    
-    aID = 0
+    aID = Float32(getGraphID(point) + ID_LOWER_BOUND)
     coord = point._coord
-
+    
     push!(self._coords,Vec3F(coord))
     push!(self._ids,Float32(aID))
 end
 
-# ? This function gets called if there was at least 1 or more Dependent which got assigned to this Renderer.
-# ? Actual Data Transfer to GPU VRAM should happen here.
-# ! Must have
+# GREEN Thread
 function addedAll!(self::PointRenderer)
     upload!(self._buffer,1,self._coords,0)
     upload!(self._buffer,2,self._ids,0)
 end
 
-# ? "sync!" is very much like "added!", but gets called when a Dependent was "flag!"-ed.
-# ? So the function is used to copy Dependent data into CPU datastructures. 
-# ? The function is called only once after change happens in that frame for every changed Dependent.
-# ! Must have
+# GREEN Thread
 function sync!(self::PointRenderer,point::PointDependent)
     id = getObserverID(point)
     coord = point._coord
@@ -188,16 +95,12 @@ function sync!(self::PointRenderer,point::PointDependent)
     self._coords[id] = Vec3F(coord)
 end
 
-# ? "syncUpload!" is much like "addedUpload!", where it gets called only once per frame for every dependent,
-# ? but when 1 or more "flag!" happens
-# ? Actual CPU to GPU data transfer happens here.
-# ! Must have
+# GREEN Thread
 function syncAll!(self::PointRenderer)
     @time_cpu_begin Dependent Point
     wait(self._buffer[1])
     copyto!(self._buffer[1],self._coords)
     @time_cpu_end Dependent Point
-    @log "Uploaded Coordinate buffer!" INFO
 end
 
 function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
@@ -227,25 +130,33 @@ end
 
 is_occluder(self::PointRenderer)::Bool = false
 
-# ? Free GPU resources here.
-# ! Must have
+# GREEN Thread
 function destroy!(self::PointRenderer) 
     destroy!(self._shader_id)
     destroy!(self._shader_opaque)
     destroy!(self._buffer)
 end
 
-# ? And finally, connect the plan to a rendered with a function, so the library knows
-# ? which Plan is connected to which Dependent and Renderer, and thus
-# ? which Renderer renders which Dependents.
-# ? Here we can also specify, when a plan arrives, if we should create a new renderer to manage it,
-# ? or use an existing one.
-# ? "SingleRendererTactic" basically allows only 1 Renderer to manage every type of Dependent
-# ? constructed from the incoming Plan. 
-# ! Must have
-function Plan2Observer(self::OpenGLData,plan::PointPlan)
-    return SingleRendererTactic(self,_POINT_RENDERER,PointRenderer)::PointRenderer
+# YELLOW Thread
+Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
+
+# ? ---------------------------------
+# ! Point
+# ? ---------------------------------
+
+# YELLOW Thread
+Point(x::Real,y::Real,z::Real)::PointDependent =
+build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}()))
+
+# YELLOW Thread
+Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
+build!(PointDependent(callback,dependents))
+
+# YELLOW Thread
+macro Point(callback::Expr)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point)
 end
 
-# ? Of course, in the case of renderers using views passed to Dependents is a very fast way to handee things,
-# ? for that, see examples in the "curve.jl" and "surface.jl" files.
+export Point
+export @Point

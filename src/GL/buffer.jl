@@ -109,14 +109,14 @@ function Base.setindex!(self::MappedBuffer{T}, value, index::Int) where {T}
     return self
 end
 
-function lock(self::MappedBuffer)
+function Base.lock(self::MappedBuffer)
     if self._sync != C_NULL
         glDeleteSync(self._sync)
     end
     self._sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
 end
 
-function wait(self::MappedBuffer)
+function Base.wait(self::MappedBuffer)
     if self._sync != C_NULL
         while true
             waitReturn = glClientWaitSync(self._sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000);

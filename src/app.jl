@@ -1,6 +1,8 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
 
-global implicitApp = nothing
+# ? ---------------------------------
+# ! App
+# ? ---------------------------------
 
 mutable struct App <: AppDNA
 
@@ -10,11 +12,12 @@ mutable struct App <: AppDNA
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
     _graph::DependentGraph
-    _plans::Queue{PlanDNA}
-    _planOptimizer::GlobalPlanOptimizer
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
+    
+    _synchronizer::Synchronizer
+    _optimizer::GlobalDependentOptimizer
 
     function App(
         name::String="Juliagebra",
@@ -28,29 +31,24 @@ mutable struct App <: AppDNA
         imgui = nothing
         windowCreated = false
         graph = DependentGraph()
-        plans = Queue{PlanDNA}()
-        planOptimizer = GlobalPlanOptimizer()
         peripherals = Peripherals()
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        self = new(shrd,glfw,opengl,imgui,windowCreated,graph,plans,planOptimizer,peripherals,cam,manipulator)
-
-        global implicitApp
-        implicitApp = self
-        return self
+        synchronizer = Synchronizer()
+        optimizer = GlobalDependentOptimizer()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer)
     end
 end
 
 getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
+getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
 getPlanQueue(self::App) = return self._plans
-
-function submit!(self::AppDNA,plan::PlanDNA)
-    enqueue!(getPlanQueue(self),plan)    
-end
+getSynchronizer(self::App) = return self._synchronizer
+getBuilder(self::App) = return self._builder
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -129,41 +127,6 @@ function can_capture_mouse(self::App)::Bool
     return !captures_mouse(self._imgui)
 end
 
-function handlePlans!(self::App)
-    observers = Set{ObserverDNA}()
-
-    while(!isempty(self._plans))
-        observer = build!(self,dequeue!(self._plans)) 
-        
-        if (!isnothing(observer))
-            push!(observers,observer)
-        end
-        
-    end
-
-    for observer in observers
-        addedAll!(observer)
-    end
-end
-
-
-function build!(self::App, plan::PlanDNA) 
-   dependent = buildFromPlan!(plan,self._graph)
-   return nothing
-end
-
-
-function build!(self::App, plan::GuiPlanDNA)
-    observer,observed = buildFromPlan!(plan,self._graph,self._imgui)
-    return observer
-end
-
-function build!(self::App, plan::RenderedPlanDNA)
-    renderer,observed = buildFromPlan!(plan,self._graph,self._opengl)
-    setRenderedID!(renderer,observed,getGraphID(observed) + ID_LOWER_BOUND)
-    return renderer
-end
-
 function updateDeltaTime!(self::App)
     currentTime = time()    
     self._shrd._deltaTime =  currentTime - self._shrd._oldTime
@@ -189,8 +152,8 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
             if id > 3
                 self._shrd._gizmoEnabled = true
                 mouse_capture = true
-                p = fetch(self._graph,self._shrd._pickedID)
-                self._opengl._gizmoGL._pos = Vec3F(getCoord(p))
+                p = self._graph[self._shrd._pickedID]
+                self._opengl._gizmoGL._pos = Vec3F(p._coord)
             else
                 self._shrd._gizmoEnabled = false
             end
@@ -209,7 +172,7 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p = fetch(self._graph,self._shrd._pickedID)
+        p = self._graph[self._shrd._pickedID]
         @time_cpu_begin Graph_update
         set(
             p,
@@ -220,21 +183,44 @@ function updateGizmo!(self::App)
     end
 end
 
+# GREEN Thread
 function play!(self::App)
     
     init!(self)
+    
+    lock(self._synchronizer._initCondition)
+    notify(self._synchronizer._initCondition)
+    unlock(self._synchronizer._initCondition)
+
     while(!self._shrd._gameOver)
+        yield()
         perf_get_results()
         updateDeltaTime!(self)
-        handlePlans!(self)
         updateCam!(self)
         
-        update!(self._opengl,self._cam)
-        update!(self._imgui)
-        update!(self._shrd)
-        updateGizmo!(self)
-       
-        
+        state = decideFrameState(self)
+
+        if state isa ViewingState
+            # ? do graph updates, aka sync! and syncAll! calls.
+            updateGizmo!(self)
+
+            # ? render scence and loading bar.
+            update!(self._opengl,self._cam)
+            update!(self._imgui)
+            update!(self._shrd)
+            
+            unlock(self._synchronizer._lock)
+        elseif state isa BuildingState
+            # ? do added! and addedAll! calls.
+            handleAddedCalls(self)
+            
+            # ? render scence and loading bar.
+            update!(self._opengl,self._cam)
+            renderBuildingState(self._imgui,self)
+            
+            update!(self._shrd)
+        end
+
         GLFW.SwapBuffers(self._glfw._window)
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
@@ -242,8 +228,6 @@ function play!(self::App)
     destroy!(self)
     
 end
-
-play!() = play!(implicitApp)
 
 function init!(self::App)
     if self._windowCreated
@@ -268,6 +252,7 @@ function destroy!(self::App)
     destroy!(self._imgui)
     destroy!(self._opengl)
     destroy!(self._glfw)
+    destroy!(self._synchronizer)
 end
 
 export App

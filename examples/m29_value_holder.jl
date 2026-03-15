@@ -1,8 +1,6 @@
 using Juliagebra
 using JuliaGLM
 
-App()
-
 # ? SourceValueHolder:
 # ? Starting value decides the type
 # ? so T will be the type of "96.0".
@@ -26,16 +24,6 @@ txt2 = TextBox([gd2]) do gd2
             "gd2 val: $(gd2)"
 end
 
-# ? UnaryValueHolder:
-# ? Unary values can communicate "backwards".
-txt3 = ValueHolder(Ref("Alma")) do unary
-    TextBox([unary,gd2]) do unary, gd2
-        old_unary = unary[]
-        unary[] = "Barack"
-        return "$(gd2) - $(old_unary)"
-    end
-end
-
-play!()
+Juliagebra.Wait()
 
 

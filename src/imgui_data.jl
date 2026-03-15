@@ -1,3 +1,13 @@
+
+# ? ---------------------------------
+# ! ImGuiData
+# ? ---------------------------------
+
+# BLUE Thread
+Dependent2Observer(app::AppDNA,::ToggleDependent) = getImGui(app)._pool[1]
+Dependent2Observer(app::AppDNA,::SliderDependent) = getImGui(app)._pool[2]
+Dependent2Observer(app::AppDNA,::TextBoxDependent) = getImGui(app)._pool[3]
+
 mutable struct ImGuiData <: ObserverBuilderDNA
     _shrd::SharedData
     _io::Ptr{CImGui.lib.ImGuiIO}
@@ -8,11 +18,13 @@ mutable struct ImGuiData <: ObserverBuilderDNA
     _pos_x::Int
     _pos_y::Int
 
+    _pool::Vector{GuiRendererDNA}
+
     _widgets::Vector{ImGuiWidgetDNA}
     _dock::Dock
-    _guiDependentsWindow::GuiDependentsWindow
 
-    function ImGuiData(app::AppDNA )
+    # GREEN Thread
+    function ImGuiData(app::AppDNA)
         
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
@@ -26,12 +38,16 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
         
-        widgets = Vector{ImGuiWidgetDNA}()
+        pool::Vector{GuiRendererDNA} = [
+            ToggleRenderer(), # ? 1
+            SliderRenderer(), # ? 2
+            TextBoxRenderer() # ? 3
+        ]
         
+        widgets = Vector{ImGuiWidgetDNA}()
         dock = Dock(shrd._width,shrd._height)
-        guiDependentsWindow = GuiDependentsWindow()
 
-        add!(dock,guiDependentsWindow)
+        add!(dock,GuiDependentsWindow(pool))
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
         add!(dock,PerformanceWindow())
@@ -39,8 +55,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
 
         push!(widgets,dock)
 
-        self = new(shrd,io,0,0,0,0,widgets,
-                   dock,guiDependentsWindow)
+        self = new(shrd,io,0,0,0,0,pool,widgets,dock)
         
         resize!(self)
 
@@ -74,9 +89,26 @@ function update!(self::ImGuiData)
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
-    
+
     for widget in self._widgets
         render(widget)
+    end
+
+    CImGui.Render()
+    CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
+end
+
+function renderBuildingState(::Any, ::AppDNA)
+    return nothing
+end
+
+function renderBuildingState(self::ImGuiData,app::AppDNA)
+    CImGui.ImGui_ImplOpenGL3_NewFrame()
+    CImGui.ImGui_ImplGlfw_NewFrame()
+    CImGui.NewFrame()
+
+    for widget in self._widgets
+        renderBuildingState(widget,app)
     end
 
     CImGui.Render()

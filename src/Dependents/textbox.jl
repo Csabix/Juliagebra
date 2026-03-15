@@ -1,23 +1,3 @@
-# ? ---------------------------------
-# ! TextBoxPlan
-# ? ---------------------------------
-
-mutable struct TextBoxPlan <:GuiPlanDNA
-    _plan::GuiPlan
-
-    _text::String
-
-    function TextBoxPlan(callback::Function,plans::Vector{T},text) where {T<:PlanDNA}
-        
-        plan = GuiPlan(callback,plans)
-
-        text = String(text)
-
-        new(plan,text)
-    end
-end
-
-_GuiPlan_(self::TextBoxPlan)::GuiPlan = return self._plan
 
 # ? ---------------------------------
 # ! TextBoxDependent
@@ -25,30 +5,26 @@ _GuiPlan_(self::TextBoxPlan)::GuiPlan = return self._plan
 
 mutable struct TextBoxDependent <: GuiDependentDNA
     _dependent::GuiDependent
-    
     _text::String
 
-    function TextBoxDependent(plan::TextBoxPlan)
-        
-        dependent = GuiDependent(plan)
-        text = plan._text
+    # YELLOW Thread
+    function TextBoxDependent(callback::Function, dependents::Vector{<:DependentDNA},label::String)
+        dependent = GuiDependent(callback,dependents,label)
+        text = ""
 
-        textBox = new(dependent,text)
-        onNodeEval(textBox)
-        return textBox
+        new(dependent,text)
     end
 end
 
 _GuiDependent_(self::TextBoxDependent)::GuiDependent = return self._dependent
 
-getSliderField(self::TextBoxDependent,fieldVal::Val{:text}) = return self._text
-Base.getindex(self::TextBoxDependent,fieldSymbol::Symbol) = return getSliderField(self,Val(fieldSymbol))
-
+# YELLOW Thread
+# RED Thread
 onNodeEval(self::TextBoxDependent) = evalCallbackDp(self)
+
 evalCallbackDpEntry(self::TextBoxDependent)::String = return self._text   
 
 evalCallbackDpReturn(self::TextBoxDependent, text::String) = self._text = text
-evalCallbackDpReturn(self::TextBoxDependent, ::Nothing) = return nothing
 
 # ? ---------------------------------
 # ! TextBoxRenderer
@@ -57,6 +33,7 @@ evalCallbackDpReturn(self::TextBoxDependent, ::Nothing) = return nothing
 mutable struct TextBoxRenderer <: GuiRendererDNA{TextBoxDependent}
     _guiRenderer::GuiRenderer{TextBoxDependent}
 
+    # GREEN Thread
     function TextBoxRenderer()
         guiRenderer = GuiRenderer{TextBoxDependent}()
 
@@ -66,9 +43,16 @@ end
 
 _GuiRenderer_(self::TextBoxRenderer) = return self._guiRenderer
 
+# GREEN Thread
 added!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
+
+# GREEN Thread
 sync!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
+
+# GREEN Thread
 syncAll!(self::TextBoxRenderer) = return nothing
+
+# GREEN Thread
 addedAll!(self::TextBoxRenderer) = return nothing
 
 function render!(self::TextBoxRenderer)
@@ -77,15 +61,16 @@ function render!(self::TextBoxRenderer)
 
     for textBoxIdx in eachindex(getObservedItems(self))
         textBox = self[textBoxIdx]
-        
-        CImGui.Text("TextBox[$(textBoxIdx)]:")
-        proposedText = txtbox("##TextBox[$(textBoxIdx)]",textBox._text)
+        label = getLabel(textBox)
+
+        CImGui.Text("$(label)")
+        proposedText = txtbox("##$(textBoxIdx)",textBox._text)
 
         if (!isnothing(proposedText))
             textBox._text = proposedText
         end
 
-        if (CImGui.Button("Apply TextBox[$(textBoxIdx)]"))
+        if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
             # ! Take into note, that the user can only click on one element at every frame,
             # ! so multiple evalGraph calls under a single frame can't happen! 
             evalGraph(textBox)
@@ -93,10 +78,32 @@ function render!(self::TextBoxRenderer)
     end
 end
 
-function Plan2Observer(self::ImGuiData,plan::TextBoxPlan)
-    return SingleGuiRendererByGuiDependentsWindow(self,TextBoxRenderer)
+# ? ---------------------------------
+# ! TextBox
+# ? ---------------------------------
+
+# YELLOW Thread
+TextBox(; label="") =
+build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
+    return ""
+end)
+
+# YELLOW Thread
+TextBox(text::String; label="") =
+build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
+    return text
+end)
+
+# YELLOW Thread
+TextBox(callback::Function, dependents::Vector{<:DependentDNA}; label="") =
+build!(TextBoxDependent(callback,dependents,label))
+
+# YELLOW Thread
+macro TextBox(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:label], kw_args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.TextBox; parsed_kw_args...)
 end
 
-function Plan2Dependent(plan::TextBoxPlan)
-    return TextBoxDependent(plan)
-end
+export TextBox
+export @TextBox

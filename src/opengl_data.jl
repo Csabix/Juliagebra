@@ -1,3 +1,7 @@
+
+# ? ---------------------------------
+# ! OpenGLData
+# ? ---------------------------------
 const _SPEHERE_RENDERER::UInt = 1
 const _SURFACE_RENDERER::UInt = 2
 const _CURVE_RENDERER::UInt   = 3
@@ -10,8 +14,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
-    _renderers::Vector{Union{Nothing,RendererDNA}}
-    
+    _renderers::Vector{RendererDNA}
+
     # ! Shaders
     _transparent_combinerShader::ShaderProgram
     _combinerShader::ShaderProgram
@@ -43,7 +47,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _p::Mat4T
     _camPos::Vec3F
 
-    function OpenGLData(glfw::GLFWData,shrd::SharedData)
+    # GREEN Thread, runs this inside Init, after this construction can begin
+    function OpenGLData(::GLFWData,shrd::SharedData)
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearStencil(0)
         glStencilMask(0xFF);
@@ -109,39 +114,70 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         
         glEnable(GL_PROGRAM_POINT_SIZE)
 
-        renderers = [nothing for _ in 1:_RENDERER_COUNT]
+        # ? It's empty because of "reset!".
+        renderers::Vector{RendererDNA} = []
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        new(shrd,widgets,renderers,
+        self = new(shrd,widgets,renderers,
             transparent_combinerShader,combinerShader,centerShader,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,idFBO,behindOpaqueFBO,transparentFBO,widgetFBO,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
+        
+        reset!(self)
+        return self
     end
 end
 
-function SingleRendererTactic(self::OpenGLData,i::UInt,t::Type{T})::T where T<:RendererDNA
-    if self._renderers[i] === nothing
-        self._renderers[i] = T(self)
+function reset!(self::OpenGLData)
+    # ? Clean up all Renderers.
+    for renderer in self._renderers
+        destroy!(renderer)
     end
-    return self._renderers[i]
+    
+    # ? Reset Renderer Vectors.
+    self._renderers::Vector{RendererDNA} = [
+        SphereRenderer(self),
+        ParametricSurfaceRenderer(self),
+        CurveRenderer(self),
+        PointRenderer(self),
+        PointCloudRenderer(self),
+        SegmentSequenceRenderer(self) 
+    ]
 end
 
-function checkErrors(self::OpenGLData)
-    # TODO: Make checkErrors prettier
-    opengl_error = glGetError()
-    if opengl_error != GL_NO_ERROR
-        while (opengl_error != GL_NO_ERROR)
-            println(string(opengl_error))
-            opengl_error = glGetError()
+function glError2String(msg::GLenum)::String
+    if msg == GL_INVALID_ENUM
+        return "GL_INVALID_ENUM"
+    elseif msg == GL_INVALID_VALUE
+        return "GL_INVALID_VALUE"
+    elseif msg == GL_INVALID_OPERATION
+        return "GL_INVALID_OPERATION"
+    elseif msg == GL_OUT_OF_MEMORY
+        return "GL_OUT_OF_MEMORY"
+    elseif msg == GL_INVALID_FRAMEBUFFER_OPERATION
+        return "GL_INVALID_FRAMEBUFFER_OPERATION"
+    elseif msg == GL_NO_ERROR
+        return "GL_NO_ERROR"
+    else
+        return "Error code = $(msg)"
+    end
+end
+
+function glCheckErrors(::OpenGLData)
+    glError = glGetError()
+    if glError != GL_NO_ERROR
+        while (glError != GL_NO_ERROR)
+            println("$(glError2String(glError))")
+            glError = glGetError()
         end
-    error("OpenGL error(s) occured!")
+        error("OpenGL error(s) occured!")
     end
 end
 
@@ -193,7 +229,7 @@ end
 
 function _pre_draw!(self::OpenGLData,cam::Camera)
     for renderer in self._renderers
-        if renderer !== nothing pre_draw!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) pre_draw!(renderer,self._vp,cam,self._shrd) end
     end
 end
 
@@ -203,7 +239,7 @@ function _id_pass!(self::OpenGLData,cam::Camera)
     glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
     glClearBufferiv(GL_COLOR, 0, clear_value)
     for renderer in self._renderers
-        if renderer !== nothing id_pass!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) id_pass!(renderer,self._vp,cam,self._shrd) end
     end
     glInvalidateFramebuffer(GL_FRAMEBUFFER,1,[GL_DEPTH_STENCIL_ATTACHMENT])
 end
@@ -216,14 +252,14 @@ function _opaque_pass!(self::OpenGLData,cam::Camera)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
     for renderer in self._renderers
-        if renderer !== nothing && is_occluder(renderer)
+        if hasInstance(renderer) && is_occluder(renderer)
             opaque_pass!(renderer,self._vp,cam,self._shrd)
         end
     end
 
     glEnable(GL_STENCIL_TEST)
     for renderer in self._renderers
-        if renderer !== nothing && !is_occluder(renderer)
+        if hasInstance(renderer) && !is_occluder(renderer)
             opaque_pass!(renderer,self._vp,cam,self._shrd)
         end
     end
@@ -246,7 +282,7 @@ function _behind_opaque_pass!(self::OpenGLData,cam::Camera)
 
     glEnable(GL_STENCIL_TEST);
     for renderer in self._renderers
-        if renderer !== nothing behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) behind_opaque_pass!(renderer,self._vp,cam,self._shrd) end
     end
     glDisable(GL_STENCIL_TEST);
 end
@@ -265,7 +301,7 @@ function _transparent_pass!(self::OpenGLData,cam::Camera)
     glClearBufferfv(GL_COLOR, 1, clear_value_one)
 
     for renderer in self._renderers
-        if renderer !== nothing transparent_pass!(renderer,self._vp,cam,self._shrd) end
+        if hasInstance(renderer) transparent_pass!(renderer,self._vp,cam,self._shrd) end
     end
 
     glDepthFunc(GL_ALWAYS);
@@ -296,7 +332,7 @@ function _widget_pass!(self::OpenGLData,cam::Camera)
 end
 
 function update!(self::OpenGLData,cam::Camera)
-    checkErrors(self)
+    glCheckErrors(self)
 
     _pre_draw!(self,cam)
     _id_pass!(self,cam)
@@ -328,11 +364,9 @@ end
 
 function destroy!(self::OpenGLData)
     for renderer in self._renderers
-        if renderer !== nothing
-            destroy!(renderer)
-        end
+        destroy!(renderer)
     end
-    
+
     destroy!(self._transparent_combinerShader)
     destroy!(self._combinerShader)
     destroy!(self._centerShader)

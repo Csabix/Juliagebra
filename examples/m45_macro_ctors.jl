@@ -1,8 +1,6 @@
 import Juliagebra as JG # no using + renaming to test macro hygiene
 using JuliaGLM
 
-JG.App()
-
 p1 = JG.Point(0,0,0)
 
 p2 = JG.@Point () -> p1 .- (0,0,1)
@@ -58,7 +56,7 @@ end
 cone_height = JG.Slider(1,10,4)
 
 s1_base = JG.Point(2,2,0)
-JG.@ParametricSurface(50, 50, 0, 2pi, 0, 1) do u, v
+JG.@ParametricSurface(range(0,2pi,50),range(0,1,50)) do u, v
     x = 3v * sign(cos(u)) * abs(cos(u))^1.85
     y = 2v * sign(sin(u)) * abs(sin(u))^1.85
     z = cone_height * v
@@ -67,7 +65,7 @@ JG.@ParametricSurface(50, 50, 0, 2pi, 0, 1) do u, v
 end
 
 s2_base = JG.Point(-2,2,0)
-JG.@ParametricSurface(50, 50, 0, 2pi, 0, 1, color=(0,0,1), transparent=true) do u, v
+JG.@ParametricSurface(range(0,2pi,50),range(0,1,50), color=(0,0,1), transparent=true) do u, v
     x = 3v * sign(cos(u)) * abs(cos(u))^1.85
     y = 2v * sign(sin(u)) * abs(sin(u))^1.85
     z = cone_height * v
@@ -78,8 +76,18 @@ end
 t1 = JG.Toggle()
 JG.@Toggle(() -> t1)
 
-JG.@Slider(() -> cone_height, 1, 4)
+JG.@Slider(() -> (Vec3F(1,cone_height,4)), label="Slider 1")
 
 JG.@TextBox(() -> "Toggle is $(t1 ? "on" : "off"), cone_height slider is at $cone_height")
 
-JG.play!()
+t2 = JG.@Toggle(() -> t1, label="ValueHolder Toggle")
+
+v = JG.@ValueHolder(Bool) do 
+    return t2
+end
+
+JG.@TextBox(label="TextBox") do 
+    return "ValueHolder: $(v)"
+end
+
+JG.Wait()

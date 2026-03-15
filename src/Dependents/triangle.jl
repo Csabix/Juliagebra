@@ -9,56 +9,56 @@ function _triangleSurfaceFunc(u,v,a,b,c)
         v = 0.5
     end
 
-    return (1-u-v) .* a .+ u .* b .+ v .* c
+    return Vec3D((1-u-v) .* a .+ u .* b .+ v .* c)
 end
 
-function Triangle(a::PointPlan,b::PointPlan,c::PointPlan,;transparent=false,color=(0.5,0.6,0.2))
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a,b,c]; transparent=transparent,color=color) do u,v,a,b,c
+function Triangle(a::PointDependent,b::PointDependent,c::PointDependent,;transparent=false,color=(0.5,0.6,0.2))
+    return ParametricSurface(range(0,1,3), range(0,1,3), [a,b,c]; transparent=transparent,color=color) do u,v,a,b,c
         return _triangleSurfaceFunc(u,v,a,b,c)
     end
 end
 
-function Triangle(a::PointPlan,b::PointPlan,c;transparent=false,color=(0.5,0.6,0.2))
+function Triangle(a::PointDependent,b::PointDependent,c;transparent=false,color=(0.5,0.6,0.2))
     cc = Vec3D(c)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a,b]; transparent=transparent,color=color) do u,v,a,b
+    return ParametricSurface(range(0,1,3),range(0,1,3),[a,b]; transparent=transparent,color=color) do u,v,a,b
         return _triangleSurfaceFunc(u,v,a,b,cc)
     end
 end
 
-function Triangle(a::PointPlan,b,c::PointPlan;transparent=false,color=(0.5,0.6,0.2))
+function Triangle(a::PointDependent,b,c::PointDependent;transparent=false,color=(0.5,0.6,0.2))
     bb = Vec3D(b)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a,c]; transparent=transparent,color=color) do u,v,a,c
+    return ParametricSurface(range(0,1,3),range(0,1,3),[a,c]; transparent=transparent,color=color) do u,v,a,c
         return _triangleSurfaceFunc(u,v,a,bb,c)
     end
 end
 
-function Triangle(a,b::PointPlan,c::PointPlan;transparent=false,color=(0.5,0.6,0.2))
+function Triangle(a,b::PointDependent,c::PointDependent;transparent=false,color=(0.5,0.6,0.2))
     aa = Vec3D(a)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[c,b]; transparent=transparent,color=color) do u,v,c,b
+    return ParametricSurface(range(0,1,3),range(0,1,3),[c,b]; transparent=transparent,color=color) do u,v,c,b
         return _triangleSurfaceFunc(u,v,aa,b,c)
     end
 end
 
-function Triangle(a::PointPlan,b,c;transparent=false,color=(0.5,0.6,0.2))
+function Triangle(a::PointDependent,b,c;transparent=false,color=(0.5,0.6,0.2))
     bb = Vec3D(b)
     cc = Vec3D(c)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a]; transparent=transparent,color=color) do u,v,a
+    return ParametricSurface(range(0,1,3),range(0,1,3),[a]; transparent=transparent,color=color) do u,v,a
         return _triangleSurfaceFunc(u,v,a,bb,cc)
     end
 end
 
-function Triangle(a,b::PointPlan,c;transparent=false,color=(0.5,0.6,0.2))
+function Triangle(a,b::PointDependent,c;transparent=false,color=(0.5,0.6,0.2))
     aa = Vec3D(a)
     cc = Vec3D(c)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[b]; transparent=transparent,color=color) do u,v,b
+    return ParametricSurface(range(0,1,3),range(0,1,3),[b]; transparent=transparent,color=color) do u,v,b
         return _triangleSurfaceFunc(u,v,aa,b,cc)
     end
 end
 
-function Triangle(a,b,c::PointPlan;transparent=false,color=(0.5,0.6,0.2))
+function Triangle(a,b,c::PointDependent;transparent=false,color=(0.5,0.6,0.2))
     aa = Vec3D(a)
     bb = Vec3D(b)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0,[c]; transparent=transparent,color=color) do u,v,c
+    return ParametricSurface(range(0,1,3),range(0,1,3),[c]; transparent=transparent,color=color) do u,v,c
         return _triangleSurfaceFunc(u,v,aa,bb,c)
     end
 end
@@ -67,7 +67,7 @@ function Triangle(a,b,c;transparent=false,color=(0.5,0.6,0.2))
     aa = Vec3D(a)
     bb = Vec3D(b)
     cc = Vec3D(c)
-    return ParametricSurface(3,3,0.0,1.0,0.0,1.0; transparent=transparent,color=color) do u,v
+    return ParametricSurface(range(0,1,3),range(0,1,3); transparent=transparent,color=color) do u,v
         return _triangleSurfaceFunc(u,v,aa,bb,cc)
     end
 end

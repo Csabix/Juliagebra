@@ -23,6 +23,4 @@ function Tetrahedra(a,b,c,d;
     end
 end
 
-
-
 export Tetrahedra

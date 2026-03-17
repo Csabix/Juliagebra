@@ -4,7 +4,6 @@
 # ? ---------------------------------
 
 mutable struct ResetWidget <: ImGuiWidgetDNA
-    _imgui::ImGuiDNA
     _widget::ImGuiWidget
 
     _posX::Int
@@ -15,14 +14,14 @@ mutable struct ResetWidget <: ImGuiWidgetDNA
 
     _padding::Int
 
-    function ResetWidget(imgui::ImGuiDNA)
-        new(imgui,ImGuiWidget(),0,0,0,0,0)
+    function ResetWidget()
+        new(ImGuiWidget(),0,0,0,0,0)
     end
 end
 
 _ImGuiWidget_(self::ResetWidget)::ImGuiWidget = return self._widget
 
-function render(self::ResetWidget)
+function render(self::ResetWidget, imgui::ImGuiDNA)
     CImGui.SetNextWindowPos((self._posX,self._posY))
     CImGui.SetNextWindowSize((self._width,self._height))
 
@@ -40,7 +39,7 @@ function render(self::ResetWidget)
         CImGui.ImGuiWindowFlags_NoDecoration)
     
 
-    CImGui.PushFont(self._imgui._iconFont,24)
+    CImGui.PushFont(imgui._iconFont,24)
     buttonSize::Tuple{Int,Int} = floor.((self._width,self._height) .- self._padding*2)
 
     # ? Reset button

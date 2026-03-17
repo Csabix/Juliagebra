@@ -46,7 +46,6 @@ getOpenGL(self::App) = return self._opengl
 getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
-getPlanQueue(self::App) = return self._plans
 getSynchronizer(self::App) = return self._synchronizer
 getBuilder(self::App) = return self._builder
 

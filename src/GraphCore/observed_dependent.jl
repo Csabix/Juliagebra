@@ -21,13 +21,6 @@ function Observed(callback::Function,graphParents::Vector{<:DependentDNA})::Obse
     return Observed(dependent,observer,observerID)
 end
 
-function Observed(plan::ObservedPlanDNA)::Observed
-    dependent = Dependent(plan)
-    observer = nothing
-    observerID = 0
-    return Observed(dependent,observer,observerID)
-end
-
 function evalGraph(self::ObservedDNA)
     afterNodeEval(self)
     evalChain(getChain(self))

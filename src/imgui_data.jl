@@ -52,42 +52,37 @@ mutable struct ImGuiData <: ImGuiDNA
         textFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"Roboto.ttf"),16)
         iconFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"MaterialSymbolsRounded.ttf"),24)
 
-        pool::Vector{GuiRendererDNA} = [
-            ToggleRenderer(), # ? 1
-            SliderRenderer(), # ? 2
-            TextBoxRenderer() # ? 3
-        ]
+        # ? It's empty because "resetObservers!" initializes it.
+        pool::Vector{GuiRendererDNA} = []
         
         widgets = Vector{ImGuiWidgetDNA}()
         dock = Dock(shrd._width,shrd._height)
 
-        add!(dock,GuiDependentsWindow(pool))
+        add!(dock,GuiDependentsWindow())
         add!(dock,DataPeeker(shrd))
         add!(dock,Console())
         add!(dock,PerformanceWindow())
         add!(dock,GraphViewerWindow(graph))
 
         push!(widgets,dock)
-
+        push!(widgets,ResetWidget())
+        
         self = new(shrd,io,textFont,iconFont,0,0,0,0,pool,widgets,dock)
         
-        push!(self._widgets,ResetWidget(self))
-
+        resetObservers!(self)
         resize!(self)
-
+        
         return self
     end
 end
 
-function SingleGuiRendererByGuiDependentsWindow(self::ImGuiData,t::Type{T})::T where T<:GuiRendererDNA
-    myVector = get!(self._guiDependentsWindow._guiRenderers,T,Vector{T}())
-
-    if(length(myVector)!=1)
-        push!(myVector,T())
-    end
-
-    return myVector[1]
-
+function resetObservers!(self::ImGuiData)
+    # ? Let the garbage collector handle old Observers.
+    self._pool::Vector{GuiRendererDNA} = [
+        ToggleRenderer(), # ? 1
+        SliderRenderer(), # ? 2
+        TextBoxRenderer() # ? 3
+    ]
 end
 
 @inline function captures_mouse(self::ImGuiData)
@@ -107,7 +102,7 @@ function update!(self::ImGuiData)
     CImGui.NewFrame()
 
     for widget in self._widgets
-        render(widget)
+        render(widget,self)
     end
 
     CImGui.Render()

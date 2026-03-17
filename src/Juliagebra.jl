@@ -35,7 +35,6 @@ global greenTask::Union{Any,Nothing} = nothing
 
 include("Helpers/flat_matrix_manager.jl")
 include("Helpers/flat_matrix.jl")
-include("Helpers/queuelock.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/infer.jl")
 include("Helpers/dependency_lookup.jl")

@@ -38,18 +38,6 @@ function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
     return self
 end
 
-function Dependent(plan::PlanDNA)
-    
-    graphParents = Vector{DependentDNA}()
-    callback = _Plan_(plan)._callback
-
-    for parent in _Plan_(plan)._graphParents
-        push!(graphParents,_Plan_(parent)._dependent)
-    end
-    
-    return Dependent(callback,graphParents)
-end
-
 evalGraph(self::DependentDNA) = evalChain(getChain(self))
 setEntryNodes(self::DependentDNA) = _setEntryNodes(_Dependent_(self))
 

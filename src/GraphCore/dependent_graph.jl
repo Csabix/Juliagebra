@@ -37,26 +37,6 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     assetDependent._graphID = length(graph._dependentObjects) + ID_LOWER_BOUND
 end
 
-function buildFromPlan!(plan::PlanDNA,graph::DependentGraphDNA)
-    dependent = Plan2Dependent(plan)
-    
-    add!!(graph,dependent)
-    _Plan_(plan)._dependent = dependent
-
-    return dependent
-end
-
-function buildFromPlan!(plan::ObservedPlanDNA,graph::DependentGraphDNA,builder::ObserverBuilderDNA)
-    observer = Plan2Observer(builder,plan)
-    observed = Plan2Dependent(plan) 
-
-    add!!(observer,observed)
-    add!!(graph,observed)
-    _Plan_(plan)._dependent = observed
-
-    return (observer,observed)
-end
-
 function Base.getindex(self::DependentGraphDNA,id::Integer)::DependentDNA
     graph = _DependentGraph_(self)
     return graph._dependentObjects[id - ID_LOWER_BOUND]

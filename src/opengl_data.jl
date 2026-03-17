@@ -114,7 +114,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         
         glEnable(GL_PROGRAM_POINT_SIZE)
 
-        # ? It's empty because of "reset!".
+        # ? It's empty because "resetObservers!" initializes it.
         renderers::Vector{RendererDNA} = []
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
@@ -130,18 +130,19 @@ mutable struct OpenGLData <: ObserverBuilderDNA
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
         
-        reset!(self)
+        resetObservers!(self)
+
         return self
     end
 end
 
-function reset!(self::OpenGLData)
-    # ? Clean up all Renderers.
+function resetObservers!(self::OpenGLData)
+    # ? Destroy old renderers properly.
     for renderer in self._renderers
         destroy!(renderer)
     end
     
-    # ? Reset Renderer Vectors.
+    # ? Let the garbage collector handle old Observers.
     self._renderers::Vector{RendererDNA} = [
         SphereRenderer(self),
         ParametricSurfaceRenderer(self),

@@ -49,7 +49,7 @@ function _northAnchoredDockDimensions(windowWidth::Int, windowHeight::Int)
     return (width,height,posX,posY,collapsedPosX,collapsedPosY)
 end
 
-function render(self::Dock)
+function render(self::Dock, imgui::ImGuiDNA)
     
     CImGui.SetNextWindowSize((self._width,self._height))
 
@@ -83,7 +83,7 @@ function render(self::Dock)
     CImGui.PopStyleVar(2)
 
     for window in self._windows
-        render(window)
+        render(window, imgui)
     end
 end
 

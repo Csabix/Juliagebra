@@ -2,8 +2,7 @@
 const DEFAULT_CALLBACK_FUNC() = return nothing
 const DEFAULT_DEPENDENTS = Vector{DependentDNA}()
 
-global implicitApp::Union{AppDNA,Nothing} = nothing
-global greenTask::Union{Any,Nothing} = nothing
+# implicitApp and greenTask are forward-declared in Juliagebra.jl
 
 abstract type FrameState end
 struct BuildingState <: FrameState end

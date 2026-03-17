@@ -25,6 +25,10 @@ include("commons.jl")
 
 include("abstracts.jl")
 
+# Forward-declare typed globals before any file references them (Julia 1.11 typed globals requirement)
+global implicitApp::Union{AppDNA,Nothing} = nothing
+global greenTask::Union{Any,Nothing} = nothing
+
 # ? ---------------------------------
 # ! Helpers
 # ? ---------------------------------

@@ -200,25 +200,31 @@ function play!(self::App)
         
         state = decideFrameState(self)
 
+        iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
+
         if state isa ViewingState
             # ? do graph updates, aka sync! and syncAll! calls.
             updateGizmo!(self)
 
-            # ? render scence and loading bar.
-            update!(self._opengl,self._cam)
-            update!(self._imgui)
-            update!(self._shrd)
-            
+            if !iconified
+                # ? render scence and loading bar.
+                update!(self._opengl,self._cam)
+                update!(self._imgui)
+                update!(self._shrd)
+            end
+
             unlock(self._synchronizer._lock)
         elseif state isa BuildingState
             # ? do added! and addedAll! calls.
             handleAddedCalls(self)
-            
-            # ? render scence and loading bar.
-            update!(self._opengl,self._cam)
-            renderBuildingState(self._imgui,self)
-            
-            update!(self._shrd)
+
+            if !iconified
+                # ? render scence and loading bar.
+                update!(self._opengl,self._cam)
+                renderBuildingState(self._imgui,self)
+
+                update!(self._shrd)
+            end
         end
 
         GLFW.SwapBuffers(self._glfw._window)

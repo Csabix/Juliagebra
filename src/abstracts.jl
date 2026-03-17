@@ -27,6 +27,7 @@ abstract type CollectorDNA{T} end
 abstract type CollectedCollectorDNA{T} end
 
 abstract type AppDNA end
+abstract type ImGuiDNA end
 
 abstract type WidgetDNA end
 abstract type OpenGLWidgetDNA <: WidgetDNA end

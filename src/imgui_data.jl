@@ -8,9 +8,15 @@ Dependent2Observer(app::AppDNA,::ToggleDependent) = getImGui(app)._pool[1]
 Dependent2Observer(app::AppDNA,::SliderDependent) = getImGui(app)._pool[2]
 Dependent2Observer(app::AppDNA,::TextBoxDependent) = getImGui(app)._pool[3]
 
-mutable struct ImGuiData <: ObserverBuilderDNA
+const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
+
+mutable struct ImGuiData <: ImGuiDNA
     _shrd::SharedData
+    
     _io::Ptr{CImGui.lib.ImGuiIO}
+
+    _textFont::Ptr{CImGui.lib.ImFont}
+    _iconFont::Ptr{CImGui.lib.ImFont}
 
     _width::Int
     _height::Int
@@ -38,6 +44,14 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
         
+        #config = CImGui.ImFontConfig()
+        #config.OversampleH = 3
+        #config.OversampleV = 3
+        #config.RasterizerDensity = 2.0
+
+        textFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"Roboto.ttf"),16)
+        iconFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"MaterialSymbolsRounded.ttf"),24)
+
         pool::Vector{GuiRendererDNA} = [
             ToggleRenderer(), # ? 1
             SliderRenderer(), # ? 2
@@ -55,8 +69,10 @@ mutable struct ImGuiData <: ObserverBuilderDNA
 
         push!(widgets,dock)
 
-        self = new(shrd,io,0,0,0,0,pool,widgets,dock)
+        self = new(shrd,io,textFont,iconFont,0,0,0,0,pool,widgets,dock)
         
+        push!(self._widgets,ResetWidget(self))
+
         resize!(self)
 
         return self

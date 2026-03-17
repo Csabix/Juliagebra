@@ -76,6 +76,7 @@ include("Widgets/opengl_widget.jl")
 include("Widgets/imgui_widget.jl")
 include("Widgets/dock.jl")
 include("Widgets/window.jl")
+include("Widgets/reset_widget.jl")
 
 include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")

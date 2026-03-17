@@ -59,3 +59,5 @@ function Segment(first,second;
         return b .* t .+ (1-t) .* a
     end
 end
+
+export Segment

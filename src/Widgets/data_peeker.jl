@@ -1,22 +1,21 @@
 
 mutable struct DataPeeker <: WindowDNA
     _window::Window
-    _shrd::SharedData
 
-    function DataPeeker(shrd::SharedData)
-        window = Window()
-        new(window,shrd)
+    function DataPeeker()
+        new(Window())
     end
 end
 
 _Window_(self::DataPeeker)::Window = self._window
 getWindowName(self::DataPeeker) = return "DataPeeker"
 
-function renderContent(self::DataPeeker)
-    
+function renderContent(self::DataPeeker, app::AppDNA)
+    shrd = getShrd(app)
+
     if CImGui.BeginTabBar("Places")
         if CImGui.BeginTabItem("Shared Data")
-            _display!(self,self._shrd)
+            _display!(self,shrd)
             CImGui.EndTabItem()
         end
         CImGui.EndTabBar()
@@ -24,7 +23,7 @@ function renderContent(self::DataPeeker)
 
 end
 
-function _display!(self::DataPeeker,shrd::SharedData)
+function _display!(::DataPeeker,shrd::SharedData)
     CImGui.Text("Selected ID: $(shrd._selectedID)")
     CImGui.Text("Cursor Pos: ($(shrd._mouseX),$(shrd._mouseY))")
     CImGui.Text("Relative cursor: ($(shrd._relMouseX),$(shrd._relMouseY))")

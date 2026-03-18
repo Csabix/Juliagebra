@@ -4,15 +4,18 @@
 
 mutable struct GraphViewerWindow <: WindowDNA
     _window::Window
-    _graph::DependentGraphDNA
+
+    function GraphViewerWindow()
+        new(Window())
+    end
 end
 
-GraphViewerWindow(graph::DependentGraphDNA) = return GraphViewerWindow(Window(),graph)
-
 _Window_(self::GraphViewerWindow)::Window = return self._window
-getWindowName(self::GraphViewerWindow) = return "GraphViewer"
+getWindowName(::GraphViewerWindow) = return "GraphViewer"
 
-function renderContent(self::GraphViewerWindow)
+function renderContent(::GraphViewerWindow, app::AppDNA)
+    graph = getGraph(app)
+    
     if (CImGui.BeginTable("Dependents",3, 
         CImGui.ImGuiTableFlags_Borders |
         CImGui.ImGuiTableFlags_RowBg |
@@ -23,7 +26,7 @@ function renderContent(self::GraphViewerWindow)
         CImGui.TableSetupColumn("Parents")
         CImGui.TableHeadersRow()
 
-        for dependent in getNodes(self._graph)
+        for dependent in getNodes(graph)
             CImGui.TableNextRow()
 
             CImGui.TableNextColumn()

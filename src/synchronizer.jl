@@ -8,6 +8,10 @@ abstract type FrameState end
 struct BuildingState <: FrameState end
 struct ViewingState <: FrameState end
 
+abstract type Command end
+struct EmptySceneCommand <: Command end
+
+
 const ADDED_CHANNEL_SIZE = 64
 const ADDED_PER_FRAME_MAX = 64
 const ADDED_MIN_MS = 0.001
@@ -17,10 +21,15 @@ const ADDED_MIN_MS = 0.001
 # ? ---------------------------------
 
 mutable struct Synchronizer
+    # ? Building state.
     _lock::ReentrantLock
     _channel::Channel{DependentDNA}
     _initLock::ReentrantLock
     _initCondition::Threads.Condition
+    
+    # ? Commands
+    _external::Channel{Command}
+    _internal::Queue{Command}
 
     function Synchronizer()
         lock = ReentrantLock()
@@ -28,8 +37,17 @@ mutable struct Synchronizer
         channel = Channel{DependentDNA}(ADDED_CHANNEL_SIZE)
         initLock = ReentrantLock()
         initCondition = Threads.Condition(initLock)
-        new(lock,channel,initLock,initCondition)
+        
+        external = Channel{Command}(1)
+        internal = Queue{Command}()
+
+        new(lock,channel,initLock,initCondition,external,internal)
     end
+end
+
+function destroy!(self::Synchronizer) 
+    close(self._channel)
+    close(self._external)
 end
 
 # GREEN Thread
@@ -45,6 +63,36 @@ function decideFrameState(app::AppDNA)::FrameState
     else
         # ? failed locking, must have started building...
         return BuildingState()
+    end
+end
+
+function handleCommands!(app::AppDNA)
+    s::Synchronizer = getSynchronizer(app)
+    c::Union{Command,Nothing} = nothing
+    
+    if !isempty(s._internal)
+        c = popfirst!(s._internal)
+    elseif !isempty(s._external)
+        c = take!(s._external)
+    end
+    
+    if c isa EmptySceneCommand
+        o::OpenGLData = getOpenGL(app)
+        i::ImGuiData = getImGui(app)
+        g::DependentGraph = getGraph(app)
+        
+        empty!(g)
+        resetObservers!(o)
+        resetObservers!(i)
+    end
+end
+
+function Empty()
+    global implicitApp
+    
+    if !isnothing(implicitApp)
+        s::Synchronizer = getSynchronizer(implicitApp)
+        put!(s._external,EmptySceneCommand())
     end
 end
 
@@ -107,9 +155,11 @@ end
 
 # YELLOW Thread
 function Wait()
+    global implicitApp
     global greenTask
     
     wait(greenTask)
+    implicitApp = nothing
     println("Main Thread ended!")
 end
 
@@ -173,5 +223,3 @@ function _build(app::AppDNA, observed::ObservedDNA)
 
     onNodeEval(observed)
 end
-
-destroy!(self::Synchronizer) = close(self._channel)

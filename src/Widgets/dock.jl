@@ -2,6 +2,8 @@
 mutable struct Dock <: ImGuiWidgetDNA
     _widget::ImGuiWidget
     
+    _windows::Vector{WindowDNA}
+
     _width::Int
     _height::Int
 
@@ -12,16 +14,11 @@ mutable struct Dock <: ImGuiWidgetDNA
     _collapsedPosX::Int
     _collapsedPosY::Int
 
-    _windows::Vector{WindowDNA}
-
-    function Dock(windowWidth::Int, windowHeight::Int)
+    function Dock()
         widget = ImGuiWidget()
-        
-        dimensions = _northAnchoredDockDimensions(windowWidth,windowHeight)
-
         windows = Vector{WindowDNA}()
 
-        new(widget,dimensions...,windows)
+        new(widget,windows,0,0,0,0,0,0)
     end
 end
 
@@ -49,7 +46,7 @@ function _northAnchoredDockDimensions(windowWidth::Int, windowHeight::Int)
     return (width,height,posX,posY,collapsedPosX,collapsedPosY)
 end
 
-function render(self::Dock, imgui::ImGuiDNA)
+function render(self::Dock, app::AppDNA)
     
     CImGui.SetNextWindowSize((self._width,self._height))
 
@@ -83,7 +80,7 @@ function render(self::Dock, imgui::ImGuiDNA)
     CImGui.PopStyleVar(2)
 
     for window in self._windows
-        render(window, imgui)
+        render(window, app)
     end
 end
 

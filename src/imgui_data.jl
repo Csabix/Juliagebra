@@ -56,13 +56,13 @@ mutable struct ImGuiData <: ImGuiDNA
         pool::Vector{GuiRendererDNA} = []
         
         widgets = Vector{ImGuiWidgetDNA}()
-        dock = Dock(shrd._width,shrd._height)
+        dock = Dock()
 
         add!(dock,GuiDependentsWindow())
-        add!(dock,DataPeeker(shrd))
+        add!(dock,DataPeeker())
         add!(dock,Console())
         add!(dock,PerformanceWindow())
-        add!(dock,GraphViewerWindow(graph))
+        add!(dock,GraphViewerWindow())
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())
@@ -95,14 +95,14 @@ end
     return io.WantCaptureKeyboard
 end
 
-function update!(self::ImGuiData)
+function update!(self::ImGuiData,app::AppDNA)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
 
     for widget in self._widgets
-        render(widget,self)
+        render(widget,app)
     end
 
     CImGui.Render()

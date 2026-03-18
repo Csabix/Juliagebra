@@ -13,7 +13,8 @@ end
 _Window_(self::GuiDependentsWindow)::Window = self._window
 getWindowName(self::GuiDependentsWindow) = return "GuiDependents"
 
-function renderContent(self::GuiDependentsWindow, imgui::ImGuiDNA)
+function renderContent(self::GuiDependentsWindow, app::AppDNA)
+    imgui = getImGui(app)
     pool::Vector{GuiRendererDNA} = imgui._pool
     
     for idx in eachindex(pool)

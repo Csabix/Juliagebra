@@ -202,13 +202,15 @@ function play!(self::App)
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
 
         if state isa ViewingState
+            # ? Handle commands in the command queue.
+            handleCommands!(self)
             # ? do graph updates, aka sync! and syncAll! calls.
             updateGizmo!(self)
 
             if !iconified
                 # ? render scence and loading bar.
                 update!(self._opengl,self._cam)
-                update!(self._imgui)
+                update!(self._imgui,self)
                 update!(self._shrd)
             end
 
@@ -251,7 +253,7 @@ end
 
 function destroy!(self::App)
     if !self._windowCreated
-        error("No window created, thus, can't destroy!.")
+        error("No window created, thus, can't destroy!")
     end
 
     destroy!(self._imgui)

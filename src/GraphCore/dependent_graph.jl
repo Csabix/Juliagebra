@@ -16,6 +16,11 @@ _DependentGraph_(self::DependentGraph)::DependentGraph = return self
 
 getNodes(self::DependentGraphDNA) = return _DependentGraph_(self)._dependentObjects
 
+function Base.empty!(self::DependentGraphDNA)
+    g::DependentGraph =_DependentGraph_(self)
+    empty!(g._dependentObjects)
+end
+
 # TODO: idotol valo fugges, timestep alapu osszefesulessel
 
 function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA

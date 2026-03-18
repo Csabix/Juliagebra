@@ -151,15 +151,14 @@ function startOpengl()
     global implicitApp
     println("OpenGL: $(Threads.threadid())")
     play!(implicitApp)
+    implicitApp = nothing
 end
 
 # YELLOW Thread
 function Wait()
-    global implicitApp
     global greenTask
     
     wait(greenTask)
-    implicitApp = nothing
     println("Main Thread ended!")
 end
 

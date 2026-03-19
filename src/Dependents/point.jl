@@ -5,7 +5,7 @@
 
 mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
-    _coord::Vec3D 
+    _coord::Vec3D
 
     # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
@@ -37,108 +37,52 @@ evalCallbackDpReturn(self::PointDependent,value::Vec3D) = self._coord = value
 evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
 # ? ---------------------------------
-# ! PointRenderer
+# ! Points
 # ? ---------------------------------
 
-mutable struct PointRenderer <:RendererDNA{PointDependent}
+mutable struct Points <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
-
-    _shader_id::ShaderProgram
-    _shader_opaque::ShaderProgram
-    _buffer::BufferArray
-    
-    _coords::Vector{Vec3F}
-    _ids::Vector{Float32}
+    _indexes::Vector{UInt32}
 
     # GREEN Thread
-    function PointRenderer(context::OpenGLData) 
-        shader_id = ShaderProgram(["point/point_id.vert","point/point_id.frag"],["VP"])
-        shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
+    function Points(context::OpenGLData)
         renderer = Renderer{PointDependent}(context)
-
-        buffer = BufferArray{Tuple{Vec3F,Float32}}(MappedBuffer,Buffer)
-        coords = Vector{Vec3F}()
-        ids    = Vector{Float32}()
-
-        new(
-            renderer,
-            shader_id,shader_opaque,
-            buffer,
-            coords,
-            ids)
+        indexes = Vector{UInt32}()
+        new(renderer, indexes)
     end
 end
 
-_Renderer_(self::PointRenderer) = return self._renderer
-Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
+_Renderer_(self::Points) = return self._renderer
+Base.string(self::Points) = return "Points($(length(self._indexes)))"
 
 # GREEN Thread
-function added!(self::PointRenderer,point::PointDependent)
-    aID = Float32(getGraphID(point) + ID_LOWER_BOUND)
-    coord = point._coord
-    
-    push!(self._coords,Vec3F(coord))
-    push!(self._ids,Float32(aID))
+function added!(self::Points,point::PointDependent)
+    aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
+    push!(self._indexes, added!(true,Vec3F(point._coord),packUnorm4x8(Vec4F(1.0,0.0,1.0,1.0)),UInt8(25),aID));
 end
 
 # GREEN Thread
-function addedAll!(self::PointRenderer)
-    upload!(self._buffer,1,self._coords,0)
-    upload!(self._buffer,2,self._ids,0)
+function addedAll!(self::Points) end
+
+# GREEN Thread
+function sync!(self::Points,point::PointDependent)
+    index = self._indexes[getObserverID(point)]
+    view = update_coord!(true,index)
+    view[1] = Vec3F(point._coord)
 end
 
 # GREEN Thread
-function sync!(self::PointRenderer,point::PointDependent)
-    id = getObserverID(point)
-    coord = point._coord
+function syncAll!(self::Points) end
 
-    self._coords[id] = Vec3F(coord)
-end
+function id_pass!(self::Points,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing end
 
-# GREEN Thread
-function syncAll!(self::PointRenderer)
-    @time_cpu_begin Dependent Point
-    wait(self._buffer[1])
-    copyto!(self._buffer[1],self._coords)
-    @time_cpu_end Dependent Point
-end
-
-function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._shader_id)
-    uniform(self._shader_id,"VP",vp)
-    @time_gpu_begin Dependent Point ID_PASS
-    draw(self._buffer,GL_POINTS)
-    @time_gpu_end Dependent Point ID_PASS
-    return nothing
-end
-
-function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    (_, view, _) = get_matrices(cam)
-    (_, side_light) = get_lights(cam)
-
-    activate(self._shader_opaque)
-    uniform(self._shader_opaque,"VP",vp)
-    uniform(self._shader_opaque,"selectedID",shrd._selectedID)
-    uniform(self._shader_opaque,"pickedID",shrd._pickedID)
-    uniform(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
-    @time_gpu_begin Dependent Point OPAQUE_PASS
-    draw(self._buffer,GL_POINTS)
-    @time_gpu_end Dependent Point OPAQUE_PASS
-    lock(self._buffer[1])
-    return nothing
-end
-
-is_occluder(self::PointRenderer)::Bool = false
+function opaque_pass!(self::Points,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing end
 
 # GREEN Thread
-function destroy!(self::PointRenderer) 
-    destroy!(self._shader_id)
-    destroy!(self._shader_opaque)
-    destroy!(self._buffer)
-end
+function destroy!(self::Points) end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
+Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[_POINTS]
 
 # ? ---------------------------------
 # ! Point

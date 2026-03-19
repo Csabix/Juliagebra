@@ -57,17 +57,11 @@ function handleAddedCalls(app::AppDNA)
     # ? at max process ADDED_PER_FRAME_MAX dependents in this frame.
     takeNum = min(builtDependentsNum,ADDED_PER_FRAME_MAX)
     startTime = time()
-    addedAllSet = Set{ObserverDNA}()
     
     for i in 1:takeNum
 
         dependent = take!(s._channel)
         observer = _handleAddedCalls(app,dependent)
-
-        if !isnothing(observer)
-            # ? An Observer was assigned to this dependent.
-            push!(addedAllSet,observer)
-        end
 
         if (time() - startTime)>(ADDED_MIN_MS/2.0)
             takeNum = i
@@ -75,10 +69,7 @@ function handleAddedCalls(app::AppDNA)
         end
     end
     
-    for observer in addedAllSet        
-        # ? Must call addedAll! and activate!
-        addedAll!(observer)
-    end
+    added_all!()
 
     if takeNum > 1
         @log "Built $(takeNum)!"

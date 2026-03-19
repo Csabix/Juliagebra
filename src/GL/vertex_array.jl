@@ -2,6 +2,14 @@
 # ! VertexArray
 # ? ---------------------------------
 
+struct VertexAttrib
+    Iformat::Bool
+    size::GLint
+    type::GLenum
+    normalized::GLboolean
+    offset::GLuint
+end
+
 struct VertexArray <: OpenGLWrapper
     _id::GLuint
     
@@ -12,7 +20,7 @@ struct VertexArray <: OpenGLWrapper
     end
 end
 
-function bind_buffers!(self::VertexArray,buffers::AbstractVector{BufferBase})
+function bind_buffers!(self::VertexArray,buffers::AbstractVector{<:BufferBase})
     index = 0
     for (i,buffer) in enumerate(buffers)
         new_index = _vertexAttribs(self._id,index,buffer)
@@ -23,6 +31,32 @@ function bind_buffers!(self::VertexArray,buffers::AbstractVector{BufferBase})
         index = new_index 
     end
 end
+
+function bind_buffers!(self::VertexArray,buffers::AbstractVector{<:BufferBase},attributes::AbstractVector)
+    index = 0
+    for (i,buffer) in enumerate(buffers)
+        if isnothing(attributes[i])
+            new_index = _vertexAttribs(self._id,index,buffer)
+            for j in index:new_index-1
+                glVertexArrayAttribBinding(self._id, j, i-1)
+            end
+            index = new_index 
+        else
+            for attribute in attributes[i]
+                glEnableVertexArrayAttrib(self._id, index)
+                if attribute.Iformat
+                    glVertexArrayAttribIFormat(self._id,index,attribute.size,attribute.type,attribute.offset)
+                else
+                    glVertexArrayAttribFormat(self._id,index,attribute.size,attribute.type,attribute.normalized,attribute.offset)
+                end
+                glVertexArrayAttribBinding(self._id, index, i-1)
+                index += 1
+            end
+        end
+        glVertexArrayVertexBuffer(self._id,i-1,id(buffer),0,sizeof(eltype(buffer)))
+    end
+end
+
 bind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
 rebind_buffer!(self::VertexArray, index::Int, buffer::BufferBase) = glVertexArrayVertexBuffer(self._id,index-1,id(buffer),0,sizeof(eltype(buffer)))
 rebind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
@@ -70,8 +104,6 @@ function _vertexAttrib(vao::GLuint, index::Int, atype::DataType, stride::Int = s
     glEnableVertexArrayAttrib(vao,GLuint(index))
     #stride needs to be converted into GLsizei type | pointer to offset (where the pointer doesnt know tha data it's reffering to, hence why Nothing is passed)    
     glVertexArrayAttribFormat(vao,GLuint(index),size,type,normalized,offset)
-    
-    #println("\tglVertexAttribPointer(index=$index,size=$size,type=$type,normalized=$normalized,stride=$stride,offset=$offset)");
 end
 
 function _vertexAttribs(vao::GLuint,index::Int,buffer::BufferBase)::Int

@@ -6,31 +6,31 @@ struct BufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{Buffer}}}
     _vbos::T
     _vao::VertexArray
 
-    function BufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        buffers = BufferBase[]
-        sizehint!(buffers, length(T.parameters))
-        for Type in T.parameters
-            push!(buffers, Buffer{Type}())
-        end
-
+    function _create(T_params, constructors, attributes)
+        buffers = Tuple(C{Type}() for (C, Type) in zip(constructors, T_params))
+        
         vao = VertexArray()
-        bind_buffers!(vao, buffers)
-
-        buffer_tuple = Tuple(buffers)
-        return new{typeof(buffer_tuple)}(buffer_tuple, vao)
+        
+        if isnothing(attributes)
+            bind_buffers!(vao, collect(buffers))
+        else
+            bind_buffers!(vao, collect(buffers), attributes)
+        end
+        
+        return new{typeof(buffers)}(buffers, vao)
     end
-    function BufferArray{T}(buffer_types...) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        buffers = BufferBase[]
-        sizehint!(buffers, length(T.parameters))
-        for (index, Type) in enumerate(T.parameters)
-            push!(buffers, buffer_types[index]{Type}())
-        end
 
-        vao = VertexArray()
-        bind_buffers!(vao, buffers)
+    function BufferArray{T}(attributes::Union{Nothing, AbstractArray} = nothing) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
+        constructors = ntuple(_ -> Buffer, length(T.parameters))
+        return _create(T.parameters, constructors, attributes)
+    end
 
-        buffer_tuple = Tuple(buffers)
-        return new{typeof(buffer_tuple)}(buffer_tuple, vao)
+    function BufferArray{T}(buffer_types::Type...) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
+        return _create(T.parameters, buffer_types, nothing)
+    end
+
+    function BufferArray{T}(attributes::AbstractArray, buffer_types::Type...) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
+        return _create(T.parameters, buffer_types, attributes)
     end
 end
 

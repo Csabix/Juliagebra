@@ -33,7 +33,6 @@ function get_lights(self::Camera, z::Float32 = 45.0f0)
 end
 
 function get_matrices(self::Camera)
-    get_lights(self)
     return self._view_proj, self._view, self._proj
 end
 # TODO getting rid of get_matrices(self::Camera,zoom)

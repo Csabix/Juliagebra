@@ -18,6 +18,9 @@ mutable struct App <: AppDNA
     
     _synchronizer::Synchronizer
     _optimizer::GlobalDependentOptimizer
+    
+    _builder::Builder
+    _yellowTask::Union{Task,Nothing} # ? does work for _builder
 
     function App(
         name::String="Juliagebra",
@@ -37,7 +40,9 @@ mutable struct App <: AppDNA
         manipulator = create_orbital_manipulator(cam)
         synchronizer = Synchronizer()
         optimizer = GlobalDependentOptimizer()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer)
+        builder = Builder()
+        yellowTask = nothing
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer,builder,yellowTask)
     end
 end
 
@@ -247,6 +252,14 @@ function init!(self::App)
     self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true
     perf_init_gpu()
+    
+    # YELLOW Thread
+    yellowTask = Threads.@spawn begin
+        doWork(getBuilder(self),self)
+    end
+    errormonitor(yellowTask)
+    self._yellowTask = yellowTask
+
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
 end
@@ -260,6 +273,9 @@ function destroy!(self::App)
     destroy!(self._opengl)
     destroy!(self._glfw)
     destroy!(self._synchronizer)
+    destroy!(self._builder)
+
+    wait(self._yellowTask)
 end
 
 export App

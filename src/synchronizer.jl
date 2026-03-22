@@ -45,6 +45,7 @@ mutable struct Synchronizer
     end
 end
 
+# Green Thread
 function destroy!(self::Synchronizer) 
     close(self._channel)
     close(self._external)
@@ -66,6 +67,7 @@ function decideFrameState(app::AppDNA)::FrameState
     end
 end
 
+# Green Thread
 function handleCommands!(app::AppDNA)
     s::Synchronizer = getSynchronizer(app)
     c::Union{Command,Nothing} = nothing
@@ -87,6 +89,7 @@ function handleCommands!(app::AppDNA)
     end
 end
 
+# YELLOW Thread
 function Empty()
     global implicitApp
     
@@ -154,7 +157,6 @@ function startOpengl()
     implicitApp = nothing
 end
 
-# YELLOW Thread
 function Wait()
     global greenTask
     
@@ -171,14 +173,17 @@ function Window(callback::Function)
     Wait()
 end
 
-# YELLOW Thread
-function build!(dependent::DependentDNA)::DependentDNA    
+# GREEN Thread (in script)
+"""
+Send a newly constructed Dependent to the build system of an app.
+- By default, implicitApp is used.
+- If app reference is nothing, implicitApp is inited.
+"""
+function build!(dependent::DependentDNA, app::Union{AppDNA,Nothing}=implicitApp)::DependentDNA    
     global implicitApp
     global greenTask
     
-    local s::Synchronizer
-    
-    if isnothing(implicitApp)
+    if isnothing(app)
         implicitApp = App()
         
         greenTask = ThreadPinning.@spawnat 1 begin
@@ -190,35 +195,12 @@ function build!(dependent::DependentDNA)::DependentDNA
         lock(s._initCondition)
         wait(s._initCondition)
         unlock(s._initCondition)
+
+        app = implicitApp
     end
 
-    s = getSynchronizer(implicitApp)
-    
-    lock(s._lock) do 
-        _build(implicitApp,dependent)
-        put!(s._channel,dependent)
-    end
-    yield()
+    send!(getBuilder(app),dependent)
+    #yield()
 
     return dependent
-end
-
-# YELLOW Thread
-function _build(app::AppDNA,dependent::DependentDNA)
-    graph = getGraph(app)
-    
-    add!!(graph,dependent)
-
-    onNodeEval(dependent)
-end
-
-# YELLOW Thread
-function _build(app::AppDNA, observed::ObservedDNA)
-    graph = getGraph(app)
-    observer = Dependent2Observer(app,observed)
-    
-    add!!(observer,observed)
-    add!!(graph,observed)
-
-    onNodeEval(observed)
 end

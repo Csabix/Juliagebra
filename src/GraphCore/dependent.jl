@@ -8,6 +8,13 @@ mutable struct Dependent
     _entryNodes::Vector{Any}
     _dependentChain::DependentChain # ? Who Depends on me (collectively)?
     _callback::Function
+
+    function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
+        dependentChain = DependentChain()
+        entryNodes = Vector{Any}(undef,length(graphParents))
+    
+        new(0,graphParents,entryNodes,dependentChain,callback)
+    end
 end
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
@@ -19,27 +26,22 @@ getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BO
 getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 
-function _setEntryNodes(self::Dependent)
-    entryNodes = self._entryNodes
-    parents = self._graphParents
+function _isUnbuilt(self::Dependent)::Bool
+    return (self._graphID == 0)
+end
+isUnbuilt(self::DependentDNA)::Bool = return _isUnbuilt(_Dependent_(self))
+
+function setEntryNodes(self::DependentDNA)
+    d::Dependent = _Dependent_(self)
+    entryNodes = d._entryNodes
+    parents = d._graphParents
 
     for i in eachindex(parents)
         entryNodes[i] = evalCallbackDpEntry(parents[i])
     end
 end
 
-function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
-    dependentChain = DependentChain()
-    entryNodes = Vector{Any}(undef,length(graphParents))
-    
-    self = Dependent(0,graphParents,entryNodes,dependentChain,callback)
-    _setEntryNodes(self)
-
-    return self
-end
-
 evalGraph(self::DependentDNA) = evalChain(getChain(self))
-setEntryNodes(self::DependentDNA) = _setEntryNodes(_Dependent_(self))
 
 beforeNodeEval(self::DependentDNA) = setEntryNodes(self)
 onNodeEval(self::DependentDNA) = error("Missing \"onNodeEval\" for subclass of DependentDNA")

@@ -130,6 +130,11 @@ include("Widgets/gui_dependents_window.jl")
 include("global_dependent_optimizer.jl")
 
 include("imgui_data.jl")
+
+include("GraphCore/Threads/builder.jl")
+include("GraphCore/Threads/adder.jl")
 include("app.jl")
+
+
 
 end

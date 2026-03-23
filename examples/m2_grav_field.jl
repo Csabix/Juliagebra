@@ -11,38 +11,19 @@ Juliagebra.Window() do
         end
 
         z = zc + (zf - zc) * distance
-        return (xf,yf,z-0.1)
+        return (xf,yf,z)
     end
 
-    #for x in -10:10
-    #    for y in -10:10
-    #        cap = 3.0
-    #        xf = x * cap
-    #        yf = y * cap
-    #        Point([cursor]) do cur
-    #            return wave(xf,yf,0.0,cap,cur.x,cur.y,cur.z)
-    #        end
-    #    end
-    #end
-
-    StaticPointCloud([cursor]) do cur
-        positions = Tuple[]
-        for x in -10:10
-            for y in -10:10
-                cap = 3.0
-                xf = x * cap
-                yf = y * cap
-                push!(positions,wave(xf,yf,0.0,cap,cur.x,cur.y,cur.z))
+    for x in -10:10
+        for y in -10:10
+            cap = 3.0
+            xf = x * cap
+            yf = y * cap
+            Point([cursor]) do cur
+                return wave(xf,yf,0.0,cap,cur.x,cur.y,cur.z)
             end
         end
-        return positions
     end
-
-    s = Slider(0.0,10.0)
-    PointCloud([s]) do s
-        return [(0.0,0.0,i) for i in 0:s]
-    end
-
 end
 
 

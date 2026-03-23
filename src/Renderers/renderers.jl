@@ -1,4 +1,4 @@
-using Base.Iterators: cycle, take
+using Base.Iterators: cycle, take, map as imap
 
 function packUnorm4x8(v::Vec3T{T})::UInt32 where T <: AbstractFloat
     return  packUnorm4x8(Vec4F(Float32(v[1]),Float32(v[2]),Float32(v[3]),Float32(1.0)))
@@ -29,9 +29,9 @@ function added_all!()::Nothing
     added_all!(:Point)
 end
 
-sync_all!(s::Symbol)::Nothing = sync_all!(Val(s))
+sync!(s::Symbol)::Nothing = sync!(Val(s))
 function sync_all!()::Nothing
-    sync_all!(:Point)
+    sync!(:Point)
 end
 
 function pre_draw!(cam::Camera,shrd::SharedData)::Nothing

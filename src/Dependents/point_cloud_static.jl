@@ -49,27 +49,22 @@ Base.string(self::StaticPointClouds) = return "PointCloudRenderer($(length(self.
 # GREEN Thread
 function added!(self::StaticPointClouds,point_cloud::StaticPointCloudDependent)
     aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
-    N = length(point_cloud._coords)
-    ref = added!(false,
-                 Vec3F.(point_cloud._coords),
-                 fill(packUnorm4x8(Vec4F(point_cloud._color,1.0)),N),
-                 fill(UInt8(point_cloud._width),N),
-                 fill(aID,N))
+    ref = add!(Val{:Point}(),
+               (Vec3F(coord) for coord in point_cloud._coords),
+               cycle([POINT_NONE]),
+               cycle([point_cloud._color]),
+               cycle([UInt8(point_cloud._width)]),
+               cycle([aID]))::UInt32
     push!(self._indexes, ref);
 end
 
-addedAll!(self::StaticPointClouds) = return nothing
-
 function sync!(self::StaticPointClouds,point_cloud::StaticPointCloudDependent)
     index = self._indexes[getObserverID(point_cloud)]
-    view = update_coord!(false,(index,index + UInt32(length(point_cloud._coords) - 1)))
+    view = update_coords!(Val{:Point}(),index,UInt32(length(point_cloud._coords)))
     for (i, coord) in enumerate(point_cloud._coords)
         view[i] = Vec3F(coord)
     end
 end
-
-# GREEN Thread
-syncAll!(self::StaticPointClouds) = return nothing
 
 function destroy!(self::StaticPointClouds) end
 

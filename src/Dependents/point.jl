@@ -58,25 +58,15 @@ Base.string(self::Points) = return "Points($(length(self._indexes)))"
 # GREEN Thread
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
-    push!(self._indexes, added!(true,Vec3F(point._coord),packUnorm4x8(Vec4F(1.0,0.0,1.0,1.0)),UInt8(25),aID));
+    push!(self._indexes, add!(Val{:Point}(),Vec3F(point._coord),POINT_PLUS,Vec3F(1.0,0.0,1.0),UInt8(25),aID))
 end
-
-# GREEN Thread
-function addedAll!(self::Points) end
 
 # GREEN Thread
 function sync!(self::Points,point::PointDependent)
     index = self._indexes[getObserverID(point)]
-    view = update_coord!(true,index)
+    view = update_coords!(Val{:Point}(),index)
     view[1] = Vec3F(point._coord)
 end
-
-# GREEN Thread
-function syncAll!(self::Points) end
-
-function id_pass!(self::Points,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing end
-
-function opaque_pass!(self::Points,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing end
 
 # GREEN Thread
 function destroy!(self::Points) end

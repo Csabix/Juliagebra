@@ -27,8 +27,5 @@ function add!!(collector::ObserverDNA,collected::ObservedDNA)
     push!(getChain(collected)._set,collector)
 end
 
-postGraphEval(self::ObserverDNA) = syncAll!(self)
-
 added!(itemCollector::ObserverDNA{T},item::T) where T = error("Missing \"added!\" func for types of (\"$(typeof(itemCollector))\",\"$(typeof(item))\")!")
 sync!(itemCollector::ObserverDNA{T},item::T) where T = error("Missing \"sync!\" func for types of (\"$(typeof(itemCollector))\",\"$(typeof(item))\")!")
-syncAll!(self::ObserverDNA) = error("Missing \"syncAll!\" func for types of \"$(typeof(self))\"!")

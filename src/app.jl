@@ -180,7 +180,6 @@ function updateGizmo!(self::App)
             Float64(self._opengl._gizmoGL._pos.y),
             Float64(self._opengl._gizmoGL._pos.z))
         @time_cpu_end Graph_update
-        sync_all!()
     end
 end
 

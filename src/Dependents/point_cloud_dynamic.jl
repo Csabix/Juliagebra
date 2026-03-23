@@ -47,35 +47,25 @@ Base.string(self::DynamicPointClouds) = return "PointCloudRenderer($(length(self
 function added!(self::DynamicPointClouds,point_cloud::DynamicPointCloudDependent)
     aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
     N = length(point_cloud._coords)
-    ref = added_dynamic!(Vec3F.(point_cloud._coords),
-                         fill(packUnorm4x8(Vec4F(point_cloud._color,1.0)),N),
-                         fill(UInt8(point_cloud._width),N),
-                         fill(aID,N))
+    ref = add_dynamic!(Val{:Point}(),
+                       (Vec3F(coord) for coord in point_cloud._coords),
+                       cycle([POINT_NONE]),
+                       cycle([point_cloud._color]),
+                       cycle([UInt8(point_cloud._width)]),
+                       cycle([aID]))
     push!(self._indexes, ref);
 end
 
-addedAll!(self::DynamicPointClouds) = return nothing
-
 function sync!(self::DynamicPointClouds,point_cloud::DynamicPointCloudDependent)
+    aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
     index = self._indexes[getObserverID(point_cloud)]
-    buffer_arr = update_coord_dynamic!(index)
-    if length(buffer_arr[1]) == length(point_cloud._coords)
-        wait(buffer_arr[1])
-        for (i,coord) in enumerate(point_cloud._coords)
-            buffer_arr[1][i] = Vec3F(coord)
-        end
-    else
-        N = length(point_cloud._coords)
-        upload!(buffer_arr,1,Vec3F.(point_cloud._coords),0)
-        upload!(buffer_arr,2,fill(packUnorm4x8(Vec4F(point_cloud._color,1.0)),N),0)
-        upload!(buffer_arr,3,fill(UInt8(point_cloud._width),N),0)
-        aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
-        upload!(buffer_arr,4,fill(aID,N),0)
-    end
+    update_dyncamic!(Val{:Point}(), index,
+                    (Vec3F(coord) for coord in point_cloud._coords),
+                    cycle([POINT_NONE]),
+                    cycle([point_cloud._color]),
+                    cycle([UInt8(point_cloud._width)]),
+                    cycle([aID]))
 end
-
-# GREEN Thread
-syncAll!(self::DynamicPointClouds) = return nothing
 
 function destroy!(self::DynamicPointClouds) end
 

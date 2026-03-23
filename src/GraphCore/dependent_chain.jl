@@ -33,9 +33,5 @@ function _evalChain(self::DependentChain)
         onNodeEval(item)
         afterNodeEval(item)
     end
-    
-    for item in observersOf(self)
-        postGraphEval(item)
-    end
-    
+        
 end

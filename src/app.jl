@@ -22,6 +22,8 @@ mutable struct App <: AppDNA
     _builder::Builder
     _yellowTask::Union{Task,Nothing} # ? does work for _builder
 
+    _adder::Adder
+
     function App(
         name::String="Juliagebra",
         width::Int=1280,
@@ -42,7 +44,8 @@ mutable struct App <: AppDNA
         optimizer = GlobalDependentOptimizer()
         builder = Builder()
         yellowTask = nothing
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer,builder,yellowTask)
+        adder = Adder()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer,builder,yellowTask,adder)
     end
 end
 
@@ -52,7 +55,8 @@ getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
 getSynchronizer(self::App) = return self._synchronizer
-getBuilder(self::App) = return self._builder
+getBuilder(self::App)::Builder = return self._builder
+getAdder(self::App)::Adder = return self._adder
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -209,23 +213,24 @@ function play!(self::App)
         if state isa ViewingState
             # ? Handle commands in the command queue.
             handleCommands!(self)
-            # ? do graph updates, aka sync! and syncAll! calls.
+            # ? Do graph updates, aka sync! and syncAll! calls.
             updateGizmo!(self)
 
             if !iconified
-                # ? render scence and loading bar.
+                # ? Render scene and dock.
                 update!(self._opengl,self._cam)
                 update!(self._imgui,self)
                 update!(self._shrd)
             end
 
-            unlock(self._synchronizer._lock)
+            # ? Let Builder process Dependents.
+            unlock(self._builder)
         elseif state isa BuildingState
-            # ? do added! and addedAll! calls.
-            handleAddedCalls(self)
+            # ? Do added! and addedAll! calls.
+            processBatch!(self._adder,self)
 
             if !iconified
-                # ? render scence and loading bar.
+                # ? Render scene and loading bar.
                 update!(self._opengl,self._cam)
                 renderBuildingState(self._imgui,self)
 
@@ -255,7 +260,7 @@ function init!(self::App)
     
     # YELLOW Thread
     yellowTask = Threads.@spawn begin
-        doWork(getBuilder(self),self)
+        processUntilClosed!(getBuilder(self),self)
     end
     errormonitor(yellowTask)
     self._yellowTask = yellowTask
@@ -274,6 +279,7 @@ function destroy!(self::App)
     destroy!(self._glfw)
     destroy!(self._synchronizer)
     destroy!(self._builder)
+    destroy!(self._adder)
 
     wait(self._yellowTask)
 end

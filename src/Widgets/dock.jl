@@ -84,7 +84,7 @@ function render(self::Dock, app::AppDNA)
     end
 end
 
-function renderBuildingState(self::Dock,app::AppDNA)
+function renderBuildingState(self::Dock,::AppDNA)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding,11.0)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding,6.0)
     

@@ -3,31 +3,33 @@
 # ! Builder
 # ? ---------------------------------
 
+const BUILDER_IN_CHANNEL_SIZE = 100
+
 """
-Builds just constructed Dependents up until added! and addedAll!! calls.
+Builds un-built Dependents up until added! and addedAll!! calls.
 """
 @kwdef mutable struct Builder
-    _in::Channel{DependentDNA} = Channel{DependentDNA}(100)
+    _in::Channel{DependentDNA} = Channel{DependentDNA}(BUILDER_IN_CHANNEL_SIZE)
+    _lock::ReentrantLock = ReentrantLock()
 end
 
-function destroy!(self::Builder)
-    close(self._in)
-end
-
-function send!(self::Builder,d::DependentDNA)
-    put!(self._in,d)
-end
+destroy!(self::Builder) = close(self._in)
+Base.put!(self::Builder,d::DependentDNA) = put!(self._in,d)
+Base.lock(self::Builder) = lock(self._lock)
+Base.lock(f::Function, self::Builder) = lock(f,self._lock)
+Base.unlock(self::Builder) = unlock(self._lock)
+Base.trylock(self::Builder) = trylock(self._lock)
 
 # YELLOW Thread
-function doWork(self::Builder,app::AppDNA)
-    s::Synchronizer = getSynchronizer(app)
-    
+function processUntilClosed!(self::Builder, app::AppDNA)
+    a::Adder = getAdder(app)
+
     for dependent in self._in
         # ? App must be in BuildingState.
-        lock(s._lock) do 
+        lock(self) do 
             @invokelatest _build(app,dependent)
-            # ? Forward the Dependent to the app.
-            put!(s._channel,dependent)
+            # ? Forward the Dependent to the Adder.
+            put!(a,dependent)
         end
     end
 

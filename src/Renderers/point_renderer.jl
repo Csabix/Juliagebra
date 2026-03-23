@@ -63,7 +63,7 @@ _point_renderer::Union{GlobalPointRenderer,Nothing} = nothing
 
 function init!(::Val{:Point})::Nothing
     global _point_renderer
-    if !isnothing(_point_renderer) destroy_point!() end
+    if !isnothing(_point_renderer) destroy!(Val{:Point}()) end
     _point_renderer = GlobalPointRenderer()
     return nothing
 end

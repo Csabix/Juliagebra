@@ -19,8 +19,10 @@ mutable struct App <: AppDNA
     _synchronizer::Synchronizer
     _optimizer::GlobalDependentOptimizer
     
+    _starter::Starter
+
     _builder::Builder
-    _yellowTask::Union{Task,Nothing} # ? does work for _builder
+    _yellowTask::Union{Task,Nothing} # ? works the _builder
 
     _adder::Adder
 
@@ -42,10 +44,11 @@ mutable struct App <: AppDNA
         manipulator = create_orbital_manipulator(cam)
         synchronizer = Synchronizer()
         optimizer = GlobalDependentOptimizer()
+        starter = Starter()
         builder = Builder()
         yellowTask = nothing
         adder = Adder()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer,builder,yellowTask,adder)
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer,starter,builder,yellowTask,adder)
     end
 end
 
@@ -55,8 +58,10 @@ getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
 getSynchronizer(self::App) = return self._synchronizer
+getStarter(self::App)::Starter = return self._starter
 getBuilder(self::App)::Builder = return self._builder
 getAdder(self::App)::Adder = return self._adder
+
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -195,10 +200,7 @@ end
 function play!(self::App)
     
     init!(self)
-    
-    lock(self._synchronizer._initCondition)
-    notify(self._synchronizer._initCondition)
-    unlock(self._synchronizer._initCondition)
+    notify(self._starter)
 
     while(!self._shrd._gameOver)
         yield()

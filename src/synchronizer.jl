@@ -120,34 +120,3 @@ function Window(callback::Function)
     Wait()
 end
 
-# GREEN Thread (in script)
-"""
-Send a newly constructed Dependent to the build system of an app.
-- By default, implicitApp is used.
-- If app reference is nothing, implicitApp is inited.
-"""
-function build!(dependent::DependentDNA, app::Union{AppDNA,Nothing}=implicitApp)::DependentDNA    
-    global implicitApp
-    global greenTask
-    
-    if isnothing(app)
-        implicitApp = App()
-        
-        greenTask = ThreadPinning.@spawnat 1 begin
-            startOpengl()
-        end
-        errormonitor(greenTask)
-        
-        s = getSynchronizer(implicitApp)
-        lock(s._initCondition)
-        wait(s._initCondition)
-        unlock(s._initCondition)
-
-        app = implicitApp
-    end
-
-    put!(getBuilder(app),dependent)
-    #yield()
-
-    return dependent
-end

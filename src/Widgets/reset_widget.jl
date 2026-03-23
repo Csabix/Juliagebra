@@ -23,7 +23,6 @@ _ImGuiWidget_(self::ResetWidget)::ImGuiWidget = return self._widget
 
 function render(self::ResetWidget, app::AppDNA)
     imgui = getImGui(app)
-    synchronizer = getSynchronizer(app)
 
     CImGui.SetNextWindowPos((self._posX,self._posY))
     CImGui.SetNextWindowSize((self._width,self._height))
@@ -47,7 +46,7 @@ function render(self::ResetWidget, app::AppDNA)
 
     # ? Reset button
     if (CImGui.Button("\uE863",buttonSize))
-        push!(synchronizer._internal,EmptySceneCommand())
+        putInternal!(getCommander(app),EmptySceneCommand())
     end
 
     CImGui.PopFont()

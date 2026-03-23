@@ -24,6 +24,7 @@ include("performance_metrics.jl")
 include("commons.jl")
 
 include("abstracts.jl")
+include("App/enums.jl")
 
 # Forward-declare typed globals before any file references them (Julia 1.11 typed globals requirement)
 global implicitApp::Union{AppDNA,Nothing} = nothing
@@ -124,7 +125,7 @@ include("Dependents/point_cloud.jl")
 
 # TODO: Continue this.
 include("GraphCore/observer_pool.jl")
-include("synchronizer.jl")
+
 include("Widgets/gui_dependents_window.jl")
 
 include("global_dependent_optimizer.jl")
@@ -134,7 +135,8 @@ include("imgui_data.jl")
 include("GraphCore/Threads/builder.jl")
 include("GraphCore/Threads/adder.jl")
 
-include("starter.jl")
+include("App/starter.jl")
+include("App/commander.jl")
 include("app.jl")
 
 

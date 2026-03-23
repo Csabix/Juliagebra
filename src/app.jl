@@ -16,11 +16,11 @@ mutable struct App <: AppDNA
     _cam::Camera
     _manipulator::CameraManipulator
     
-    _synchronizer::Synchronizer
     _optimizer::GlobalDependentOptimizer
     
     _starter::Starter
-
+    _commander::Commander
+    
     _builder::Builder
     _yellowTask::Union{Task,Nothing} # ? works the _builder
 
@@ -42,13 +42,13 @@ mutable struct App <: AppDNA
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        synchronizer = Synchronizer()
         optimizer = GlobalDependentOptimizer()
         starter = Starter()
+        commander = Commander()
         builder = Builder()
         yellowTask = nothing
         adder = Adder()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer,starter,builder,yellowTask,adder)
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,optimizer,starter,commander,builder,yellowTask,adder)
     end
 end
 
@@ -57,7 +57,7 @@ getOpenGL(self::App) = return self._opengl
 getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph
-getSynchronizer(self::App) = return self._synchronizer
+getCommander(self::App)::Commander = return self._commander
 getStarter(self::App)::Starter = return self._starter
 getBuilder(self::App)::Builder = return self._builder
 getAdder(self::App)::Adder = return self._adder
@@ -279,7 +279,7 @@ function destroy!(self::App)
     destroy!(self._imgui)
     destroy!(self._opengl)
     destroy!(self._glfw)
-    destroy!(self._synchronizer)
+    destroy!(self._commander)
     destroy!(self._builder)
     destroy!(self._adder)
 

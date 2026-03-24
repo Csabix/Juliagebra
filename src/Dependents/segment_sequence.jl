@@ -554,7 +554,7 @@ _Colors(c::Vector)::Vector{Vec3F} = Vector{Vec3F}([Vec3F(cc...) for cc in c])
 
 # YELLOW Thread
 function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
+                color=(0.6,0.6,0.9),width=5.0f0,type=SOLID,reversed=false)::SegmentSequenceDependent
     
     colors::Vector{Vec3F} = _Colors(color)
     
@@ -563,7 +563,7 @@ end
 
 # YELLOW Thread
 function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
+                color=(0.6,0.6,0.9),width=5.0f0,type=SOLID,reversed=false)::SegmentSequenceDependent
     
     colors::Vector{Vec3F} = _Colors(color)
 

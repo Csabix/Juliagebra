@@ -5,6 +5,7 @@
 const _POINTS::UInt = 1
 const _POINT_CLOUDS_STATIC::UInt = 2
 const _POINT_CLOUDS_DYNAMIC::UInt = 3
+const _CURVE::UInt = 4
 
 function debug_callback(source::GLenum, typ::GLenum, id::GLuint, severity::GLenum, 
                         len::GLsizei, message::Ptr{GLchar}, userParam::Ptr{Cvoid})::Nothing
@@ -158,7 +159,8 @@ function reset!(self::OpenGLData)
     self._renderers::Vector{RendererDNA} = [
         Points(self),
         StaticPointClouds(self),
-        DynamicPointClouds(self)
+        DynamicPointClouds(self),
+        CurveRenderer(self)
     ]
 end
 
@@ -258,6 +260,7 @@ end
 function update!(self::OpenGLData,cam::Camera)
     glCheckErrors(self)
 
+    pre_draw!(cam,self._shrd)
     opaque!(self._opaqueFBO,cam,self._shrd)
     _widget_pass!(self,cam)
 

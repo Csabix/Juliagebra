@@ -17,25 +17,30 @@ include("line_renderer.jl")
 init!(s::Symbol)::Nothing = init!(Val(s))
 function init_renderers!()::Nothing
     init!(:Point)
+    init!(:Line)
 end
 
 destroy!(s::Symbol)::Nothing = destroy!(Val(s))
 function destroy_renderers!()::Nothing
     destroy!(:Point)
+    destroy!(:Line)
 end
 
 added_all!(s::Symbol)::Nothing = added_all!(Val(s))
 function added_all!()::Nothing
     added_all!(:Point)
+    added_all!(:Line)
 end
 
 sync!(s::Symbol)::Nothing = sync!(Val(s))
 function sync_all!()::Nothing
     sync!(:Point)
+    sync!(:Line)
 end
 
+pre_draw(s::Symbol,cam::Camera,shrd::SharedData) = pre_draw(Val(s),cam,shrd)
 function pre_draw!(cam::Camera,shrd::SharedData)::Nothing
-    
+    pre_draw(:Line,cam,shrd)
 end
 
 opaque(s::Symbol,cam::Camera,shrd::SharedData) = opaque(Val(s),cam,shrd)
@@ -49,6 +54,7 @@ function opaque!(fbo::FrameBuffer,cam::Camera,shrd::SharedData)::Nothing
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
 
     opaque(:Point,cam,shrd)
+    opaque(:Line,cam,shrd)
 
     glEnable(GL_STENCIL_TEST)
 

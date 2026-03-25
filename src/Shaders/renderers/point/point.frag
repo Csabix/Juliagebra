@@ -30,8 +30,8 @@ float light(vec3 normal, vec3 direction) {
 }
 
 void main() {
-    float centerDist = distance(gl_PointCoord,vec2(0.5,0.5));
-    if (distance(gl_PointCoord,vec2(0.5)) > 0.5) discard;
+    float centerDist = distance(gl_PointCoord,vec2(0.5));
+    if (centerDist > 0.5) discard;
 
     const uint id = type_id_in & ~(uint(255) << 24);
     id_out = id;
@@ -49,7 +49,7 @@ void main() {
 
     uint selected = uint(selected_id == id) | uint(picked_id == id);
     if ((type_id_in & (uint(255) << 24)) >> 24 == uint(0)) selected = uint(0); // Until better highlighting
-    vec3 color = (selected ^ inside_pattern) == 0 ? color_in : color_inv_in;
+    vec3 color = (selected ^ (inside_pattern & uint(centerDist < 0.3))) == 0 ? color_in : color_inv_in;
 
     vec2 angle = gl_PointCoord * PI;
     vec2 sin_vu = sin(angle);

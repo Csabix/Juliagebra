@@ -71,11 +71,15 @@ function destroy!(self::StaticPointClouds) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::StaticPointCloudDependent)::StaticPointClouds = getOpenGL(app)._renderers[_POINT_CLOUDS_STATIC]
 
-StaticPointCloud(callback::Function,dependents=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::StaticPointCloudDependent =
+StaticPointCloud(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::StaticPointCloudDependent =
 build!(StaticPointCloudDependent(callback,dependents,color,width))
 
-StaticPointCloud(dependents::Vector{DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::StaticPointCloudDependent =
+StaticPointCloud(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::StaticPointCloudDependent =
 StaticPointCloud(_deps_collect,dependents;color=color,width=width)
+
+function StaticPointCloud(positions)
+    GenericValueHolder(_deps_collect,Vector{Vec3D},[Point(p...) for p in positions])
+end
 
 macro StaticPointCloud(callback::Expr, kw_args...)
     parsed_kw_args = _parse_macro_kw_args([:color, :width], kw_args...)

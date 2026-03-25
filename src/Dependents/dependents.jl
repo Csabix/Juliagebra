@@ -14,17 +14,13 @@ include("intersections.jl")
 include("segment.jl")
 #include("Dependents/triangle.jl")
 #include("Dependents/tetrahedra.jl")
-#include("Dependents/segment_sequence.jl") # after curve include!
+include("segment_sequence.jl")
 
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
 _deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
-function _deps_collect_add!(vec::Vector{Vec3D},intersectons::IntersectionCalculatorDependent)
-    i = 1
-    while true
-        v = intersectons[i]
-        if isnothing(v) return end
-        push!(vec,v)
-        i += 1
+function _deps_collect_add!(vec::Vector{Vec3D},v::IntersectionCalculatorDependent)
+    for i in 1:v._foundIntersectionNum
+        push!(vec,v[i])
     end
 end
 function _deps_collect(deps...)

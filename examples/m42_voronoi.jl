@@ -7,7 +7,7 @@ vec3 = Vec3D
 
 Juliagebra.Window() do 
     initial_positions = [vec3(col[1],col[2],0.1) for col = eachcol(rand(2, 20))]
-    movable_point_cloud = PointCloud(initial_positions)
+    movable_point_cloud = StaticPointCloud(initial_positions)
 
     triangulation = GenericValueHolder(Any,[movable_point_cloud]) do coords
         points = [getfield(p, f) for f in (:x, :y), p in coords]
@@ -37,5 +37,5 @@ Juliagebra.Window() do
         return aa
     end
 
-    PointCloud(_deps_collect,[Intersection(s1,s2;maxIntersectionNum=300)])
+    PointCloud([Intersection(s1,s2;maxIntersectionNum=300)])
 end

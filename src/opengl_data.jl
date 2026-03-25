@@ -6,6 +6,7 @@ const _POINTS::UInt = 1
 const _POINT_CLOUDS_STATIC::UInt = 2
 const _POINT_CLOUDS_DYNAMIC::UInt = 3
 const _CURVE::UInt = 4
+const _SEGMENTS::UInt = 5
 
 function debug_callback(source::GLenum, typ::GLenum, id::GLuint, severity::GLenum, 
                         len::GLsizei, message::Ptr{GLchar}, userParam::Ptr{Cvoid})::Nothing
@@ -160,7 +161,8 @@ function reset!(self::OpenGLData)
         Points(self),
         StaticPointClouds(self),
         DynamicPointClouds(self),
-        CurveRenderer(self)
+        CurveRenderer(self),
+        SegmentSequenceRenderer(self)
     ]
 end
 

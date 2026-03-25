@@ -72,10 +72,10 @@ function destroy!(self::DynamicPointClouds) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::DynamicPointCloudDependent)::DynamicPointClouds = getOpenGL(app)._renderers[_POINT_CLOUDS_DYNAMIC]
 
-PointCloud(callback::Function,dependents=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::DynamicPointCloudDependent =
+PointCloud(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::DynamicPointCloudDependent =
 build!(DynamicPointCloudDependent(callback,dependents,color,width))
 
-PointCloud(dependents::Vector{DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::DynamicPointCloudDependent =
+PointCloud(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::DynamicPointCloudDependent =
 PointCloud(_deps_collect,dependents;color=color,width=width)
 
 macro PointCloud(callback::Expr, kw_args...)

@@ -3,12 +3,12 @@ using JuliaGLM
 
 Juliagebra.Window() do 
     types = [
-        CURVE_SOLID,
-        CURVE_DASHED,
-        CURVE_DOTTED,
-        CURVE_WAVE,
-        CURVE_DASH_DOT,
-        CURVE_ARROW
+        SOLID,
+        DASHED,
+        DOTTED,
+        WAVE,
+        DASH_DOT,
+        ARROW
     ]
 
     s = Slider(2,20)

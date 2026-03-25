@@ -91,4 +91,4 @@ for i in 0:(length(circles) - 1)
     )
 end
 
-play!()
+Juliagebra.Wait()

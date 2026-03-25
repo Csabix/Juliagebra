@@ -72,7 +72,7 @@ function destroy!(self::PointSequences) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointSequenceDependent)::PointSequences = getOpenGL(app)._renderers[_POINT_SEQUENCES]
 
-PointSequence(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSequenceDependent =
+PointSequence(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSequenceDependent =
 build!(PointSequenceDependent(callback,dependents,color,width))
 
 PointSequence(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::PointSequenceDependent =

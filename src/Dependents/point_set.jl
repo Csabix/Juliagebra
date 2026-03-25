@@ -70,7 +70,7 @@ end
 function destroy!(self::PointSets) end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::PointSet)::PointSets = getOpenGL(app)._renderers[_POINT_SETS]
+Dependent2Observer(app::AppDNA,::PointSetDependent)::PointSets = getOpenGL(app)._renderers[_POINT_SETS]
 
 PointSet(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSet =
 build!(PointSetDependent(callback,dependents,color,width))

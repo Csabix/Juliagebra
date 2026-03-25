@@ -81,4 +81,4 @@ for i in 0:(length(segments) - 1)
     )
 end
 
-play!()
+Juliagebra.Wait()

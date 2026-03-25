@@ -94,31 +94,31 @@ function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
 end
 
 # ? ---------------------------------
-# ! SegmentSequenceRenderer
+# ! SegmentSequences
 # ? ---------------------------------
 
-mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
+mutable struct SegmentSequences <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
-    _indexes::Vector{UInt32}
+    _refs::Vector{UInt32}
     # GREEN Thread
-    function SegmentSequenceRenderer(context::OpenGLData)
+    function SegmentSequences(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
-        indexes = Vector{UInt32}()
-        return new(renderer, indexes)
+        refs = Vector{UInt32}()
+        return new(renderer, refs)
     end
 end
 
-_Renderer_(self::SegmentSequenceRenderer) = return self._renderer
-Base.string(self::SegmentSequenceRenderer) = return "SegmentSequenceRenderer[$(length(self._coords))]"
+_Renderer_(self::SegmentSequences) = return self._renderer
+Base.string(self::SegmentSequences) = return "SegmentSequences[$(length(self._coords))]"
 
 function nan_interleaver(vec::Vector{Vec3D},N)
     return (Vec3F(val) for (i, x) in enumerate(vec) for val in (i % N == 0 ? (x, Vec3FNan) : (x,)))
 end
 
 # GREEN Thread
-function added!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
+function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
-    push!(self._indexes,
+    push!(self._refs,
         add_dynamic!(Val{:Line}(),
             collect(nan_interleaver(segseq._values,segseq._break_every)),
             Iterators.cycle(segseq._colors),
@@ -131,11 +131,11 @@ function added!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
 end
 
 # GREEN Thread
-function sync!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
+function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
-    index = self._indexes[getObserverID(segseq)]
-    update_dynamic!(Val{:Line}(),index,
-        collect(nan_interleaver(segseq._values)),
+    ref = self._refs[getObserverID(segseq)]
+    update_dynamic!(Val{:Line}(),ref,
+        collect(nan_interleaver(segseq._values,segseq._break_every)),
         Iterators.cycle(segseq._colors),
         Iterators.cycle([aID]),
         segseq._width,
@@ -145,11 +145,11 @@ function sync!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
 end
 
 
-function destroy!(self::SegmentSequenceRenderer)
+function destroy!(self::SegmentSequences)
 end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequenceRenderer = getOpenGL(app)._renderers[_SEGMENTS]
+Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = getOpenGL(app)._renderers[_SEGMENT_SEQUENCES]
 
 # ? ---------------------------------
 # ! SegmentSequence

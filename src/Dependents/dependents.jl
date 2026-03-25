@@ -31,5 +31,5 @@ function _deps_collect(deps...)
     return result
 end
 
-include("point_cloud_static.jl")
-include("point_cloud_dynamic.jl")
+include("point_set.jl")
+include("point_sequence.jl")

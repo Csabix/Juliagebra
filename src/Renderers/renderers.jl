@@ -65,6 +65,23 @@ function behind_opaque!(cam::Camera,shrd::SharedData)::Nothing
     
 end
 
-function transparent!(cam::Camera,shrd::SharedData)::Nothing
+function transparent!(fbo::FrameBuffer,buffer::Buffer{UVec2},cam::Camera,shrd::SharedData)::Nothing
+    glDepthMask(GL_FALSE)
+    glEnable(GL_BLEND)
+    glDisable(GL_CULL_FACE)
+    glBlendFunci(0, GL_ONE, GL_ONE)
+    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR)
+    glBlendEquation(GL_FUNC_ADD)
+
+    activate(fbo)
+    glClearBufferfv(GL_COLOR, 0, [0.0f0, 0.0f0, 0.0f0, 0.0f0])
+    glClearBufferfv(GL_COLOR, 1, [1.0f0, 1.0f0, 1.0f0, 1.0f0])
+
+    bind_ssbo(buffer,0)
+
+    # draws
     
+    glEnable(GL_CULL_FACE)
+    glDepthMask(GL_TRUE)
+    glDisable(GL_BLEND)
 end

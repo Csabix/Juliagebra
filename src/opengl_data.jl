@@ -47,6 +47,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _behindOpaqueFBO::FrameBuffer
     _transparentFBO::FrameBuffer
     _widgetFBO::FrameBuffer
+
+    _pixel_buffer::Buffer{UVec2}
     
     _dummyBufferArray::BufferArray
     _centerBufferArray::BufferArray
@@ -80,7 +82,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,gizmoGL)
         push!(widgets,orthoGizmoGL)
 
-        transparent_combinerShader = ShaderProgram(["combiner_transparent.vert","combiner_transparent.frag"])
+        transparent_combinerShader = ShaderProgram(["combiner_transparent.vert","combiner_transparent.frag"],["width"])
         combinerShader  = ShaderProgram(["dflt_combiner.vert","dflt_combiner.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
         centerShader    = ShaderProgram(["center.vert","center.frag"])
 
@@ -114,6 +116,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         widgetAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
         widgetFBO = FrameBuffer(widgetAttachments)
 
+        pixel_buffer = Buffer{UVec2}()
+
         dummyBufferArray = BufferArray{Tuple{Vec3F}}()
         upload!(dummyBufferArray[1],getAPlane(),0)
         centerBufferArray = BufferArray{Tuple{Vec3F}}()
@@ -142,6 +146,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,
             behindOpaqueFBO,transparentFBO,widgetFBO,
+            pixel_buffer,
             dummyBufferArray,centerBufferArray,gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -205,6 +210,7 @@ function resize!(self::OpenGLData)
     resize!(self._behindOpaqueDepthstencilTexture,width,height)
     resize!(self._accumTexture,width,height)
     resize!(self._revealTexture,width,height)
+    reserve!(self._pixel_buffer, self._shrd._width * self._shrd._height * 4, 0)
 end
 
 function readID(self::OpenGLData)
@@ -241,10 +247,6 @@ function readID(self::OpenGLData,x,y)::UInt32
     return num[1]
 end
 
-function _pre_draw!(self::OpenGLData,cam::Camera)
-    pre_draw!(cam,self.shrd)
-end
-
 function _widget_pass!(self::OpenGLData,cam::Camera)
     activate(self._widgetFBO)
     glDepthFunc(GL_ALWAYS)
@@ -259,11 +261,30 @@ function _widget_pass!(self::OpenGLData,cam::Camera)
     glDepthFunc(GL_LEQUAL)
 end
 
+function _transparent(self::OpenGLData,cam::Camera)
+    transparent!(self._transparentFBO,self._pixel_buffer,cam,self._shrd)
+
+    activate(self._opaqueFBO)
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+    activate(self._accumTexture,GL_TEXTURE0)
+    activate(self._revealTexture,GL_TEXTURE1)
+
+    activate(self._transparent_combinerShader)
+    uniform(self._transparent_combinerShader,"width",UInt32(self._shrd._width))
+    draw(self._dummyBufferArray,GL_TRIANGLES)
+
+    glDisable(GL_BLEND)
+end
+
 function update!(self::OpenGLData,cam::Camera)
     glCheckErrors(self)
 
     pre_draw!(cam,self._shrd)
     opaque!(self._opaqueFBO,cam,self._shrd)
+    _transparent(self,cam)
     _widget_pass!(self,cam)
 
     #activate(self._centerShader)

@@ -23,6 +23,11 @@ function _deps_collect_add!(vec::Vector{Vec3D},v::IntersectionCalculatorDependen
         push!(vec,v[i])
     end
 end
+function _deps_collect_add!(vec::Vector{Vec3D},segseq::SegmentSequenceDependent)
+    for v in segseq._values
+        push!(vec,v)
+    end
+end
 function _deps_collect(deps...)
     result = Vector{Vec3D}()
     for dep in deps

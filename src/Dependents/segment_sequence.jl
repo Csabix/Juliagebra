@@ -42,29 +42,28 @@ evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = V
 
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
     _segseq::SegmentSequenceDependent
-    len::Integer
+    len::Int
+
     function PSegmentsOfSegmentSequence(segseq::SegmentSequenceDependent)
         N = length(segseq._values)
-        if N < 2 return new(segseq,0) end
+        if N < 2 return new(segseq, 0) end
+        
         segments = N - 1
         break_every = segseq._break_every
-        if break_every < 2 return new(segseq,segments) end
-        return new(segseq,segments - div(N,break_every))
+        
+        if break_every < 2 return new(segseq, segments) end
+        
+        return new(segseq, segments - div(segments, break_every))
     end
 end
-PrimitivesOf(self::SegmentSequenceDependent) = return PSegmentsOfSegmentSequence(self)
 
-function Base.length(self::PSegmentsOfSegmentSequence)::Integer
+PrimitivesOf(self::SegmentSequenceDependent) = PSegmentsOfSegmentSequence(self)
+
+function Base.length(self::PSegmentsOfSegmentSequence)::Int
     return self.len
-    # N = length(self._segseq._values)
-    # if N < 2 return 0 end
-    # segments = N - 1
-    # break_every = self._segseq._break_every
-    # if break_every < 2 return segments end
-    # return segments - div(N,break_every)
 end
 
-function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::PSegment
+function Base.getindex(self::PSegmentsOfSegmentSequence, index::Int)::PSegment
     @boundscheck 1 <= index <= length(self) || throw(BoundsError(self, index))
 
     if self._segseq._break_every < 2
@@ -76,7 +75,7 @@ function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::PSegme
     return PSegment(self._segseq._values[i], self._segseq._values[i + 1])
 end
 
-function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
+function Base.iterate(self::PSegmentsOfSegmentSequence, index::Int = 1)
     if index > length(self)
         return nothing
     end
@@ -104,37 +103,58 @@ end
 _Renderer_(self::SegmentSequences) = return self._renderer
 Base.string(self::SegmentSequences) = return "SegmentSequences[$(length(self._coords))]"
 
-function nan_interleaver(vec::Vector{Vec3D},N)
-    return (Vec3F(val) for (i, x) in enumerate(vec) for val in (i % N == 0 ? (x, Vec3FNan) : (x,)))
+function custom_interleaver(vec, insert_val, n::Integer)
+    return (val for (i, x) in enumerate(vec) for val in (i % n == 0 ? (x, insert_val) : (x,)))
 end
 
 # GREEN Thread
 function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
-    push!(self._refs,
+    ref = if segseq._break_every >= 2
         add_dynamic!(Val{:Line}(),
-            collect(nan_interleaver(segseq._values,segseq._break_every)),
+            collect(custom_interleaver(segseq._values,Vec3FNan,segseq._break_every)),
+            custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
+            custom_interleaver(Iterators.cycle([aID]),UInt32(0),segseq._break_every),
+            segseq._width,
+            segseq._type,
+            segseq._reversed != 0
+        )
+    else
+        add_dynamic!(Val{:Line}(),
+            segseq._values,
             Iterators.cycle(segseq._colors),
             Iterators.cycle([aID]),
             segseq._width,
             segseq._type,
             segseq._reversed != 0
         )
-    )
+    end
+    push!(self._refs, ref)
 end
 
 # GREEN Thread
 function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = self._refs[getObserverID(segseq)]
-    update_dynamic!(Val{:Line}(),ref,
-        collect(nan_interleaver(segseq._values,segseq._break_every)),
-        Iterators.cycle(segseq._colors),
-        Iterators.cycle([aID]),
-        segseq._width,
-        segseq._type,
-        segseq._reversed != 0
-    )
+    if segseq._break_every >= 2
+        update_dynamic!(Val{:Line}(),ref,
+            collect(custom_interleaver(segseq._values,Vec3FNan,segseq._break_every)),
+            custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
+            custom_interleaver(Iterators.cycle([aID]),UInt32(0),segseq._break_every),
+            segseq._width,
+            segseq._type,
+            segseq._reversed != 0
+        )
+    else
+        update_dynamic!(Val{:Line}(),ref,
+            collect(segseq._values),
+            Iterators.cycle(segseq._colors),
+            Iterators.cycle([aID]),
+            segseq._width,
+            segseq._type,
+            segseq._reversed != 0
+        )
+    end
 end
 
 

@@ -42,56 +42,49 @@ evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = V
 
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
     _segseq::SegmentSequenceDependent
+    len::Integer
+    function PSegmentsOfSegmentSequence(segseq::SegmentSequenceDependent)
+        N = length(segseq._values)
+        if N < 2 return new(segseq,0) end
+        segments = N - 1
+        break_every = segseq._break_every
+        if break_every < 2 return new(segseq,segments) end
+        return new(segseq,segments - div(N,break_every))
+    end
 end
 PrimitivesOf(self::SegmentSequenceDependent) = return PSegmentsOfSegmentSequence(self)
 
-function Base.length(self::PSegmentsOfSegmentSequence)
-    len = 0
-    values = self._segseq._values
-    for i in 1:length(values)-1
-        if !(any(isnan,values[i]) || any(isnan,values[i+1]))
-            len += 1
-        end
-    end
-    return len
+function Base.length(self::PSegmentsOfSegmentSequence)::Integer
+    return self.len
+    # N = length(self._segseq._values)
+    # if N < 2 return 0 end
+    # segments = N - 1
+    # break_every = self._segseq._break_every
+    # if break_every < 2 return segments end
+    # return segments - div(N,break_every)
 end
 
-# SLOOW O(N)
-function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::Union{Nothing, PSegment}
-    if index < 1 return nothing end
+function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::PSegment
+    @boundscheck 1 <= index <= length(self) || throw(BoundsError(self, index))
 
-    values = self._segseq._values
-    n = length(values)
-    i = 1
-
-    while i < n
-        if !(any(isnan,values[i]) || any(isnan,values[i+1]))
-            index -= 1
-            if index == 0 break end
-        end
-        i += 1
-    end
-
-    if index == 0
-        return PSegment(values[i], values[i + 1])
+    if self._segseq._break_every < 2
+        i = index
     else
-        return nothing
+        i = index + div(index - 1, self._segseq._break_every - 1)
     end
+    
+    return PSegment(self._segseq._values[i], self._segseq._values[i + 1])
 end
 
 function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
-    if index < 1 return nothing end
-
-    values = self._segseq._values
-    n = length(values)
-
-    while index < n && (any(isnan,values[index]) || any(isnan,values[index + 1]))
-        index += 1
+    if index > length(self)
+        return nothing
     end
-
-    if index == n return nothing
-    else return (PSegment(values[index], values[index + 1]),index + 1) end
+    return (self[index], index + 1)
 end
+
+Base.IteratorSize(::Type{<:PSegmentsOfSegmentSequence}) = Base.HasLength()
+Base.eltype(::Type{PSegmentsOfSegmentSequence}) = PSegment
 
 # ? ---------------------------------
 # ! SegmentSequences

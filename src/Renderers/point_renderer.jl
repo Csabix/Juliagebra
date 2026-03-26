@@ -144,16 +144,15 @@ end
 function update_dyncamic!(::Val{:Point},ref::UInt32,coords,types,colors,sizes,ids)
     renderer::GlobalPointRenderer = get_renderer(Val{:Point}())
     renderer.updated |= _POINT_UPDATED_COORD_DYNAMIC
+    renderer.updated |= _POINT_UPDATED_PROPERTY_DYNAMIC
+
     coords_dynamic = renderer.coords_dynamic[ref]
-    last_size = length(coords_dynamic)
     empty!(coords_dynamic)
     append!(coords_dynamic,coords)
-    if last_size != length(coords)
-        renderer.updated |= _POINT_UPDATED_PROPERTY_DYNAMIC
-        properties_dynamic = renderer.point_properties_dynamic[ref]
-        empty!(properties_dynamic)
-        append!(properties_dynamic,imap(pack_point_property, take(types,length(coords)), colors, sizes, ids))
-    end
+
+    properties = renderer.point_properties_dynamic[ref]
+    empty!(properties)
+    append!(properties,imap(pack_point_property, take(types,length(coords)), colors, sizes, ids))
 end
 
 function sync!(::Val{:Point})::Nothing
@@ -174,16 +173,9 @@ function sync!(::Val{:Point})::Nothing
         if renderer.last_length_dynamic > length(renderer.buffer_dynamic[1])
             reserve!(renderer.buffer_dynamic,1,Int(renderer.last_length_dynamic),0)
             reserve!(renderer.buffer_dynamic,2,Int(renderer.last_length_dynamic),0)
-            copyto!(renderer.buffer_dynamic[1],Iterators.flatten(renderer.coords_dynamic))
-            copyto!(renderer.buffer_dynamic[2],Iterators.flatten(renderer.point_properties_dynamic))
-        else
-            if (renderer.updated & _POINT_UPDATED_COORD_DYNAMIC) != 0
-                copyto!(renderer.buffer_dynamic[1],Iterators.flatten(renderer.coords_dynamic))
-            end
-            if renderer.updated & _POINT_UPDATED_PROPERTY_DYNAMIC != 0
-                copyto!(renderer.buffer_dynamic[2],Iterators.flatten(renderer.point_properties_dynamic))
-            end
         end
+        copyto!(renderer.buffer_dynamic[1],Iterators.flatten(renderer.coords_dynamic))
+        copyto!(renderer.buffer_dynamic[2],Iterators.flatten(renderer.point_properties_dynamic))
     end
         
     renderer.updated = 0;
@@ -213,7 +205,7 @@ function opaque(::Val{:Point},cam::Camera,shrd::SharedData)::Nothing
     
     if renderer.last_length_dynamic != 0
         @time_gpu_begin Renderer Point Dynamic
-        draw(renderer.buffer_dynamic,GL_POINTS,GLsizei(sum(length,renderer.coords_dynamic;init=0)))
+        draw(renderer.buffer_dynamic,GL_POINTS,GLsizei(renderer.last_length_dynamic))
         @time_gpu_end Renderer Point Dynamic
         lock(renderer.buffer_dynamic[1])
     end

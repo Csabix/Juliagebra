@@ -22,7 +22,6 @@ Juliagebra.Window() do
         return aa
     end
 
-    # TODO: Fix GL_INVALID_VALUE!
     s2 = SegmentSequence([voro];color=(0,0,0)) do voro
         coords = [vec3(x,y,0.1) for (x,y) = voro.polygon_points]
         edges = reduce(vcat, [

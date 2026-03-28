@@ -220,10 +220,12 @@ function play!(self::App)
             # ? Do graph updates, aka sync! and syncAll! calls.
             updateGizmo!(self)
 
-            @time_cpu_begin Graph_update
-            graphEvalScheduled!(self._scheduler)
-            @time_cpu_end Graph_update
-
+            if !isempty(self._scheduler)
+                @time_cpu_begin Graph_update
+                graphEvalScheduled!(self._scheduler)
+                @time_cpu_end Graph_update
+            end
+            
             if !iconified
                 # ? Render scene and dock.
                 update!(self._opengl,self._cam)

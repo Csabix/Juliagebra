@@ -123,6 +123,8 @@ include("Dependents/tetrahedra.jl")
 include("Dependents/segment_sequence.jl") # after curve include!
 include("Dependents/point_cloud.jl")
 
+include("Dependents/ImGui/stepper.jl")
+
 # TODO: Continue this.
 include("GraphCore/observer_pool.jl")
 

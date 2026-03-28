@@ -4,9 +4,10 @@
 # ? ---------------------------------
 
 # BLUE Thread
-Dependent2Observer(app::AppDNA,::ToggleDependent) = getImGui(app)._pool[1]
-Dependent2Observer(app::AppDNA,::SliderDependent) = getImGui(app)._pool[2]
-Dependent2Observer(app::AppDNA,::TextBoxDependent) = getImGui(app)._pool[3]
+Dependent2Observer(app::AppDNA, ::ToggleDependent) = getImGui(app)._pool[1]
+Dependent2Observer(app::AppDNA, ::SliderDependent) = getImGui(app)._pool[2]
+Dependent2Observer(app::AppDNA, ::TextBoxDependent) = getImGui(app)._pool[3]
+Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 
 const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
 
@@ -81,7 +82,8 @@ function resetObservers!(self::ImGuiData)
     self._pool::Vector{GuiRendererDNA} = [
         ToggleRenderer(), # ? 1
         SliderRenderer(), # ? 2
-        TextBoxRenderer() # ? 3
+        TextBoxRenderer(), # ? 3
+        StepperRenderer() # ? 4
     ]
 end
 

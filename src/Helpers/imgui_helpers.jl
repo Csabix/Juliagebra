@@ -20,6 +20,15 @@ function slider1i(self,text::String,min::Integer,max::Integer)
     return self_ref[]
 end
 
+function input1(self::Float32, label::String, step::Float32, step_fast::Float32)::Union{Float32,Nothing}
+    self_ref = Ref(self)
+    if (CImGui.InputFloat(label, self_ref, step, step_fast))
+        return self_ref[]
+    end
+
+    return nothing
+end
+
 function getButtonSize(text::String)
     size = CImGui.CalcTextSize(text)
     padding = CImGui.GetStyle().FramePadding

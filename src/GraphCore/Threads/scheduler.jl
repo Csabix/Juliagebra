@@ -27,7 +27,7 @@ function graphEvalScheduled!(self::Scheduler)
 
     if !isempty(ds)
         # TODO: implement merging.
-        @assert length(ds)==1 "Merging not supported currently!"
+        @assert length(ds)==1 "Merging not supported currently $([typeof(d) for d in ds])!"
         evalGraph(ds[1])
     end
 end

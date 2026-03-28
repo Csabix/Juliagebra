@@ -30,6 +30,7 @@ evalCallbackDpReturn(self::TextBoxDependent, text::String) = self._text = text
 # ! TextBoxRenderer
 # ? ---------------------------------
 
+# TODO: copy Strings, instead of views!
 mutable struct TextBoxRenderer <: GuiRendererDNA{TextBoxDependent}
     _guiRenderer::GuiRenderer{TextBoxDependent}
 
@@ -55,7 +56,9 @@ syncAll!(self::TextBoxRenderer) = return nothing
 # GREEN Thread
 addedAll!(self::TextBoxRenderer) = return nothing
 
-function render!(self::TextBoxRenderer)
+function render!(self::TextBoxRenderer, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+
     CImGui.Text("TextBoxDependents:")
     CImGui.Separator()
 
@@ -71,9 +74,7 @@ function render!(self::TextBoxRenderer)
         end
 
         if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
-            # ! Take into note, that the user can only click on one element at every frame,
-            # ! so multiple evalGraph calls under a single frame can't happen! 
-            evalGraph(textBox)
+            schedule(s,textBox)
         end
     end
 end

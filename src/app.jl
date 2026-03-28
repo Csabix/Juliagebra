@@ -25,6 +25,7 @@ mutable struct App <: AppDNA
     _yellowTask::Union{Task,Nothing} # ? works the _builder
 
     _adder::Adder
+    _scheduler::Scheduler
 
     function App(
         name::String="Juliagebra",
@@ -48,7 +49,8 @@ mutable struct App <: AppDNA
         builder = Builder()
         yellowTask = nothing
         adder = Adder()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,optimizer,starter,commander,builder,yellowTask,adder)
+        scheduler = Scheduler()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,optimizer,starter,commander,builder,yellowTask,adder,scheduler)
     end
 end
 
@@ -61,7 +63,7 @@ getCommander(self::App)::Commander = return self._commander
 getStarter(self::App)::Starter = return self._starter
 getBuilder(self::App)::Builder = return self._builder
 getAdder(self::App)::Adder = return self._adder
-
+getScheduler(self::App)::Scheduler = return self._scheduler
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -185,14 +187,14 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p = self._graph[self._shrd._pickedID]
-        @time_cpu_begin Graph_update
-        set(
-            p,
-            Float64(self._opengl._gizmoGL._pos.x),
-            Float64(self._opengl._gizmoGL._pos.y),
-            Float64(self._opengl._gizmoGL._pos.z))
-        @time_cpu_end Graph_update
+        p::PointDependent = self._graph[self._shrd._pickedID]
+        p._coord = Vec3D(
+            self._opengl._gizmoGL._pos.x,
+            self._opengl._gizmoGL._pos.y,
+            self._opengl._gizmoGL._pos.z
+            )
+        # ? schedule for evalGraph
+        schedule(self._scheduler,p)
     end
 end
 
@@ -217,6 +219,10 @@ function play!(self::App)
             handleCommands!(self)
             # ? Do graph updates, aka sync! and syncAll! calls.
             updateGizmo!(self)
+
+            @time_cpu_begin Graph_update
+            graphEvalScheduled!(self._scheduler)
+            @time_cpu_end Graph_update
 
             if !iconified
                 # ? Render scene and dock.

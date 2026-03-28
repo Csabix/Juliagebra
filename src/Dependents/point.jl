@@ -18,11 +18,6 @@ end
 _RenderedDependent_(self::PointDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
 
-function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
-    self._coord = Vec3D(x,y,z)
-    evalGraph(self)
-end
-
 # YELLOW Thread
 # RED Thread
 onNodeEval(self::PointDependent) = evalCallbackDp(self)

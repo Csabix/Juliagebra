@@ -35,6 +35,7 @@ evalCallbackDpReturn(self::ToggleDependent, ::Nothing) = return nothing
 # ! ToggleRenderer
 # ? ---------------------------------
 
+# TODO: copy Bools, instead of views!
 mutable struct ToggleRenderer <: GuiRendererDNA{ToggleDependent}
     _guiRenderer::GuiRenderer{ToggleDependent}
 
@@ -61,7 +62,9 @@ sync!(::ToggleRenderer,::ToggleDependent) = return nothing
 syncAll!(::ToggleRenderer) = return nothing
 
 # GREEN Thread
-function render!(self::ToggleRenderer)
+function render!(self::ToggleRenderer, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    
     CImGui.Text("ToggleDependents:")
     CImGui.Separator()
 
@@ -73,10 +76,8 @@ function render!(self::ToggleRenderer)
         toggleStateRef = Ref(toggleState)
 
         if(CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
-            # ! Take into note, that the user can only click on one element at every frame,
-            # ! so multiple evalGraph calls under a single frame can't happen!
             _flip!(toggle)
-            evalGraph(toggle)
+            schedule(s,toggle)
         end
 
     end

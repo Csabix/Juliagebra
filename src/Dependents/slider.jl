@@ -30,6 +30,7 @@ evalCallbackDpReturn(self::SliderDependent, v::Vec3F) = self._value = v
 # ! SliderRenderer
 # ? ---------------------------------
 
+# TODO: copy Floats, instead of views!
 mutable struct SliderRenderer <: GuiRendererDNA{SliderDependent}
     _guiRenderer::GuiRenderer{SliderDependent}
 
@@ -55,7 +56,9 @@ syncAll!(self::SliderRenderer) = return nothing
 # GREEN Thread
 addedAll!(self::SliderRenderer) = return nothing
 
-function render!(self::SliderRenderer)
+function render!(self::SliderRenderer, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    
     CImGui.Text("SliderDependents:")
     CImGui.Separator()
 
@@ -70,10 +73,8 @@ function render!(self::SliderRenderer)
         proposedVal = slider1(currVal,"$(label)##$(sliderIdx)",minVal,maxVal)
 
         if(!isnothing(proposedVal))
-            # ! Take into note, that the user can only click on one element at every frame,
-            # ! so multiple evalGraph calls under a single frame can't happen!
             slider._value = Vec3F(minVal,proposedVal,maxVal)
-            evalGraph(slider)
+            schedule(s,slider)
         end
 
     end

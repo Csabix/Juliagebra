@@ -22,7 +22,7 @@ function renderContent(self::GuiDependentsWindow, app::AppDNA)
         
         if hasInstance(observer)    
             CImGui.PushID(idx)
-            render!(observer)
+            render!(observer, app)
             CImGui.PopID()
         end
     end

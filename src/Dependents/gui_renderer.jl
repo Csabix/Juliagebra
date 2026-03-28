@@ -9,3 +9,6 @@ end
 
 _GuiRenderer_(self::GuiRendererDNA)::GuiRenderer = error("Missing func!")
 _Observer_(self::GuiRendererDNA)::Observer = return _GuiRenderer_(self)._observer
+
+render!(self::GuiRendererDNA) = error("Missing func!")
+render!(self::GuiRendererDNA,app::AppDNA) = render!(self)

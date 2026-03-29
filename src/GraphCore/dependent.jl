@@ -6,14 +6,14 @@ mutable struct Dependent
     _graphID::Int                       
     _graphParents::Vector{<:DependentDNA} # ? Who do I Depend on?
     _entryNodes::Vector{Any}
-    _dependentChain::DependentChain # ? Who Depends on me (collectively)?
+    _schedule::Schedule # ? Who Depends on me (collectively)?
     _callback::Function
 
     function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
-        dependentChain = DependentChain()
+        schedule = Schedule()
         entryNodes = Vector{Any}(undef,length(graphParents))
     
-        new(0,graphParents,entryNodes,dependentChain,callback)
+        new(0,graphParents,entryNodes,schedule,callback)
     end
 end
 
@@ -23,7 +23,7 @@ getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
-getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
+getSchedule(self::DependentDNA) = return _Dependent_(self)._schedule
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 
 function _isUnbuilt(self::Dependent)::Bool
@@ -41,7 +41,7 @@ function setEntryNodes(self::DependentDNA)
     end
 end
 
-evalGraph(self::DependentDNA) = evalChain(getChain(self))
+evalGraph(self::DependentDNA) = evalChain(getSchedule(self))
 
 beforeNodeEval(self::DependentDNA) = setEntryNodes(self)
 onNodeEval(self::DependentDNA) = error("Missing \"onNodeEval\" for subclass of DependentDNA")

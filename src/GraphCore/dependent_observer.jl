@@ -24,7 +24,7 @@ function add!!(collector::ObserverDNA,collected::ObservedDNA)
     observed._observer = collector
     observed._observerID = length(observer._observedItems)
 
-    push!(getChain(collected)._set,collector)
+    push!(getSchedule(collected)._set,collector)
 end
 
 postGraphEval(self::ObserverDNA) = syncAll!(self)

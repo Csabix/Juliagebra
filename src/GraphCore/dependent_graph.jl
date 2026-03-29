@@ -21,15 +21,14 @@ function Base.empty!(self::DependentGraphDNA)
     empty!(g._dependentObjects)
 end
 
-# TODO: idotol valo fugges, timestep alapu osszefesulessel
-
 function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     
     graph = _DependentGraph_(self)
     assetDependent = _Dependent_(asset)
-
+    assetDependent._graphID = length(graph._dependentObjects) + 1 + ID_LOWER_BOUND
+    
     for graphItem in graph._dependentObjects
-        graphItemChain = getChain(graphItem)
+        graphItemChain = getSchedule(graphItem)
         for assetParent in assetDependent._graphParents
             if (assetParent in dependentsOf(graphItemChain)) || assetParent === graphItem
                 enchain!(graphItemChain,asset)
@@ -39,7 +38,6 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     end
     
     push!(graph._dependentObjects,asset)
-    assetDependent._graphID = length(graph._dependentObjects) + ID_LOWER_BOUND
 end
 
 function Base.getindex(self::DependentGraphDNA,id::Integer)::DependentDNA

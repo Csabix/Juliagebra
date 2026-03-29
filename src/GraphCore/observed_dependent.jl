@@ -27,7 +27,7 @@ end
 
 function evalGraph(self::ObservedDNA)
     afterNodeEval(self)
-    evalChain(getChain(self))
+    evalChain(getSchedule(self))
 end
 
 function afterNodeEval(self::ObservedDNA)

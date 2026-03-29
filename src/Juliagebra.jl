@@ -94,7 +94,7 @@ include("opengl_data.jl")
 # ! Dependents
 # ? ---------------------------------
 
-include("GraphCore/dependent_chain.jl")
+include("GraphCore/schedule.jl")
 include("GraphCore/dependent_graph.jl")
 include("GraphCore/dependent.jl")
 include("GraphCore/dependent_observer.jl")

@@ -41,8 +41,6 @@ function setEntryNodes(self::DependentDNA)
     end
 end
 
-evalGraph(self::DependentDNA) = evalChain(getSchedule(self))
-
 beforeNodeEval(self::DependentDNA) = setEntryNodes(self)
 onNodeEval(self::DependentDNA) = error("Missing \"onNodeEval\" for subclass of DependentDNA")
 afterNodeEval(self::DependentDNA) = nothing

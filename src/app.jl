@@ -27,6 +27,9 @@ mutable struct App <: AppDNA
     _adder::Adder
     _scheduler::Scheduler
 
+    _synchronizer::Synchronizer
+    _worker::GraphWorker
+
     function App(
         name::String="Juliagebra",
         width::Int=1280,
@@ -50,7 +53,9 @@ mutable struct App <: AppDNA
         yellowTask = nothing
         adder = Adder()
         scheduler = Scheduler()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,optimizer,starter,commander,builder,yellowTask,adder,scheduler)
+        synchronizer = Synchronizer()
+        worker = GraphWorker()
+        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,optimizer,starter,commander,builder,yellowTask,adder,scheduler,synchronizer,worker)
     end
 end
 
@@ -64,6 +69,8 @@ getStarter(self::App)::Starter = return self._starter
 getBuilder(self::App)::Builder = return self._builder
 getAdder(self::App)::Adder = return self._adder
 getScheduler(self::App)::Scheduler = return self._scheduler
+getSynchronizer(self::App)::Synchronizer = return self._synchronizer
+getWorker(self::App)::GraphWorker = return self._worker
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -222,7 +229,9 @@ function play!(self::App)
 
             if !isempty(self._scheduler)
                 @time_cpu_begin Graph_update
-                graphEvalScheduled!(self._scheduler)
+                startGraphWorkers!(self._scheduler,self)
+                processUntilClosed!(self._worker,self._synchronizer)
+                processBatch!(self._synchronizer,self)
                 @time_cpu_end Graph_update
             end
             

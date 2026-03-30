@@ -25,15 +25,6 @@ function isUnbuilt(self::ObservedDNA)::Bool
     return _isUnbuilt(_Dependent_(self)) && isnothing(getObserver(self)) && (getObserverID(self) == 0)
 end
 
-function evalGraph(self::ObservedDNA)
-    afterNodeEval(self)
-    evalChain(getSchedule(self))
-end
-
-function afterNodeEval(self::ObservedDNA)
-    sync!(_Observed_(self)._observer,self)
-end
-
 function hasObserver(self::ObservedDNA)
     observed = _Observed_(self)
     id = observed._observerID

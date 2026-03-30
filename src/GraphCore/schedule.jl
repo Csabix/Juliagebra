@@ -1,10 +1,10 @@
+
 # ? ---------------------------------
 # ! Schedule
 # ? ---------------------------------
 
 @kwdef mutable struct Schedule
     _vec::Vector{DependentDNA} = Vector{DependentDNA}()
-    _set::Set{ObserverDNA} = Set{ObserverDNA}()
 end
 
 Base.length(self::Schedule) = return length(self._vec)
@@ -19,31 +19,26 @@ end
 function enchain!(self::Schedule,item::ObservedDNA)
     observer = _Observed_(item)._observer
     @assert !isnothing(observer) "Observer of Observed can't be nothing!"
-    
     @assert (length(self)>0) ? (getGraphID(item)>getGraphID(self._vec[end])) : true "IDs must be increasing!"
     push!(self._vec,item)
-    push!(self._set,observer)
 end
 
 dependentsOf(self::Schedule) = return self._vec
-observersOf(self::Schedule) = return self._set
 
 function evalChain(self::Schedule)
     @invokelatest _evalChain(self)
 end
 
 function _evalChain(self::Schedule)
-     
     for item in dependentsOf(self)
         beforeNodeEval(item)
         onNodeEval(item)
         afterNodeEval(item)
     end
     
-    for item in observersOf(self)
-        postGraphEval(item)
-    end
-    
+    #for item in observersOf(self)
+    #    postGraphEval(item)
+    #end 
 end
 
 function Base.merge(s1::Schedule, s2::Schedule)::Schedule
@@ -53,7 +48,7 @@ function Base.merge(s1::Schedule, s2::Schedule)::Schedule
     len1 = length(s1)
     len2 = length(s2)
 
-    while (idx1<=len1) || (idx2<=len2)        
+    while (idx1<=len1) && (idx2<=len2)        
         d1 = s1[idx1]
         d2 = s2[idx2]
         id1 = getGraphID(d1)
@@ -88,12 +83,3 @@ end
 
 Base.merge(schedules::Vector{Schedule})::Schedule = return foldl(Base.merge,schedules)
 
-function Base.string(self::Schedule)::String
-    s = "($(length(self))): "
-
-    for d in self
-        s *= "$(getGraphID(d)), "
-    end
-
-    return s
-end

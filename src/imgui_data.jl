@@ -63,7 +63,7 @@ mutable struct ImGuiData <: ImGuiDNA
         add!(dock,DataPeeker())
         add!(dock,Console())
         add!(dock,PerformanceWindow())
-        add!(dock,GraphViewerWindow())
+        add!(dock,GraphWindow())
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())

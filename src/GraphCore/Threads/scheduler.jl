@@ -6,50 +6,54 @@
 const PER_FRAME_MERGE::Int = 1
 
 """
-Handles Graph evaluation
+Manages correct graph evaluation scheduling.
 """
 @kwdef mutable struct Scheduler
     _in::Queue{DependentDNA} = Queue{DependentDNA}(1)
+    _taken::Int = 0
+    _schedule::Schedule = Schedule()
+    _roots::Set{DependentDNA} = Set{DependentDNA}() 
 end
 
-Base.schedule(self::Scheduler,dependent::DependentDNA) = push!(self._in,dependent)
+Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? nothing : push!(self._in,dependent)
 Base.isempty(self::Scheduler)::Bool = return isempty(self._in)
 Base.length(self::Scheduler) = return length(self._in)
+Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 isFinished(self::Scheduler)::Bool = return true
 
 function startGraphWorkers!(self::Scheduler, app::AppDNA)
-    println("scheduler: $(length(self._in))")
-    takeNum = length(self)
+    self._taken = length(self)
     heads::Set{DependentDNA} = Set{DependentDNA}()
     schedules::Vector{Schedule} = []
 
-    for _ in 1:takeNum
+    for _ in 1:self._taken
         d::DependentDNA = popfirst!(self._in)
         push!(schedules,getSchedule(d))
         push!(heads,d)
     end
 
     if !isempty(schedules)
-        s::Schedule = merge(schedules)
-        roots::Set{DependentDNA} = Set{DependentDNA}()
+        # TODO: maybe copy to avoid GC?
+        self._schedule = merge(schedules)
+        empty!(self._roots)
 
         for d in heads
-            if !(d in dependentsOf(s))
-                push!(roots,d)
+            if !(d in dependentsOf(self._schedule))
+                push!(self._roots,d)
             end
         end
-        
-        #println("schedule: $([getGraphID(d) for d in dependentsOf(s)])")
-        #println("roots: $([getGraphID(d) for d in roots])")
 
+        # ? Send head Dependents for synchronization,
+        # ? since they are up to date from outside modifications.
         sy::Synchronizer = getSynchronizer(app)
-        for d in heads
+        for d in self._roots
             put!(sy,d)
         end
 
-        # TODO: refine.
+        
+        # ? Assign Dependents in the schedule to workers for onNodeEval() calls.
         w::GraphWorker = getWorker(app)
-        for d in s
+        for d in self._schedule
             put!(w,d)
         end
     end

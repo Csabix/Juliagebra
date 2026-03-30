@@ -27,8 +27,8 @@ function evalCallbackDpReturn(self::PointSetDependent,coords::Vector{Vec3D})
     self._coords = coords
 end
 evalCallbackDpReturn(self::PointSetDependent,coords::Vector{Vec3F})  = evalCallbackDpReturn(self,Vec3D.(coords))
-evalCallbackDpReturn(self::PointSetDependent,coords::Vector{Tuple})  = evalCallbackDpReturn(self,[Vec3D(coord...) for coord in coords])
-evalCallbackDpReturn(self::PointSetDependent,coords::Vector{Vector}) = evalCallbackDpReturn(self,[Vec3D(coord...) for coord in coords])
+evalCallbackDpReturn(self::PointSetDependent,coords::Vector{<:Tuple})  = evalCallbackDpReturn(self,[Vec3D(coord...) for coord in coords])
+evalCallbackDpReturn(self::PointSetDependent,coords::Vector{<:Vector}) = evalCallbackDpReturn(self,[Vec3D(coord...) for coord in coords])
 evalCallbackDpReturn(self::PointSetDependent,::Nothing) = fill!(self._coords, Vec3DNan)
 
 mutable struct PointSets <:RendererDNA{PointSetDependent}
@@ -72,10 +72,10 @@ function destroy!(self::PointSets) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointSetDependent)::PointSets = getOpenGL(app)._renderers[_POINT_SETS]
 
-PointSet(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSet =
+PointSet(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =
 build!(PointSetDependent(callback,dependents,color,width))
 
-PointSet(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::PointSet =
+PointSet(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =
 PointSet(_deps_collect,dependents;color=color,width=width)
 
 PointSet(positions) =

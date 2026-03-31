@@ -26,6 +26,7 @@ mutable struct ImGuiData <: ImGuiDNA
     _pos_y::Int
 
     _pool::Vector{GuiRendererDNA}
+    _dependents::Vector{GuiDependentDNA}
 
     _widgets::Vector{ImGuiWidgetDNA}
     _dock::Dock
@@ -55,7 +56,8 @@ mutable struct ImGuiData <: ImGuiDNA
 
         # ? It's empty because "resetObservers!" initializes it.
         pool::Vector{GuiRendererDNA} = []
-        
+        dependents::Vector{GuiDependentDNA} = []
+
         widgets = Vector{ImGuiWidgetDNA}()
         dock = Dock()
 
@@ -68,7 +70,7 @@ mutable struct ImGuiData <: ImGuiDNA
         push!(widgets,dock)
         push!(widgets,ResetWidget())
         
-        self = new(shrd,io,textFont,iconFont,0,0,0,0,pool,widgets,dock)
+        self = new(shrd,io,textFont,iconFont,0,0,0,0,pool,dependents,widgets,dock)
         
         resetObservers!(self)
         resize!(self)
@@ -78,12 +80,14 @@ mutable struct ImGuiData <: ImGuiDNA
 end
 
 function resetObservers!(self::ImGuiData)
+    self._dependents = Vector{GuiDependentDNA}()
+    
     # ? Let the garbage collector handle old Observers.
     self._pool::Vector{GuiRendererDNA} = [
-        ToggleRenderer(), # ? 1
-        SliderRenderer(), # ? 2
-        TextBoxRenderer(), # ? 3
-        StepperRenderer() # ? 4
+        ToggleRenderer(self),   # ? 1
+        SliderRenderer(self),   # ? 2
+        TextBoxRenderer(self),  # ? 3
+        StepperRenderer(self)   # ? 4
     ]
 end
 

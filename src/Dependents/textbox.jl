@@ -35,17 +35,13 @@ mutable struct TextBoxRenderer <: GuiRendererDNA{TextBoxDependent}
     _guiRenderer::GuiRenderer{TextBoxDependent}
 
     # GREEN Thread
-    function TextBoxRenderer()
-        guiRenderer = GuiRenderer{TextBoxDependent}()
-
-        new(guiRenderer)
-    end
+    TextBoxRenderer(imgui::ImGuiDNA) = new(GuiRenderer{TextBoxDependent}(imgui))
 end
 
 _GuiRenderer_(self::TextBoxRenderer) = return self._guiRenderer
 
 # GREEN Thread
-added!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
+_added!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
 
 # GREEN Thread
 sync!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
@@ -57,25 +53,29 @@ syncAll!(self::TextBoxRenderer) = return nothing
 addedAll!(self::TextBoxRenderer) = return nothing
 
 function render!(self::TextBoxRenderer, app::AppDNA)
-    s::Scheduler = getScheduler(app)
-
     CImGui.Text("TextBoxDependents:")
     CImGui.Separator()
 
     for textBoxIdx in eachindex(getObservedItems(self))
         textBox = self[textBoxIdx]
-        label = getLabel(textBox)
+        render!(self,textBox,app)
+    end
+end
 
-        CImGui.Text("$(label)")
-        proposedText = txtbox("##$(textBoxIdx)",textBox._text)
+function render!(self::TextBoxRenderer, textBox::TextBoxDependent, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    label::String = getLabel(textBox)
+    textBoxIdx::Int = getObserverID(textBox)
 
-        if (!isnothing(proposedText))
-            textBox._text = proposedText
-        end
+    CImGui.Text("$(label)")
+    proposedText = txtbox("##$(textBoxIdx)",textBox._text)
 
-        if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
-            schedule(s,textBox)
-        end
+    if (!isnothing(proposedText))
+        textBox._text = proposedText
+    end
+
+    if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
+        schedule(s,textBox)
     end
 end
 

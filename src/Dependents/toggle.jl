@@ -40,17 +40,13 @@ mutable struct ToggleRenderer <: GuiRendererDNA{ToggleDependent}
     _guiRenderer::GuiRenderer{ToggleDependent}
 
     # GREEN Thread
-    function ToggleRenderer()
-        guiRenderer = GuiRenderer{ToggleDependent}()
-
-        new(guiRenderer)
-    end
+    ToggleRenderer(imgui::ImGuiDNA) = new(GuiRenderer{ToggleDependent}(imgui))
 end
 
 _GuiRenderer_(self::ToggleRenderer) = return self._guiRenderer
 
 # GREEN Thread
-added!(::ToggleRenderer,::ToggleDependent) = return nothing
+_added!(::ToggleRenderer,::ToggleDependent) = return nothing
 
 # GREEN Thread
 addedAll!(::ToggleRenderer) = return nothing
@@ -63,23 +59,26 @@ syncAll!(::ToggleRenderer) = return nothing
 
 # GREEN Thread
 function render!(self::ToggleRenderer, app::AppDNA)
-    s::Scheduler = getScheduler(app)
-    
     CImGui.Text("ToggleDependents:")
     CImGui.Separator()
 
     for toggleIdx in eachindex(getObservedItems(self))
         toggle::ToggleDependent = self[toggleIdx]
-        label = getLabel(toggle)
+        render!(self,toggle,app)
+    end
+end
 
-        toggleState = toggle._state
-        toggleStateRef = Ref(toggleState)
+function render!(self::ToggleRenderer, toggle::ToggleDependent, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    label::String = getLabel(toggle)
+    toggleIdx::Int = getObserverID(toggle)
 
-        if(CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
-            _flip!(toggle)
-            schedule(s,toggle)
-        end
+    toggleState = toggle._state
+    toggleStateRef = Ref(toggleState)
 
+    if (CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
+        _flip!(toggle)
+        schedule(s,toggle)
     end
 end
 

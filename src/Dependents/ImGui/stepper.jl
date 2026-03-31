@@ -27,15 +27,15 @@ evalCallbackDpReturn(self::StepperDependent,num::Float64) = self._num = num
 # ! StepperRenderer
 # ? ---------------------------------
 
-@kwdef mutable struct StepperRenderer <: GuiRendererDNA{StepperDependent}
-    _renderer::GuiRenderer{StepperDependent} = GuiRenderer{StepperDependent}()
-    _nums::Vector{Float64} = Vector{Float64}()
+mutable struct StepperRenderer <: GuiRendererDNA{StepperDependent}
+    _renderer::GuiRenderer{StepperDependent}
+    _nums::Vector{Float64}
+    StepperRenderer(imgui::ImGuiDNA) = new(GuiRenderer{StepperDependent}(imgui),Vector{Float64}())
 end
 
 _GuiRenderer_(self::StepperRenderer)::GuiRenderer{StepperDependent} = return self._renderer
 
-# GREEN Thread
-added!(self::StepperRenderer, item::StepperDependent) = push!(self._nums,item._num)
+_added!(self::StepperRenderer, item::StepperDependent) = push!(self._nums,item._num)
 
 # GREEN Thread
 addedAll!(::StepperRenderer) = return nothing
@@ -47,22 +47,27 @@ sync!(self::StepperRenderer, item::StepperDependent) = self._nums[getObserverID(
 syncAll!(::StepperRenderer) = return nothing
 
 function render!(self::StepperRenderer, app::AppDNA)
-    s::Scheduler = getScheduler(app)
     
     CImGui.Text("Steppers:")
     CImGui.Separator()
 
     for stepperIdx in eachindex(getObservedItems(self))
         stepper::StepperDependent = getObservedItems(self)[stepperIdx]
-        label::String = getLabel(stepper)
-        num::Float32 = stepper._num
+        render!(self,stepper,app)
+    end
+end
 
-        proposedVal = input1(num,"$(label)##$(stepperIdx)", Float32(0.1), Float32(1))
+function render!(self::StepperRenderer, stepper::StepperDependent, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    label::String = getLabel(stepper)
+    stepperIdx::Int = getObserverID(stepper)
+    num::Float32 = self._nums[stepperIdx]
 
-        if !isnothing(proposedVal)
-            stepper._num = Float64(proposedVal)
-            schedule(s,stepper)
-        end
+    proposedVal = input1(num,"$(label)##$(stepperIdx)", Float32(0.1), Float32(1))
+
+    if !isnothing(proposedVal)
+        stepper._num = Float64(proposedVal)
+        schedule(s,stepper)
     end
 end
 

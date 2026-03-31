@@ -35,17 +35,13 @@ mutable struct SliderRenderer <: GuiRendererDNA{SliderDependent}
     _guiRenderer::GuiRenderer{SliderDependent}
 
     # GREEN Thread
-    function SliderRenderer()
-        guiRenderer = GuiRenderer{SliderDependent}()
-
-        new(guiRenderer)
-    end
+    SliderRenderer(imgui::ImGuiDNA) = new(GuiRenderer{SliderDependent}(imgui))
 end
 
 _GuiRenderer_(self::SliderRenderer) = return self._guiRenderer
 
 # GREEN Thread
-added!(self::SliderRenderer,item::SliderDependent) = return nothing
+_added!(self::SliderRenderer,item::SliderDependent) = return nothing
 
 # GREEN Thread
 sync!(self::SliderRenderer,item::SliderDependent) = return nothing
@@ -57,26 +53,29 @@ syncAll!(self::SliderRenderer) = return nothing
 addedAll!(self::SliderRenderer) = return nothing
 
 function render!(self::SliderRenderer, app::AppDNA)
-    s::Scheduler = getScheduler(app)
-    
     CImGui.Text("SliderDependents:")
     CImGui.Separator()
 
     for sliderIdx in eachindex(getObservedItems(self))
         slider = self[sliderIdx]
-        label = getLabel(slider)
+        render!(self,slider,app)
+    end
+end
 
-        minVal = slider._value.x
-        currVal = slider._value.y
-        maxVal = slider._value.z
+function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    label::String = getLabel(slider)
+    sliderIdx::Int = getObserverID(slider)
+    
+    minVal = slider._value.x
+    currVal = slider._value.y
+    maxVal = slider._value.z
 
-        proposedVal = slider1(currVal,"$(label)##$(sliderIdx)",minVal,maxVal)
+    proposedVal = slider1(currVal,"$(label)##$(sliderIdx)",minVal,maxVal)
 
-        if(!isnothing(proposedVal))
-            slider._value = Vec3F(minVal,proposedVal,maxVal)
-            schedule(s,slider)
-        end
-
+    if(!isnothing(proposedVal))
+        slider._value = Vec3F(minVal,proposedVal,maxVal)
+        schedule(s,slider)
     end
 end
 

@@ -4,7 +4,7 @@ Juliagebra.Window() do
     ORDER_FLIPPED = true
     
     if (ORDER_FLIPPED)
-        s1 = Slider()
+        s1 = Slider(label="Awesome")
         t1 = Toggle()
         s2 = Slider()
         t2 = Toggle()

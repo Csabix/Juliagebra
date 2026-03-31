@@ -30,46 +30,89 @@ evalCallbackDpReturn(self::SliderDependent, v::Vec3F) = self._value = v
 # ! SliderRenderer
 # ? ---------------------------------
 
-# TODO: copy Floats, instead of views!
+@kwdef struct _SliderData
+    playing::Bool = false
+    opened::Bool = false
+end
+
 mutable struct SliderRenderer <: GuiRendererDNA{SliderDependent}
     _guiRenderer::GuiRenderer{SliderDependent}
+    _values::Vector{Vec3F}
+    _data::Vector{_SliderData}
 
     # GREEN Thread
-    SliderRenderer(imgui::ImGuiDNA) = new(GuiRenderer{SliderDependent}(imgui))
+    SliderRenderer(imgui::ImGuiDNA) = new(GuiRenderer{SliderDependent}(imgui),Vector{Vec3F}(),Vector{_SliderData}())
 end
 
 _GuiRenderer_(self::SliderRenderer) = return self._guiRenderer
 
-# GREEN Thread
-_added!(self::SliderRenderer,item::SliderDependent) = return nothing
-
-# GREEN Thread
-sync!(self::SliderRenderer,item::SliderDependent) = return nothing
-
-# GREEN Thread
 syncAll!(self::SliderRenderer) = return nothing
-
-# GREEN Thread
 addedAll!(self::SliderRenderer) = return nothing
-
 title(::SliderRenderer)::String = return "Slider"
 
+# GREEN Thread
+function _added!(self::SliderRenderer,item::SliderDependent) 
+    push!(self._values, item._value)
+    push!(self._data, _SliderData())
+end
+
+# GREEN Thread
+function sync!(self::SliderRenderer,item::SliderDependent)
+    self._values[getObserverID(item)] = item._value
+end
+
+
 function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
+    imgui::ImGuiData = getImGui(app)
     s::Scheduler = getScheduler(app)
     label::String = getLabel(slider)
-    sliderIdx::Int = getObserverID(slider)
-    
-    minVal = slider._value.x
-    currVal = slider._value.y
-    maxVal = slider._value.z
+    value::Vec3F = self._values[getObserverID(slider)]
+    data::_SliderData = self._data[getObserverID(slider)]
+
+    minVal = value.x
+    currVal = value.y
+    maxVal = value.z
+
+    playing = data.playing
+    opened = data.opened
+
+    playButtonChar= playing ? "\ue034" : "\ue037" 
+
+    # ? Sizing here is good enough for now.
+    CImGui.PushFont(imgui._iconFont, 21)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, CImGui.ImVec2(0, 0))
+    CImGui.Button("\ue8b8") ? opened = !opened : nothing # ? Settings Cog
+    CImGui.SameLine(0.0,5.0)
+    CImGui.Button(playButtonChar) ? playing = !playing : nothing # ? Play Button
+    CImGui.PopStyleVar()
+    CImGui.PopFont()
+
+    if (label == "")
+        CImGui.SameLine(0.0,5.0)
+    else
+        CImGui.SameLine(0.0,5.0)
+        CImGui.Text("$(label)")
+        CImGui.SameLine(0.0,5.0)
+    end
 
     CImGui.SetNextItemWidth(-1)
-    proposedVal = slider1(currVal,"$(label)##$(sliderIdx)",minVal,maxVal)
+    proposedVal = slider1(currVal,"",minVal,maxVal)
 
     if(!isnothing(proposedVal))
         slider._value = Vec3F(minVal,proposedVal,maxVal)
         schedule(s,slider)
     end
+
+    if opened
+        CImGui.Button("Implement Anim Styles!")
+        CImGui.SameLine(0.0,5.0)
+        CImGui.Button("Implement Anim Speed!")
+        CImGui.SameLine(0.0,5.0)
+        CImGui.Button("Implement Value Setting!")
+        CImGui.Spacing()
+    end
+
+    self._data[getObserverID(slider)] = _SliderData(playing,opened)
 end
 
 # ? ---------------------------------

@@ -106,14 +106,10 @@ include("GraphCore/observed_dependent.jl")
 
 include("Dependents/dependent_renderer.jl")
 include("Dependents/rendered_dependent.jl")
-include("Dependents/gui_renderer.jl")
-include("Dependents/gui_dependent.jl")
 include("Dependents/point.jl")
 include("Dependents/curve.jl")
 include("Dependents/surface.jl")
-include("Dependents/toggle.jl")
-include("Dependents/slider.jl")
-include("Dependents/textbox.jl")
+
 include("Dependents/sphere.jl")
 include("Dependents/lazy_lbvh.jl")
 include("Dependents/intersections.jl")
@@ -123,15 +119,15 @@ include("Dependents/tetrahedra.jl")
 include("Dependents/segment_sequence.jl") # after curve include!
 include("Dependents/point_cloud.jl")
 
-include("Dependents/ImGui/stepper.jl")
-
-# TODO: Continue this.
-include("GraphCore/observer_pool.jl")
-
-include("Widgets/gui_dependents_window.jl")
-
 include("global_dependent_optimizer.jl")
 
+include("Dependents/Gui/gui_renderer.jl")
+include("Dependents/Gui/gui_dependent.jl")
+include("Dependents/Gui/toggle.jl")
+include("Dependents/Gui/slider.jl")
+include("Dependents/Gui/textbox.jl")
+include("Dependents/Gui/stepper.jl")
+include("Widgets/Windows/gui_dependents_window.jl")
 include("imgui_data.jl")
 
 include("GraphCore/Threads/builder.jl")

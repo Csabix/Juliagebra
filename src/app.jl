@@ -224,8 +224,11 @@ function play!(self::App)
         if state isa ViewingState
             # ? Handle commands in the command queue.
             handleCommands!(self)
-            # ? Do graph updates, aka sync! and syncAll! calls.
+            # ? Schedules a PointDependent.
             updateGizmo!(self)
+            # ? Schedules SliderDependents.
+            update!(self._imgui,self)
+
 
             if !isempty(self._scheduler)
                 @time_cpu_begin Graph_update
@@ -238,7 +241,7 @@ function play!(self::App)
             if !iconified
                 # ? Render scene and dock.
                 update!(self._opengl,self._cam)
-                update!(self._imgui,self)
+                render!(self._imgui,self)
                 update!(self._shrd)
             end
 

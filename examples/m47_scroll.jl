@@ -8,7 +8,7 @@ function S(u,v,r1,r2)
 end
 
 r1 = Slider(-20,20,20; label="curlyness")
-r2 = Slider(-5,3.3,20; label="size")
+r2 = Slider(0.0,3.3,20; label="size")
 
 ParametricSurface(range(0,1,100),range(0,1,100),[r1,r2],color=(0.204,0.514,0.263),transparent=true) do u,v,r1,r2
     return S(u,v,r1,r2)

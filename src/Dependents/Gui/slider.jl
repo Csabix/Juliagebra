@@ -33,6 +33,8 @@ evalCallbackDpReturn(self::SliderDependent, v::Vec3F) = self._value = v
 @kwdef struct _SliderData
     playing::Bool = false
     opened::Bool = false
+    proposed::Union{Float32,Nothing} = nothing
+    start::Float64 = 0.0
 end
 
 mutable struct SliderRenderer <: GuiRendererDNA{SliderDependent}
@@ -61,6 +63,38 @@ function sync!(self::SliderRenderer,item::SliderDependent)
     self._values[getObserverID(item)] = item._value
 end
 
+const ANIM_LENGTH = 5.0
+
+function update!(self::SliderRenderer, app::AppDNA)
+    sliders::Vector{SliderDependent} = getObservedItems(self)
+    s::Scheduler = getScheduler(app)
+
+    for sliderIdx in  eachindex(sliders)
+        slider::SliderDependent = sliders[sliderIdx]
+        value::Vec3F = self._values[sliderIdx]
+        data::_SliderData = self._data[sliderIdx]
+        
+        if data.playing
+            minVal = value.x
+            maxVal = value.z
+            
+            t=mod(time()-data.start, ANIM_LENGTH)
+            tt=0.0
+
+            if t<(ANIM_LENGTH/2.0)
+                tt = t/(ANIM_LENGTH/2.0)
+            else
+                tt = 1.0-((t-(ANIM_LENGTH/2.0))/(ANIM_LENGTH/2.0))
+            end
+
+            slider._value = Vec3F(minVal,minVal*(1-tt)+tt*maxVal,maxVal)
+            schedule(s,slider)
+        elseif !isnothing(data.proposed)            
+            slider._value = Vec3F(value.x,data.proposed,value.z)
+            schedule(s,slider)
+        end
+    end
+end
 
 function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
     imgui::ImGuiData = getImGui(app)
@@ -84,6 +118,7 @@ function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
     CImGui.Button("\ue8b8") ? opened = !opened : nothing # ? Settings Cog
     CImGui.SameLine(0.0,5.0)
     CImGui.Button(playButtonChar) ? playing = !playing : nothing # ? Play Button
+    start = data.playing==false && playing==true ? time() : data.start
     CImGui.PopStyleVar()
     CImGui.PopFont()
 
@@ -96,12 +131,7 @@ function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
     end
 
     CImGui.SetNextItemWidth(-1)
-    proposedVal = slider1(currVal,"",minVal,maxVal)
-
-    if(!isnothing(proposedVal))
-        slider._value = Vec3F(minVal,proposedVal,maxVal)
-        schedule(s,slider)
-    end
+    proposed = slider1(currVal,"",minVal,maxVal)
 
     if opened
         CImGui.Button("Implement Anim Styles!")
@@ -112,7 +142,7 @@ function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
         CImGui.Spacing()
     end
 
-    self._data[getObserverID(slider)] = _SliderData(playing,opened)
+    self._data[getObserverID(slider)] = _SliderData(playing,opened,proposed,start)
 end
 
 # ? ---------------------------------

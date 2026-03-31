@@ -3,19 +3,19 @@
 # ! Scheduler
 # ? ---------------------------------
 
-const PER_FRAME_MERGE::Int = 1
+const PER_FRAME_MERGE::Int = 25
 
 """
 Manages correct graph evaluation scheduling.
 """
 @kwdef mutable struct Scheduler
-    _in::Queue{DependentDNA} = Queue{DependentDNA}(1)
+    _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
     _schedule::Schedule = Schedule()
     _roots::Set{DependentDNA} = Set{DependentDNA}() 
 end
 
-Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? nothing : push!(self._in,dependent)
+Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : push!(self._in,dependent)
 Base.isempty(self::Scheduler)::Bool = return isempty(self._in)
 Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE

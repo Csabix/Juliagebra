@@ -101,7 +101,7 @@ end
     return io.WantCaptureKeyboard
 end
 
-function update!(self::ImGuiData,app::AppDNA)
+function render!(self::ImGuiData,app::AppDNA)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
@@ -113,6 +113,11 @@ function update!(self::ImGuiData,app::AppDNA)
 
     CImGui.Render()
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
+end
+
+function update!(self::ImGuiData, app::AppDNA)
+    sr::SliderRenderer = self._pool[2]
+    update!(sr,app)
 end
 
 function renderBuildingState(::Any, ::AppDNA)

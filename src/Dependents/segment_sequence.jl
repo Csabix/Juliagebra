@@ -91,12 +91,13 @@ Base.eltype(::Type{PSegmentsOfSegmentSequence}) = PSegment
 
 mutable struct SegmentSequences <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
+    _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
     # GREEN Thread
     function SegmentSequences(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
         refs = Vector{UInt32}()
-        return new(renderer, refs)
+        return new(renderer, context._renderers, refs)
     end
 end
 
@@ -111,7 +112,7 @@ end
 function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = if segseq._break_every >= 2
-        add_dynamic!(Val{:Line}(),
+        add_dynamic!(self._renderers.line,
             collect(custom_interleaver(segseq._values,Vec3FNan,segseq._break_every)),
             custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
             custom_interleaver(Iterators.cycle([aID]),UInt32(0),segseq._break_every),
@@ -120,7 +121,7 @@ function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
             segseq._reversed != 0
         )
     else
-        add_dynamic!(Val{:Line}(),
+        add_dynamic!(self._renderers.line,
             segseq._values,
             Iterators.cycle(segseq._colors),
             Iterators.cycle([aID]),
@@ -137,7 +138,7 @@ function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = self._refs[getObserverID(segseq)]
     if segseq._break_every >= 2
-        update_dynamic!(Val{:Line}(),ref,
+        update_dynamic!(self._renderers.line,ref,
             collect(custom_interleaver(segseq._values,Vec3FNan,segseq._break_every)),
             custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
             custom_interleaver(Iterators.cycle([aID]),UInt32(0),segseq._break_every),
@@ -146,7 +147,7 @@ function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
             segseq._reversed != 0
         )
     else
-        update_dynamic!(Val{:Line}(),ref,
+        update_dynamic!(self._renderers.line,ref,
             collect(segseq._values),
             Iterators.cycle(segseq._colors),
             Iterators.cycle([aID]),
@@ -162,7 +163,7 @@ function destroy!(self::SegmentSequences)
 end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = getOpenGL(app)._renderers[_SEGMENT_SEQUENCES]
+Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = getDependentObservers(app)[_SEGMENT_SEQUENCES]
 
 # ? ---------------------------------
 # ! SegmentSequence

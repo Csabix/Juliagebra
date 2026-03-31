@@ -43,6 +43,7 @@ end
 
 getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
+getDependentObservers(self::App) = getOpenGL(self)._observers
 getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
 getGraph(self::App) = return self._graph

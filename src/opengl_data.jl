@@ -2,11 +2,6 @@
 # ? ---------------------------------
 # ! OpenGLData
 # ? ---------------------------------
-const _POINTS::UInt = 1
-const _POINT_SETS::UInt = 2
-const _POINT_SEQUENCES::UInt = 3
-const _CURVES::UInt = 4
-const _SEGMENT_SEQUENCES::UInt = 5
 
 function debug_callback(source::GLenum, typ::GLenum, id::GLuint, severity::GLenum, 
                         len::GLsizei, message::Ptr{GLchar}, userParam::Ptr{Cvoid})::Nothing
@@ -28,7 +23,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
-    _renderers::Vector{RendererDNA}
+    _observers::Vector{RendererDNA}
+    _renderers::PrimitiveRenderers
 
     # ! Shaders
     _transparent_combinerShader::ShaderProgram
@@ -134,14 +130,15 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         glEnable(GL_PROGRAM_POINT_SIZE)
 
         # ? It's empty because of "reset!".
-        renderers::Vector{RendererDNA} = RendererDNA[]
+        observers::Vector{RendererDNA} = RendererDNA[]
+        renderers = PrimitiveRenderers()
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(shrd,widgets,renderers,
+        self = new(shrd,widgets,observers,renderers,
             transparent_combinerShader,combinerShader,centerShader,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,
@@ -151,24 +148,13 @@ mutable struct OpenGLData <: ObserverBuilderDNA
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
         
-        reset!(self)
-        init_renderers!()
+        self._observers = create_dependent_observers(self)
         return self
     end
 end
 
 function reset!(self::OpenGLData)
-    # ? Clean up all Renderers.
-    destroy!.(self._renderers)
-    
-    # ? Reset Renderer Vectors.
-    self._renderers::Vector{RendererDNA} = [
-        Points(self),
-        PointSets(self),
-        PointSequences(self),
-        Curves(self),
-        SegmentSequences(self)
-    ]
+    reset_dependent_observers(self, self._observers)
 end
 
 function glError2String(msg::GLenum)::String
@@ -247,7 +233,22 @@ function readID(self::OpenGLData,x,y)::UInt32
     return num[1]
 end
 
-function _widget_pass!(self::OpenGLData,cam::Camera)
+function _opaque(self::OpenGLData,cam::Camera)::Nothing
+    activate(self._opaqueFBO)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+    clear_value = SVector{4, Int32}(0, 0, 0, 0)
+    glClearBufferiv(GL_COLOR, 1, clear_value)
+
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+    # TODO
+    glEnable(GL_STENCIL_TEST)
+    opaque(self._renderers,cam,self._shrd)::Nothing
+    glDisable(GL_STENCIL_TEST)
+    return nothing
+end
+
+function _widgets(self::OpenGLData,cam::Camera)
     activate(self._widgetFBO)
     glDepthFunc(GL_ALWAYS)
     glEnable(GL_BLEND);
@@ -260,32 +261,39 @@ function _widget_pass!(self::OpenGLData,cam::Camera)
     glDisable(GL_BLEND);
     glDepthFunc(GL_LEQUAL)
 end
-
+#=
 function _transparent(self::OpenGLData,cam::Camera)
-    transparent!(self._transparentFBO,self._pixel_buffer,cam,self._shrd)
+    glDepthMask(GL_FALSE)
+    glEnable(GL_BLEND)
+    glDisable(GL_CULL_FACE)
+    glBlendFunci(0, GL_ONE, GL_ONE)
+    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR)
+    glBlendEquation(GL_FUNC_ADD)
 
-    activate(self._opaqueFBO)
+    activate(self._transparentFBO)
+    glClearBufferfv(GL_COLOR, 0, [0.0f0, 0.0f0, 0.0f0, 0.0f0])
+    glClearBufferfv(GL_COLOR, 1, [1.0f0, 1.0f0, 1.0f0, 1.0f0])
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    bind_ssbo(buffer,0)
 
-    activate(self._accumTexture,GL_TEXTURE0)
-    activate(self._revealTexture,GL_TEXTURE1)
-
-    activate(self._transparent_combinerShader)
-    uniform(self._transparent_combinerShader,"width",UInt32(self._shrd._width))
-    draw(self._dummyBufferArray,GL_TRIANGLES)
-
+    # draws
+    
+    glEnable(GL_CULL_FACE)
+    glDepthMask(GL_TRUE)
     glDisable(GL_BLEND)
 end
+=#
 
 function update!(self::OpenGLData,cam::Camera)
     glCheckErrors(self)
 
-    pre_draw!(cam,self._shrd)
-    opaque!(self._opaqueFBO,cam,self._shrd)
-    _transparent(self,cam)
-    _widget_pass!(self,cam)
+    added_all!(self._renderers)
+    sync_all!(self._renderers)
+
+    pre_draw(self._renderers,cam,self._shrd)
+    _opaque(self,cam)
+    #_transparent(self,cam)
+    _widgets(self,cam)
 
     #activate(self._centerShader)
     #draw(self._centerBufferArray,GL_POINTS)
@@ -309,9 +317,8 @@ end
 
 
 function destroy!(self::OpenGLData)
-    for renderer in self._renderers
-        destroy!(renderer)
-    end
+    destroy_dependent_observers(self._observers)
+    destroy!(self._renderers)
 
     destroy!(self._transparent_combinerShader)
     destroy!(self._combinerShader)

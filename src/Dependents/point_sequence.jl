@@ -30,13 +30,14 @@ evalCallbackDpReturn(self::PointSequenceDependent,::Nothing) = self._coords = Ve
 
 mutable struct PointSequences <:RendererDNA{PointSequenceDependent}
     _renderer::Renderer{PointSequenceDependent}
+    _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
 
     # GREEN Thread
     function PointSequences(context::OpenGLData) 
         renderer = Renderer{PointSequenceDependent}(context)
         refs = Vector{UInt32}()
-        new(renderer,refs)
+        new(renderer,context._renderers,refs)
     end
 end
 
@@ -46,8 +47,7 @@ Base.string(self::PointSequences) = return "PointSequences($(length(self._buffer
 # GREEN Thread
 function added!(self::PointSequences,point_cloud::PointSequenceDependent)
     aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
-    N = length(point_cloud._coords)
-    ref = add_dynamic!(Val{:Point}(),
+    ref = add_dynamic!(self._renderers.point,
                        (Vec3F(coord) for coord in point_cloud._coords),
                        cycle([POINT_NONE]),
                        cycle([point_cloud._color]),
@@ -59,7 +59,7 @@ end
 function sync!(self::PointSequences,point_cloud::PointSequenceDependent)
     aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
     index = self._refs[getObserverID(point_cloud)]
-    update_dyncamic!(Val{:Point}(), index,
+    update_dyncamic!(self._renderers.point, index,
                     (Vec3F(coord) for coord in point_cloud._coords),
                     cycle([POINT_NONE]),
                     cycle([point_cloud._color]),
@@ -70,7 +70,7 @@ end
 function destroy!(self::PointSequences) end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::PointSequenceDependent)::PointSequences = getOpenGL(app)._renderers[_POINT_SEQUENCES]
+Dependent2Observer(app::AppDNA,::PointSequenceDependent)::PointSequences = getDependentObservers(app)[_POINT_SEQUENCES]
 
 PointSequence(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSequenceDependent =
 build!(PointSequenceDependent(callback,dependents,color,width))

@@ -31,7 +31,6 @@ end
 function evalGraph(self::ObservedDNA)
     afterNodeEval(self)
     evalChain(getChain(self))
-    sync_all!()
 end
 
 function afterNodeEval(self::ObservedDNA)

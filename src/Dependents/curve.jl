@@ -90,13 +90,14 @@ end
 
 mutable struct Curves <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
+    _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
 
     # GREEN Thread
     function Curves(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
         refs = Vector{UInt32}()
-        new(renderer, refs)
+        new(renderer, context._renderers, refs)
     end
 end
 
@@ -107,7 +108,7 @@ Base.string(self::Curves) = return "Curves[$(length(self._coords))]"
 function added!(self::Curves,curve::ParametricCurveDependent)
     aID = UInt32(getGraphID(curve) + ID_LOWER_BOUND)
     push!(self._refs,
-        add!(Val{:Line}(),
+        add!(self._renderers.line,
             curve._tValues,
             fill(curve._colors[1],length(curve._tValues)),
             fill(aID,length(curve._tValues)),
@@ -121,14 +122,14 @@ end
 # GREEN Thread
 function sync!(self::Curves,curve::ParametricCurveDependent)
     ref = self._refs[getObserverID(curve)]
-    update_coords!(Val{:Line}(),ref,curve._tValues,curve._width)
+    update_coords!(self._renderers.line,ref,curve._tValues,curve._width)
 end
 
 # GREEN Thread
 function destroy!(self::Curves) end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getOpenGL(app)._renderers[_CURVES]
+Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getDependentObservers(app)[_CURVES]
 
 # YELLOW Thread
 """

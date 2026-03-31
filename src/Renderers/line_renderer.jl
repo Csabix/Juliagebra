@@ -16,7 +16,7 @@ const _LINE_UPDATED_COLOR_TYPE_DYNAMIC::UInt32 = 8
 export SOLID, DASHED, DOTTED, 
         WAVE, DASH_DOT, ARROW
 
-mutable struct GlobalLineRenderer
+mutable struct LineRenderer
     updated::UInt32
     emptyVAO::VertexArray
 
@@ -65,7 +65,7 @@ mutable struct GlobalLineRenderer
     gpu_gpu_sync_dynamic::GLsync
 
     # GREEN Thread
-    function GlobalLineRenderer()
+    function LineRenderer()
         updated::UInt32 = 0
         emptyVAO = VertexArray()
 
@@ -134,7 +134,7 @@ mutable struct GlobalLineRenderer
     end
 end
 
-function _sort_lines!(self::GlobalLineRenderer)
+function _sort_lines!(self::LineRenderer)
     range_groups = [Vector{Int}() for _ in 1:_LINE_TYPE_COUNT]
     for index = 1:length(self.ranges)
         push!(range_groups[self.ranges[index][3]],index)
@@ -204,7 +204,7 @@ end
     @inbounds distances[last_idx] = distance_sum
 end
 
-function _calc_distances!(self::GlobalLineRenderer, vp::Mat4, wh::Vec2F)
+function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     @time_cpu_begin Renderer Line Distances
     
     Threads.@threads for (first, last, _) in self.ranges
@@ -217,7 +217,7 @@ function _calc_distances!(self::GlobalLineRenderer, vp::Mat4, wh::Vec2F)
     @time_cpu_end Renderer Line Distances
 end
 
-function _calc_distances_dynamic!(self::GlobalLineRenderer, vp::Mat4, wh::Vec2F)
+function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     @time_cpu_begin Renderer Line_Dynamic Distances
     
     Threads.@threads for index in 1:length(self.coords_widths_dynamic)
@@ -238,304 +238,272 @@ function _calc_distances_dynamic!(self::GlobalLineRenderer, vp::Mat4, wh::Vec2F)
     @time_cpu_end Renderer Line_Dynamic Distances
 end
 
-_line_renderer::Union{GlobalLineRenderer,Nothing} = nothing
+function destroy!(self::LineRenderer)::Nothing
+    destroy!(self.emptyVAO)
+    destroy!(self.shader_predraw)
+    destroy!.(self.shaders_opaque)
 
-function init!(::Val{:Line})::Nothing
-    global _line_renderer
-    if !isnothing(_line_renderer) destroy!(Val{:Line}()) end
-    _line_renderer = GlobalLineRenderer()
+    destroy!(self.distance_buffer_in)
+    destroy!(self.color_type_buffer_in)
+    destroy!(self.position_width_buffer_in)
+
+    destroy!(self.position_distance_buffer_out)
+    destroy!(self.color_buffer_out)
+    destroy!(self.light_buffer_out)
+    destroy!(self.sdf_buffer_out)
+
+    destroy!.(self.distance_buffer_in_dynamic)
+    destroy!.(self.color_type_buffer_in_dynamic)
+    destroy!.(self.position_width_buffer_in_dynamic)
+
+    destroy!(self.position_distance_buffer_out_dynamic)
+    destroy!(self.color_buffer_out_dynamic)
+    destroy!(self.light_buffer_out_dynamic)
+    destroy!(self.sdf_buffer_out_dynamic)
+
     return nothing
-end
-
-function destroy!(::Val{:Line})::Nothing
-    global _line_renderer
-    @assert !isnothing(_line_renderer)
-    renderer::GlobalLineRenderer = _line_renderer::GlobalLineRenderer
-
-    destroy!(renderer.emptyVAO)
-    destroy!(renderer.shader_predraw)
-    destroy!.(renderer.shaders_opaque)
-
-    destroy!(renderer.distance_buffer_in)
-    destroy!(renderer.color_type_buffer_in)
-    destroy!(renderer.position_width_buffer_in)
-
-    destroy!(renderer.position_distance_buffer_out)
-    destroy!(renderer.color_buffer_out)
-    destroy!(renderer.light_buffer_out)
-    destroy!(renderer.sdf_buffer_out)
-
-    destroy!.(distance_buffer_in_dynamic)
-    destroy!.(color_type_buffer_in_dynamic)
-    destroy!.(position_width_buffer_in_dynamic)
-
-    destroy!(position_distance_buffer_out_dynamic)
-    destroy!(color_buffer_out_dynamic)
-    destroy!(light_buffer_out_dynamic)
-    destroy!(sdf_buffer_out_dynamic)
-
-    _line_renderer = nothing
-    return nothing
-end
-
-function get_renderer(::Val{:Line})::GlobalLineRenderer
-    global _line_renderer
-    @assert !isnothing(_line_renderer)
-    return _line_renderer::GlobalLineRenderer
 end
 
 function pack_color_reversed(color::Vec3F, reversed::Bool)::UInt32
     return (UInt32(reversed ? 255 : 0) << 24) | packUnorm4x8(color)
 end
 
-function add!(::Val{:Line},coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)::UInt32
-    # TODO Id
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
+function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)::UInt32
+    first = length(self.coords_widths) + 1
+    append!(self.coords_widths,(Vec4F(coord...,width) for coord in coords))
+    last = length(self.coords_widths)
+    push!(self.coords_widths, Vec4FNan)
 
-    first = length(renderer.coords_widths) + 1
-    append!(renderer.coords_widths,(Vec4F(coord...,width) for coord in coords))
-    last = length(renderer.coords_widths)
-    push!(renderer.coords_widths, Vec4FNan)
+    append!(self.color_type, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
+    push!(self.color_type, UInt32(0))
 
-    append!(renderer.color_type, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
-    push!(renderer.color_type, UInt32(0))
-
-    push!(renderer.ranges,tuple(first,last,Int(type)))
+    push!(self.ranges,tuple(first,last,Int(type)))
     return UInt32(first)
 end
 
-function add_dynamic!(::Val{:Line},coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)::UInt32
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
-
+function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)::UInt32
     coords_widths = Vector{Vec4F}()
     sizehint!(coords_widths, 2 + length(coords))
     push!(coords_widths, Vec4FNan)
     append!(coords_widths, (Vec4F(coord...,width) for coord in coords))
     push!(coords_widths, Vec4FNan)
-    push!(renderer.coords_widths_dynamic, coords_widths)
+    push!(self.coords_widths_dynamic, coords_widths)
 
     color_type = Vector{UInt32}()
     sizehint!(color_type, 2 + length(coords))
     push!(color_type, 0x0)
     append!(color_type, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
     push!(color_type, 0x0)
-    push!(renderer.color_type_dynamic, color_type)
+    push!(self.color_type_dynamic, color_type)
 
-    push!(renderer.types_dynamic,type)
-    return UInt32(length(renderer.coords_widths_dynamic))
+    push!(self.types_dynamic,type)
+    return UInt32(length(self.coords_widths_dynamic))
 end
 
-function added_all!(::Val{:Line})::Nothing
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
-    N = length(renderer.coords_widths) 
-    if N != length(renderer.position_width_buffer_in) && N > 1
-        _sort_lines!(renderer)
-        upload!(renderer.position_width_buffer_in, renderer.coords_widths, 0)
-        upload!(renderer.color_type_buffer_in, renderer.color_type, 0)
+function added_all!(self::LineRenderer)::Nothing
+    N = length(self.coords_widths) 
+    if N != length(self.position_width_buffer_in) && N > 1
+        _sort_lines!(self)
+        upload!(self.position_width_buffer_in, self.coords_widths, 0)
+        upload!(self.color_type_buffer_in, self.color_type, 0)
         
-        renderer.distances = Vector{Float32}(undef, N)
-        reserve!(renderer.distance_buffer_in,N,0)
+        self.distances = Vector{Float32}(undef, N)
+        reserve!(self.distance_buffer_in,N,0)
 
-        reserve!(renderer.position_distance_buffer_out,5*(N-3),0)
-        reserve!(renderer.color_buffer_out,N-3,0)
-        reserve!(renderer.light_buffer_out,N-3,0)
-        reserve!(renderer.sdf_buffer_out,5*(N-3),0)
+        reserve!(self.position_distance_buffer_out,5*(N-3),0)
+        reserve!(self.color_buffer_out,N-3,0)
+        reserve!(self.light_buffer_out,N-3,0)
+        reserve!(self.sdf_buffer_out,5*(N-3),0)
     end
-    if length(renderer.coords_widths_dynamic) != length(renderer.position_width_buffer_in_dynamic)
-        for i in (length(renderer.position_width_buffer_in_dynamic)+1):length(renderer.coords_widths_dynamic)
+    if length(self.coords_widths_dynamic) != length(self.position_width_buffer_in_dynamic)
+        for i in (length(self.position_width_buffer_in_dynamic)+1):length(self.coords_widths_dynamic)
             pw = MappedBuffer{Vec4F}()
-            upload!(pw, renderer.coords_widths_dynamic[i], 0)
-            push!(renderer.position_width_buffer_in_dynamic, pw)
+            upload!(pw, self.coords_widths_dynamic[i], 0)
+            push!(self.position_width_buffer_in_dynamic, pw)
             
             ct = Buffer{UInt32}()
-            upload!(ct, renderer.color_type_dynamic[i], 0)
-            push!(renderer.color_type_buffer_in_dynamic, ct)
+            upload!(ct, self.color_type_dynamic[i], 0)
+            push!(self.color_type_buffer_in_dynamic, ct)
             
-            N = length(renderer.coords_widths_dynamic[i])
-            push!(renderer.distances_dynamic,Vector{Float32}(undef, N))
+            N = length(self.coords_widths_dynamic[i])
+            push!(self.distances_dynamic,Vector{Float32}(undef, N))
 
             distance_buffer = MappedBuffer{Float32}()
             reserve!(distance_buffer,N,0)
-            push!(renderer.distance_buffer_in_dynamic, distance_buffer)
+            push!(self.distance_buffer_in_dynamic, distance_buffer)
         end
-        N = sum(v -> length(v) - 3, renderer.coords_widths_dynamic)
-        reserve!(renderer.position_distance_buffer_out_dynamic,5*N,0)
-        reserve!(renderer.color_buffer_out_dynamic,N,0)
-        reserve!(renderer.light_buffer_out_dynamic,N,0)
-        reserve!(renderer.sdf_buffer_out_dynamic,5*N,0)
+        N = sum(v -> length(v) - 3, self.coords_widths_dynamic)
+        reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
+        reserve!(self.color_buffer_out_dynamic,N,0)
+        reserve!(self.light_buffer_out_dynamic,N,0)
+        reserve!(self.sdf_buffer_out_dynamic,5*N,0)
     end
-    renderer.updated = 0
+    self.updated = 0
     return nothing
 end
 
-function update_coords!(::Val{:Line},ref::UInt32,coords,width::Float32)
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
-    coords_widths_view = view(renderer.coords_widths, ref:UInt32(ref + length(coords) - 1))
+function update_coords!(self::LineRenderer,ref::UInt32,coords,width::Float32)
+    coords_widths_view = view(self.coords_widths, ref:UInt32(ref + length(coords) - 1))
     copyto!(coords_widths_view,(Vec4F(coord...,width) for coord in coords))
-    renderer.updated |= _LINE_UPDATED_COORD_WIDTH
+    self.updated |= _LINE_UPDATED_COORD_WIDTH
 end
 
-function update_dynamic!(::Val{:Line},ref::UInt32,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
-
-    coords_widths = renderer.coords_widths_dynamic[ref]
+function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)
+    coords_widths = self.coords_widths_dynamic[ref]
     empty!(coords_widths)
     push!(coords_widths, Vec4FNan)
     append!(coords_widths, (Vec4F(coord...,width) for coord in coords))
     push!(coords_widths, Vec4FNan)
 
-    color_type = renderer.color_type_dynamic[ref]
+    color_type = self.color_type_dynamic[ref]
     empty!(color_type)
     push!(color_type, 0x0)
     append!(color_type, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
     push!(color_type, 0x0)
 
-    renderer.types_dynamic[ref] = type
-    renderer.updated |= _LINE_UPDATED_COLOR_TYPE_DYNAMIC
-    push!(renderer.update_list, ref)
+    self.types_dynamic[ref] = type
+    self.updated |= _LINE_UPDATED_COLOR_TYPE_DYNAMIC
+    push!(self.update_list, ref)
 end
 
-function sync!(::Val{:Line})::Nothing
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
-    if (renderer.updated & _LINE_UPDATED_COORD_WIDTH) != 0 || (renderer.updated & _LINE_UPDATED_COLOR_TYPE) != 0
-        wait(renderer.distance_buffer_in)
-        if (renderer.updated & _LINE_UPDATED_COORD_WIDTH) != 0
-            copyto!(renderer.position_width_buffer_in, renderer.coords_widths)
+function sync_all!(self::LineRenderer)::Nothing
+    if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0 || (self.updated & _LINE_UPDATED_COLOR_TYPE) != 0
+        wait(self.distance_buffer_in)
+        if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0
+            copyto!(self.position_width_buffer_in, self.coords_widths)
         end
     end
-    if length(renderer.update_list) != 0
-        wait(last(renderer.distance_buffer_in_dynamic))
+    if length(self.update_list) != 0
+        wait(last(self.distance_buffer_in_dynamic))
 
-        for ref in renderer.update_list
-            upload!(renderer.position_width_buffer_in_dynamic[ref], renderer.coords_widths_dynamic[ref], 0)
-            upload!(renderer.color_type_buffer_in_dynamic[ref], renderer.color_type_dynamic[ref], 0)
+        for ref in self.update_list
+            upload!(self.position_width_buffer_in_dynamic[ref], self.coords_widths_dynamic[ref], 0)
+            upload!(self.color_type_buffer_in_dynamic[ref], self.color_type_dynamic[ref], 0)
             
-            N = length(renderer.coords_widths_dynamic[ref])
+            N = length(self.coords_widths_dynamic[ref])
 
-            Base.resize!(renderer.distances_dynamic[ref],N)
-            reserve!(renderer.distance_buffer_in_dynamic[ref],N,0)
+            Base.resize!(self.distances_dynamic[ref],N)
+            reserve!(self.distance_buffer_in_dynamic[ref],N,0)
         end
-        empty!(renderer.update_list)
+        empty!(self.update_list)
 
-        N = sum(v -> length(v) - 3, renderer.coords_widths_dynamic)
-        if N > length(renderer.color_buffer_out_dynamic)
-            reserve!(renderer.position_distance_buffer_out_dynamic,5*N,0)
-            reserve!(renderer.color_buffer_out_dynamic,N,0)
-            reserve!(renderer.light_buffer_out_dynamic,N,0)
-            reserve!(renderer.sdf_buffer_out_dynamic,5*N,0)
+        N = sum(v -> length(v) - 3, self.coords_widths_dynamic)
+        if N > length(self.color_buffer_out_dynamic)
+            reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
+            reserve!(self.color_buffer_out_dynamic,N,0)
+            reserve!(self.light_buffer_out_dynamic,N,0)
+            reserve!(self.sdf_buffer_out_dynamic,5*N,0)
         end
     end
-    renderer.updated = 0
+    self.updated = 0
     return nothing
 end
 
-function pre_draw(::Val{:Line},cam::Camera,shrd::SharedData)::Nothing
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
+function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     (vp, _, _) = get_matrices(cam)
 
     # Static
     
-    if length(renderer.coords_widths) > 1
-    _calc_distances!(renderer,vp,Vec2F(shrd._width,shrd._height))
+    if length(self.coords_widths) > 1
+    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
 
-    bind_ssbo(renderer.distance_buffer_in,0)
-    bind_ssbo(renderer.color_type_buffer_in,1)
-    bind_ssbo(renderer.position_width_buffer_in,2)
-    bind_ssbo(renderer.position_distance_buffer_out,3)
-    bind_ssbo(renderer.color_buffer_out,4)
-    bind_ssbo(renderer.light_buffer_out,5)
-    bind_ssbo(renderer.sdf_buffer_out,6)
+    bind_ssbo(self.distance_buffer_in,0)
+    bind_ssbo(self.color_type_buffer_in,1)
+    bind_ssbo(self.position_width_buffer_in,2)
+    bind_ssbo(self.position_distance_buffer_out,3)
+    bind_ssbo(self.color_buffer_out,4)
+    bind_ssbo(self.light_buffer_out,5)
+    bind_ssbo(self.sdf_buffer_out,6)
 
     (cam_light, side_light) = get_lights(cam)
-    activate(renderer.shader_predraw)
-    uniform(renderer.shader_predraw,"VP",vp)
-    uniform(renderer.shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    uniform(renderer.shader_predraw,"Eye",cam._eye)
-    uniform(renderer.shader_predraw,"lightDirCam", cam_light)
-    uniform(renderer.shader_predraw,"lightDirSide",side_light)
-    uniform(renderer.shader_predraw,"offset",UInt32(0))
+    activate(self.shader_predraw)
+    uniform(self.shader_predraw,"VP",vp)
+    uniform(self.shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    uniform(self.shader_predraw,"Eye",cam._eye)
+    uniform(self.shader_predraw,"lightDirCam", cam_light)
+    uniform(self.shader_predraw,"lightDirSide",side_light)
+    uniform(self.shader_predraw,"offset",UInt32(0))
     @time_gpu_begin Renderer Line Pre_Draw
-    glDispatchCompute(cld(length(renderer.coords_widths),32),1,1);
+    glDispatchCompute(cld(length(self.coords_widths),32),1,1);
     @time_gpu_end Renderer Line Pre_Draw
-    renderer.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(renderer.distance_buffer_in)
+    self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+    lock(self.distance_buffer_in)
     end
     # Dynamic
     
-    if length(renderer.coords_widths_dynamic) > 0
-    _calc_distances_dynamic!(renderer,vp,Vec2F(shrd._width,shrd._height))
+    if length(self.coords_widths_dynamic) > 0
+    _calc_distances_dynamic!(self,vp,Vec2F(shrd._width,shrd._height))
 
-    bind_ssbo(renderer.position_distance_buffer_out_dynamic,3)
-    bind_ssbo(renderer.color_buffer_out_dynamic,4)
-    bind_ssbo(renderer.light_buffer_out_dynamic,5)
-    bind_ssbo(renderer.sdf_buffer_out_dynamic,6)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,3)
+    bind_ssbo(self.color_buffer_out_dynamic,4)
+    bind_ssbo(self.light_buffer_out_dynamic,5)
+    bind_ssbo(self.sdf_buffer_out_dynamic,6)
 
     (cam_light, side_light) = get_lights(cam)
-    activate(renderer.shader_predraw)
-    uniform(renderer.shader_predraw,"VP",vp)
-    uniform(renderer.shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    uniform(renderer.shader_predraw,"Eye",cam._eye)
-    uniform(renderer.shader_predraw,"lightDirCam", cam_light)
-    uniform(renderer.shader_predraw,"lightDirSide",side_light)
+    activate(self.shader_predraw)
+    uniform(self.shader_predraw,"VP",vp)
+    uniform(self.shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
+    uniform(self.shader_predraw,"Eye",cam._eye)
+    uniform(self.shader_predraw,"lightDirCam", cam_light)
+    uniform(self.shader_predraw,"lightDirSide",side_light)
 
     prev_offset::UInt32 = 0
     offset::UInt32 = 0
     for i in 1:_LINE_TYPE_COUNT
-        for j in 1:length(renderer.coords_widths_dynamic)
-            if renderer.types_dynamic[j] != i continue end
-            bind_ssbo(renderer.distance_buffer_in_dynamic[j],0)
-            bind_ssbo(renderer.color_type_buffer_in_dynamic[j],1)
-            bind_ssbo(renderer.position_width_buffer_in_dynamic[j],2)
-            uniform(renderer.shader_predraw,"offset",offset)
-            glDispatchCompute(cld(length(renderer.coords_widths_dynamic[j]),32),1,1);
-            offset += UInt32(length(renderer.coords_widths_dynamic[j]) - 3)
+        for j in 1:length(self.coords_widths_dynamic)
+            if self.types_dynamic[j] != i continue end
+            bind_ssbo(self.distance_buffer_in_dynamic[j],0)
+            bind_ssbo(self.color_type_buffer_in_dynamic[j],1)
+            bind_ssbo(self.position_width_buffer_in_dynamic[j],2)
+            uniform(self.shader_predraw,"offset",offset)
+            glDispatchCompute(cld(length(self.coords_widths_dynamic[j]),32),1,1);
+            offset += UInt32(length(self.coords_widths_dynamic[j]) - 3)
         end
-        renderer.draw_ranges_dynamic[i] = (prev_offset, offset - prev_offset)
+        self.draw_ranges_dynamic[i] = (prev_offset, offset - prev_offset)
         prev_offset = offset
     end
 
-    renderer.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(last(renderer.distance_buffer_in_dynamic))
+    self.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+    lock(last(self.distance_buffer_in_dynamic))
     end
 
     return nothing
 end
 
-function opaque(::Val{:Line},cam::Camera,shrd::SharedData)::Nothing
-    renderer::GlobalLineRenderer = get_renderer(Val{:Line}())
-    if (any(x -> x[2] != 0, renderer.draw_ranges))
-    glWaitSync(renderer.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
-    glDeleteSync(renderer.gpu_gpu_sync);
+function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    if (any(x -> x[2] != 0, self.draw_ranges))
+    glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
+    glDeleteSync(self.gpu_gpu_sync);
 
-    activate(renderer.emptyVAO)
-    bind_ssbo(renderer.position_distance_buffer_out,0)
-    bind_ssbo(renderer.color_buffer_out,1)
-    bind_ssbo(renderer.light_buffer_out,2)
-    bind_ssbo(renderer.sdf_buffer_out,3)
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out,0)
+    bind_ssbo(self.color_buffer_out,1)
+    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.sdf_buffer_out,3)
     @time_gpu_begin Renderer Line Opaque
     for type in 1:_LINE_TYPE_COUNT
-        (first,count) = renderer.draw_ranges[type]
+        (first,count) = self.draw_ranges[type]
         if count == 0 continue end
-        activate(renderer.shaders_opaque[type])
+        activate(self.shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line_Dynamic Opaque
     end
 
-    if (any(x -> x[2] != 0, renderer.draw_ranges_dynamic))
-    glWaitSync(renderer.gpu_gpu_sync_dynamic, 0, 0xFFFFFFFFFFFFFFFF)
-    glDeleteSync(renderer.gpu_gpu_sync_dynamic);
+    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
+    glWaitSync(self.gpu_gpu_sync_dynamic, 0, 0xFFFFFFFFFFFFFFFF)
+    glDeleteSync(self.gpu_gpu_sync_dynamic);
 
-    activate(renderer.emptyVAO)
-    bind_ssbo(renderer.position_distance_buffer_out_dynamic,0)
-    bind_ssbo(renderer.color_buffer_out_dynamic,1)
-    bind_ssbo(renderer.light_buffer_out_dynamic,2)
-    bind_ssbo(renderer.sdf_buffer_out_dynamic,3)
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
+    bind_ssbo(self.color_buffer_out_dynamic,1)
+    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.sdf_buffer_out_dynamic,3)
     @time_gpu_begin Renderer Line Opaque
     for type in 1:_LINE_TYPE_COUNT
-        (first,count) = renderer.draw_ranges_dynamic[type]
+        (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
-        activate(renderer.shaders_opaque[type])
+        activate(self.shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line_Dynamic Opaque

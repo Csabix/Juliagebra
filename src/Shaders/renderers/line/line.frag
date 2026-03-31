@@ -87,12 +87,18 @@ float pattern() {
 
 void main() {
     float d = pattern();
-    float alpha = 1.0 - smoothstep(max(-0.2*segment_SDF_field_in.z,-2.0), 0.0, d);
     d = max(d, rounding());
+    float alpha = 1.0 - smoothstep(max(-0.2*segment_SDF_field_in.z,-2.0), 0.0, d);
 
     if (d > 0.0 /*|| alpha <= 0.9*/) discard;
 
-    vec3 normal = get_normal();
-    color_out = get_color(normal, alpha);
+    vec4 color = get_color(get_normal(), alpha);
+#ifdef TRANSPARENCY
+    const uint zero_float = floatBitsToUint(0.0);
+    uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
+    uint packedColor = packUnorm4x8(color);
+#else
+    color_out = color;
     id_out = 0;
+#endif
 }

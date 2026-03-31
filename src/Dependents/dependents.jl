@@ -1,3 +1,9 @@
+const _POINTS::UInt = 1
+const _POINT_SETS::UInt = 2
+const _POINT_SEQUENCES::UInt = 3
+const _CURVES::UInt = 4
+const _SEGMENT_SEQUENCES::UInt = 5
+
 include("dependent_renderer.jl")
 include("rendered_dependent.jl")
 include("gui_renderer.jl")
@@ -38,3 +44,29 @@ end
 
 include("point_set.jl")
 include("point_sequence.jl")
+
+function create_dependent_observers(data::OpenGLData)::Vector{RendererDNA}
+    return RendererDNA[
+        Points(data),
+        PointSets(data),
+        PointSequences(data),
+        Curves(data),
+        SegmentSequences(data)
+    ]
+end
+
+function destroy_dependent_observers(observers::Vector{RendererDNA})::Nothing
+    destroy!.(observers)
+    return nothing
+end
+
+function reset_dependent_observers(data::OpenGLData, observers::Vector{RendererDNA})::Nothing
+    destroy_dependent_observers(observers)
+    empty!(observers)
+    push!(Points(data))
+    push!(PointSets(data))
+    push!(PointSequences(data))
+    push!(Curves(data))
+    push!(SegmentSequences(data))
+    return nothing
+end

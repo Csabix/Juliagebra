@@ -68,8 +68,6 @@ function handleAddedCalls(app::AppDNA)
             break
         end
     end
-    
-    added_all!()
 
     if takeNum > 1
         @log "Built $(takeNum)!"

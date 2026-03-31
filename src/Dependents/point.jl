@@ -42,13 +42,14 @@ evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
 mutable struct Points <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
+    _renderers::PrimitiveRenderers
     _indexes::Vector{UInt32}
 
     # GREEN Thread
     function Points(context::OpenGLData)
         renderer = Renderer{PointDependent}(context)
         indexes = Vector{UInt32}()
-        new(renderer, indexes)
+        new(renderer, context._renderers, indexes)
     end
 end
 
@@ -58,21 +59,20 @@ Base.string(self::Points) = return "Points($(length(self._indexes)))"
 # GREEN Thread
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
-    push!(self._indexes, add!(Val{:Point}(),Vec3F(point._coord),POINT_PLUS,Vec3F(1.0,0.0,1.0),UInt8(25),aID))
+    push!(self._indexes, add!(self._renderers.point,Vec3F(point._coord),POINT_PLUS,Vec3F(1.0,0.0,1.0),UInt8(25),aID))
 end
 
 # GREEN Thread
 function sync!(self::Points,point::PointDependent)
     index = self._indexes[getObserverID(point)]
-    view = update_coords!(Val{:Point}(),index)
-    view[1] = Vec3F(point._coord)
+    update_coords!(self._renderers.point,index,Vec3F(point._coord))
 end
 
 # GREEN Thread
 function destroy!(self::Points) end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[_POINTS]
+Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_POINTS]
 
 # ? ---------------------------------
 # ! Point

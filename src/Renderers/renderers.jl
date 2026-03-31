@@ -14,74 +14,49 @@ end
 include("point_renderer.jl")
 include("line_renderer.jl")
 
-init!(s::Symbol)::Nothing = init!(Val(s))
-function init_renderers!()::Nothing
-    init!(:Point)
-    init!(:Line)
+struct PrimitiveRenderers
+    point::PointRenderer
+    line::LineRenderer
+
+    function PrimitiveRenderers()
+        return new(PointRenderer(),LineRenderer())
+    end
 end
 
-destroy!(s::Symbol)::Nothing = destroy!(Val(s))
-function destroy_renderers!()::Nothing
-    destroy!(:Point)
-    destroy!(:Line)
+function destroy!(renderers::PrimitiveRenderers)::Nothing
+    destroy!(renderers.point)
+    destroy!(renderers.line)
+    return nothing
 end
 
-added_all!(s::Symbol)::Nothing = added_all!(Val(s))
-function added_all!()::Nothing
-    added_all!(:Point)
-    added_all!(:Line)
+function added_all!(renderers::PrimitiveRenderers)::Nothing
+    added_all!(renderers.point)
+    added_all!(renderers.line)
+    return nothing
 end
 
-sync!(s::Symbol)::Nothing = sync!(Val(s))
-function sync_all!()::Nothing
-    sync!(:Point)
-    sync!(:Line)
+function sync_all!(renderers::PrimitiveRenderers)::Nothing
+    sync_all!(renderers.point)
+    sync_all!(renderers.line)
+    return nothing
 end
 
-pre_draw(s::Symbol,cam::Camera,shrd::SharedData) = pre_draw(Val(s),cam,shrd)
-function pre_draw!(cam::Camera,shrd::SharedData)::Nothing
-    pre_draw(:Line,cam,shrd)
+function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    pre_draw(renderers.line,cam,shrd)
+    return nothing
 end
 
-opaque(s::Symbol,cam::Camera,shrd::SharedData) = opaque(Val(s),cam,shrd)
-function opaque!(fbo::FrameBuffer,cam::Camera,shrd::SharedData)::Nothing
-    activate(fbo)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-    clear_value = SVector{4, Int32}(0, 0, 0, 0)
-    glClearBufferiv(GL_COLOR, 1, clear_value)
-
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-
-    opaque(:Point,cam,shrd)
-    opaque(:Line,cam,shrd)
-
-    glEnable(GL_STENCIL_TEST)
-
-    glDisable(GL_STENCIL_TEST)
+function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    opaque(renderers.point,cam,shrd)
+    opaque(renderers.line,cam,shrd)
+    return nothing
 end
 
-function behind_opaque!(cam::Camera,shrd::SharedData)::Nothing
-    
+function behind_opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    return nothing
 end
 
-function transparent!(fbo::FrameBuffer,buffer::Buffer{UVec2},cam::Camera,shrd::SharedData)::Nothing
-    glDepthMask(GL_FALSE)
-    glEnable(GL_BLEND)
-    glDisable(GL_CULL_FACE)
-    glBlendFunci(0, GL_ONE, GL_ONE)
-    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR)
-    glBlendEquation(GL_FUNC_ADD)
-
-    activate(fbo)
-    glClearBufferfv(GL_COLOR, 0, [0.0f0, 0.0f0, 0.0f0, 0.0f0])
-    glClearBufferfv(GL_COLOR, 1, [1.0f0, 1.0f0, 1.0f0, 1.0f0])
-
-    bind_ssbo(buffer,0)
-
-    # draws
-    
-    glEnable(GL_CULL_FACE)
-    glDepthMask(GL_TRUE)
-    glDisable(GL_BLEND)
+function transparent(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    #transparent(renderers.line,cam,shrd)
+    return nothing
 end

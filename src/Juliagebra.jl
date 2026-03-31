@@ -83,6 +83,7 @@ include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
 
 
+include("Renderers/renderers.jl")
 include("opengl_data.jl")
 
 # ? ---------------------------------
@@ -99,7 +100,6 @@ include("GraphCore/source_value_holder.jl")
 #include("GraphCore/unary_value_holder.jl")
 include("GraphCore/observed_dependent.jl")
 
-include("Renderers/renderers.jl")
 
 include("Dependents/dependents.jl")
 

@@ -24,13 +24,16 @@ function renderContent(self::GuiDependentsWindow, app::AppDNA)
     if self._isOrdered
         pool::Vector{GuiRendererDNA} = imgui._pool
         
-        for idx in eachindex(pool)
-            observer = pool[idx]
-        
+        for observer in pool
             if hasInstance(observer)    
-                CImGui.PushID(idx)
-                render!(observer, app)
-                CImGui.PopID()
+                CImGui.Text("$(title(observer)) dependents:")
+                CImGui.Separator()
+
+                for observed in getObservedItems(observer) 
+                    CImGui.PushID(getGraphID(observed))
+                    render!(observer, observed, app)
+                    CImGui.PopID()
+                end
             end
         end
     else

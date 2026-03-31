@@ -52,22 +52,17 @@ syncAll!(self::TextBoxRenderer) = return nothing
 # GREEN Thread
 addedAll!(self::TextBoxRenderer) = return nothing
 
-function render!(self::TextBoxRenderer, app::AppDNA)
-    CImGui.Text("TextBoxDependents:")
-    CImGui.Separator()
-
-    for textBoxIdx in eachindex(getObservedItems(self))
-        textBox = self[textBoxIdx]
-        render!(self,textBox,app)
-    end
-end
+title(::TextBoxRenderer)::String = return "TextBox"
 
 function render!(self::TextBoxRenderer, textBox::TextBoxDependent, app::AppDNA)
     s::Scheduler = getScheduler(app)
     label::String = getLabel(textBox)
     textBoxIdx::Int = getObserverID(textBox)
 
-    CImGui.Text("$(label)")
+    if !(label == "")
+        CImGui.Text("$(label)")
+    end
+
     proposedText = txtbox("##$(textBoxIdx)",textBox._text)
 
     if (!isnothing(proposedText))

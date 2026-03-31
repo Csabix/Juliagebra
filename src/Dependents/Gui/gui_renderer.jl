@@ -29,3 +29,4 @@ end
 
 render!(self::GuiRendererDNA) = error("Missing func!")
 render!(self::GuiRendererDNA,app::AppDNA) = render!(self)
+title(::GuiRendererDNA)::String = error("Missing func!")

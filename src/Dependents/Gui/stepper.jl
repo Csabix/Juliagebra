@@ -46,16 +46,7 @@ sync!(self::StepperRenderer, item::StepperDependent) = self._nums[getObserverID(
 # GREEN Thread
 syncAll!(::StepperRenderer) = return nothing
 
-function render!(self::StepperRenderer, app::AppDNA)
-    
-    CImGui.Text("Steppers:")
-    CImGui.Separator()
-
-    for stepperIdx in eachindex(getObservedItems(self))
-        stepper::StepperDependent = getObservedItems(self)[stepperIdx]
-        render!(self,stepper,app)
-    end
-end
+title(::StepperRenderer) = return "Stepper"
 
 function render!(self::StepperRenderer, stepper::StepperDependent, app::AppDNA)
     s::Scheduler = getScheduler(app)

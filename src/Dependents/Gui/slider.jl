@@ -52,15 +52,7 @@ syncAll!(self::SliderRenderer) = return nothing
 # GREEN Thread
 addedAll!(self::SliderRenderer) = return nothing
 
-function render!(self::SliderRenderer, app::AppDNA)
-    CImGui.Text("SliderDependents:")
-    CImGui.Separator()
-
-    for sliderIdx in eachindex(getObservedItems(self))
-        slider = self[sliderIdx]
-        render!(self,slider,app)
-    end
-end
+title(::SliderRenderer)::String = return "Slider"
 
 function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
     s::Scheduler = getScheduler(app)
@@ -71,6 +63,7 @@ function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
     currVal = slider._value.y
     maxVal = slider._value.z
 
+    CImGui.SetNextItemWidth(-1)
     proposedVal = slider1(currVal,"$(label)##$(sliderIdx)",minVal,maxVal)
 
     if(!isnothing(proposedVal))

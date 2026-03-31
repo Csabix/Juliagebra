@@ -57,16 +57,7 @@ sync!(::ToggleRenderer,::ToggleDependent) = return nothing
 # GREEN Thread
 syncAll!(::ToggleRenderer) = return nothing
 
-# GREEN Thread
-function render!(self::ToggleRenderer, app::AppDNA)
-    CImGui.Text("ToggleDependents:")
-    CImGui.Separator()
-
-    for toggleIdx in eachindex(getObservedItems(self))
-        toggle::ToggleDependent = self[toggleIdx]
-        render!(self,toggle,app)
-    end
-end
+title(::ToggleRenderer)::String = return "Toggle"
 
 function render!(self::ToggleRenderer, toggle::ToggleDependent, app::AppDNA)
     s::Scheduler = getScheduler(app)

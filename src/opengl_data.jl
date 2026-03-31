@@ -29,7 +29,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     # ! Shaders
     _transparent_combinerShader::ShaderProgram
     _combinerShader::ShaderProgram
-    _centerShader::ShaderProgram
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -80,7 +79,6 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
         transparent_combinerShader = ShaderProgram(["combiner_transparent.vert","combiner_transparent.frag"],["width"])
         combinerShader  = ShaderProgram(["dflt_combiner.vert","dflt_combiner.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
-        centerShader    = ShaderProgram(["center.vert","center.frag"])
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -139,7 +137,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         camPos = Vec3F(0.0,0.0,0.0)
 
         self = new(shrd,widgets,observers,renderers,
-            transparent_combinerShader,combinerShader,centerShader,
+            transparent_combinerShader,combinerShader,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,
             behindOpaqueFBO,transparentFBO,widgetFBO,
@@ -295,9 +293,6 @@ function update!(self::OpenGLData,cam::Camera)
     #_transparent(self,cam)
     _widgets(self,cam)
 
-    #activate(self._centerShader)
-    #draw(self._centerBufferArray,GL_POINTS)
-
     readID(self)
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
@@ -322,7 +317,6 @@ function destroy!(self::OpenGLData)
 
     destroy!(self._transparent_combinerShader)
     destroy!(self._combinerShader)
-    destroy!(self._centerShader)
 
     destroy!(self._opaqueFBO)
     destroy!(self._behindOpaqueFBO)

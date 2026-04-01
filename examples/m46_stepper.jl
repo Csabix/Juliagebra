@@ -1,4 +1,3 @@
-
 using Juliagebra
 
 s = Stepper(-1.0)

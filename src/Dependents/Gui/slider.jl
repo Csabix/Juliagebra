@@ -41,8 +41,6 @@ mutable struct SliderRenderer <: GuiRendererDNA{SliderDependent}
     _guiRenderer::GuiRenderer{SliderDependent}
     _values::Vector{Vec3F}
     _data::Vector{_SliderData}
-
-    # GREEN Thread
     SliderRenderer(imgui::ImGuiDNA) = new(GuiRenderer{SliderDependent}(imgui),Vector{Vec3F}(),Vector{_SliderData}())
 end
 

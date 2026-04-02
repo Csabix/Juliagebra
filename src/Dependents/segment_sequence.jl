@@ -104,7 +104,7 @@ end
 _Renderer_(self::SegmentSequences) = return self._renderer
 Base.string(self::SegmentSequences) = return "SegmentSequences[$(length(self._coords))]"
 
-function custom_interleaver(vec, insert_val, n::Integer)
+function custom_interleaver(vec, insert_val, n)
     return (val for (i, x) in enumerate(vec) for val in (i % n == 0 ? (x, insert_val) : (x,)))
 end
 
@@ -113,18 +113,18 @@ function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = if segseq._break_every >= 2
         add_dynamic!(self._renderers.line,
-            collect(custom_interleaver(segseq._values,Vec3FNan,segseq._break_every)),
+            collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
             custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
-            custom_interleaver(Iterators.cycle([aID]),UInt32(0),segseq._break_every),
+            custom_interleaver(Iterators.cycle((aID,)),UInt32(0),segseq._break_every),
             segseq._width,
             segseq._type,
             segseq._reversed != 0
         )
     else
         add_dynamic!(self._renderers.line,
-            segseq._values,
+            (Vec3F(coord) for coord in segseq._values),
             Iterators.cycle(segseq._colors),
-            Iterators.cycle([aID]),
+            Iterators.cycle((aID,)),
             segseq._width,
             segseq._type,
             segseq._reversed != 0

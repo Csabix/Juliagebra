@@ -116,8 +116,11 @@ function render!(self::ImGuiData,app::AppDNA)
 end
 
 function update!(self::ImGuiData, app::AppDNA)
-    sr::SliderRenderer = self._pool[2]
-    update!(sr,app)
+    slr::SliderRenderer = self._pool[2]
+    str::StepperRenderer = self._pool[4]
+    
+    update!(slr,app)
+    update!(str,app)
 end
 
 function renderBuildingState(::Any, ::AppDNA)

@@ -29,7 +29,9 @@ evalCallbackDpReturn(self::StepperDependent,num::Float64) = self._num = num
 
 @kwdef struct _StepperData
     playing::Bool = false
-    start::Float32 = 0.0
+    opened::Bool = false
+    proposed::Union{Float32,Nothing} = nothing
+    start::Vec2D = Vec2D(0.0,0.0)
 end
 
 mutable struct StepperRenderer <: GuiRendererDNA{StepperDependent}
@@ -57,7 +59,23 @@ function sync!(self::StepperRenderer, item::StepperDependent)
 end
 
 function update!(self::StepperRenderer, app::AppDNA)
+    s::Scheduler = getScheduler(app)
+    steppers::Vector{StepperDependent} = getObservedItems(self)
 
+    for stepperIdx in eachindex(steppers)
+        stepper::StepperDependent = steppers[stepperIdx]
+        data::_StepperData = self._data[stepperIdx]
+
+        if data.playing
+            tt = time() - data.start.x
+            stepper._num = data.start.y + tt
+            schedule(s,stepper)
+
+        elseif !isnothing(data.proposed)
+            stepper._num = Float64(data.proposed)
+            schedule(s,stepper)
+        end
+    end
 end
 
 function render!(self::StepperRenderer, stepper::StepperDependent, app::AppDNA)
@@ -69,16 +87,19 @@ function render!(self::StepperRenderer, stepper::StepperDependent, app::AppDNA)
     data::_StepperData = self._data[stepperIdx]
 
     playing = data.playing
+    opened = data.opened
+    #proposed = data.proposed
+    #start = data.start
 
     playButtonChar= playing ? "\ue034" : "\ue037" 
 
     # ? Sizing here is good enough for now.
     CImGui.PushFont(imgui._iconFont, 21)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, CImGui.ImVec2(0, 0))
-    CImGui.Button("\ue8b8") ? nothing : nothing # ? Settings Cog
+    CImGui.Button("\ue8b8") ? opened = !opened : nothing # ? Settings Cog
     CImGui.SameLine(0.0,5.0)
     CImGui.Button(playButtonChar) ? playing = !playing : nothing # ? Play Button
-    #start = data.playing==false && playing==true ? time() : data.start
+    start = data.playing==false && playing==true ? Vec2D(time(),num) : data.start
     CImGui.PopStyleVar()
     CImGui.PopFont()
 
@@ -91,14 +112,18 @@ function render!(self::StepperRenderer, stepper::StepperDependent, app::AppDNA)
     end
     
     CImGui.SetNextItemWidth(-1)
-    proposedVal = input1(num,"", Float32(0.1), Float32(1))
+    proposed = input1(num,"", Float32(0.1), Float32(1))
 
-    if !isnothing(proposedVal)
-        stepper._num = Float64(proposedVal)
-        schedule(s,stepper)
+    if opened
+        CImGui.Button("Implement Anim Styles!")
+        CImGui.SameLine(0.0,5.0)
+        CImGui.Button("Implement Anim Speed!")
+        CImGui.SameLine(0.0,5.0)
+        CImGui.Button("Implement Value Setting!")
+        CImGui.Spacing()
     end
 
-    self._data[stepperIdx] = _StepperData(playing,0.0)
+    self._data[stepperIdx] = _StepperData(playing, opened, proposed, start)
 end
 
 # ? ---------------------------------

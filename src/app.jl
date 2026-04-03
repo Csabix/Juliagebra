@@ -226,7 +226,7 @@ function play!(self::App)
             handleCommands!(self)
             # ? Schedules a PointDependent.
             updateGizmo!(self)
-            # ? Schedules SliderDependents.
+            # ? Schedules SliderDependents and StepperDependents.
             update!(self._imgui,self)
 
 

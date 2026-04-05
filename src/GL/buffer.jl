@@ -35,7 +35,9 @@ end
 # ? ---------------------------------
 
 @inline Base.eltype(::BufferBase{T}) where {T} = T
-@inline Base.length(self::BufferBase{T}) where {T} = div(self._size, sizeof(T))
+@inline function Base.length(self::BufferBase{T})::Int where {T}
+    return div(self._size, sizeof(T))
+end
 @inline id(self::BufferBase)::GLuint = self._id
 @inline size(self::BufferBase)::Int = self._size
 

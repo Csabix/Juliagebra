@@ -53,7 +53,7 @@ include("LBVH/morton_codes.jl")
 include("LBVH/lbvh.jl")
 include("LBVH/lbvh_cache.jl")
 
-ID_LOWER_BOUND = 3
+const ID_LOWER_BOUND::Int = 3
 
 include("shared_data.jl")
 

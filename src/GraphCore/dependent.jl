@@ -15,7 +15,7 @@ _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for 
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
-getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
+getGraphID(self::DependentDNA)::Int = return _Dependent_(self)._graphID - ID_LOWER_BOUND
 getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 

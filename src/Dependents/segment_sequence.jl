@@ -104,8 +104,20 @@ end
 _Renderer_(self::SegmentSequences) = return self._renderer
 Base.string(self::SegmentSequences) = return "SegmentSequences[$(length(self._coords))]"
 
-function custom_interleaver(vec, insert_val, n)
-    return (val for (i, x) in enumerate(vec) for val in (i % n == 0 ? (x, insert_val) : (x,)))
+function custom_interleaver(vec, insert_val::T, n) where T
+    new_len = length(vec) + div(length(vec), n)
+    dest = Vector{T}(undef, new_len)
+    
+    dest_idx = 1
+    for (i,e) in enumerate(vec)
+        dest[dest_idx] = e
+        dest_idx += 1
+        if i % n == 0
+            dest[dest_idx] = insert_val
+            dest_idx += 1
+        end
+    end
+    return dest
 end
 
 # GREEN Thread
@@ -114,8 +126,8 @@ function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     ref = if segseq._break_every >= 2
         add_dynamic!(self._renderers.line,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
-            custom_interleaver(Iterators.cycle((aID,)),UInt32(0),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),Vec3F(0.0f0),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),UInt32(0),segseq._break_every),
             segseq._width,
             segseq._type,
             segseq._reversed != 0
@@ -139,16 +151,16 @@ function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     ref = self._refs[getObserverID(segseq)]
     if segseq._break_every >= 2
         update_dynamic!(self._renderers.line,ref,
-            collect(custom_interleaver(segseq._values,Vec3FNan,segseq._break_every)),
-            custom_interleaver(Iterators.cycle(segseq._colors),Vec3F(0.0f0),segseq._break_every),
-            custom_interleaver(Iterators.cycle([aID]),UInt32(0),segseq._break_every),
+            collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),Vec3F(0.0f0),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),UInt32(0),segseq._break_every),
             segseq._width,
             segseq._type,
             segseq._reversed != 0
         )
     else
         update_dynamic!(self._renderers.line,ref,
-            collect(segseq._values),
+            collect((Vec3F(coord) for coord in segseq._values)),
             Iterators.cycle(segseq._colors),
             Iterators.cycle([aID]),
             segseq._width,

@@ -27,8 +27,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _renderers::PrimitiveRenderers
 
     # ! Shaders
-    _transparent_combinerShader::ShaderProgram
-    _combinerShader::ShaderProgram
+    _transparent_color_combiner::ShaderProgram
+    _transparent_id_combiner::ShaderProgram
+    _final_combiner::ShaderProgram
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -76,8 +77,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         push!(widgets,gizmoGL)
         push!(widgets,orthoGizmoGL)
 
-        transparent_combinerShader = ShaderProgram(["combiner_transparent.vert","combiner_transparent.frag"],["width"])
-        combinerShader  = ShaderProgram(["dflt_combiner.vert","dflt_combiner.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV","NEAR_FAR_DISTANCE_POWER"])
+        transparent_color_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_color.frag"],["width"])
+        transparent_id_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_id.frag"],["width"])
+        final_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/final.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV_RESOLUTION","NEAR_FAR_DISTANCE_POWER"])
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -105,6 +107,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         transparentFBO = FrameBuffer(transparentAttachments)
 
         pixel_buffer = Buffer{UVec2}()
+        reserve!(pixel_buffer, shrd._width * shrd._height * 10, 0)
         empty_vao = VertexArray()
         
         glEnable(GL_DEPTH_TEST)
@@ -113,7 +116,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
 
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
         glEnable(GL_PROGRAM_POINT_SIZE)
 
@@ -127,7 +130,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         camPos = Vec3F(0.0,0.0,0.0)
 
         self = new(shrd,widgets,observers,renderers,
-            transparent_combinerShader,combinerShader,
+            transparent_color_combiner,transparent_id_combiner,final_combiner,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             pixel_buffer,empty_vao,
@@ -183,7 +186,7 @@ function resize!(self::OpenGLData)
     resize!(self._behindOpaqueDepthstencilTexture,width,height)
     resize!(self._accumTexture,width,height)
     resize!(self._revealTexture,width,height)
-    reserve!(self._pixel_buffer, self._shrd._width * self._shrd._height * 4, 0)
+    reserve!(self._pixel_buffer, self._shrd._width * self._shrd._height * 10, 0)
 end
 
 function readID(self::OpenGLData)
@@ -226,29 +229,15 @@ function _opaque(self::OpenGLData,cam::Camera)::Nothing
     clear_value = SVector{4, Int32}(0, 0, 0, 0)
     glClearBufferiv(GL_COLOR, 1, clear_value)
 
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
     # TODO
     glEnable(GL_STENCIL_TEST)
-    opaque(self._renderers,cam,self._shrd)::Nothing
+    opaque(self._renderers,cam,self._shrd)
     glDisable(GL_STENCIL_TEST)
     return nothing
 end
 
-function _widgets(self::OpenGLData,cam::Camera)
-    activate(self._opaqueFBO)
-    glDepthFunc(GL_ALWAYS)
-    glEnable(GL_BLEND);
-
-    wh = Vec2F(self._shrd._width,self._shrd._height)
-    
-    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh) end
-    draw(self._orthoGizmoGL,cam,wh)
-
-    glDisable(GL_BLEND);
-    glDepthFunc(GL_LEQUAL)
-end
-#=
 function _transparent(self::OpenGLData,cam::Camera)
     glDepthMask(GL_FALSE)
     glEnable(GL_BLEND)
@@ -258,18 +247,57 @@ function _transparent(self::OpenGLData,cam::Camera)
     glBlendEquation(GL_FUNC_ADD)
 
     activate(self._transparentFBO)
-    glClearBufferfv(GL_COLOR, 0, [0.0f0, 0.0f0, 0.0f0, 0.0f0])
-    glClearBufferfv(GL_COLOR, 1, [1.0f0, 1.0f0, 1.0f0, 1.0f0])
-
-    bind_ssbo(buffer,0)
-
-    # draws
+    glClearBufferfv(GL_COLOR, 0, Float32[0.0f0, 0.0f0, 0.0f0, 0.0f0])
+    glClearBufferfv(GL_COLOR, 1, Float32[1.0f0, 1.0f0, 1.0f0, 1.0f0])
     
-    glEnable(GL_CULL_FACE)
+    bind_ssbo(self._pixel_buffer,0)
+    
+    # draws
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT)
+    transparent(self._renderers,cam,self._shrd)
+    
     glDepthMask(GL_TRUE)
+    glDisable(GL_DEPTH_TEST)
+    glEnable(GL_CULL_FACE)
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    
+    activate(self._opaqueFBO)
+    activate(self._empty_VAO)
+    
+    glColorMaski(1,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
+    # color
+    activate(self._transparent_color_combiner)
+    activate(self._accumTexture,GL_TEXTURE0)
+    activate(self._revealTexture,GL_TEXTURE1)
+    uniform(self._transparent_color_combiner,"width",UInt32(self._shrd._width))
+    glDrawArrays(GL_TRIANGLES,0,3)
+    
+    glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
+    glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
+    # id
+    #activate(self._transparent_id_combiner)
+    glColorMaski(0,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
+    
+    
+    glClearNamedBufferData(id(self._pixel_buffer),GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref(UInt32(0)))
     glDisable(GL_BLEND)
+    glEnable(GL_DEPTH_TEST)
 end
-=#
+
+function _widgets(self::OpenGLData,cam::Camera)
+    activate(self._opaqueFBO)
+    glDepthFunc(GL_ALWAYS)
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    wh = Vec2F(self._shrd._width,self._shrd._height)
+    
+    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh) end
+    draw(self._orthoGizmoGL,cam,wh)
+
+    glDisable(GL_BLEND);
+    glDepthFunc(GL_LEQUAL)
+end
 
 function update!(self::OpenGLData,cam::Camera)
     glCheckErrors(self)
@@ -279,20 +307,20 @@ function update!(self::OpenGLData,cam::Camera)
 
     pre_draw(self._renderers,cam,self._shrd)
     _opaque(self,cam)
-    #_transparent(self,cam)
+    _transparent(self,cam)
     _widgets(self,cam)
 
     readID(self)
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     activate(self._empty_VAO)
     distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
-    activate(self._combinerShader)
-    uniform(self._combinerShader,"frameTex",Int32(0))
-    uniform(self._combinerShader,"depthTex",Int32(1))
-    uniform(self._combinerShader,"EYE",cam._eye)
-    uniform(self._combinerShader,"AT",cam._at)
-    uniform(self._combinerShader,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
-    uniform(self._combinerShader,"ASPECT_FOV",Vec2F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov)))
+    activate(self._final_combiner)
+    uniform(self._final_combiner,"frameTex",Int32(0))
+    uniform(self._final_combiner,"depthTex",Int32(1))
+    uniform(self._final_combiner,"EYE",cam._eye)
+    uniform(self._final_combiner,"AT",cam._at)
+    uniform(self._final_combiner,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
+    uniform(self._final_combiner,"ASPECT_FOV_RESOLUTION",Vec4F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov),Float32(self._shrd._width),Float32(self._shrd._height)))
     activate(self._rgbaTexture,GL_TEXTURE0)
     activate(self._depthstencilTexture,GL_TEXTURE1)
     glDrawArrays(GL_TRIANGLES,0,6)
@@ -304,12 +332,14 @@ function destroy!(self::OpenGLData)
     destroy_dependent_observers(self._observers)
     destroy!(self._renderers)
 
-    destroy!(self._transparent_combinerShader)
-    destroy!(self._combinerShader)
+    destroy!(self._transparent_color_combiner)
+    destroy!(self._transparent_id_combiner)
+    destroy!(self._final_combiner)
 
     destroy!(self._opaqueFBO)
     destroy!(self._behindOpaqueFBO)
     destroy!(self._transparentFBO)
+    destroy!(self._pixel_buffer)
 
     destroy!(self._rgbaTexture)
     destroy!(self._idTexture)

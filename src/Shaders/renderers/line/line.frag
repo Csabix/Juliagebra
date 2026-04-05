@@ -1,4 +1,10 @@
 #version 460 core
+#ifdef TRANSPARENT
+#extension GL_ARB_fragment_shader_interlock : require
+
+layout(pixel_interlock_unordered) in;
+layout(early_fragment_tests) in;
+#endif
 #define PI 3.1415926538
 
 #define AMBIENT 0.2
@@ -7,8 +13,27 @@
 #define FRONT 0.2
 #define SIDE 0.8
 
+#ifdef TRANSPARENT
+struct PixelData {
+    uvec2 dist_col[4];
+    uvec2 dist_id;
+};
+
+coherent layout(std430, binding = 0) buffer PixelDataBuffer {
+    PixelData data[];
+};
+
+layout(location = 0) out vec4 accum;
+layout(location = 1) out float reveal;
+#define DISCARD alpha > 0.7
+
+layout(location = 0) uniform uint width;
+
+#else
 layout(location = 0) out vec4 color_out;
 layout(location = 1) out uint id_out;
+#define DISCARD alpha <= 0.7
+#endif
 
 noperspective layout(location = 0) in vec4 segment_SDF_field_in;
 noperspective layout(location = 1) in vec3 color_in;
@@ -85,18 +110,57 @@ float pattern() {
 }
 #endif
 
+#ifdef TRANSPARENT
+float pow4(float val) {
+    return val * val * val * val;
+}
+#endif
+
 void main() {
     float d = pattern();
+    float alpha = 1.0 - smoothstep(max(-0.4*segment_SDF_field_in.z,-4.0), 0.0, d);
+    alpha = alpha >= 0.9 ? 1.0 : alpha;
     d = max(d, rounding());
-    float alpha = 1.0 - smoothstep(max(-0.2*segment_SDF_field_in.z,-2.0), 0.0, d);
 
-    if (d > 0.0 /*|| alpha <= 0.9*/) discard;
+    if (d > 0.0) discard;
 
     vec4 color = get_color(get_normal(), alpha);
-#ifdef TRANSPARENCY
-    const uint zero_float = floatBitsToUint(0.0);
+#ifdef TRANSPARENT
     uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
     uint packedColor = packUnorm4x8(color);
+
+    uint max_index;
+    uvec2 max_dist_col = uvec2(uint(0));
+
+    beginInvocationInterlockARB();
+    PixelData pData = data[pixelIdx];
+    if (pData.dist_id.x > floatBitsToUint(gl_FragCoord.z))
+        data[pixelIdx].dist_id = uvec2(floatBitsToUint(gl_FragCoord.z),uint(0));
+    for (uint i = 0; i < 4; ++i) {
+        uvec2 dist_col = pData.dist_col[i];
+        if (dist_col.x >= max_dist_col.x) {
+            max_dist_col = dist_col;
+            max_index = i;
+        }
+        if (uint(0) == dist_col.x) break;
+    }
+
+    if (floatBitsToUint(gl_FragCoord.z) < max_dist_col.x || uint(0) == max_dist_col.x)
+        data[pixelIdx].dist_col[max_index] = uvec2(floatBitsToUint(gl_FragCoord.z), packedColor);
+    
+    endInvocationInterlockARB();
+
+    if (uint(0) == max_dist_col.x) discard;
+
+    if (floatBitsToUint(gl_FragCoord.z) >= max_dist_col.x)
+        max_dist_col = uvec2(floatBitsToUint(gl_FragCoord.z), packedColor);
+
+    color = unpackUnorm4x8(max_dist_col.y);
+    float weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *
+               clamp(0.03 / (1e-5 + pow4(uintBitsToFloat(max_dist_col.x) / 200)), 1e-2, 3e3);
+
+    accum = vec4(color.rgb * color.a, color.a) * weight;
+    reveal = color.a;
 #else
     color_out = color;
     id_out = 0;

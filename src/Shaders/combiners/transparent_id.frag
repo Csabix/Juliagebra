@@ -16,7 +16,7 @@ layout(location = 0) uniform uint width;
 void main() {
     const uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
     uvec2 dist_id = data[pixelIdx].dist_id;
-    if (dist_id.x = uint(0)) discard;
+    if (dist_id.x == uint(0)) discard;
     gl_FragDepth = uintBitsToFloat(dist_id.x);
-    id = dist_id.y
+    id = dist_id.y;
 }

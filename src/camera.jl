@@ -25,9 +25,9 @@ end
 function get_lights(self::Camera, z::Float32 = 45.0f0)
     z = deg2rad(z)
     l_cam = normalize(self._at - self._eye)
-    rot = [ cos(z) -sin(z) 0 ;
-            sin(z) cos(z)  0 ;
-            0      0       1 ]
+    rot = [ cos(z) -sin(z) 0.0f0 ;
+            sin(z) cos(z)  0.0f0 ;
+            0.0f0  0.0f0   1.0f0 ]
     
     return (l_cam, rot * l_cam)
 end

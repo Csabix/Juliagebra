@@ -22,6 +22,7 @@ mutable struct LineRenderer
 
     shader_predraw::ShaderProgram
     shaders_opaque::Vector{ShaderProgram}
+    shaders_transparent::Vector{ShaderProgram}
 
     # Static
     ranges::Vector{Tuple{Int,Int,Int}}
@@ -71,8 +72,10 @@ mutable struct LineRenderer
 
         shader_predraw = ShaderProgram(["renderers/line/line.comp"],["VP","WH","Eye","lightDirCam","lightDirSide","offset"])
         shaders_opaque = Vector{ShaderProgram}()
+        shaders_transparent = Vector{ShaderProgram}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
         for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
+        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT"])],["width"])) end
         
         # Static
 
@@ -118,7 +121,7 @@ mutable struct LineRenderer
         gpu_gpu_sync_dynamic = C_NULL
 
         return new(updated,emptyVAO,
-            shader_predraw,shaders_opaque,
+            shader_predraw,shaders_opaque,shaders_transparent,
             ranges,draw_ranges,
             coords_widths,color_type,
             distances,
@@ -205,21 +208,19 @@ end
 end
 
 function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)
-    @time_cpu_begin Renderer Line Distances
-    
+    @time_cpu_begin Renderer Line Distances Static
     Threads.@threads for (first, last, _) in self.ranges
         _compute_strip_distances!(self.distances, self.coords_widths, first, last, vp, wh)
     end
+    @time_cpu_end Renderer Line Distances Static
     
     wait(self.distance_buffer_in)
     copyto!(self.distance_buffer_in, self.distances)
     
-    @time_cpu_end Renderer Line Distances
 end
 
 function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
-    @time_cpu_begin Renderer Line_Dynamic Distances
-    
+    @time_cpu_begin Renderer Line Distances Dynamic
     Threads.@threads for index in 1:length(self.coords_widths_dynamic)
         distances = self.distances_dynamic[index]
         coords_widths = self.coords_widths_dynamic[index]
@@ -229,19 +230,19 @@ function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
         
         _compute_strip_distances!(distances, coords_widths, first_idx, last_idx, vp, wh)
     end
+    @time_cpu_end Renderer Line Distances Dynamic
 
     wait(last(self.distance_buffer_in_dynamic))
     @inbounds for i in 1:length(self.distances_dynamic)
         copyto!(self.distance_buffer_in_dynamic[i], self.distances_dynamic[i])
     end
-
-    @time_cpu_end Renderer Line_Dynamic Distances
 end
 
 function destroy!(self::LineRenderer)::Nothing
     destroy!(self.emptyVAO)
     destroy!(self.shader_predraw)
     destroy!.(self.shaders_opaque)
+    destroy!.(self.shaders_transparent)
 
     destroy!(self.distance_buffer_in)
     destroy!(self.color_type_buffer_in)
@@ -314,6 +315,7 @@ function added_all!(self::LineRenderer)::Nothing
         reserve!(self.color_buffer_out,N-3,0)
         reserve!(self.light_buffer_out,N-3,0)
         reserve!(self.sdf_buffer_out,5*(N-3),0)
+        self.updated = 0
     end
     if length(self.coords_widths_dynamic) != length(self.position_width_buffer_in_dynamic)
         for i in (length(self.position_width_buffer_in_dynamic)+1):length(self.coords_widths_dynamic)
@@ -338,7 +340,6 @@ function added_all!(self::LineRenderer)::Nothing
         reserve!(self.light_buffer_out_dynamic,N,0)
         reserve!(self.sdf_buffer_out_dynamic,5*N,0)
     end
-    self.updated = 0
     return nothing
 end
 
@@ -423,9 +424,9 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     uniform(self.shader_predraw,"lightDirCam", cam_light)
     uniform(self.shader_predraw,"lightDirSide",side_light)
     uniform(self.shader_predraw,"offset",UInt32(0))
-    @time_gpu_begin Renderer Line Pre_Draw
+    @time_gpu_begin Renderer Line Pre_Draw Static
     glDispatchCompute(cld(length(self.coords_widths),32),1,1);
-    @time_gpu_end Renderer Line Pre_Draw
+    @time_gpu_end Renderer Line Pre_Draw Static
     self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
     lock(self.distance_buffer_in)
     end
@@ -449,6 +450,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     prev_offset::UInt32 = 0
     offset::UInt32 = 0
+    @time_gpu_begin Renderer Line Pre_Draw Dynamic
     for i in 1:_LINE_TYPE_COUNT
         for j in 1:length(self.coords_widths_dynamic)
             if self.types_dynamic[j] != i continue end
@@ -462,6 +464,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         self.draw_ranges_dynamic[i] = (prev_offset, offset - prev_offset)
         prev_offset = offset
     end
+    @time_gpu_end Renderer Line Pre_Draw Dynamic
 
     self.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
     lock(last(self.distance_buffer_in_dynamic))
@@ -471,23 +474,26 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 end
 
 function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
     if (any(x -> x[2] != 0, self.draw_ranges))
     glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
     glDeleteSync(self.gpu_gpu_sync);
 
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,0)
-    bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.light_buffer_out,2)
-    bind_ssbo(self.sdf_buffer_out,3)
-    @time_gpu_begin Renderer Line Opaque
+    bind_ssbo(self.position_distance_buffer_out,1)
+    bind_ssbo(self.color_buffer_out,2)
+    bind_ssbo(self.light_buffer_out,3)
+    bind_ssbo(self.sdf_buffer_out,4)
+    @time_gpu_begin Renderer Line Opaque Static
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
-    @time_gpu_end Renderer Line_Dynamic Opaque
+    @time_gpu_end Renderer Line Opaque Static
     end
 
     if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
@@ -495,18 +501,58 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     glDeleteSync(self.gpu_gpu_sync_dynamic);
 
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
-    bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.light_buffer_out_dynamic,2)
-    bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    @time_gpu_begin Renderer Line Opaque
+    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
+    bind_ssbo(self.color_buffer_out_dynamic,2)
+    bind_ssbo(self.light_buffer_out_dynamic,3)
+    bind_ssbo(self.sdf_buffer_out_dynamic,4)
+    @time_gpu_begin Renderer Line Opaque Dynamic
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
-    @time_gpu_end Renderer Line_Dynamic Opaque
+    @time_gpu_end Renderer Line Opaque Dynamic
+    end
+    glDisable(GL_BLEND)
+    return nothing
+end
+
+function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    if (any(x -> x[2] != 0, self.draw_ranges))
+
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out,1)
+    bind_ssbo(self.color_buffer_out,2)
+    bind_ssbo(self.light_buffer_out,3)
+    bind_ssbo(self.sdf_buffer_out,4)
+    @time_gpu_begin Renderer Line Transparent Static
+    for type in 1:_LINE_TYPE_COUNT
+        (first,count) = self.draw_ranges[type]
+        if count == 0 continue end
+        activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+    end
+    @time_gpu_end Renderer Line Transparent Static
+    end
+
+    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
+
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
+    bind_ssbo(self.color_buffer_out_dynamic,2)
+    bind_ssbo(self.light_buffer_out_dynamic,3)
+    bind_ssbo(self.sdf_buffer_out_dynamic,4)
+    @time_gpu_begin Renderer Line Transparent Dynamic
+    for type in 1:_LINE_TYPE_COUNT
+        (first,count) = self.draw_ranges_dynamic[type]
+        if count == 0 continue end
+        activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+    end
+    @time_gpu_end Renderer Line Transparent Dynamic
     end
     return nothing
 end

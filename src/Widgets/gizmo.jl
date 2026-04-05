@@ -5,7 +5,7 @@ mutable struct GizmoGL <: OpenGLWidgetDNA
     
     _lineShader::ShaderProgram
     
-    _id2Axis::Vector
+    _id2Axis::Tuple{Vec3F,Vec3F,Vec3F}
     
     _pos::Vec3F
     _size::Float32
@@ -15,7 +15,7 @@ mutable struct GizmoGL <: OpenGLWidgetDNA
         
         lineShader = ShaderProgram(["move_gizmo.vert","gizmo.geom","gizmo.frag"],["VP","gizmoCenter","gizmoScale","selectedID","nanVal","WH"])
         
-        id2Axis = [Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1)]
+        id2Axis = (Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1))
 
         activate(lineShader)
         uniform(lineShader,"nanVal",NaN32) 

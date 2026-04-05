@@ -2,35 +2,22 @@
 # ! BufferArray
 # ? ---------------------------------
 
-struct BufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{Buffer}}}
+struct BufferArray{T <: Tuple{Vararg{BufferBase}}} <: OpenGLWrapper
     _vbos::T
     _vao::VertexArray
 
-    function _create(T_params, constructors, attributes)
-        buffers = Tuple(C{Type}() for (C, Type) in zip(constructors, T_params))
+    function BufferArray{T}(attributes::Union{Nothing, AbstractArray} = nothing) where {T <: Tuple{Vararg{BufferBase}}}
+        buffers = map(B -> B(), tuple(T.parameters...))
         
         vao = VertexArray()
         
         if isnothing(attributes)
-            bind_buffers!(vao, collect(buffers))
+            bind_buffers!(vao, buffers)
         else
-            bind_buffers!(vao, collect(buffers), attributes)
+            bind_buffers!(vao, buffers, attributes)
         end
         
-        return new{typeof(buffers)}(buffers, vao)
-    end
-
-    function BufferArray{T}(attributes::Union{Nothing, AbstractArray} = nothing) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        constructors = ntuple(_ -> Buffer, length(T.parameters))
-        return _create(T.parameters, constructors, attributes)
-    end
-
-    function BufferArray{T}(buffer_types::Type...) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        return _create(T.parameters, buffer_types, nothing)
-    end
-
-    function BufferArray{T}(attributes::AbstractArray, buffer_types::Type...) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        return _create(T.parameters, buffer_types, attributes)
+        return new{T}(buffers, vao)
     end
 end
 
@@ -47,9 +34,21 @@ activate(self::BufferArray) = activate(self._vao)
 Base.getindex(self::BufferArray, index::Int)::BufferBase = self._vbos[index]
 buffer_resized(self::BufferArray, index::Int) = rebind_buffer!(self._vao,index,self._vbos[index])
 
-reserve!(self::BufferArray, index, count, flags) = vao_buffer_method!(self._vao, self._vbos[index], index, reserve!, count, flags)
-upload!(self::BufferArray, index, data, flags)   = vao_buffer_method!(self._vao, self._vbos[index], index, upload!, data, flags)
-upload!(self::BufferArray, index, data)          = vao_buffer_method!(self._vao, self._vbos[index], index, upload!, data)
+function reserve!(self::BufferArray, index, count, flags)
+    if reserve!(self._vbos[index], count, flags)
+        rebind_buffer!(self._vao, index, self._vbos[index])
+    end
+end
+function upload!(self::BufferArray, index, data, flags)
+    if upload!(self._vbos[index], data, flags)
+        rebind_buffer!(self._vao, index, self._vbos[index])
+    end
+end
+function upload!(self::BufferArray, index, data)
+    if upload!(self._vbos[index], data)
+        rebind_buffer!(self._vao, index, self._vbos[index])
+    end
+end
 
 # ? ---------------------------------
 # ! IndexedBufferArray
@@ -95,6 +94,19 @@ reserve!(self::IndexedBufferArray, index, count, flags) = reserve!(self._buffer_
 upload!(self::IndexedBufferArray, index, data, flags)   = upload!(self._buffer_array, index, data, flags)
 upload!(self::IndexedBufferArray, index, data)          = upload!(self._buffer_array, index, data)
 
-reserve_index!(self::IndexedBufferArray, count, flags) = vao_ebo_method!(self._buffer_array._vao, self._ebo, reserve!, count, flags)
-upload_index!(self::IndexedBufferArray, data, flags)   = vao_ebo_method!(self._buffer_array._vao, self._ebo, upload!, data, flags)
-upload_index!(self::IndexedBufferArray, data)          = vao_ebo_method!(self._buffer_array._vao, self._ebo, uplodad!, data)
+function reserve_index!(self::IndexedBufferArray, count, flags)
+    if reserve!(self._ebo, count, flags)
+        rebind_ebo!(self._buffer_array._vao, self._ebo)
+    end
+    vao_ebo_method!(self._buffer_array._vao, self._ebo, reserve!, count, flags)
+end
+function upload_index!(self::IndexedBufferArray, data, flags)
+    if upload!(self._ebo, data, flags)
+        rebind_ebo!(self._buffer_array._vao, self._ebo)
+    end
+end
+function upload_index!(self::IndexedBufferArray, data)
+    if uplodad!(self._ebo, data)
+        rebind_ebo!(self._buffer_array._vao, self._ebo)
+    end
+end

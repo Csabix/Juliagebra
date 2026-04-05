@@ -52,9 +52,9 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
     _backgroundCol::Vec3F
 
-    _vp::Mat4T
-    _v::Mat4T
-    _p::Mat4T
+    _vp::Mat4T{Float32}
+    _v::Mat4T{Float32}
+    _p::Mat4T{Float32}
     _camPos::Vec3F
 
     # GREEN Thread, runs this inside Init, after this construction can begin

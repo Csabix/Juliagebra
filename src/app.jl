@@ -174,13 +174,11 @@ function updateGizmo!(self::App)
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
         p = self._graph[self._shrd._pickedID]
-        @time_cpu_begin Graph_update
         set(
             p,
             Float64(self._opengl._gizmoGL._pos.x),
             Float64(self._opengl._gizmoGL._pos.y),
             Float64(self._opengl._gizmoGL._pos.z))
-        @time_cpu_end Graph_update
     end
 end
 

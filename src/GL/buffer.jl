@@ -19,7 +19,7 @@ end
 mutable struct MappedBuffer{T} <: BufferBase{T}
     _id::GLuint
     _size::Int
-    _mapped::AbstractVector{T}
+    _mapped::Vector{T}
     _sync::GLsync
 
     function MappedBuffer{T}() where {T}

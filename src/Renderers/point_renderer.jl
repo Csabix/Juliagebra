@@ -20,11 +20,11 @@ function _point_renderer_buffer_array()
     attributes = [nothing,
     [VertexAttrib(false,4,GL_UNSIGNED_BYTE,GL_TRUE,0),
     VertexAttrib(true,1,GL_UNSIGNED_INT,GL_FALSE,sizeof(Cuint))]]
-    return BufferArray{Tuple{Vec3F,Vec2T{UInt32}}}(attributes,MappedBuffer,MappedBuffer)
+    return BufferArray{Tuple{MappedBuffer{Vec3F}, MappedBuffer{Vec2T{UInt32}}}}(attributes)
 end
 
 struct PointsData
-    buffer::BufferArray
+    buffer::BufferArray{Tuple{MappedBuffer{Vec3F}, MappedBuffer{Vec2T{UInt32}}}}
     coords::Vector{Vec3F}
     point_properties::Vector{Vec2T{UInt32}}
 

@@ -32,7 +32,7 @@ function bind_buffers!(self::VertexArray,buffers::AbstractVector{<:BufferBase})
     end
 end
 
-function bind_buffers!(self::VertexArray,buffers::AbstractVector{<:BufferBase},attributes::AbstractVector)
+function bind_buffers!(self::VertexArray,buffers,attributes)
     index = 0
     for (i,buffer) in enumerate(buffers)
         if isnothing(attributes[i])
@@ -63,14 +63,6 @@ rebind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(s
 
 destroy!(self::VertexArray) = glDeleteVertexArrays(1,[self._id])
 activate(self::VertexArray) = glBindVertexArray(self._id)
-
-function vao_buffer_method!(vao::VertexArray, buffer::BufferBase, index, f, args...)
-    if f(buffer, args...) rebind_buffer!(vao, index, buffer) end
-end
-
-function vao_ebo_method!(vao::VertexArray, buffer::BufferBase, f, args...)
-    if f(buffer, args...) rebind_ebo!(vao, buffer) end
-end
 
 """
 Function to create a vertexAttribFormat.

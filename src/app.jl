@@ -266,6 +266,11 @@ function play!(self::App)
     end
     destroy!(self)
     
+    global implicitApp
+    if (implicitApp === self)
+        implicitApp = nothing
+    end
+
 end
 
 function init!(self::App)

@@ -52,9 +52,9 @@ function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::N
 end
 
 function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    opaque(renderers.sphere,cam,shrd)
     opaque(renderers.point,cam,shrd)
     opaque(renderers.line,cam,shrd)
+    opaque(renderers.sphere,cam,shrd)
     return nothing
 end
 
@@ -64,5 +64,6 @@ end
 
 function transparent(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
     #transparent(renderers.line,cam,shrd)
+    transparent(renderers.sphere,cam,shrd)
     return nothing
 end

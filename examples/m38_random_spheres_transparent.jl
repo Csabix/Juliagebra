@@ -15,7 +15,7 @@ for i in 1:50
     center = Point(x, y, z)
     radius = rand() * (MAX_RAD - MIN_RAD) + MIN_RAD
     p1 = Point(x + radius, y, z)
-    Sphere(center, p1; color=rand_rgb())
+    Sphere(center, p1; color=(rand_rgb()...,1.0))
 end
 
 for i in 1:60
@@ -25,7 +25,7 @@ for i in 1:60
     center = Point(x, y, z)
     radius = rand() * (MAX_RAD - MIN_RAD) + MIN_RAD
     p1 = Point(x + radius, y, z)
-    Sphere(center, p1; transparent=true, color=rand_rgb())
+    Sphere(center, p1; color=(rand_rgb()...,0.5))
 end
 
 Juliagebra.Wait()

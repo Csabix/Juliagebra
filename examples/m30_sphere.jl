@@ -6,7 +6,7 @@ Juliagebra.Window() do
     sphr1 = Sphere(c1,p1)
 
     c2 = Point(0.0,0.0,1.5)
-    sphr2 = Sphere(c2,p1,color=(0.6,0.1,0.2))
+    sphr2 = Sphere(c2,p1,color=(0.6,0.1,0.2,1.0))
 
     c3 = Point(-5.0,0.0,5.0)
     s1 = Slider(0.0,5.0)

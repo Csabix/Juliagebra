@@ -73,6 +73,7 @@ void main() {
     }
     // TOP 4 layer
     for (int i = 0; i < 4; ++i) {
+        if (dist_col[i].x == uint(0)) break;
         vec4 color = unpackUnorm4x8(dist_col[i].y);
         color.rgb *= color.a; 
         frag = color + frag * vec4(1.0 - color.a);

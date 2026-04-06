@@ -254,10 +254,9 @@ function _transparent(self::OpenGLData,cam::Camera)
     
     # draws
     glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT)
+    activate(self._depthstencilTexture,GL_TEXTURE0)
     transparent(self._renderers,cam,self._shrd)
     
-    glDepthMask(GL_TRUE)
-    glDisable(GL_DEPTH_TEST)
     glEnable(GL_CULL_FACE)
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     
@@ -275,13 +274,16 @@ function _transparent(self::OpenGLData,cam::Camera)
     glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
     glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
     # id
-    #activate(self._transparent_id_combiner)
+    activate(self._transparent_id_combiner)
+    uniform(self._transparent_color_combiner,"width",UInt32(self._shrd._width))
+    glDrawArrays(GL_TRIANGLES,UInt32(0),Int32(3))::Nothing
+    
     glColorMaski(0,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
     
     
     glClearNamedBufferData(id(self._pixel_buffer),GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT,Ref(UInt32(0)))
     glDisable(GL_BLEND)
-    glEnable(GL_DEPTH_TEST)
+    glDepthMask(GL_TRUE)
 end
 
 function _widgets(self::OpenGLData,cam::Camera)

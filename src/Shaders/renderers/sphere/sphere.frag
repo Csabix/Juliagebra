@@ -1,8 +1,31 @@
 #version 460 core
+#ifdef TRANSPARENT
+#extension GL_ARB_fragment_shader_interlock : require
+layout(pixel_interlock_unordered) in;
+layout(early_fragment_tests) in;
+#endif
 
+#ifdef TRANSPARENT
+struct PixelData {
+    uvec2 dist_col[4];
+    uvec2 dist_id;
+};
+
+coherent layout(std430, binding = 0) buffer PixelDataBuffer {
+    PixelData data[];
+};
+
+layout(binding = 0) uniform sampler2D depth_tex;
+
+layout(location = 0) out vec4 accum;
+layout(location = 1) out float reveal;
+
+layout(location = 0) uniform uint width;
+#else
 layout(location = 0) out vec4 color_out;
 layout(location = 1) out uint id_out;
 layout(depth_greater) out float gl_FragDepth;
+#endif
 
 flat layout(location = 0) in vec4 color_in;
 flat layout(location = 1) in uint id_in;
@@ -86,8 +109,13 @@ vec3 rayDirection() {
                      focal_length * look_dir);
 }
 
+#ifdef TRANSPARENT
+float pow4(float val) {
+    return val * val * val * val;
+}
+#endif
+
 void main(){
-    id_out = id_in;
     vec3 v = rayDirection();
     
     Ray r = Ray(cam,
@@ -105,14 +133,62 @@ void main(){
     vec4 vpPos = VP * vec4(spherePos,1.0); 
     float depth = (vpPos.xyzw / vpPos.w).z;
     depth = (depth + 1.0) / 2.0;
-    gl_FragDepth = depth;
+#ifdef TRANSPARENT
+    if (depth > texelFetch(depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;
+#endif
 
+    vec4 color;
     if(rs.isOutside){
         float diffuse = (max(dot(rs.n,lightDirCam),0.0) * 0.3 + max(dot(rs.n,lightDirSide),0.0) * 0.7) * 0.8;
         float ambient = 0.2;
-        color_out = vec4(color_in.rgb*(diffuse+ambient),1.0);
+        color = vec4(color_in.rgb*(diffuse+ambient),color_in.a);
     }else{
         float diffuse = max(dot(-rs.n,lightDirCam),0.0);
-        color_out = vec4(color_in.rgb*diffuse,1.0);
+        color = vec4(color_in.rgb*diffuse,color_in.a);
     }
+
+#ifdef TRANSPARENT
+    uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
+    uint packedColor = packUnorm4x8(color);
+
+    uint max_index;
+    uvec2 max_dist_col = uvec2(uint(0));
+
+    beginInvocationInterlockARB();
+    const float dist_id_x = data[pixelIdx].dist_id.x;
+    if (dist_id_x == uint(0) ||dist_id_x > floatBitsToUint(depth))
+        data[pixelIdx].dist_id = uvec2(floatBitsToUint(depth),uint(id_in));
+    for (uint i = 0; i < 4; ++i) {
+        const uvec2 dist_col = data[pixelIdx].dist_col[i];
+        if (uint(0) == dist_col.x) {
+            max_dist_col = dist_col;
+            max_index = i;
+            break;
+        } else if(dist_col.x > max_dist_col.x) {
+            max_dist_col = dist_col;
+            max_index = i;
+        }
+    }
+
+    if (floatBitsToUint(depth) < max_dist_col.x || uint(0) == max_dist_col.x) {
+        data[pixelIdx].dist_col[max_index] = uvec2(floatBitsToUint(depth), packedColor);
+    } else {
+        max_dist_col = uvec2(floatBitsToUint(depth), packedColor);
+    }
+    
+    endInvocationInterlockARB();
+
+    if (uint(0) == max_dist_col.x) discard;
+
+    color = unpackUnorm4x8(max_dist_col.y);
+    float weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *
+               clamp(0.03 / (1e-5 + pow4(uintBitsToFloat(max_dist_col.x) / 200)), 1e-2, 3e3);
+
+    accum = vec4(color.rgb * color.a, color.a) * weight;
+    reveal = color.a;
+#else
+    gl_FragDepth = depth;
+    id_out = id_in;
+    color_out = color;
+#endif
 }

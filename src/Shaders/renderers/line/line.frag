@@ -133,27 +133,30 @@ void main() {
     uvec2 max_dist_col = uvec2(uint(0));
 
     beginInvocationInterlockARB();
-    PixelData pData = data[pixelIdx];
-    if (pData.dist_id.x > floatBitsToUint(gl_FragCoord.z))
+    const float dist_id_x = data[pixelIdx].dist_id.x;
+    if (dist_id_x == uint(0) ||dist_id_x > floatBitsToUint(gl_FragCoord.z))
         data[pixelIdx].dist_id = uvec2(floatBitsToUint(gl_FragCoord.z),uint(0));
     for (uint i = 0; i < 4; ++i) {
-        uvec2 dist_col = pData.dist_col[i];
-        if (dist_col.x >= max_dist_col.x) {
+        const uvec2 dist_col = data[pixelIdx].dist_col[i];
+        if (uint(0) == dist_col.x) {
+            max_dist_col = dist_col;
+            max_index = i;
+            break;
+        } else if(dist_col.x > max_dist_col.x) {
             max_dist_col = dist_col;
             max_index = i;
         }
-        if (uint(0) == dist_col.x) break;
     }
 
-    if (floatBitsToUint(gl_FragCoord.z) < max_dist_col.x || uint(0) == max_dist_col.x)
+    if (floatBitsToUint(gl_FragCoord.z) < max_dist_col.x || uint(0) == max_dist_col.x) {
         data[pixelIdx].dist_col[max_index] = uvec2(floatBitsToUint(gl_FragCoord.z), packedColor);
+    } else {
+        max_dist_col = uvec2(floatBitsToUint(gl_FragCoord.z), packedColor);
+    }
     
     endInvocationInterlockARB();
 
     if (uint(0) == max_dist_col.x) discard;
-
-    if (floatBitsToUint(gl_FragCoord.z) >= max_dist_col.x)
-        max_dist_col = uvec2(floatBitsToUint(gl_FragCoord.z), packedColor);
 
     color = unpackUnorm4x8(max_dist_col.y);
     float weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *

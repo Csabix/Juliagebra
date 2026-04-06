@@ -1,9 +1,9 @@
 #version 460 core
 
-restrict readonly layout(std430, binding = 0) buffer CenterRadiusBuffer {
+restrict readonly layout(std430, binding = 1) buffer CenterRadiusBuffer {
     vec4 center_radius_in[];
 };
-restrict readonly layout(std430, binding = 1) buffer ColorIdBuffer {
+restrict readonly layout(std430, binding = 2) buffer ColorIdBuffer {
     uvec2 color_id_in[];
 };
 

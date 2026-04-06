@@ -274,9 +274,13 @@ function _transparent(self::OpenGLData,cam::Camera)
     glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
     glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
     # id
+    glEnable(GL_STENCIL_TEST)
+    glStencilFunc(GL_EQUAL, 0, 0xff)
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
     activate(self._transparent_id_combiner)
     uniform(self._transparent_color_combiner,"width",UInt32(self._shrd._width))
     glDrawArrays(GL_TRIANGLES,UInt32(0),Int32(3))::Nothing
+    glDisable(GL_STENCIL_TEST)
     
     glColorMaski(0,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
     

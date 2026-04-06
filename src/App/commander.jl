@@ -41,29 +41,12 @@ end
 function handleCommand!(app::AppDNA, ::EmptySceneCommand)
     o::OpenGLData = getOpenGL(app)
     i::ImGuiData = getImGui(app)
-    g::DependentGraph = getGraph(app)
+    m::Model = getModel(app)
+    g::DependentGraph = m._graph
     
     empty!(g)
     resetObservers!(o)
     resetObservers!(i)
-end
-
-# GREEN Thread
-function decideFrameState(app::AppDNA)::FrameState
-    b::Builder = getBuilder(app)
-    a::Adder = getAdder(app)
-
-    if !isempty(a)
-        # ? Adder has elements, should handle thoose.
-        return BuildingState()
-    elseif trylock(b)
-        # ? locked succesfully, Builder is stopped for this frame,
-        # ? unlock Builder at the end of the frame.
-        return ViewingState()
-    else
-        # ? failed locking, Builder must be building.
-        return BuildingState()
-    end
 end
 
 # YELLOW Thread
@@ -85,5 +68,36 @@ function Window(callback::Function)
     @warn "Window() command is depreciated!"
     callback()
     Wait()
+end
+
+# GREEN Thread (in script)
+"""
+Send a newly constructed Dependent to the build system of implicitApp.
+- If implicitApp is nothing, it is initialized, and started.
+- The App will run on greenTask.
+"""
+function build!(dependent::T)::T where {T<:DependentDNA}
+    global implicitApp
+    global greenTask
+
+    if isnothing(implicitApp)
+        implicitApp = App()
+        greenTask = startApp(implicitApp)
+    end
+
+    build!(dependent,implicitApp)
+    return dependent
+end
+
+# GREEN Thread (in script)
+"""
+Send a newly constructed Dependent to the build system of app.
+- App must be started.
+"""
+function build!(dependent::T, app::AppDNA)::T where {T<:DependentDNA}
+    @assert isStarted(getStarter(app)) "App is not started properly!"
+
+    build!(getModel(app),dependent)
+    return dependent
 end
 

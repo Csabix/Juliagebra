@@ -15,7 +15,7 @@ Base.put!(self::Synchronizer, d::DependentDNA) = push!(self._in,d)
 Base.take!(self::Synchronizer)::DependentDNA = return popfirst!(self._in)
 Base.length(self::Synchronizer) = return length(self._in)
 
-function processBatch!(self::Synchronizer, ::AppDNA)
+function processBatch!(self::Synchronizer)
     self._taken = length(self)
     observers = Set{ObserverDNA}()
     

@@ -11,24 +11,16 @@ mutable struct App <: AppDNA
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
-    _graph::DependentGraph
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
     
     _optimizer::GlobalDependentOptimizer
-    
     _starter::Starter
     _commander::Commander
     
-    _builder::Builder
     _yellowTask::Union{Task,Nothing} # ? works the _builder
-
-    _adder::Adder
-    _scheduler::Scheduler
-
-    _synchronizer::Synchronizer
-    _worker::GraphWorker
+    _model::Model
 
     function App(
         name::String="Juliagebra",
@@ -41,7 +33,7 @@ mutable struct App <: AppDNA
         opengl = nothing
         imgui = nothing
         windowCreated = false
-        graph = DependentGraph()
+        
         peripherals = Peripherals()
         cam = defaultCamera()
         set_aspect!(cam,width,height)
@@ -49,13 +41,13 @@ mutable struct App <: AppDNA
         optimizer = GlobalDependentOptimizer()
         starter = Starter()
         commander = Commander()
-        builder = Builder()
+        
         yellowTask = nothing
-        adder = Adder()
-        scheduler = Scheduler()
-        synchronizer = Synchronizer()
-        worker = GraphWorker()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,optimizer,starter,commander,builder,yellowTask,adder,scheduler,synchronizer,worker)
+        model = Model()
+        
+        
+        
+        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,yellowTask,model)
     end
 end
 
@@ -63,14 +55,9 @@ getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
 getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
-getGraph(self::App) = return self._graph
 getCommander(self::App)::Commander = return self._commander
 getStarter(self::App)::Starter = return self._starter
-getBuilder(self::App)::Builder = return self._builder
-getAdder(self::App)::Adder = return self._adder
-getScheduler(self::App)::Scheduler = return self._scheduler
-getSynchronizer(self::App)::Synchronizer = return self._synchronizer
-getWorker(self::App)::GraphWorker = return self._worker
+getModel(self::App)::Model = return self._model
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -174,7 +161,7 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
             if id > 3
                 self._shrd._gizmoEnabled = true
                 mouse_capture = true
-                p = self._graph[self._shrd._pickedID]
+                p = getModel(self)._graph[self._shrd._pickedID]
                 self._opengl._gizmoGL._pos = Vec3F(p._coord)
             else
                 self._shrd._gizmoEnabled = false
@@ -194,14 +181,14 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p::PointDependent = self._graph[self._shrd._pickedID]
+        p::PointDependent = getModel(self)._graph[self._shrd._pickedID]
         p._coord = Vec3D(
             self._opengl._gizmoGL._pos.x,
             self._opengl._gizmoGL._pos.y,
             self._opengl._gizmoGL._pos.z
             )
         # ? schedule for evalGraph
-        schedule(self._scheduler,p)
+        schedule(getModel(self),p)
     end
 end
 
@@ -217,26 +204,23 @@ function play!(self::App)
         updateDeltaTime!(self)
         updateCam!(self)
         
-        state = decideFrameState(self)
+        model::Model = self._model
+        state::ModelState = decideState(model)
+        # ? Begin model operations with decided state.
+        beginState(model,state)
 
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
 
         if state isa ViewingState
             # ? Handle commands in the command queue.
             handleCommands!(self)
-            # ? Schedules a PointDependent.
+            # ? Schedule a PointDependent.
             updateGizmo!(self)
-            # ? Schedules SliderDependents and StepperDependents.
+            # ? Schedule SliderDependents and StepperDependents.
             update!(self._imgui,self)
-
-
-            if !isempty(self._scheduler)
-                @time_cpu_begin Graph_update
-                startGraphWorkers!(self._scheduler,self)
-                processUntilClosed!(self._worker,self._synchronizer)
-                processBatch!(self._synchronizer,self)
-                @time_cpu_end Graph_update
-            end
+            
+            # ? Do sync! and syncAll! calls.
+            update!(model,state)
             
             if !iconified
                 # ? Render scene and dock.
@@ -244,12 +228,9 @@ function play!(self::App)
                 render!(self._imgui,self)
                 update!(self._shrd)
             end
-
-            # ? Let Builder process Dependents.
-            unlock(self._builder)
         elseif state isa BuildingState
             # ? Do added! and addedAll! calls.
-            processBatch!(self._adder,self)
+            update!(model,state)
 
             if !iconified
                 # ? Render scene and loading bar.
@@ -260,6 +241,8 @@ function play!(self::App)
             end
         end
 
+        # ? End model state.
+        endState(model,state)
         GLFW.SwapBuffers(self._glfw._window)
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
@@ -287,7 +270,7 @@ function init!(self::App)
     
     # YELLOW Thread
     yellowTask = Threads.@spawn begin
-        processUntilClosed!(getBuilder(self),self)
+        processUntilClosed!(getModel(self)._builder,self)
     end
     errormonitor(yellowTask)
     self._yellowTask = yellowTask
@@ -305,8 +288,7 @@ function destroy!(self::App)
     destroy!(self._opengl)
     destroy!(self._glfw)
     destroy!(self._commander)
-    destroy!(self._builder)
-    destroy!(self._adder)
+    destroy!(self._model)
 
     wait(self._yellowTask)
 end

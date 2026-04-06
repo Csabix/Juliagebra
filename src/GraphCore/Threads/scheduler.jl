@@ -21,7 +21,7 @@ Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 isFinished(self::Scheduler)::Bool = return true
 
-function startGraphWorkers!(self::Scheduler, app::AppDNA)
+function startGraphWorkers!(self::Scheduler, sy::Synchronizer, w::GraphWorker)
     self._taken = length(self)
     heads::Set{DependentDNA} = Set{DependentDNA}()
     schedules::Vector{Schedule} = []
@@ -45,14 +45,12 @@ function startGraphWorkers!(self::Scheduler, app::AppDNA)
 
         # ? Send head Dependents for synchronization,
         # ? since they are up to date from outside modifications.
-        sy::Synchronizer = getSynchronizer(app)
         for d in self._roots
             put!(sy,d)
         end
 
         
         # ? Assign Dependents in the schedule to workers for onNodeEval() calls.
-        w::GraphWorker = getWorker(app)
         for d in self._schedule
             put!(w,d)
         end

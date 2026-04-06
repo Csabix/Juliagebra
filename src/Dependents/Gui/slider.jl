@@ -65,7 +65,7 @@ const ANIM_LENGTH = 5.0
 
 function update!(self::SliderRenderer, app::AppDNA)
     sliders::Vector{SliderDependent} = getObservedItems(self)
-    s::Scheduler = getScheduler(app)
+    m::Model = getModel(app)
 
     for sliderIdx in  eachindex(sliders)
         slider::SliderDependent = sliders[sliderIdx]
@@ -86,17 +86,16 @@ function update!(self::SliderRenderer, app::AppDNA)
             end
 
             slider._value = Vec3F(minVal,minVal*(1-tt)+tt*maxVal,maxVal)
-            schedule(s,slider)
+            schedule(m,slider)
         elseif !isnothing(data.proposed)            
             slider._value = Vec3F(value.x,data.proposed,value.z)
-            schedule(s,slider)
+            schedule(m,slider)
         end
     end
 end
 
 function render!(self::SliderRenderer, slider::SliderDependent, app::AppDNA)
     imgui::ImGuiData = getImGui(app)
-    s::Scheduler = getScheduler(app)
     label::String = getLabel(slider)
     value::Vec3F = self._values[getObserverID(slider)]
     data::_SliderData = self._data[getObserverID(slider)]

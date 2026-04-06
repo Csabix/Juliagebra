@@ -22,7 +22,7 @@ Base.trylock(self::Builder) = trylock(self._lock)
 
 # YELLOW Thread
 function processUntilClosed!(self::Builder, app::AppDNA)
-    a::Adder = getAdder(app)
+    a::Adder = getModel(app)._adder
 
     for dependent in self._in
         # ? App must be in BuildingState.
@@ -40,7 +40,7 @@ end
 function _build(app::AppDNA, dependent::DependentDNA)
     @assert isUnbuilt(dependent) "Dependent is already built!"
     
-    graph = getGraph(app)
+    graph = getModel(app)._graph
     
     add!!(graph,dependent)
 
@@ -52,7 +52,7 @@ end
 function _build(app::AppDNA, observed::ObservedDNA)
     @assert isUnbuilt(observed) "Observed is already built!"
     
-    graph = getGraph(app)
+    graph = getModel(app)._graph
     observer = Dependent2Observer(app,observed)
     
     add!!(observer,observed)
@@ -60,35 +60,4 @@ function _build(app::AppDNA, observed::ObservedDNA)
 
     setEntryNodes(observed)
     onNodeEval(observed)
-end
-
-# GREEN Thread (in script)
-"""
-Send a newly constructed Dependent to the build system of implicitApp.
-- If implicitApp is nothing, it is initialized, and started.
-- The App will run on greenTask.
-"""
-function build!(dependent::T)::T where {T<:DependentDNA}
-    global implicitApp
-    global greenTask
-
-    if isnothing(implicitApp)
-        implicitApp = App()
-        greenTask = startApp(implicitApp)
-    end
-
-    build!(dependent,implicitApp)
-    return dependent
-end
-
-# GREEN Thread (in script)
-"""
-Send a newly constructed Dependent to the build system of app.
-- App must be started.
-"""
-function build!(dependent::T, app::AppDNA)::T where {T<:DependentDNA}
-    @assert isStarted(getStarter(app)) "App is not started properly!"
-
-    put!(getBuilder(app),dependent)
-    return dependent
 end

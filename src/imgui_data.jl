@@ -37,7 +37,6 @@ mutable struct ImGuiData <: ImGuiDNA
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
         shrd::SharedData = getShrd(app)
-        graph::DependentGraphDNA = getGraph(app)
 
         imgui_context = CImGui.CreateContext()
         

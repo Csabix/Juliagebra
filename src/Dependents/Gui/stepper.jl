@@ -59,7 +59,7 @@ function sync!(self::StepperRenderer, item::StepperDependent)
 end
 
 function update!(self::StepperRenderer, app::AppDNA)
-    s::Scheduler = getScheduler(app)
+    m::Model = getModel(app)
     steppers::Vector{StepperDependent} = getObservedItems(self)
 
     for stepperIdx in eachindex(steppers)
@@ -69,18 +69,17 @@ function update!(self::StepperRenderer, app::AppDNA)
         if data.playing
             tt = time() - data.start.x
             stepper._num = data.start.y + tt
-            schedule(s,stepper)
+            schedule(m,stepper)
 
         elseif !isnothing(data.proposed)
             stepper._num = Float64(data.proposed)
-            schedule(s,stepper)
+            schedule(m,stepper)
         end
     end
 end
 
 function render!(self::StepperRenderer, stepper::StepperDependent, app::AppDNA)
     imgui::ImGuiData = getImGui(app)
-    s::Scheduler = getScheduler(app)
     label::String = getLabel(stepper)
     stepperIdx::Int = getObserverID(stepper)
     num::Float32 = self._nums[stepperIdx]

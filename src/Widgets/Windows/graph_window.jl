@@ -27,7 +27,8 @@ function renderContent(self::GraphWindow, app::AppDNA)
 end
 
 function _renderDependentsTab(::GraphWindow, app::AppDNA)
-    graph::DependentGraph = getGraph(app)
+    m::Model = getModel(app)
+    graph::DependentGraph = m._graph
     
     if (CImGui.BeginTable("Dependents",3, 
         CImGui.ImGuiTableFlags_Borders |
@@ -63,9 +64,10 @@ function _renderDependentsTab(::GraphWindow, app::AppDNA)
 end
 
 function _renderEvaluationTab(::GraphWindow, app::AppDNA)
-    sc::Scheduler = getScheduler(app)
-    wo::GraphWorker = getWorker(app)
-    sy::Synchronizer = getSynchronizer(app)
+    m::Model = getModel(app)
+    sc::Scheduler = m._scheduler
+    wo::GraphWorker = m._worker
+    sy::Synchronizer = m._synchronizer
 
     CImGui.Text("Scheduler")
     CImGui.Separator()

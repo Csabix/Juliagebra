@@ -2,13 +2,8 @@
 # ! DependentGraph
 # ? ---------------------------------
 
-mutable struct DependentGraph <: DependentGraphDNA
-    _dependentObjects::Vector{DependentDNA}
-
-    function DependentGraph()
-        new(Vector{DependentDNA}())
-    end
-
+@kwdef mutable struct DependentGraph <: DependentGraphDNA
+    _dependentObjects::Vector{DependentDNA} = Vector{DependentDNA}()
 end
 
 _DependentGraph_(self::DependentGraphDNA)::DependentGraph = error("Missing \"_DependentGraph_\" func for type of \"$(typeof(self))\"!")

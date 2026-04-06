@@ -14,7 +14,8 @@ mutable struct SphereRenderer
     center_radius_buffer_transparent::MappedBuffer{Vec4F}
     color_id_buffer_transparent::Buffer{Vec2T{UInt32}}
 
-    updated::Bool
+    updated_opaque::Bool
+    updated_transparent::Bool
     
     function SphereRenderer()
         uniforms_opaque = String["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"]
@@ -25,7 +26,7 @@ mutable struct SphereRenderer
             shader_opaque, shader_transparent,
             Vector{Vec4F}(), Vector{Vec2T{UInt32}}(), Vector{Vec4F}(), Vector{Vec2T{UInt32}}(),
             MappedBuffer{Vec4F}(), Buffer{Vec2T{UInt32}}(), MappedBuffer{Vec4F}(), Buffer{Vec2T{UInt32}}(),
-            false
+            false, false
         )
     end
 end
@@ -44,23 +45,24 @@ function add!(self::SphereRenderer,coord::Vec3F,radius::Float32,color::Vec4F,id:
     if (color[4] == 1.0f0)
         push!(self.center_radius_opaque, Vec4F(coord[1],coord[2],coord[3],radius))
         push!(self.color_id_opaque, Vec2T{UInt32}(packUnorm4x8(color),id))
+        return UInt32(length(self.center_radius_opaque))
     else
         push!(self.center_radius_transparent, Vec4F(coord[1],coord[2],coord[3],radius))
         push!(self.color_id_transparent, Vec2T{UInt32}(packUnorm4x8(color),id))
+        return UInt32(length(self.center_radius_transparent))
     end
-    return UInt32(length(self.center_radius_opaque))
 end
 
 function added_all!(self::SphereRenderer)::Nothing
     if length(self.center_radius_opaque) != length(self.center_radius_buffer_opaque)
         upload!(self.center_radius_buffer_opaque,self.center_radius_opaque,0)
         upload!(self.color_id_buffer_opaque,self.color_id_opaque,0)
-        self.updated = false
+        self.updated_opaque = false
     end
     if length(self.center_radius_transparent) != length(self.center_radius_buffer_transparent)
         upload!(self.center_radius_buffer_transparent,self.center_radius_transparent,0)
         upload!(self.color_id_buffer_transparent,self.color_id_transparent,0)
-        self.updated = false
+        self.updated_transparent = false
     end
     return nothing
 end
@@ -68,22 +70,23 @@ end
 function update_coord_radius!(self::SphereRenderer,ref::UInt32,coord::Vec3F,radius::Float32,alpha::Float32)
     if alpha == 1.0f0
         self.center_radius_opaque[ref] = Vec4F(coord[1],coord[2],coord[3],radius)
-        self.updated = true
+        self.updated_opaque = true
     else
         self.center_radius_transparent[ref] = Vec4F(coord[1],coord[2],coord[3],radius)
-        self.updated = true
+        self.updated_transparent = true
     end
 end
 
 function sync_all!(self::SphereRenderer)::Nothing
-    if self.updated
+    if self.updated_opaque
         wait(self.center_radius_buffer_opaque)
         copyto!(self.center_radius_buffer_opaque,self.center_radius_opaque)
-        self.updated = false
-
+        self.updated_opaque = false
+    end
+    if self.updated_transparent
         wait(self.center_radius_buffer_transparent)
         copyto!(self.center_radius_buffer_transparent,self.center_radius_transparent)
-        self.updated = false
+        self.updated_transparent = false
     end
     return nothing
 end

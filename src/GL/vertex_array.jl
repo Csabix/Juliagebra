@@ -62,7 +62,7 @@ rebind_buffer!(self::VertexArray, index::Int, buffer::BufferBase) = glVertexArra
 rebind_ebo!(self::VertexArray,buffer::BufferBase) = glVertexArrayElementBuffer(self._id,id(buffer))
 
 destroy!(self::VertexArray) = glDeleteVertexArrays(1,[self._id])
-activate(self::VertexArray) = glBindVertexArray(self._id)
+activate(self::VertexArray)::Nothing = glBindVertexArray(self._id)::Nothing
 
 """
 Function to create a vertexAttribFormat.

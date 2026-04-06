@@ -3,6 +3,7 @@ const _POINT_SETS::UInt = 2
 const _POINT_SEQUENCES::UInt = 3
 const _CURVES::UInt = 4
 const _SEGMENT_SEQUENCES::UInt = 5
+const _SPHERES::UInt = 6
 
 include("dependent_renderer.jl")
 include("rendered_dependent.jl")
@@ -14,7 +15,7 @@ include("curve.jl")
 include("toggle.jl")
 include("slider.jl")
 include("textbox.jl")
-#include("Dependents/sphere.jl")
+include("sphere.jl")
 include("lazy_lbvh.jl")
 include("intersections.jl")
 include("segment.jl")
@@ -51,12 +52,13 @@ function create_dependent_observers(data::OpenGLData)::Vector{RendererDNA}
         PointSets(data),
         PointSequences(data),
         Curves(data),
-        SegmentSequences(data)
+        SegmentSequences(data),
+        Spheres(data)
     ]
 end
 
 function destroy_dependent_observers(observers::Vector{RendererDNA})::Nothing
-    destroy!.(observers)
+    foreach(destroy!,observers)
     return nothing
 end
 
@@ -68,5 +70,6 @@ function reset_dependent_observers(data::OpenGLData, observers::Vector{RendererD
     push!(PointSequences(data))
     push!(Curves(data))
     push!(SegmentSequences(data))
+    push!(Spheres(data))
     return nothing
 end

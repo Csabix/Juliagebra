@@ -239,12 +239,12 @@ function _opaque(self::OpenGLData,cam::Camera)::Nothing
 end
 
 function _transparent(self::OpenGLData,cam::Camera)
-    glDepthMask(GL_FALSE)
-    glEnable(GL_BLEND)
-    glDisable(GL_CULL_FACE)
-    glBlendFunci(0, GL_ONE, GL_ONE)
-    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR)
-    glBlendEquation(GL_FUNC_ADD)
+    glDepthMask(GL_FALSE)::Nothing
+    glEnable(GL_BLEND)::Nothing
+    glDisable(GL_CULL_FACE)::Nothing
+    glBlendFunci(0, GL_ONE, GL_ONE)::Nothing
+    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR)::Nothing
+    glBlendEquation(GL_FUNC_ADD)::Nothing
 
     activate(self._transparentFBO)
     glClearBufferfv(GL_COLOR, 0, Float32[0.0f0, 0.0f0, 0.0f0, 0.0f0])
@@ -270,7 +270,7 @@ function _transparent(self::OpenGLData,cam::Camera)
     activate(self._accumTexture,GL_TEXTURE0)
     activate(self._revealTexture,GL_TEXTURE1)
     uniform(self._transparent_color_combiner,"width",UInt32(self._shrd._width))
-    glDrawArrays(GL_TRIANGLES,0,3)
+    glDrawArrays(GL_TRIANGLES,UInt32(0),Int32(3))::Nothing
     
     glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
     glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)

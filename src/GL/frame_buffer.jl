@@ -1,6 +1,6 @@
 
 
-mutable struct FrameBuffer
+struct FrameBuffer
     _id::GLuint
 
     function FrameBuffer(attachements::Dict{GLuint,Texture2D})
@@ -33,6 +33,6 @@ mutable struct FrameBuffer
     end
 end
 
-activate(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, self._id)
+activate(self::FrameBuffer)::Nothing = glBindFramebuffer(GL_FRAMEBUFFER, self._id)::Nothing
 disable(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
 destroy!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])

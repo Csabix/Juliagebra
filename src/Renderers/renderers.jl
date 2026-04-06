@@ -13,31 +13,36 @@ end
 
 include("point_renderer.jl")
 include("line_renderer.jl")
+include("sphere_renderer.jl")
 
 struct PrimitiveRenderers
     point::PointRenderer
     line::LineRenderer
+    sphere::SphereRenderer
 
     function PrimitiveRenderers()
-        return new(PointRenderer(),LineRenderer())
+        return new(PointRenderer(),LineRenderer(),SphereRenderer())
     end
 end
 
 function destroy!(renderers::PrimitiveRenderers)::Nothing
     destroy!(renderers.point)
     destroy!(renderers.line)
+    destroy!(renderers.sphere)
     return nothing
 end
 
 function added_all!(renderers::PrimitiveRenderers)::Nothing
     added_all!(renderers.point)
     added_all!(renderers.line)
+    added_all!(renderers.sphere)
     return nothing
 end
 
 function sync_all!(renderers::PrimitiveRenderers)::Nothing
     sync_all!(renderers.point)
     sync_all!(renderers.line)
+    sync_all!(renderers.sphere)
     return nothing
 end
 
@@ -47,6 +52,7 @@ function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::N
 end
 
 function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    opaque(renderers.sphere,cam,shrd)
     opaque(renderers.point,cam,shrd)
     opaque(renderers.line,cam,shrd)
     return nothing

@@ -29,7 +29,7 @@ end
 Base.length(self::BufferArray)::Int = return length(self._vbos[1])
 draw(self::BufferArray,mode::GLuint) = (activate(self);glDrawArrays(mode,0,length(self)))
 draw(self::BufferArray,mode::GLuint,count::GLsizei) = (activate(self);glDrawArrays(mode,0,count))
-activate(self::BufferArray) = activate(self._vao)
+activate(self::BufferArray)::Nothing = activate(self._vao)::Nothing
 
 Base.getindex(self::BufferArray, index::Int)::BufferBase = self._vbos[index]
 buffer_resized(self::BufferArray, index::Int) = rebind_buffer!(self._vao,index,self._vbos[index])
@@ -80,7 +80,7 @@ end
 Base.length(self::IndexedBufferArray)::Int = return length(self._buffer_array)
 draw(self::IndexedBufferArray,mode::GLuint) = (activate(self);glDrawElements(mode,length(self._ebo),GL_UNSIGNED_INT,C_NULL))
 draw(self::IndexedBufferArray,mode::GLuint,count::GLsizei) = (activate(self);glDrawElements(mode,count,GL_UNSIGNED_INT,C_NULL))
-activate(self::IndexedBufferArray) = activate(self._buffer_array)
+activate(self::IndexedBufferArray)::Nothing = activate(self._buffer_array)::Nothing
 
 Base.getindex(self::IndexedBufferArray, index::Int)::BufferBase = self._buffer_array[index]
 Base.getindex(self::IndexedBufferArray, ::Val{:index})::BufferBase = self._ebo

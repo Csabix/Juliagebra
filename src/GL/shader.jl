@@ -6,7 +6,7 @@ struct ShaderProgram <: OpenGLWrapper
 
     function ShaderProgram(shader_stage_paths::Vector{String},uniform_names::Vector{String}=Vector{String}(undef,0))
         if length(shader_stage_paths) > 5
-            @log "Too many shader paths" ERR
+            println("Too many shader paths")
             return new(GLuint(0),Dict{String,GLint}())
         end
 
@@ -17,7 +17,7 @@ struct ShaderProgram <: OpenGLWrapper
                 for s in stages
                     (s != GLuint(0)) && glDeleteShader(s)
                 end
-                @log "Failed to create shader program" ERR
+                println("Failed to create shader program")
                 return new(GLuint(0),Dict{String,GLint}())
             end
             stages[i] = stage
@@ -33,7 +33,7 @@ struct ShaderProgram <: OpenGLWrapper
 
     function ShaderProgram(shader_configs::Vector{Union{String, Tuple{String, Vector{String}}}}, uniform_names::Vector{String}=Vector{String}(undef, 0))
         if length(shader_configs) > 5
-            @log "Too many shader paths" ERR
+            println("Too many shader paths")
             return new(GLuint(0),Dict{String,GLint}())
         end
 
@@ -50,7 +50,7 @@ struct ShaderProgram <: OpenGLWrapper
                 for s in stages
                     (s != GLuint(0)) && glDeleteShader(s)
                 end
-                @log "Failed to create shader program" ERR
+                println("Failed to create shader program")
                 return new(GLuint(0), Dict{String, GLint}())
             end
             stages[i] = stage
@@ -75,7 +75,7 @@ activate(self::ShaderProgram) = glUseProgram(self._id)
 function uniform(self::ShaderProgram,name::String,data)::Nothing
     if self._id == GLuint(0) return nothing end
     if !haskey(self._uniforms,name)
-        @log "No Uniform named: $(name)" WARN
+        println("No Uniform named: $(name)")
         return nothing
     end
     glUniform(self._uniforms[name],data)
@@ -86,7 +86,7 @@ function _scrape_uniforms(prog::GLuint,names::Vector{String})::Dict{String,GLint
     for name in names
         location = glGetUniformLocation(prog,name)
         if location == -1
-            @log "No uniform named: $(name)" WARN
+            println("No uniform named: $(name)")
             continue
         end
         namesToLocations[name] = location
@@ -126,7 +126,7 @@ function _link_shaders(shaders::MVector{5, GLuint})::GLuint
 
         glDeleteProgram(prog)
 
-        @log "Program linking failed" ERR
+        println("Program linking failed")
         return GLuint(0)
     end
     return prog
@@ -144,7 +144,7 @@ const _SHADER_EXTENSION_MAP::Dict{String,GLuint} = Dict(
 function _get_shader_stage(shader_path::String)::GLuint
     extension_index = findfirst(==('.'),shader_path)
     if isnothing(extension_index) || extension_index + 1 > length(shader_path)
-        @log "Invalid shader path: $(shader_path)" ERR
+        println("Invalid shader path: $(shader_path)")
         return GLuint(0)
     end
     extension::SubString{String} = view(shader_path,extension_index+1:length(shader_path))
@@ -154,14 +154,14 @@ end
 function _create_shader_stage(shader_path::String)::GLuint
     stage::GLuint = _get_shader_stage(shader_path)
     if stage == GLuint(0)
-        @log "Failed to create shader stage: $(shader_path)" ERR
+        println("Failed to create shader stage: $(shader_path)")
         return GLuint(0)
     end
 
     source::Vector{UInt8} = try
         read(shader_path)
     catch _
-        @log "Failed to read file: $(shader_path)" ERR
+        println("Failed to read file: $(shader_path)")
         return GLuint(0)
     end
 
@@ -186,7 +186,7 @@ function _create_shader_stage(shader_path::String)::GLuint
 
         glDeleteShader(shader)
         
-        @log "Failed to compile shader stage: $(shader_path)" ERR
+        println("Failed to compile shader stage: $(shader_path)")
         return GLuint(0)
     end
     return shader
@@ -195,14 +195,14 @@ end
 function _create_shader_stage(shader_path::String, defines::Vector{String})::GLuint
     stage::GLuint = _get_shader_stage(shader_path)
     if stage == GLuint(0)
-        @log "Failed to create shader stage: $(shader_path)" ERR
+        println("Failed to create shader stage: $(shader_path)")
         return GLuint(0)
     end
 
     raw_source = try
         read(shader_path, String)
     catch _
-        @log "Failed to read file: $(shader_path)" ERR
+        println("Failed to read file: $(shader_path)")
         return GLuint(0)
     end
 
@@ -239,7 +239,7 @@ function _create_shader_stage(shader_path::String, defines::Vector{String})::GLu
 
         glDeleteShader(shader)
         
-        @log "Failed to compile shader stage: $(shader_path)" ERR
+        println("Failed to compile shader stage: $(shader_path)")
         return GLuint(0)
     end
     return shader

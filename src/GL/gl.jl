@@ -3,7 +3,7 @@ using StaticArrays, ModernGL
 
 abstract type OpenGLWrapper end
 
-activate(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
+activate(x::OpenGLWrapper)::Nothing = error("not implemented for $typeof(x)")
 destroy!(x::OpenGLWrapper) = error("not implemented for $typeof(x)")
 
 const JuliaType2OpenGL = IdDict(

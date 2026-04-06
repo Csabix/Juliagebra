@@ -151,10 +151,15 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
         if event.button == MOUSE_BUTTON_RIGHT
             self._shrd._pickedID = id
             if id > 3
-                self._shrd._gizmoEnabled = true
-                mouse_capture = true
                 p = self._graph[self._shrd._pickedID]
-                self._opengl._gizmoGL._pos = Vec3F(p._coord)
+                if isa(p, PointDependent)
+                    pp::PointDependent = p
+                    self._opengl._gizmoGL._pos = Vec3F(pp._coord)
+                    self._shrd._gizmoEnabled = true
+                    mouse_capture = true
+                else
+                    self._shrd._gizmoEnabled = false
+                end    
             else
                 self._shrd._gizmoEnabled = false
             end
@@ -173,7 +178,7 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p = self._graph[self._shrd._pickedID]
+        p = self._graph[self._shrd._pickedID]::PointDependent
         set(
             p,
             Float64(self._opengl._gizmoGL._pos.x),

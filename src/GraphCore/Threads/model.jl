@@ -20,7 +20,7 @@ getGraph(self::Model)::DependentGraph = self._graph
 getAdder(self::Model)::Adder = self._adder
 getBuilder(self::Model)::Builder = self._builder
 getScheduler(self::Model)::Scheduler = self._scheduler
-getWorker(self::Model)::Worker = self._worker
+getWorker(self::Model)::GraphWorker = self._worker
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
 function destroy!(self::Model)
@@ -104,8 +104,8 @@ end
 function update!(self::Model, ::ViewingState)
     if !isempty(self._scheduler)
         @time_cpu_begin Graph_update
-        startGraphWorkers!(self._scheduler,self._synchronizer,self._worker)
-        processUntilClosed!(self._worker,self._synchronizer)
+        startGraphWorkers!(self._scheduler, self)
+        processUntilClosed!(self._worker, self)
         processBatch!(self._synchronizer)
         @time_cpu_end Graph_update
     end

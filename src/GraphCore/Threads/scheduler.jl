@@ -21,7 +21,10 @@ Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 isFinished(self::Scheduler)::Bool = return true
 
-function startGraphWorkers!(self::Scheduler, sy::Synchronizer, w::GraphWorker)
+function startGraphWorkers!(self::Scheduler, model::ModelDNA)
+    sy::Synchronizer = getSynchronizer(model)
+    w::GraphWorker = getWorker(model)
+    
     self._taken = length(self)
     heads::Set{DependentDNA} = Set{DependentDNA}()
     schedules::Vector{Schedule} = []

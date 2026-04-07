@@ -115,7 +115,7 @@ end
 
 # YELLOW Thread
 IntersectionCalculator(T12::Type, geometry1::DependentDNA, geometry2::DependentDNA; maxIntersectionNum=25) =
-build!(IntersectionCalculatorDependent{T12}(geometry1,geometry2,UInt(maxIntersectionNum)))
+Build!(IntersectionCalculatorDependent{T12}(geometry1,geometry2,UInt(maxIntersectionNum)))
 
 # ? ---------------------------------
 # ! Intersection

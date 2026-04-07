@@ -329,7 +329,7 @@ ParametricSurface(callback::Function,
 uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
 dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
 transparent::Bool=false,color = Vec3F(0.8,0.0,0.3)) =
-build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,Vec3F(color...),transparent))
+Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,Vec3F(color...),transparent))
 
 macro ParametricSurface(callback::Expr,uRange,vRange,kw_args...)
     parsed_kw_args = _parse_macro_kw_args([:transparent, :color], kw_args...)

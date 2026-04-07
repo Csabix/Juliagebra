@@ -17,6 +17,7 @@ abstract type GuiRendererDNA{T<:GuiDependentDNA} <: ObserverDNA{GuiDependentDNA}
 
 abstract type AppDNA end
 abstract type ImGuiDNA end
+abstract type ModelDNA end
 
 abstract type WidgetDNA end
 abstract type OpenGLWidgetDNA <: WidgetDNA end

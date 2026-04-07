@@ -80,19 +80,19 @@ end
 
 # YELLOW Thread
 TextBox(; label="") =
-build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
+Build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
     return ""
 end)
 
 # YELLOW Thread
 TextBox(text::String; label="") =
-build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
+Build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
     return text
 end)
 
 # YELLOW Thread
 TextBox(callback::Function, dependents::Vector{<:DependentDNA}; label="") =
-build!(TextBoxDependent(callback,dependents,label))
+Build!(TextBoxDependent(callback,dependents,label))
 
 # YELLOW Thread
 macro TextBox(callback::Expr, kw_args...)

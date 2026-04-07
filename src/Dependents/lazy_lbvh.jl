@@ -53,4 +53,4 @@ evalCallbackDpEntry(self::LazyLBVHDependent)::LazyLBVHDependent = return self
 
 # YELLOW Thread
 LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::DependentDNA) =
-build!(LazyLBVHDependent{T}(geometry))
+Build!(LazyLBVHDependent{T}(geometry))

@@ -34,7 +34,7 @@ evalCallbackDpReturn(self::GenericValueHolderDependent{T}, value::Nothing) where
 
 # YELLOW Thread
 GenericValueHolder(callback::Function,T::Type,dependents::Vector{<:DependentDNA}) =
-build!(GenericValueHolderDependent{T}(callback, dependents))
+Build!(GenericValueHolderDependent{T}(callback, dependents))
 
 # YELLOW Thread
 ValueHolder(callback::Function,T::Type,dependents::Vector{<:DependentDNA}) = GenericValueHolder(callback,T,dependents)

@@ -79,11 +79,11 @@ end
 
 # YELLOW Thread
 Toggle(; label="") =
-build!(ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
+Build!(ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
 
 # YELLOW Thread
 Toggle(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
-build!(ToggleDependent(callback, dependents,label))
+Build!(ToggleDependent(callback, dependents,label))
 
 # YELLOW Thread
 macro Toggle(callback::Expr, kw_args...)

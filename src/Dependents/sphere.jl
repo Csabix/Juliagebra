@@ -283,7 +283,7 @@ function Sphere(center::PointDependent,p1::PointDependent; color = (0.980,0.467,
         return (center,radius)
     end
 
-    return build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
+    return Build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
 end
 
 # YELLOW Thread
@@ -293,7 +293,7 @@ function Sphere(center::PointDependent,radius::ValueHolderDNA{Float64}; color = 
         return (center,radius)
     end
 
-    return build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
+    return Build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
 end
 
 # YELLOW Thread
@@ -304,7 +304,7 @@ function Sphere(p1::PointDependent,p2::PointDependent,p3::PointDependent,p4::Poi
         return s
     end
 
-   return build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
+   return Build!(SphereDependent(call,deps,Vec3F(color),transparent)) 
 end
 
 export Sphere

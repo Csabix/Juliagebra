@@ -130,12 +130,12 @@ end
 # ? ---------------------------------
 
 Stepper(num::Real; label="") =
-build!(StepperDependent(Vector{DependentDNA}(), label) do 
+Build!(StepperDependent(Vector{DependentDNA}(), label) do 
     return Float64(num) 
 end)
 
 Stepper(vh::ValueHolderDNA{<:Real}; label="") =
-build!(StepperDependent([vh], label) do vh
+Build!(StepperDependent([vh], label) do vh
     return Float64(vh)
 end)
 

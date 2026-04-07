@@ -9,11 +9,11 @@ const ADDER_IN_CHANNEL_SIZE = 100
 Calls added! and addedAll! calls on built Dependents if needed.
 """
 @kwdef mutable struct Adder
-    _in::Channel{DependentDNA} = Channel{DependentDNA}(ADDER_IN_CHANNEL_SIZE)
+    _in::Channel{ObservedDNA} = Channel{ObservedDNA}(ADDER_IN_CHANNEL_SIZE)
 end
 
 destroy!(self::Adder) = close(self._in)
-Base.put!(self::Adder,d::DependentDNA) = put!(self._in,d)
+Base.put!(self::Adder,o::ObservedDNA) = put!(self._in,o)
 Base.isempty(self::Adder)::Bool = return isempty(self._in)
 
 # Green Thread
@@ -22,17 +22,17 @@ function processBatch!(self::Adder)
     addedAllSet = Set{ObserverDNA}()
     
     for i in 1:takeNum
-        dependent = take!(self._in)
-        observer = _handleAddedCalls(dependent)
+        observed::ObservedDNA = take!(self._in)
+        observer::ObserverDNA = getObserver(observed)
 
-        if !isnothing(observer)
-            # ? An Observer was assigned to this dependent.
-            push!(addedAllSet,observer)
-        end
+        added!(observer,observed)
+        _setHasInstance!(observer)
+
+        push!(addedAllSet,observer)
     end
     
     for observer in addedAllSet        
-        # ? Must call addedAll! and activate!
+        # ? Must call addedAll!
         addedAll!(observer)
     end
 
@@ -41,16 +41,3 @@ function processBatch!(self::Adder)
     end
 end
 
-# Green Thread
-function _handleAddedCalls(::DependentDNA)
-    # ? The BLUE Thread already did the required building work.
-    return nothing
-end
-
-# Green Thread
-function _handleAddedCalls(observed::ObservedDNA)
-    observer = getObserver(observed)
-    added!(observer,observed)
-    _setHasInstance!(observer)
-    return observer
-end

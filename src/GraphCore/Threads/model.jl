@@ -7,7 +7,7 @@ struct ViewingState <: ModelState end
 # ! Model
 # ? ---------------------------------
 
-@kwdef mutable struct Model
+@kwdef mutable struct Model <: ModelDNA
     _graph::DependentGraph = DependentGraph()
     _adder::Adder = Adder()
     _builder::Builder = Builder()
@@ -15,6 +15,13 @@ struct ViewingState <: ModelState end
     _worker::GraphWorker = GraphWorker()
     _synchronizer::Synchronizer = Synchronizer()
 end
+
+getGraph(self::Model)::DependentGraph = self._graph
+getAdder(self::Model)::Adder = self._adder
+getBuilder(self::Model)::Builder = self._builder
+getScheduler(self::Model)::Scheduler = self._scheduler
+getWorker(self::Model)::Worker = self._worker
+getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
 function destroy!(self::Model)
     destroy!(self._adder)
@@ -34,7 +41,7 @@ Send a newly constructed Observed to the build system of a Model.
 - An Observer for this Observed is required.
 """
 function build!(self::Model, observed::U, observer::ObserverDNA{V})::U where {V<:ObservedDNA, U<:V}
-    put!(self._builder, observed)
+    put!(self._builder, (observed, observer))
     return observed
 end
 

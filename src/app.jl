@@ -270,7 +270,7 @@ function init!(self::App)
     
     # YELLOW Thread
     yellowTask = Threads.@spawn begin
-        processUntilClosed!(getModel(self)._builder,self)
+        processUntilClosed!(getModel(self)._builder,getModel(self))
     end
     errormonitor(yellowTask)
     self._yellowTask = yellowTask

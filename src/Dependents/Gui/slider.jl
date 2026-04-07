@@ -148,31 +148,31 @@ end
 
 # YELLOW Thread
 Slider(; label="") =
-build!(SliderDependent(Vector{DependentDNA}(),label) do 
+Build!(SliderDependent(Vector{DependentDNA}(),label) do 
     return Vec3F(0.0,0.5,1.0)    
 end)
 
 # YELLOW Thread
 Slider(maxVal::Real; label="") =
-build!(SliderDependent(Vector{DependentDNA}(),label) do 
+Build!(SliderDependent(Vector{DependentDNA}(),label) do 
     return Vec3F(0.0,maxVal/2.0,abs(maxVal))    
 end)
 
 # YELLOW Thread
 Slider(minVal::Real, maxVal::Real; label="") =
-build!(SliderDependent(Vector{DependentDNA}(),label) do 
+Build!(SliderDependent(Vector{DependentDNA}(),label) do 
     return Vec3F(minVal,((maxVal-minVal)/2.0)+minVal,maxVal)    
 end)
 
 # YELLOW Thread
 Slider(minVal::Real, currVal::Real, maxVal::Real; label="") =
-build!(SliderDependent(Vector{DependentDNA}(),label) do 
+Build!(SliderDependent(Vector{DependentDNA}(),label) do 
     return Vec3F(minVal,currVal,maxVal)    
 end)
 
 # YELLOW Thread
 Slider(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
-build!(SliderDependent(callback,dependents,label))
+Build!(SliderDependent(callback,dependents,label))
 
 macro Slider(callback::Expr, kw_args...)
     parsed_kw_args = _parse_macro_kw_args([:label], kw_args...)

@@ -158,7 +158,7 @@ end
 
 # YELLOW Thread
 PointCloud(callback::Function,dependents=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointCloudDependent =
-build!(PointCloudDependent(callback,dependents,color,width))
+Build!(PointCloudDependent(callback,dependents,color,width))
 
 # YELLOW Thread
 PointCloud(dependents::Vector{<:DependentDNA}) = GenericValueHolder(_deps_collect,Vector{Vec3D},dependents)

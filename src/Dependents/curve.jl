@@ -496,7 +496,7 @@ play!();
 """
 ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
                 color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::ParametricCurveDependent =
-return build!(ParametricCurveDependent(callback,dependents,range,color,type,reversed ? 0x1 : 0x0,width))
+return Build!(ParametricCurveDependent(callback,dependents,range,color,type,reversed ? 0x1 : 0x0,width))
 
 macro ParametricCurve(callback::Expr,range,kw_args...)
     parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)

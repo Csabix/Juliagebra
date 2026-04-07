@@ -141,11 +141,11 @@ Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
 
 # YELLOW Thread
 Point(x::Real,y::Real,z::Real)::PointDependent =
-build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}()))
+Build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}()))
 
 # YELLOW Thread
 Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
-build!(PointDependent(callback,dependents))
+Build!(PointDependent(callback,dependents))
 
 # YELLOW Thread
 macro Point(callback::Expr)

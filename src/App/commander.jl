@@ -76,7 +76,7 @@ Send a newly constructed Dependent to the build system of implicitApp.
 - If implicitApp is nothing, it is initialized, and started.
 - The App will run on greenTask.
 """
-function build!(dependent::T)::T where {T<:DependentDNA}
+function Build!(dependent::T)::T where {T<:DependentDNA}
     global implicitApp
     global greenTask
 
@@ -85,7 +85,7 @@ function build!(dependent::T)::T where {T<:DependentDNA}
         greenTask = startApp(implicitApp)
     end
 
-    build!(dependent,implicitApp)
+    Build!(dependent,implicitApp)
     return dependent
 end
 
@@ -94,10 +94,18 @@ end
 Send a newly constructed Dependent to the build system of app.
 - App must be started.
 """
-function build!(dependent::T, app::AppDNA)::T where {T<:DependentDNA}
+function Build!(dependent::T, app::AppDNA)::T where {T<:DependentDNA}
     @assert isStarted(getStarter(app)) "App is not started properly!"
 
-    build!(getModel(app),dependent)
+    _Build!(dependent,app)
     return dependent
+end
+
+function _Build!(dependent::DependentDNA, app::AppDNA)
+    build!(getModel(app),dependent)
+end
+
+function _Build!(observed::ObservedDNA, app::AppDNA)
+    build!(getModel(app), observed, Dependent2Observer(app,observed))
 end
 

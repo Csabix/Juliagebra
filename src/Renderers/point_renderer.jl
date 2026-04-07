@@ -90,7 +90,7 @@ end
 
 function destroy!(self::PointRenderer)::Nothing
     destroy!(self.shader)
-    destroy!.(self.points)
+    foreach(destroy!,self.points)
     return nothing
 end
 
@@ -114,7 +114,7 @@ function add_dynamic!(self::PointRenderer,coords,types,colors,sizes,ids)::UInt32
 end
 
 function added_all!(self::PointRenderer)::Nothing
-    added_all!.(self.points)
+    foreach(added_all!,self.points)
     return nothing
 end
 
@@ -166,7 +166,7 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     (vp, view, _) = get_matrices(cam)
     (_, side_light) = get_lights(cam)
 
-    side_light = view[1:3,1:3] * side_light
+    side_light = view[SOneTo(3), SOneTo(3)] * side_light
 
     activate(self.shader)
     uniform(self.shader,"VP",vp)

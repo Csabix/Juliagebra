@@ -23,7 +23,7 @@ end
 
 function destroy!(self::BufferArray)
     destroy!(self._vao)
-    destroy!.(self._vbos)
+    foreach(destroy!,self._vbos)
 end
 
 Base.length(self::BufferArray)::Int = return length(self._vbos[1])

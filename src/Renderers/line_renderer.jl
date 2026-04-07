@@ -241,8 +241,8 @@ end
 function destroy!(self::LineRenderer)::Nothing
     destroy!(self.emptyVAO)
     destroy!(self.shader_predraw)
-    destroy!.(self.shaders_opaque)
-    destroy!.(self.shaders_transparent)
+    foreach(destroy!,self.shaders_opaque)
+    foreach(destroy!,self.shaders_transparent)
 
     destroy!(self.distance_buffer_in)
     destroy!(self.color_type_buffer_in)
@@ -253,9 +253,9 @@ function destroy!(self::LineRenderer)::Nothing
     destroy!(self.light_buffer_out)
     destroy!(self.sdf_buffer_out)
 
-    destroy!.(self.distance_buffer_in_dynamic)
-    destroy!.(self.color_type_buffer_in_dynamic)
-    destroy!.(self.position_width_buffer_in_dynamic)
+    foreach(destroy!,self.distance_buffer_in_dynamic)
+    foreach(destroy!,self.color_type_buffer_in_dynamic)
+    foreach(destroy!,self.position_width_buffer_in_dynamic)
 
     destroy!(self.position_distance_buffer_out_dynamic)
     destroy!(self.color_buffer_out_dynamic)

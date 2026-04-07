@@ -3,6 +3,26 @@
 # ! GraphWorker
 # ? ---------------------------------
 
+mutable struct EvalWorker{T<:Union{Queue{DependentDNA}, Channel{DependentDNA}}}
+    _in::T
+    _taken::Int
+
+    function EvalWorker(in::T) where {T}#<:Union{Queue{DependentDNA}, Channel{DependentDNA}}}
+        new{T}(in,0)
+    end
+
+    function EvalWorker{Queue{DependentDNA}}()
+        return EvalWorker(Queue{DependentDNA}())
+    end
+
+    function EvalWorker{Channel{DependentDNA}}()
+        return EvalWorker(Channel{DependentDNA}(100))
+    end
+end
+
+const EvalWorker0 = EvalWorker{Queue{DependentDNA}}
+const EvalWorkeri = EvalWorker{Channel{DependentDNA}}
+
 """
 Calls onNodeEval() on put nodes, then sends them to synchronizer.
 """

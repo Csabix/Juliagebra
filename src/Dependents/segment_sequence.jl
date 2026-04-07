@@ -558,7 +558,7 @@ function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),br
     
     colors::Vector{Vec3F} = _Colors(color)
     
-    return build!(SegmentSequenceDependent(callback, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+    return Build!(SegmentSequenceDependent(callback, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
 end
 
 # YELLOW Thread
@@ -567,7 +567,7 @@ function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
     
     colors::Vector{Vec3F} = _Colors(color)
 
-    return build!(SegmentSequenceDependent(_deps_collect, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+    return Build!(SegmentSequenceDependent(_deps_collect, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
 end
 
 # YELLOW Thread

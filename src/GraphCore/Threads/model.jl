@@ -11,6 +11,7 @@ struct ViewingState <: ModelState end
     _graph::DependentGraph = DependentGraph()
     _adder::Adder = Adder()
     _builder::Builder = Builder()
+    _builderTask::Union{Task,Nothing} = nothing
     _scheduler::Scheduler = Scheduler()
     _worker::GraphWorker = GraphWorker()
     _synchronizer::Synchronizer = Synchronizer()
@@ -23,9 +24,22 @@ getScheduler(self::Model)::Scheduler = self._scheduler
 getWorker(self::Model)::GraphWorker = self._worker
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
+function init!(self::Model)
+    # YELLOW Thread start
+    builderTask = Threads.@spawn begin
+        processUntilClosed!(self._builder,self)
+    end
+    errormonitor(builderTask)
+
+    self._builderTask = builderTask
+end
+
 function destroy!(self::Model)
     destroy!(self._adder)
     destroy!(self._builder)
+
+    # YELLOW Thread end
+    wait(self._builderTask)
 end
 
 """

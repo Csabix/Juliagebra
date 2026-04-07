@@ -19,7 +19,6 @@ mutable struct App <: AppDNA
     _starter::Starter
     _commander::Commander
     
-    _yellowTask::Union{Task,Nothing} # ? works the _builder
     _model::Model
 
     function App(
@@ -42,12 +41,9 @@ mutable struct App <: AppDNA
         starter = Starter()
         commander = Commander()
         
-        yellowTask = nothing
         model = Model()
-        
-        
-        
-        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,yellowTask,model)
+                
+        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model)
     end
 end
 
@@ -267,13 +263,8 @@ function init!(self::App)
     self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true
     perf_init_gpu()
-    
-    # YELLOW Thread
-    yellowTask = Threads.@spawn begin
-        processUntilClosed!(getModel(self)._builder,getModel(self))
-    end
-    errormonitor(yellowTask)
-    self._yellowTask = yellowTask
+
+    init!(self._model)
 
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
@@ -289,8 +280,6 @@ function destroy!(self::App)
     destroy!(self._glfw)
     destroy!(self._commander)
     destroy!(self._model)
-
-    wait(self._yellowTask)
 end
 
 export App

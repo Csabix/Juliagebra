@@ -24,9 +24,18 @@ end
 """
 Send a newly constructed Dependent to the build system of a Model.
 """
-function build!(self::Model, d::T)::T where {T<:DependentDNA}
-    put!(self._builder,d)
-    return d
+function build!(self::Model, dependent::T)::T where {T<:DependentDNA}
+    put!(self._builder, dependent)
+    return dependent
+end
+
+"""
+Send a newly constructed Observed to the build system of a Model.
+- An Observer for this Observed is required.
+"""
+function build!(self::Model, observed::U, observer::ObserverDNA{V})::U where {V<:ObservedDNA, U<:V}
+    put!(self._builder, observed)
+    return observed
 end
 
 """

@@ -66,7 +66,7 @@ end
 function _renderEvaluationTab(::GraphWindow, app::AppDNA)
     m::Model = getModel(app)
     sc::Scheduler = m._scheduler
-    wo::GraphWorker = m._worker
+    wo::EvalWorker0 = m._worker
     sy::Synchronizer = m._synchronizer
 
     CImGui.Text("Scheduler")

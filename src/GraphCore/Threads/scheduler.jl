@@ -23,7 +23,7 @@ isFinished(self::Scheduler)::Bool = return true
 
 function startGraphWorkers!(self::Scheduler, model::ModelDNA)
     sy::Synchronizer = getSynchronizer(model)
-    w::GraphWorker = getWorker(model)
+    w::EvalWorker0 = getWorker(model)
     
     self._taken = length(self)
     heads::Set{DependentDNA} = Set{DependentDNA}()

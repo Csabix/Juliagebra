@@ -13,7 +13,7 @@ struct ViewingState <: ModelState end
     _builder::Builder = Builder()
     _builderTask::Union{Task,Nothing} = nothing
     _scheduler::Scheduler = Scheduler()
-    _worker::GraphWorker = GraphWorker()
+    _worker::EvalWorker0 = EvalWorker0()
     _synchronizer::Synchronizer = Synchronizer()
 end
 
@@ -21,7 +21,7 @@ getGraph(self::Model)::DependentGraph = self._graph
 getAdder(self::Model)::Adder = self._adder
 getBuilder(self::Model)::Builder = self._builder
 getScheduler(self::Model)::Scheduler = self._scheduler
-getWorker(self::Model)::GraphWorker = self._worker
+getWorker(self::Model)::EvalWorker0 = self._worker
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
 function init!(self::Model)

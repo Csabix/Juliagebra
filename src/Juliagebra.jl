@@ -133,7 +133,7 @@ include("imgui_data.jl")
 include("GraphCore/Threads/builder.jl")
 include("GraphCore/Threads/adder.jl")
 include("GraphCore/Threads/synchronizer.jl")
-include("GraphCore/Threads/graph_worker.jl")
+include("GraphCore/Threads/eval_worker.jl")
 include("GraphCore/Threads/scheduler.jl")
 include("GraphCore/Threads/model.jl")
 

@@ -20,8 +20,8 @@ mutable struct SphereRenderer
     function SphereRenderer()
         uniforms_opaque = String["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"]
         shader_opaque = ShaderProgram(["renderers/sphere/sphere.vert","renderers/sphere/sphere.frag"], uniforms_opaque)
-        uniforms_transparent = String["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION","width"]
-        shader_transparent = ShaderProgram(["renderers/sphere/sphere.vert",("renderers/sphere/sphere.frag",["TRANSPARENT"])], uniforms_transparent)
+        uniforms_transparent = String["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION","width","near"]
+        shader_transparent = ShaderProgram(["renderers/sphere/sphere.vert",("renderers/sphere/sphere_transparent.frag")], uniforms_transparent)
         return new(
             shader_opaque, shader_transparent,
             Vector{Vec4F}(), Vector{Vec2T{UInt32}}(), Vector{Vec4F}(), Vector{Vec2T{UInt32}}(),
@@ -140,6 +140,9 @@ function transparent(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
     uniform(self.shader_transparent,"width",UInt32(shrd._width))
 
     @time_gpu_begin Renderer Sphere Transparent
+    uniform(self.shader_transparent,"near",1.0f0)
+    glDrawArrays(GL_TRIANGLES,0,length(self.center_radius_transparent) * 6)
+    uniform(self.shader_transparent,"near",-1.0f0)
     glDrawArrays(GL_TRIANGLES,0,length(self.center_radius_transparent) * 6)
     @time_gpu_end Renderer Sphere Transparent
     lock(self.center_radius_buffer_transparent)

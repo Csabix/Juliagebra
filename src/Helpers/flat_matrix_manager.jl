@@ -63,6 +63,11 @@ layers(self::FlatMatrixManager) = return length(self._widths)
 height(self::FlatMatrixManager,layer) = return self._heights[layer]
 width(self::FlatMatrixManager,layer) = return self._widths[layer]
 data(self::FlatMatrixManager) = return self._data
+function data(self::FlatMatrixManager{T}, layer) where T
+    start_idx = self._offsets[layer] + 1
+    end_idx   = self._offsets[layer + 1]
+    return view(self._data, start_idx:end_idx)
+end
 
 function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
     # ! 1---3---5   u:->+ 
@@ -88,6 +93,37 @@ function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
             push!(self,T(fetchIndex(mat,layer,u  ,v  )-1))
             push!(self,T(fetchIndex(mat,layer,u+1,v  )-1))
             push!(self,T(fetchIndex(mat,layer,u+1,v-1)-1))
+        end
+    end
+end
+
+function triangulateInto_single!(self::Vector{T},mat::FlatMatrixManager,layer) where T
+    w = width(mat, layer)
+    local_idx(u, v) = (u - 1) + (v - 1) * w
+
+    # ! 1---3---5   u:->+ 
+    # ! |##/|##/|      
+    # ! |#/ |#/ |   v:|
+    # ! |/  |/  |     V
+    # ! 2---4---* +
+    for v in 1:(height(mat,layer)-1)
+        for u in 1:(width(mat,layer)-1)
+            push!(self, T(local_idx(u, v)))
+            push!(self, T(local_idx(u, v+1)))
+            push!(self, T(local_idx(u+1, v)))
+        end
+    end
+
+    # ! *---3---4   u:->+ 
+    # ! |  /|  /|      
+    # ! | /#| /#|   v:|
+    # ! |/##|/##|     V
+    # ! 1---2---3     +
+    for v in 2:(height(mat,layer))
+        for u in 1:(width(mat,layer)-1)
+            push!(self, T(local_idx(u, v)))
+            push!(self, T(local_idx(u+1, v)))
+            push!(self, T(local_idx(u+1, v-1)))
         end
     end
 end

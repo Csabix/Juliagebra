@@ -4,6 +4,7 @@ const _POINT_SEQUENCES::UInt = 3
 const _CURVES::UInt = 4
 const _SEGMENT_SEQUENCES::UInt = 5
 const _SPHERES::UInt = 6
+const _SURFACES::UInt = 7
 
 include("dependent_renderer.jl")
 include("rendered_dependent.jl")
@@ -11,7 +12,7 @@ include("gui_renderer.jl")
 include("gui_dependent.jl")
 include("point.jl")
 include("curve.jl")
-#include("Dependents/surface.jl")
+include("surface.jl")
 include("toggle.jl")
 include("slider.jl")
 include("textbox.jl")
@@ -53,7 +54,8 @@ function create_dependent_observers(data::OpenGLData)::Vector{RendererDNA}
         PointSequences(data),
         Curves(data),
         SegmentSequences(data),
-        Spheres(data)
+        Spheres(data),
+        ParametricSurfaceRenderer(data)
     ]
 end
 
@@ -71,5 +73,6 @@ function reset_dependent_observers(data::OpenGLData, observers::Vector{RendererD
     push!(Curves(data))
     push!(SegmentSequences(data))
     push!(Spheres(data))
+    push!(ParametricSurfaceRenderer(data))
     return nothing
 end

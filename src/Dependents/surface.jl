@@ -155,170 +155,75 @@ Base.iterate(self::PTrianglesOfSurface, state = (1,1,1)) = return iterate(self._
 
 mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDependent}
     _renderer::Renderer{ParametricSurfaceDependent}
+    _renderers::PrimitiveRenderers
+    _refs::Vector{UInt32}
 
-    _shader_id::ShaderProgram
-    _shader_opaque::ShaderProgram
-    _shader_transparent::ShaderProgram
-
-    _buffer_opaque::IndexedBufferArray
-    _buffer_transparent::IndexedBufferArray
-
-    _indexes_opaque::Vector{UInt32}
-    _vertexes_opaque::FlatMatrixManager{Vec3F}
-    _normals_opaque::FlatMatrixManager{Vec3F}
-    _colors_opaque::FlatMatrixManager{Vec3F}
-
-    _indexes_transparent::Vector{UInt32}
-    _vertexes_transparent::FlatMatrixManager{Vec3F}
-    _normals_transparent::FlatMatrixManager{Vec3F}
-    _colors_transparent::FlatMatrixManager{Vec3F}
+    _indexes::Vector{UInt32}
+    _vertexes::FlatMatrixManager{Vec3F}
+    _normals::FlatMatrixManager{Vec3F}
 
     # GREEN Thread
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
+        refs = Vector{UInt32}()
         
-        shader_id = ShaderProgram(["surface/surface_id.vert","surface/surface_id.frag"],["VP"])
-        shader_opaque = ShaderProgram(["surface/surface.vert","surface/surface_opaque.frag"],["VP","lightDirCam","lightDirSide"])
-        shader_transparent = ShaderProgram(["surface/surface.vert","surface/surface_transparent.frag"],["VP","lightDirCam","lightDirSide"])
-
-        new(renderer,
-        shader_id,shader_opaque,shader_transparent,
-        IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(MappedBuffer,MappedBuffer,Buffer),IndexedBufferArray{Tuple{Vec3F,Vec3F,Vec3F}}(MappedBuffer,MappedBuffer,Buffer),
-        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),
-        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}())
+        new(renderer,context._renderers,refs,
+        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}())
     end
 end
 
 _Renderer_(self::ParametricSurfaceRenderer) = return self._renderer
-Base.string(self::ParametricSurfaceRenderer) = "ParametricSurfaceRenderer - [$(length(self._buffer))]"
+Base.string(self::ParametricSurfaceRenderer) = "ParametricSurfaceRenderer - [$(length(self._refs))]"
 
 # GREEN Thread
 function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
     width = length(surface._uRange)
     height = length(surface._vRange)
-    color = surface._color
 
-    vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
-    normals = surface._transparent ? self._normals_transparent : self._normals_opaque
-    colors = surface._transparent ? self._colors_transparent : self._colors_opaque
-    indexes = surface._transparent ? self._indexes_transparent : self._indexes_opaque
-
-    initMatrix(vertexes,width,height,Vec3FNan)
-    initMatrix(normals,width,height,Vec3FNan)
-    initMatrix(colors,width,height,color)
-    triangulateInto!(indexes,vertexes,layers(vertexes))
+    initMatrix(self._vertexes,width,height,Vec3FNan)
+    initMatrix(self._normals,width,height,Vec3FNan)
+    triangulateInto!(self._indexes,self._vertexes,layers(self._vertexes))
     
     # ? copy values
-    copy!(surface._uvValues,vertexes,layers(vertexes))
-    copy!(surface._uvNormals,normals,layers(normals))
-    surface._layer = layers(vertexes)
+    copy!(surface._uvValues,self._vertexes,layers(self._vertexes))
+    copy!(surface._uvNormals,self._normals,layers(self._normals))
+    surface._layer = layers(self._vertexes)
 
-    #println(surface._uvValues._data)
-end
-
-# GREEN Thread
-function addedAll!(self::ParametricSurfaceRenderer)
-    upload!(self._buffer_opaque,1,data(self._vertexes_opaque),0)
-    upload!(self._buffer_opaque,2,data(self._normals_opaque),0)
-    upload!(self._buffer_opaque,3,data(self._colors_opaque),0)
-    upload_index!(self._buffer_opaque,self._indexes_opaque,0)
-
-    upload!(self._buffer_transparent,1,data(self._vertexes_transparent),0)
-    upload!(self._buffer_transparent,2,data(self._normals_transparent),0)
-    upload!(self._buffer_transparent,3,data(self._colors_transparent),0)
-    upload_index!(self._buffer_transparent,self._indexes_transparent,0)
+    aID = UInt32(getGraphID(surface) + ID_LOWER_BOUND)
+    coords = data(self._vertexes, surface._layer)
+    #indices = data(self._indexes, surface._layer)
+    indices = Vector{UInt32}()
+    triangulateInto_single!(indices,self._vertexes,layers(self._vertexes))
+    ref = add!(
+        self._renderers.triangle,
+        (coords[i+1] for i in indices),
+        mat4(1.0f0),
+        surface._color,
+        aID)
+    push!(self._refs, ref)
 end
 
 # GREEN Thread
 function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
-    vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
-    normals = surface._transparent ? self._normals_transparent : self._normals_opaque
-    layer = surface._layer
+    #vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
+    #normals = surface._transparent ? self._normals_transparent : self._normals_opaque
+    #layer = surface._layer
 
-    copy!(surface._uvValues,vertexes,layer)
-    copy!(surface._uvNormals,normals,layer)
-end
+    copy!(surface._uvValues,self._vertexes,surface._layer)
+    copy!(surface._uvNormals,self._normals,surface._layer)
 
-# GREEN Thread
-function syncAll!(self::ParametricSurfaceRenderer)
-    @time_cpu_begin Dependent Surface
-    wait(self._buffer_opaque[1])
-    copyto!(self._buffer_opaque[1],data(self._vertexes_opaque))
-    wait(self._buffer_opaque[2])
-    copyto!(self._buffer_opaque[2],data(self._normals_opaque))
-    
-    wait(self._buffer_transparent[1])
-    copyto!(self._buffer_transparent[1],data(self._vertexes_transparent))
-    wait(self._buffer_transparent[2])
-    copyto!(self._buffer_transparent[2],data(self._normals_transparent))
-    @time_cpu_end Dependent Surface
-end
-
-function id_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    glDisable(GL_CULL_FACE)
-    
-    activate(self._shader_id)
-    uniform(self._shader_id,"VP",vp)
-    @time_gpu_begin Dependent Surface ID_PASS
-    if !isempty(self._indexes_opaque) draw(self._buffer_opaque,GL_TRIANGLES) end
-    if !isempty(self._indexes_transparent) draw(self._buffer_transparent,GL_TRIANGLES) end
-    @time_gpu_end Dependent Surface ID_PASS
-
-    glEnable(GL_CULL_FACE)
-    return nothing
-end
-
-function opaque_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    if isempty(self._indexes_opaque) return nothing end
-    (cam_light, side_light) = get_lights(cam)
-    
-    glDisable(GL_CULL_FACE)
-    
-    activate(self._shader_opaque)
-    uniform(self._shader_opaque,"VP",vp)
-    uniform(self._shader_opaque,"lightDirCam",-cam_light)
-    uniform(self._shader_opaque,"lightDirSide",-side_light)
-    @time_gpu_begin Dependent Surface OPAQUE_PASS
-    draw(self._buffer_opaque,GL_TRIANGLES)
-    @time_gpu_end Dependent Surface OPAQUE_PASS
-
-    glEnable(GL_CULL_FACE)
-    lock(self._buffer_opaque[1])
-    lock(self._buffer_opaque[2])
-    return nothing
-end
-
-function transparent_pass!(self::ParametricSurfaceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    if isempty(self._indexes_transparent) return nothing end
-    (cam_light, side_light) = get_lights(cam)
-    
-    glDisable(GL_CULL_FACE)
-    
-    activate(self._shader_transparent)
-    uniform(self._shader_transparent,"VP",vp)
-    uniform(self._shader_transparent,"lightDirCam",-cam_light)
-    uniform(self._shader_transparent,"lightDirSide",-side_light)
-    @time_gpu_begin Dependent Surface TRANSPARENT_PASS
-    draw(self._buffer_transparent,GL_TRIANGLES)
-    @time_gpu_end Dependent Surface TRANSPARENT_PASS
-
-    glEnable(GL_CULL_FACE)
-    lock(self._buffer_transparent[1])
-    lock(self._buffer_transparent[2])
-    return nothing
+    coords = data(self._vertexes, surface._layer)
+    indices = Vector{UInt32}()
+    triangulateInto_single!(indices,self._vertexes,layers(self._vertexes))
+    update_coords!(self._renderers.triangle,self._refs[surface._layer],(coords[i+1] for i in indices))
 end
 
 # ! Must have
 function destroy!(self::ParametricSurfaceRenderer)
-    destroy!(self._shader_id)
-    destroy!(self._shader_opaque)
-    destroy!(self._shader_transparent)
-    destroy!(self._buffer_opaque)
-    destroy!(self._buffer_transparent)
 end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getOpenGL(app)._renderers[2]
+Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceRenderer = getDependentObservers(app)[_SURFACES]
 
 # ? ---------------------------------
 # ! ParametricSurface

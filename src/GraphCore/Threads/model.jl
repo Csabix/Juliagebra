@@ -14,6 +14,7 @@ struct ViewingState <: ModelState end
     _builderTask::Union{Task,Nothing} = nothing
     _scheduler::Scheduler = Scheduler()
     _workers::Workers = Workers()
+    _workerTasks::Vector{Task} = Vector{Task}()
     _synchronizer::Synchronizer = Synchronizer()
 end
 
@@ -32,14 +33,30 @@ function init!(self::Model)
     errormonitor(builderTask)
 
     self._builderTask = builderTask
+
+    for i in 1:length(self._workers)
+        # RED Thread start
+        workerTask = Threads.@spawn begin
+            processUntilClosed!(self._workers[i], self)
+        end
+        errormonitor(workerTask)
+
+        push!(self._workerTasks, workerTask)
+    end
 end
 
 function destroy!(self::Model)
     destroy!(self._adder)
     destroy!(self._builder)
+    destroy!(self._workers)
 
     # YELLOW Thread end
     wait(self._builderTask)
+
+    for workerTask in self._workerTasks
+        # RED Thread end
+        wait(workerTask)
+    end
 end
 
 """

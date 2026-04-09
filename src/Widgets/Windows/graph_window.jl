@@ -66,7 +66,7 @@ end
 function _renderEvaluationTab(::GraphWindow, app::AppDNA)
     m::Model = getModel(app)
     sc::Scheduler = getScheduler(m)
-    wo::EvalWorker0 = getWorkers(m)[0]
+    wo::Workers = getWorkers(m)
     sy::Synchronizer = getSynchronizer(m)
 
     CImGui.Text("Scheduler")
@@ -78,12 +78,36 @@ function _renderEvaluationTab(::GraphWindow, app::AppDNA)
     CImGui.Spacing()
     CImGui.Spacing()
 
-    CImGui.Text("Worker")
-    CImGui.Separator()
-    CImGui.Text("taken: $(wo._taken)")
-    CImGui.Spacing()
-    CImGui.Spacing()
-    CImGui.Spacing()
+    for idx in 0:length(wo)
+        w::EvalWorker = wo[idx]
+        CImGui.Text("Worker$(idx)")
+        CImGui.Separator()
+
+        CImGui.Text("Processed:")
+        
+        maxVal = 0.0
+
+        if !isempty(w._processed)
+            maxVal = maximum(w._processed)
+        end
+        
+        if maxVal < 0.2
+            maxVal = 0.2
+        elseif maxVal < 0.5
+            maxVal = 0.5
+        elseif  maxVal < 1.0
+            maxVal = 1.0
+        elseif maxVal < 1.5
+            maxVal = 1.5
+        end
+
+
+        CImGui.PlotHistogram("##$(idx)", w._processed, length(w._processed), 0, "Worker$(idx)", 0.0,maxVal, (-1.0,50.0), sizeof(Float32))
+        
+        CImGui.Spacing()
+        CImGui.Spacing()
+        CImGui.Spacing()
+    end
 
     CImGui.Text("Synchronizer")
     CImGui.Separator()

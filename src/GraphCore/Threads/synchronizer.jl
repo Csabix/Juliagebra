@@ -7,12 +7,12 @@
 Calls sync!() and syncAll!() on arrived Dependents.
 """
 @kwdef mutable struct Synchronizer
-    _in::Queue{DependentDNA} = Queue{DependentDNA}()
+    _in::Queue{ObservedDNA} = Queue{ObservedDNA}()
     _taken::Int = 0
 end
 
-Base.put!(self::Synchronizer, d::DependentDNA) = push!(self._in,d)
-Base.take!(self::Synchronizer)::DependentDNA = return popfirst!(self._in)
+Base.put!(self::Synchronizer, osberved::ObservedDNA) = push!(self._in,osberved)
+Base.take!(self::Synchronizer)::ObservedDNA = return popfirst!(self._in)
 Base.length(self::Synchronizer) = return length(self._in)
 
 function processBatch!(self::Synchronizer)
@@ -21,20 +21,13 @@ function processBatch!(self::Synchronizer)
     
     for _ in 1:self._taken
         d::DependentDNA = take!(self)
-        o::Union{ObserverDNA,Nothing} = _handleSyncCall(d)
-        
-        if !isnothing(o)
-            push!(observers,o)
-        end
+        o::ObserverDNA = _handleSyncCall(d)
+        push!(observers,o)
     end
 
     for o in observers in 
         syncAll!(o)
     end
-end
-
-function _handleSyncCall(::DependentDNA)
-    return nothing
 end
 
 function _handleSyncCall(self::ObservedDNA)

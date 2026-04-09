@@ -38,7 +38,11 @@ function processUntilClosed!(self::EvalWorker, model::ModelDNA)
     for _ in 1:self._taken
         d::DependentDNA = take!(self)
         @invokelatest _process(self,d)
-        put!(sy,d)
+        
+        if d isa ObservedDNA
+            o::ObservedDNA = d
+            put!(sy,o)
+        end 
     end
 end
 

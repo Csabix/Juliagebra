@@ -30,7 +30,7 @@ Base.put!(self::EvalWorker0, d::DependentDNA) = push!(self._in,d)
 Base.take!(self::EvalWorker0)::DependentDNA = return popfirst!(self._in)
 Base.length(self::EvalWorker0) = return length(self._in)
 
-function processUntilClosed!(self::EvalWorker, model::ModelDNA)
+function processUntilClosed!(self::EvalWorker0, model::ModelDNA)
     sy::Synchronizer = getSynchronizer(model)
     
     self._taken = length(self)
@@ -46,8 +46,26 @@ function processUntilClosed!(self::EvalWorker, model::ModelDNA)
     end
 end
 
-function _process(::EvalWorker, dependent::DependentDNA)
+function _process(::EvalWorker0, dependent::DependentDNA)
     beforeNodeEval(dependent)
     onNodeEval(dependent)
     afterNodeEval(dependent)
 end
+
+# ? ---------------------------------
+# ! Workers
+# ? ---------------------------------
+
+@kwdef mutable struct Workers
+    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:1])
+    _worker0::EvalWorker0 = EvalWorker0()
+end
+
+function Base.getindex(self::Workers, idx::Int)::Union{EvalWorker0, EvalWorkeri}
+    if idx == 0
+        return self._worker0
+    else
+        return self._workersi[idx]
+    end
+end
+

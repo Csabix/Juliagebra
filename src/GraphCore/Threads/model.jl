@@ -13,7 +13,7 @@ struct ViewingState <: ModelState end
     _builder::Builder = Builder()
     _builderTask::Union{Task,Nothing} = nothing
     _scheduler::Scheduler = Scheduler()
-    _worker::EvalWorker0 = EvalWorker0()
+    _workers::Workers = Workers()
     _synchronizer::Synchronizer = Synchronizer()
 end
 
@@ -21,7 +21,7 @@ getGraph(self::Model)::DependentGraph = self._graph
 getAdder(self::Model)::Adder = self._adder
 getBuilder(self::Model)::Builder = self._builder
 getScheduler(self::Model)::Scheduler = self._scheduler
-getWorker(self::Model)::EvalWorker0 = self._worker
+getWorkers(self::Model)::Workers = self._workers
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
 function init!(self::Model)
@@ -119,7 +119,7 @@ function update!(self::Model, ::ViewingState)
     if !isempty(self._scheduler)
         @time_cpu_begin Graph_update
         startGraphWorkers!(self._scheduler, self)
-        processUntilClosed!(self._worker, self)
+        processUntilClosed!(getWorkers(self)[0], self)
         processBatch!(self._synchronizer)
         @time_cpu_end Graph_update
     end

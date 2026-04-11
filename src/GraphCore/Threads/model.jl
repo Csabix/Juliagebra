@@ -2,6 +2,7 @@
 abstract type ModelState end
 struct BuildingState <: ModelState end
 struct ViewingState <: ModelState end
+struct EvalingState <: ModelState end
 
 # ? ---------------------------------
 # ! Model
@@ -96,7 +97,12 @@ function decideState(self::Model)::ModelState
     elseif trylock(self._builder)
         # ? locked succesfully, Builder is stopped for this frame,
         # ? unlock Builder at the end of the frame.
-        return ViewingState()
+        if isFinished(self._scheduler)
+            @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
+            return ViewingState()
+        else
+            return EvalingState()
+        end
     else
         # ? failed locking, Builder must be building.
         return BuildingState()
@@ -133,6 +139,7 @@ function schedule!(self::Model, d::DependentDNA)
 end
 
 function update!(self::Model, ::ViewingState)
+    # TODO: Finish this for other scheduler modes.
     if !isempty(self._scheduler)
         @time_cpu_begin Graph_update
         startGraphWorkers!(self._scheduler, self)
@@ -144,5 +151,21 @@ end
 
 function endState(self::Model, state::ViewingState)
     # ? Let Builder process Dependents.
-    unlock(self._builder)
+    if isFinished(self._scheduler)
+        unlock(self._builder)
+    end
+end
+
+# ? EvalingState
+
+function beginState(self::Model, state::EvalingState)
+    # TODO: Finish this for EvalingState.
+end
+
+function update!(self::Model, ::EvalingState)
+    # TODO: Finish this for EvalingState.
+end
+
+function endState(self::Model, state::EvalingState)
+    # TODO: Finish this for EvalingState.
 end

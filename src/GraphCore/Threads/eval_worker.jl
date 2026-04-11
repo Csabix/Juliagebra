@@ -1,12 +1,26 @@
 
 # ? ---------------------------------
+# ! WorkerFood
+# ? ---------------------------------
+
+struct WorkerFood{T<:Union{DependentDNA, Tuple{ObservedDNA, CompletedCondition}}}
+    conditions::Vector{CompletedCondition}
+    data::T
+    evaled::CompletedCondition
+
+    function WorkerFood(conditions::Vector{CompletedCondition}, data::T, evaled::CompletedCondition) where {T<:Union{DependentDNA, Tuple{ObservedDNA, CompletedCondition}}}
+        new{T}(conditions, data, evaled)
+    end
+end
+
+# ? ---------------------------------
 # ! EvalWorker
 # ? ---------------------------------
 
 """
 Calls onNodeEval() on put nodes, then sends them to synchronizer.
 """
-mutable struct EvalWorker{T<:Union{Queue{DependentDNA}, Channel{DependentDNA}}}
+mutable struct EvalWorker{T<:Union{Queue{DependentDNA}, Channel{Vector{WorkerFood}}}}
     _in::T
     _processed::Vector{Float32}
 
@@ -18,21 +32,20 @@ mutable struct EvalWorker{T<:Union{Queue{DependentDNA}, Channel{DependentDNA}}}
         return EvalWorker(Queue{DependentDNA}())
     end
 
-    function EvalWorker{Channel{DependentDNA}}()
-        return EvalWorker(Channel{DependentDNA}(100))
+    function EvalWorker{Channel{Vector{WorkerFood}}}()
+        return EvalWorker(Channel{Vector{WorkerFood}}(1))
     end
 end
 
+# ? ---------------------------------
+# ! EvalWorker0
+# ? ---------------------------------
+
 const EvalWorker0 = EvalWorker{Queue{DependentDNA}}
-const EvalWorkeri = EvalWorker{Channel{DependentDNA}}
 
 Base.put!(self::EvalWorker0, d::DependentDNA) = push!(self._in,d)
 Base.take!(self::EvalWorker0)::DependentDNA = return popfirst!(self._in)
 Base.length(self::EvalWorker0) = return length(self._in)
-
-function destroy!(self::EvalWorkeri)
-    close(self._in)
-end
 
 function processUntilClosed!(self::EvalWorker0, model::ModelDNA)
     taken = length(self)
@@ -43,15 +56,7 @@ function processUntilClosed!(self::EvalWorker0, model::ModelDNA)
     end
 end
 
-function processUntilClosed!(self::EvalWorkeri, model::ModelDNA)
-    for d in self._in
-        _process1(self, model, d)
-    end
-
-    println("ThreadID($(Threads.threadid())): EvalWorkeri Ended!")
-end
-
-function _process1(self::EvalWorker, ::ModelDNA, d::DependentDNA)
+function _process1(self::EvalWorker0, ::ModelDNA, d::DependentDNA)
     startTime = time()
     @invokelatest _process2(d)
     endTime = time()-startTime
@@ -59,7 +64,7 @@ function _process1(self::EvalWorker, ::ModelDNA, d::DependentDNA)
     push!(self._processed, Float32(endTime * 1000))
 end
 
-function _process1(self::EvalWorker, model::ModelDNA, o::ObservedDNA)
+function _process1(self::EvalWorker0, model::ModelDNA, o::ObservedDNA)
     startTime = time()
     @invokelatest _process2(o)
     put!(getSynchronizer(model),o)
@@ -74,6 +79,51 @@ function _process2(dependent::DependentDNA)
     afterNodeEval(dependent)
 end
 
+# ? ---------------------------------
+# ! EvalWorkeri
+# ? ---------------------------------
+
+
+
+const EvalWorkeri = EvalWorker{Channel{Vector{WorkerFood}}}
+
+Base.put!(self::EvalWorkeri, d::DependentDNA) = put!(self._in,d)
+Base.take!(self::EvalWorkeri)::DependentDNA = return take!(self._in)
+destroy!(self::EvalWorkeri) = close(self._in)
+    
+function processUntilClosed!(self::EvalWorkeri, model::ModelDNA)
+    for foods in self._in
+        for food in foods 
+            conditions::Vector{CompletedCondition} = food.conditions
+
+            # ? Wait for parents to be completed. 
+            for c in conditions
+                wait(c)
+            end
+
+            _process1(self, model, food.evaled, food.data)
+        end
+    end
+
+    println("ThreadID($(Threads.threadid())): EvalWorkeri Ended!")
+end
+
+function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, d::DependentDNA)
+    @invokelatest _process2(d)
+    notify(evaled)
+    increment(getScheduler(model)._evaledGoal)
+end
+
+function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, data::Tuple{ObservedDNA, CompletedCondition})
+    o::ObservedDNA = data[0]
+    c::CompletedCondition = data[1]
+    
+    @invokelatest _process2(o)
+    notify(evaled)
+    increment(getScheduler(model)._evaledGoal)
+
+    put!(getSynchronizer(model),o,c)
+end
 
 # ? ---------------------------------
 # ! Workers

@@ -130,6 +130,8 @@ include("Dependents/Gui/stepper.jl")
 include("Widgets/Windows/gui_dependents_window.jl")
 include("imgui_data.jl")
 
+include("GraphCore/Threads/completed_condition.jl")
+include("GraphCore/Threads/goal.jl")
 include("GraphCore/Threads/builder.jl")
 include("GraphCore/Threads/adder.jl")
 include("GraphCore/Threads/synchronizer.jl")

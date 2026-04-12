@@ -19,9 +19,9 @@ Manages correct graph evaluation scheduling.
     _roots::Set{ObservedDNA} = Set{ObservedDNA}()
     
     _evaled::Vector{CompletedCondition} = Vector{CompletedCondition}()
-    _evaledGoal::Goal = Goal()
+    _evaledGoal::AtomicGoal = AtomicGoal()
     
-    _synced::Vector{CompletedCondition} = Vector{CompletedCondition}()
+    _synced::Vector{Bool} = Vector{Bool}()
     _syncedGoal::Goal = Goal()
 
     _mode::SchedulingMode = SingleFrameSingleThread()
@@ -51,7 +51,7 @@ function _isFinishedCorrectly(self::Scheduler, ::MultipleFramesSingleThread)::Bo
     end
         
     for c in self._synced
-        if !isCompleted(c)
+        if c == false
             return false
         end
     end
@@ -143,10 +143,9 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
             # ? o is Observed, so create synced condition.
             o::ObservedDNA = d
             syncedGoal+=1
-            synced = CompletedCondition()
-            push!(self._synced, synced)
+            push!(self._synced, false)
 
-            push!(w1d, WorkerFood(conditions, (o, synced), evaled))
+            push!(w1d, WorkerFood(conditions, SyncFood(o, length(self._synced)), evaled))
         else
             push!(w1d, WorkerFood(conditions, d, evaled))
         end
@@ -158,6 +157,7 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
     
     @assert length(self._schedule) == length(self._evaled) "Not enough conditions were created..."
     @assert length(self._schedule) == length(localIDs) "Not enough parent conditions were assigned!"
+    @assert length(self._synced) == syncedGoal "Goal is inconsistent!"
 
     # ? Distribute scheduling.
     put!(w1, w1d)

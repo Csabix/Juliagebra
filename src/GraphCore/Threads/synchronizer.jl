@@ -1,5 +1,14 @@
 
 # ? ---------------------------------
+# ! SyncFood
+# ? ---------------------------------
+
+struct SyncFood
+    observed::ObservedDNA
+    syncedIdx::Int
+end
+
+# ? ---------------------------------
 # ! Synchronizer
 # ? ---------------------------------
 
@@ -8,12 +17,12 @@ Calls sync!() and syncAll!() on arrived Dependents.
 """
 @kwdef mutable struct Synchronizer
     _internal::Queue{ObservedDNA} = Queue{ObservedDNA}()
-    _external::Channel{Tuple{ObservedDNA, CompletedCondition}} = Channel{Tuple{ObservedDNA, CompletedCondition}}(100)
+    _external::Channel{SyncFood} = Channel{SyncFood}(1024)
     _taken::Int = 0
 end
 
 Base.put!(self::Synchronizer, observed::ObservedDNA) = push!(self._internal, observed)
-Base.put!(self::Synchronizer, o::ObservedDNA, c::CompletedCondition) = put!(self._external, (o, c))
+Base.put!(self::Synchronizer, f::SyncFood) = put!(self._external, f)
 
 function processBatch!(self::Synchronizer)
     self._taken = length(self._internal)
@@ -41,13 +50,13 @@ function processB!(self::Synchronizer, model::ModelDNA)
     observers = Set{ObserverDNA}()
 
     for _ in 1:self._taken
-        data::Tuple{ObservedDNA, CompletedCondition} = take!(self._external)
-        d::ObservedDNA = data[1]
+        data::SyncFood = take!(self._external)
+        d::ObservedDNA = data.observed
         o::ObserverDNA = _handleSyncCall(d)
         
-        c::CompletedCondition = data[2]
-        notify(c)
-        increment(getScheduler(model)._syncedGoal)
+        s::Scheduler = getScheduler(model)
+        s._synced[data.syncedIdx] = true
+        increment(s._syncedGoal)
 
         push!(observers, o)
     end

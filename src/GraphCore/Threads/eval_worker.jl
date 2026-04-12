@@ -3,12 +3,12 @@
 # ! WorkerFood
 # ? ---------------------------------
 
-struct WorkerFood{T<:Union{DependentDNA, Tuple{ObservedDNA, CompletedCondition}}}
+struct WorkerFood{T<:Union{DependentDNA, SyncFood}}
     conditions::Vector{CompletedCondition}
     data::T
     evaled::CompletedCondition
 
-    function WorkerFood(conditions::Vector{CompletedCondition}, data::T, evaled::CompletedCondition) where {T<:Union{DependentDNA, Tuple{ObservedDNA, CompletedCondition}}}
+    function WorkerFood(conditions::Vector{CompletedCondition}, data::T, evaled::CompletedCondition) where {T<:Union{DependentDNA, SyncFood}}
         new{T}(conditions, data, evaled)
     end
 end
@@ -114,15 +114,14 @@ function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedConditio
     increment(getScheduler(model)._evaledGoal)
 end
 
-function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, data::Tuple{ObservedDNA, CompletedCondition})
-    o::ObservedDNA = data[1]
-    c::CompletedCondition = data[2]
+function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, data::SyncFood)
+    o::ObservedDNA = data.observed
     
     @invokelatest _process2(o)
     notify(evaled)
     increment(getScheduler(model)._evaledGoal)
 
-    put!(getSynchronizer(model),o,c)
+    put!(getSynchronizer(model),data)
 end
 
 # ? ---------------------------------

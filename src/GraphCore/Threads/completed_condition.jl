@@ -19,11 +19,13 @@ function reset!(self::CompletedCondition)
 end
 
 function Base.wait(self::CompletedCondition)
-    lock(self._condition)
-    while !(@atomic self._completed)
-        wait(self._condition)
+    if !(@atomic self._completed)
+        lock(self._condition)
+        while !(@atomic self._completed)
+            wait(self._condition)
+        end
+        unlock(self._condition)
     end
-    unlock(self._condition)
 end
 
 function Base.notify(self::CompletedCondition)

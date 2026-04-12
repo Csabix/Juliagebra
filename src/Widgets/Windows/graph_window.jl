@@ -103,40 +103,49 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
         CImGui.EndCombo()
     end
 
-    
 
-    for idx in 0:length(wo)
-        w::EvalWorker = wo[idx]
-        CImGui.Text("Worker$(idx)")
-        CImGui.Separator()
-
-        CImGui.Text("Processed:")
-        
-        maxVal = 0.0
-
-        if !isempty(w._processed)
-            maxVal = maximum(w._processed)
-        end
-        
-        if maxVal < 0.2
-            maxVal = 0.2
-        elseif maxVal < 0.5
-            maxVal = 0.5
-        elseif  maxVal < 1.0
-            maxVal = 1.0
-        elseif maxVal < 1.5
-            maxVal = 1.5
-        end
-
-        CImGui.PlotHistogram("##$(idx)", w._processed, length(w._processed), 0, "Worker$(idx)", 0.0,maxVal, (-1.0,50.0), sizeof(Float32))
-        
-        CImGui.Spacing()
-        CImGui.Spacing()
-        CImGui.Spacing()
+    if self._selectedState == 1
+        _renderWorker(self, app, 0)
+    elseif self._selectedState == 2
+        _renderWorker(self, app, 1)
     end
+    
+    
 
     CImGui.Text("Synchronizer")
     CImGui.Separator()
     CImGui.Text("taken: $(sy._taken)")
     
+end
+
+function _renderWorker(::GraphWindow, app::AppDNA, idx::Int)
+    m::Model = getModel(app)
+    wo::Workers = getWorkers(m)
+    w::EvalWorker = wo[idx]
+    CImGui.Text("Worker$(idx)")
+    CImGui.Separator()
+
+    CImGui.Text("Processed:")
+        
+    maxVal = 0.0
+
+    if !isempty(w._processed)
+        maxVal = maximum(w._processed)
+    end
+        
+    if maxVal < 0.2
+        maxVal = 0.2
+    elseif maxVal < 0.5
+        maxVal = 0.5
+    elseif  maxVal < 1.0
+        maxVal = 1.0
+    elseif maxVal < 1.5
+        maxVal = 1.5
+    end
+
+    CImGui.PlotHistogram("##$(idx)", w._processed, length(w._processed), 0, "Worker$(idx)", 0.0,maxVal, (-1.0,50.0), sizeof(Float32))
+        
+    CImGui.Spacing()
+    CImGui.Spacing()
+    CImGui.Spacing()
 end

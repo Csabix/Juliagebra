@@ -82,7 +82,7 @@ mutable struct PointRenderer
     updates::Vector{UInt8}
     
     function PointRenderer()
-        uniforms = String["VP","selected_id","picked_id","light_dir_side_view"]
+        uniforms = String["V","P","VP","selected_id","picked_id","light_dir_side_view","width_near_far"]
         shader::ShaderProgram = ShaderProgram(["renderers/point/point.vert","renderers/point/point.frag"], uniforms)
         return new(shader, PointsData[PointsData()],UInt8[0x0])
     end
@@ -163,13 +163,18 @@ function sync_all!(self::PointRenderer)::Nothing
 end
 
 function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
-    (vp, view, _) = get_matrices(cam)
+    (vp, v, p) = get_matrices(cam)
     (_, side_light) = get_lights(cam)
 
-    side_light = view[SOneTo(3), SOneTo(3)] * side_light
+    side_light = v[SOneTo(3), SOneTo(3)] * side_light
+
+    (n,f) = get_near_far(cam)
 
     activate(self.shader)
     uniform(self.shader,"VP",vp)
+    uniform(self.shader,"V",v)
+    uniform(self.shader,"P",p)
+    uniform(self.shader,"width_near_far",Vec3F(Float32(shrd._width),n,f))
     uniform(self.shader,"selected_id", shrd._selectedID)
     uniform(self.shader,"picked_id", shrd._pickedID)
     uniform(self.shader,"light_dir_side_view", side_light)

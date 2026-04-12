@@ -120,6 +120,8 @@ function update!(self::ImGuiData, app::AppDNA)
     
     update!(slr,app)
     update!(str,app)
+
+    update!(self._dock._windows[5],getModel(app))
 end
 
 function renderBuildingState(::Any, ::AppDNA)

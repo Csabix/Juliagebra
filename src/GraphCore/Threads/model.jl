@@ -140,12 +140,14 @@ end
 
 function update!(self::Model, ::ViewingState)
     # TODO: Finish this for other scheduler modes.
-    if !isempty(self._scheduler)
+    if (self._scheduler._mode isa SingleFrameSingleThread) && !isempty(self._scheduler)
         @time_cpu_begin Graph_update
         startGraphWorkers!(self._scheduler, self)
         processUntilClosed!(getWorkers(self)[0], self)
         processBatch!(self._synchronizer)
         @time_cpu_end Graph_update
+    elseif (self._scheduler._mode isa MultipleFramesSingleThread) && !isempty(self._scheduler) 
+        startGraphWorkers!(self._scheduler, self)
     end
 end
 
@@ -163,7 +165,8 @@ function beginState(self::Model, state::EvalingState)
 end
 
 function update!(self::Model, ::EvalingState)
-    # TODO: Finish this for EvalingState.
+    processBatch!(self._synchronizer)
+    processB!(self._synchronizer, self)
 end
 
 function endState(self::Model, state::EvalingState)

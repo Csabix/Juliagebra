@@ -87,7 +87,7 @@ end
 
 const EvalWorkeri = EvalWorker{Channel{Vector{WorkerFood}}}
 
-Base.put!(self::EvalWorkeri, d::DependentDNA) = put!(self._in,d)
+Base.put!(self::EvalWorkeri, fs::Vector{WorkerFood}) = put!(self._in,fs)
 Base.take!(self::EvalWorkeri)::DependentDNA = return take!(self._in)
 destroy!(self::EvalWorkeri) = close(self._in)
     
@@ -115,8 +115,8 @@ function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedConditio
 end
 
 function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, data::Tuple{ObservedDNA, CompletedCondition})
-    o::ObservedDNA = data[0]
-    c::CompletedCondition = data[1]
+    o::ObservedDNA = data[1]
+    c::CompletedCondition = data[2]
     
     @invokelatest _process2(o)
     notify(evaled)

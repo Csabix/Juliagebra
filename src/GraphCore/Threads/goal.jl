@@ -25,3 +25,8 @@ function reset!(self::Goal, goal::Int)
     @atomic self._count = 0
     self._goal = goal
 end
+
+function Base.string(self::Goal)::String
+    count = @atomic self._count
+    return "$(count)/$(goal)"
+end

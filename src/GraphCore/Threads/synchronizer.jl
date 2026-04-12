@@ -42,10 +42,10 @@ function processB!(self::Synchronizer, model::ModelDNA)
 
     for _ in 1:self._taken
         data::Tuple{ObservedDNA, CompletedCondition} = take!(self._external)
-        d::ObservedDNA = data[0]
+        d::ObservedDNA = data[1]
         o::ObserverDNA = _handleSyncCall(d)
         
-        c::CompletedCondition = data[1]
+        c::CompletedCondition = data[2]
         notify(c)
         increment(getScheduler(model)._syncedGoal)
 

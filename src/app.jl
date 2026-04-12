@@ -235,6 +235,17 @@ function play!(self::App)
 
                 update!(self._shrd)
             end
+        elseif state isa EvalingState
+            # ? Do sync! and syncAll! calls.
+            update!(model, state)
+
+            if !iconified
+                # ? Render scene and dock.
+                update!(self._opengl,self._cam)
+                render!(self._imgui,self)
+                update!(self._shrd)
+            end
+
         end
 
         # ? End model state.

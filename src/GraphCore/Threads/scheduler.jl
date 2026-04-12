@@ -13,7 +13,6 @@ struct MultipleFramesSingleThread <: SchedulingMode end
 Manages correct graph evaluation scheduling.
 """
 @kwdef mutable struct Scheduler
-    _mode::SchedulingMode = SingleFrameSingleThread()
     _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
     _schedule::Schedule = Schedule()
@@ -24,6 +23,12 @@ Manages correct graph evaluation scheduling.
     
     _synced::Vector{CompletedCondition} = Vector{CompletedCondition}()
     _syncedGoal::Goal = Goal()
+
+    _mode::SchedulingMode = SingleFrameSingleThread()
+    _modes::Vector{SchedulingMode} = [
+        SingleFrameSingleThread(),
+        MultipleFramesSingleThread()
+    ]
 end
 
 Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : push!(self._in,dependent)
@@ -32,6 +37,7 @@ Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
 isFinishedCorrectly(self::Scheduler)::Bool = return _isFinishedCorrectly(self, self._mode)
+setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
 
 function _isFinishedCorrectly(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
@@ -104,7 +110,7 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
     w1::EvalWorkeri = getWorkers(model)[1]
     
     evaledGoal = length(self._schedule)
-    syncedGoal = length(self._roots)
+    syncedGoal = 0
 
     # ? Reset condition containers.
     # TODO: Dynamically size and reset.

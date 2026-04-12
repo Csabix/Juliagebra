@@ -5,10 +5,20 @@
 
 @kwdef mutable struct GraphWindow <: WindowDNA
     _window::Window = Window()
+    _selectedState::Int = 1
+    _states::Vector{String} = [
+        "Single Threaded - Single Frame",
+        "Single Threaded - Multiple Frame"
+    ]
 end
 
 _Window_(self::GraphWindow)::Window = return self._window
 getWindowName(::GraphWindow) = return "Graph"
+
+function update!(self::GraphWindow, model::ModelDNA)
+    s::Scheduler = getScheduler(model)
+    setMode(s,self._selectedState)
+end
 
 function renderContent(self::GraphWindow, app::AppDNA)
     if CImGui.BeginTabBar("Graph")
@@ -63,7 +73,7 @@ function _renderDependentsTab(::GraphWindow, app::AppDNA)
     end
 end
 
-function _renderEvaluationTab(::GraphWindow, app::AppDNA)
+function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
     m::Model = getModel(app)
     sc::Scheduler = getScheduler(m)
     wo::Workers = getWorkers(m)
@@ -77,6 +87,23 @@ function _renderEvaluationTab(::GraphWindow, app::AppDNA)
     CImGui.Spacing()
     CImGui.Spacing()
     CImGui.Spacing()
+
+    CImGui.Text("Select Scheduler mode:")
+    
+    CImGui.SetNextItemWidth(-1)
+    if (CImGui.BeginCombo("##SchedulerModes",self._states[self._selectedState]))
+        for idx in eachindex(self._states) 
+            state = self._states[idx]
+            
+            if CImGui.Selectable(state)
+                self._selectedState = idx
+            end    
+        end
+
+        CImGui.EndCombo()
+    end
+
+    
 
     for idx in 0:length(wo)
         w::EvalWorker = wo[idx]
@@ -100,7 +127,6 @@ function _renderEvaluationTab(::GraphWindow, app::AppDNA)
         elseif maxVal < 1.5
             maxVal = 1.5
         end
-
 
         CImGui.PlotHistogram("##$(idx)", w._processed, length(w._processed), 0, "Worker$(idx)", 0.0,maxVal, (-1.0,50.0), sizeof(Float32))
         

@@ -8,6 +8,8 @@ const PER_FRAME_MERGE::Int = 25
 abstract type SchedulingMode end
 struct SingleFrameSingleThread <: SchedulingMode end
 struct MultipleFramesSingleThread <: SchedulingMode end
+struct MultipleFramesMultipleThreads <: SchedulingMode end
+
 
 """
 Manages correct graph evaluation scheduling.
@@ -27,7 +29,8 @@ Manages correct graph evaluation scheduling.
     _mode::SchedulingMode = SingleFrameSingleThread()
     _modes::Vector{SchedulingMode} = [
         SingleFrameSingleThread(),
-        MultipleFramesSingleThread()
+        MultipleFramesSingleThread(),
+        MultipleFramesMultipleThreads()
     ]
 end
 
@@ -109,6 +112,24 @@ end
 function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingleThread)
     w1::EvalWorkeri = getWorkers(model)[1]
     
+    w1d::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupDistribution(self)
+
+    # ? Distribute scheduling.
+    put!(w1, w1d)
+end
+
+function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesMultipleThreads)
+    ws::Workers = getWorkers(model)
+    
+    wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupDistribution(self)
+
+    # ? Distribute scheduling.
+    for food in wd
+        
+    end
+end
+
+function _setupDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int,Int}}
     evaledGoal = length(self._schedule)
     syncedGoal = 0
 
@@ -118,7 +139,7 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
     Base.resize!(self._synced,0)
     
     localIDs = Dict{Int,Int}()
-    w1d::Vector{WorkerFood} = []
+    wd::Vector{WorkerFood} = []
 
     # ? Prepare scheduling distribution.
     for idx in 1:length(self._schedule) 
@@ -145,9 +166,9 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
             syncedGoal+=1
             push!(self._synced, false)
 
-            push!(w1d, WorkerFood(conditions, SyncFood(o, length(self._synced)), evaled))
+            push!(wd, WorkerFood(conditions, SyncFood(o, length(self._synced)), evaled))
         else
-            push!(w1d, WorkerFood(conditions, d, evaled))
+            push!(wd, WorkerFood(conditions, d, evaled))
         end
     end
 
@@ -159,7 +180,6 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
     @assert length(self._schedule) == length(localIDs) "Not enough parent conditions were assigned!"
     @assert length(self._synced) == syncedGoal "Goal is inconsistent!"
 
-    # ? Distribute scheduling.
-    put!(w1, w1d)
+    return (wd, localIDs)
 end
 

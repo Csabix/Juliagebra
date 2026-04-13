@@ -32,6 +32,7 @@ Manages correct graph evaluation scheduling.
         MultipleFramesSingleThread(),
         MultipleFramesMultipleThreads()
     ]
+    _scheduled::Vector{Int} = [0 for _ in 1:8]
 end
 
 Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : push!(self._in,dependent)
@@ -46,7 +47,7 @@ function _isFinishedCorrectly(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
 end
 
-function _isFinishedCorrectly(self::Scheduler, ::MultipleFramesSingleThread)::Bool
+function _isFinishedCorrectly(self::Scheduler, ::Union{MultipleFramesSingleThread,MultipleFramesMultipleThreads})::Bool
     for c in self._evaled
         if !isCompleted(c)
             return false
@@ -119,13 +120,54 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingl
 end
 
 function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesMultipleThreads)
-    ws::Workers = getWorkers(model)
-    
     wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupDistribution(self)
 
-    # ? Distribute scheduling.
-    for food in wd
+
+    # ? Calculate node max height.
+    heights::Vector{Int} = [1 for _ in wd]
+    for idx in reverse(eachindex(wd))
+        d::DependentDNA = getDependent(wd[idx])
+        height = heights[localIDs[getGraphID(d)]]
         
+        for parent in getGraphParents(d) 
+            id = getGraphID(parent)
+
+            if haskey(localIDs,id)
+                _height = heights[localIDs[id]]
+                heights[localIDs[id]] = max(_height, height+1)
+            end
+        end        
+    end
+
+    w::Workers = getWorkers(model)
+    
+    # ? Assign nodes to workers.
+    heightTags::Dict{Int,Int} = Dict{Int,Int}()
+    tags::Vector{Int} = []
+    tagMax = length(w)
+    for idx in eachindex(wd)
+        height = heights[idx]
+
+        if !haskey(heightTags,height)
+            heightTags[height] = 0
+        else
+            _height = heightTags[height] + 1
+            heightTags[height] = (_height % tagMax)
+        end
+
+        push!(tags,heightTags[height]+1)
+    end
+
+    # ? Create work containers.
+    wds::Vector{Vector{WorkerFood}} = [[] for _ in 1:tagMax]
+    for idx in eachindex(tags)
+        push!(wds[tags[idx]], wd[idx])
+    end
+
+    # ? Send work.
+    for idx in 1:tagMax 
+        self._scheduled[idx] = length(wds[idx])
+        put!(w[idx],wds[idx])
     end
 end
 

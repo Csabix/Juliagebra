@@ -150,6 +150,10 @@ function update!(self::Model, ::ViewingState)
         startGraphWorkers!(self._scheduler, self)
         processBatch!(self._synchronizer)
         processB!(self._synchronizer, self)
+    elseif (self._scheduler._mode isa MultipleFramesMultipleThreads) && !isempty(self._scheduler) 
+        startGraphWorkers!(self._scheduler, self)
+        processBatch!(self._synchronizer)
+        processB!(self._synchronizer, self)
     end
 end
 

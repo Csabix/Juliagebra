@@ -13,6 +13,9 @@ struct WorkerFood{T<:Union{DependentDNA, SyncFood}}
     end
 end
 
+getDependent(self::WorkerFood{<:DependentDNA})::DependentDNA = return self.data
+getDependent(self::WorkerFood{SyncFood})::ObservedDNA = return self.data.observed
+
 # ? ---------------------------------
 # ! EvalWorker
 # ? ---------------------------------
@@ -129,7 +132,7 @@ end
 # ? ---------------------------------
 
 @kwdef mutable struct Workers
-    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:1])
+    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:8])
     _worker0::EvalWorker0 = EvalWorker0()
 end
 

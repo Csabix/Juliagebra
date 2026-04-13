@@ -8,7 +8,8 @@
     _selectedState::Int = 1
     _states::Vector{String} = [
         "Single Threaded - Single Frame",
-        "Single Threaded - Multiple Frame"
+        "Single Threaded - Multiple Frames",
+        "Multi Threaded - Multiple Frames"
     ]
 end
 
@@ -108,6 +109,10 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
         _renderWorker(self, app, 0)
     elseif self._selectedState == 2
         _renderWorker(self, app, 1)
+    elseif self._selectedState == 3
+        for idx in 1:length(wo) 
+            _renderWorker(self, app, idx)
+        end
     end
     
     
@@ -120,11 +125,16 @@ end
 
 function _renderWorker(::GraphWindow, app::AppDNA, idx::Int)
     m::Model = getModel(app)
+    sc::Scheduler = getScheduler(m)
     wo::Workers = getWorkers(m)
     w::EvalWorker = wo[idx]
     CImGui.Text("Worker$(idx)")
     CImGui.Separator()
 
+    if 0 < idx
+        CImGui.Text("Scheduled: $(sc._scheduled[idx])")
+    end
+    
     CImGui.Text("Processed:")
         
     maxVal = 0.0

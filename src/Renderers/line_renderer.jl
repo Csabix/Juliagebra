@@ -6,7 +6,13 @@ const DOTTED::UInt8   = 3
 const WAVE::UInt8     = 4
 const DASH_DOT::UInt8 = 5
 const ARROW::UInt8    = 6
+const ARROW_REVERSED::UInt8 = ARROW | (one(UInt8) << 7)
 const _LINE_TYPE_COUNT::UInt8   = 6
+
+function get_type_reversed(line_type::UInt8)::Tuple{UInt8,Bool}
+    mask::UInt8 = (one(UInt8) << 7)
+    return line_type & ~mask, (line_type & mask) == mask
+end
 
 const _LINE_UPDATED_COORD_WIDTH::UInt32 = 1
 const _LINE_UPDATED_COLOR_TYPE::UInt32 = 2
@@ -14,7 +20,7 @@ const _LINE_UPDATED_COORD_WIDTH_DYNAMIC::UInt32 = 4
 const _LINE_UPDATED_COLOR_TYPE_DYNAMIC::UInt32 = 8
 
 export SOLID, DASHED, DOTTED, 
-        WAVE, DASH_DOT, ARROW
+        WAVE, DASH_DOT, ARROW, ARROW_REVERSED
 
 mutable struct LineRenderer
     updated::UInt32
@@ -265,11 +271,12 @@ function destroy!(self::LineRenderer)::Nothing
     return nothing
 end
 
-function pack_color_reversed(color::Vec3F, reversed::Bool)::UInt32
-    return (UInt32(reversed ? 255 : 0) << 24) | packUnorm4x8(color)
+function pack_color_reversed(color::UInt32, reversed::Bool)::UInt32
+    return (UInt32(reversed ? 0xff : 0x00) << 24) | (color & ~(UInt32(0xff) << 24))
 end
 
-function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)::UInt32
+function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::UInt32
+    (type, reversed) = get_type_reversed(type)
     first = length(self.coords_widths) + 1
     append!(self.coords_widths,(Vec4F(coord...,width) for coord in coords))
     last = length(self.coords_widths)
@@ -282,7 +289,8 @@ function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8,re
     return UInt32(first)
 end
 
-function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)::UInt32
+function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::UInt32
+    (type, reversed) = get_type_reversed(type)
     coords_widths = Vector{Vec4F}()
     sizehint!(coords_widths, 2 + length(coords))
     push!(coords_widths, Vec4FNan)
@@ -349,7 +357,8 @@ function update_coords!(self::LineRenderer,ref::UInt32,coords,width::Float32)
     self.updated |= _LINE_UPDATED_COORD_WIDTH
 end
 
-function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width::Float32,type::UInt8,reversed::Bool)
+function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width::Float32,type::UInt8)
+    (type, reversed) = get_type_reversed(type)
     coords_widths = self.coords_widths_dynamic[ref]
     empty!(coords_widths)
     push!(coords_widths, Vec4FNan)

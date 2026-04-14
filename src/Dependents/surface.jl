@@ -3,15 +3,15 @@
 # ! ParametricSurfaceDependent
 # ? ---------------------------------
 
-mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
+mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
     _uvValues::FlatMatrix{Vec3D}
     _uvNormals::FlatMatrix{Vec3D}
     _layer::Int
 
-    _uRange::AbstractRange{Float64}
-    _vRange::AbstractRange{Float64}
+    _uRange::Range
+    _vRange::Range
 
     _color::Vec3F
     _transparent::Bool
@@ -19,17 +19,17 @@ mutable struct ParametricSurfaceDependent <: RenderedDependentDNA
     # YELLOW Thread
     function ParametricSurfaceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        uRange::AbstractRange{Float64},
-        vRange::AbstractRange{Float64},
+        uRange::Range,
+        vRange::Range,
         color::Vec3F,
         transparent::Bool
-        )
+        ) where {Range<:AbstractRange}
 
         rd = RenderedDependent(callback,dependents)
         uvValues = FlatMatrix{Vec3D}(length(uRange),length(vRange))        
         uvNormals = FlatMatrix{Vec3D}(length(uRange),length(vRange))
 
-        new(rd,
+        new{Range}(rd,
             uvValues,
             uvNormals,
             0,
@@ -77,8 +77,8 @@ end
 function onNodeEval(self::ParametricSurfaceDependent)
     for v in eachindex(self._vRange)
         for u in eachindex(self._uRange)
-            uf = self._uRange[u]
-            vf = self._vRange[v]
+            uf::Float64 = self._uRange[u]
+            vf::Float64 = self._vRange[v]
             
             evalCallbackDp(self;callbackParams = (uf,vf), returnParams = (u,v))
         end
@@ -190,13 +190,10 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
     surface._layer = layers(self._vertexes)
 
     aID = UInt32(getGraphID(surface) + ID_LOWER_BOUND)
-    coords = data(self._vertexes, surface._layer)
-    #indices = data(self._indexes, surface._layer)
-    indices = Vector{UInt32}()
-    triangulateInto_single!(indices,self._vertexes,layers(self._vertexes))
+    coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,layers(self._vertexes))
     ref = add!(
         self._renderers.triangle,
-        (coords[i+1] for i in indices),
+        coords,
         mat4(1.0f0),
         surface._color,
         aID)
@@ -205,17 +202,11 @@ end
 
 # GREEN Thread
 function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
-    #vertexes = surface._transparent ? self._vertexes_transparent : self._vertexes_opaque
-    #normals = surface._transparent ? self._normals_transparent : self._normals_opaque
-    #layer = surface._layer
-
     copy!(surface._uvValues,self._vertexes,surface._layer)
     copy!(surface._uvNormals,self._normals,surface._layer)
 
-    coords = data(self._vertexes, surface._layer)
-    indices = Vector{UInt32}()
-    triangulateInto_single!(indices,self._vertexes,layers(self._vertexes))
-    update_coords!(self._renderers.triangle,self._refs[surface._layer],(coords[i+1] for i in indices))
+    coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,layers(self._vertexes))
+    update_coords!(self._renderers.triangle,self._refs[surface._layer],coords)
 end
 
 # ! Must have

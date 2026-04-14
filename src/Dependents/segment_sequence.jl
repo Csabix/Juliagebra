@@ -6,24 +6,24 @@
 mutable struct SegmentSequenceDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
-    _colors::Vector{Vec3F}
+    _colors::Vector{UInt32}
     _break_every::Int32
     _width::Float32
     _type::UInt8
-    _reversed::UInt8
 
     _values::Vector{Vec3D}
 
     # YELLOW Thread
     function SegmentSequenceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        colors::Vector{Vec3F},break_every::Real,
-        type::UInt8,reversed::UInt8,width::Real)
-        
-        dependent = RenderedDependent(callback,dependents)
-        values = Vector{Vec3F}()
+        break_every::Real,
+        color_style::Union{Nothing,String},
+        color,style,width)
 
-        new(dependent,colors,break_every,width,type,reversed,values)
+        dependent = RenderedDependent(callback,dependents)
+        (s, c) = parse_line_style_colors(color_style, color, style)
+        values = Vector{Vec3F}()
+        new(dependent,c,break_every,width,s,values)
     end
 end
 
@@ -126,11 +126,10 @@ function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     ref = if segseq._break_every >= 2
         add_dynamic!(self._renderers.line,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),Vec3F(0.0f0),segseq._break_every),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),UInt32(0),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
             segseq._width,
-            segseq._type,
-            segseq._reversed != 0
+            segseq._type
         )
     else
         add_dynamic!(self._renderers.line,
@@ -138,8 +137,7 @@ function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
             Iterators.cycle(segseq._colors),
             Iterators.cycle((aID,)),
             segseq._width,
-            segseq._type,
-            segseq._reversed != 0
+            segseq._type
         )
     end
     push!(self._refs, ref)
@@ -152,11 +150,10 @@ function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     if segseq._break_every >= 2
         update_dynamic!(self._renderers.line,ref,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),Vec3F(0.0f0),segseq._break_every),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),UInt32(0),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
             segseq._width,
-            segseq._type,
-            segseq._reversed != 0
+            segseq._type
         )
     else
         update_dynamic!(self._renderers.line,ref,
@@ -164,8 +161,7 @@ function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
             Iterators.cycle(segseq._colors),
             Iterators.cycle([aID]),
             segseq._width,
-            segseq._type,
-            segseq._reversed != 0
+            segseq._type
         )
     end
 end
@@ -181,33 +177,26 @@ Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = g
 # ! SegmentSequence
 # ? ---------------------------------
 
-_Colors(c::Tuple{Real,Real,Real})::Vector{Vec3F} = Vector{Vec3F}([Vec3F(c...)])
-_Colors(c::Vector)::Vector{Vec3F} = Vector{Vec3F}([Vec3F(cc...) for cc in c])
+#_Colors(c::Tuple{Real,Real,Real})::Vector{Vec3F} = Vector{Vec3F}([Vec3F(c...)])
+#_Colors(c::Vector)::Vector{Vec3F} = Vector{Vec3F}([Vec3F(cc...) for cc in c])
 
 
 # YELLOW Thread
-function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=SOLID,reversed=false)::SegmentSequenceDependent
-    
-    colors::Vector{Vec3F} = _Colors(color)
-    
-    return build!(SegmentSequenceDependent(callback, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2,color_style::Union{Nothing,String}=nothing;
+                color="c",style="-",width=5.0f0)::SegmentSequenceDependent
+    return build!(SegmentSequenceDependent(callback, dependents, break_every, color_style, color, style, width))
 end
 
 # YELLOW Thread
-function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=SOLID,reversed=false)::SegmentSequenceDependent
-    
-    colors::Vector{Vec3F} = _Colors(color)
-
-    return build!(SegmentSequenceDependent(_deps_collect, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2,color_style::Union{Nothing,String}=nothing;
+                color="c",style="-",width=5.0f0)::SegmentSequenceDependent
+    return build!(SegmentSequenceDependent(_deps_collect, dependents, break_every, color_style, color, style, width))
 end
 
 # YELLOW Thread
 macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
     (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
-
-    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :style], kw_args...)
     callback = _validate_callback_expr(callback, 0)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence, (cb, deps) -> (cb, deps, break_every); parsed_kw_args...)
 end

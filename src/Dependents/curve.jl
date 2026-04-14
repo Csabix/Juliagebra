@@ -7,10 +7,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
     _range::AbstractRange{Float64}
-    _colors::Vector{Vec3F}
+    _colors::Vector{UInt32}
     _width::Float32
     _type::UInt8
-    _reversed::UInt8
 
     _tValues::Vector{Vec3D} # ? Calculated value for each t
 
@@ -18,27 +17,13 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     function ParametricCurveDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         range::AbstractRange{Float64},
-        colors::Vector{<:Tuple{Real,Real,Real}},
-        type::UInt8,reversed::UInt8,width::Real
+        color_style::Union{Nothing,String},
+        color,style,width
         )
-
-        color = [Vec3F(c[1],c[2],c[3]) for c in colors]
+        (s, c) = parse_line_style_colors(color_style, color, style)
         rd = RenderedDependent(callback,dependents)
         tValues = Vector{Vec3D}(undef,length(range))
-        new(rd,range,color,width,type,reversed,tValues)
-    end
-
-    # YELLOW Thread
-    function ParametricCurveDependent(
-        callback::Function,dependents::Vector{<:DependentDNA},
-        range::AbstractRange{Float64},
-        color::Tuple{Real,Real,Real},
-        type::UInt8,reversed::UInt8,width::Real
-        )
-
-        rd = RenderedDependent(callback,dependents)
-        tValues = Vector{Vec3D}(undef,length(range))
-        new(rd,range,[color],width,type,reversed,tValues)
+        new(rd,range,c,Float32(width),s,tValues)
     end
 end
 
@@ -110,11 +95,10 @@ function added!(self::Curves,curve::ParametricCurveDependent)
     push!(self._refs,
         add!(self._renderers.line,
             curve._tValues,
-            fill(curve._colors[1],length(curve._tValues)),
-            fill(aID,length(curve._tValues)),
+            cycle(curve._colors),
+            cycle(aID),
             curve._width,
             curve._type,
-            curve._reversed != 0
         )
     )
 end
@@ -158,12 +142,13 @@ curve = ParametricCurve(t -> (cos(t), sin(t), 0.0), 0:0.1:2π; color=(1, 0, 0));
 
 play!();
 """
-ParametricCurve(callback::Function,range::AbstractRange{Float64},dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
-                color=(0.6,0.6,0.9),width=5.0f0,type=SOLID,reversed=false)::ParametricCurveDependent =
-return build!(ParametricCurveDependent(callback,dependents,range,color,type,reversed ? 0x1 : 0x0,width))
+ParametricCurve(callback::Function,range::AbstractRange{Float64},
+                dependents::Vector{<:DependentDNA}=Vector{DependentDNA}(),color_style::Union{Nothing,String}=nothing;
+                color="c",style="-",width=5.0f0)::ParametricCurveDependent =
+return build!(ParametricCurveDependent(callback,dependents,range,color_style,color,style,width))
 
 macro ParametricCurve(callback::Expr,range,kw_args...)
-    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :width, :style], kw_args...)
     callback = _validate_callback_expr(callback, 1)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve, (cb, deps) -> (cb, range, deps); parsed_kw_args...)
 end

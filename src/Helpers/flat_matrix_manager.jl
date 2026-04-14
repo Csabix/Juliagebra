@@ -58,10 +58,10 @@ function Base.string(self::FlatMatrixManager)
     return selfString[1:end-1]
 end
 
-Base.length(self::FlatMatrixManager) = return length(self._data)
-layers(self::FlatMatrixManager) = return length(self._widths)
-height(self::FlatMatrixManager,layer) = return self._heights[layer]
-width(self::FlatMatrixManager,layer) = return self._widths[layer]
+Base.length(self::FlatMatrixManager)::Int = return length(self._data)
+layers(self::FlatMatrixManager)::Int = return length(self._widths)
+height(self::FlatMatrixManager,layer)::Int = return self._heights[layer]
+width(self::FlatMatrixManager,layer)::Int = return self._widths[layer]
 data(self::FlatMatrixManager) = return self._data
 function data(self::FlatMatrixManager{T}, layer) where T
     start_idx = self._offsets[layer] + 1
@@ -97,33 +97,27 @@ function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
     end
 end
 
-function triangulateInto_single!(self::Vector{T},mat::FlatMatrixManager,layer) where T
+function get_triangulated(vertices::AbstractVector{T},mat::FlatMatrixManager,layer)::Vector{T} where T
     w = width(mat, layer)
-    local_idx(u, v) = (u - 1) + (v - 1) * w
+    local_idx(u, v) = (u - 1) + (v - 1) * w + 1
 
-    # ! 1---3---5   u:->+ 
-    # ! |##/|##/|      
-    # ! |#/ |#/ |   v:|
-    # ! |/  |/  |     V
-    # ! 2---4---* +
+    result = T[]
+    sizehint!(result,(height(mat,layer)-1)*(width(mat,layer)-1)+(height(mat,layer)-1)*(width(mat,layer)-1))
+
     for v in 1:(height(mat,layer)-1)
         for u in 1:(width(mat,layer)-1)
-            push!(self, T(local_idx(u, v)))
-            push!(self, T(local_idx(u, v+1)))
-            push!(self, T(local_idx(u+1, v)))
+            push!(result, vertices[local_idx(u,   v  )])
+            push!(result, vertices[local_idx(u,   v+1)])
+            push!(result, vertices[local_idx(u+1, v  )])
         end
     end
 
-    # ! *---3---4   u:->+ 
-    # ! |  /|  /|      
-    # ! | /#| /#|   v:|
-    # ! |/##|/##|     V
-    # ! 1---2---3     +
     for v in 2:(height(mat,layer))
         for u in 1:(width(mat,layer)-1)
-            push!(self, T(local_idx(u, v)))
-            push!(self, T(local_idx(u+1, v)))
-            push!(self, T(local_idx(u+1, v-1)))
+            push!(result, vertices[local_idx(u,   v  )])
+            push!(result, vertices[local_idx(u+1, v  )])
+            push!(result, vertices[local_idx(u+1, v-1)])
         end
     end
+    return result
 end

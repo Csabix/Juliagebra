@@ -6,6 +6,7 @@ const _SEGMENT_SEQUENCES::UInt = 5
 const _SPHERES::UInt = 6
 const _SURFACES::UInt = 7
 
+include("parsers.jl")
 include("dependent_renderer.jl")
 include("rendered_dependent.jl")
 include("gui_renderer.jl")

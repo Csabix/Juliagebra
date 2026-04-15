@@ -12,12 +12,16 @@ restrict readonly layout(std430, binding = 3) buffer LightDirBuffer {
 restrict readonly layout(std430, binding = 4) buffer SDFBuffer {
 	vec4 sdf_in[];
 };
+restrict readonly layout(std430, binding = 5) buffer RadiusBuffer {
+	float radius_in[];
+};
 
 noperspective layout(location=0) out vec4 segment_SDF_field_out;
 noperspective layout(location=1) out vec3 color_out;
 noperspective layout(location=2) out float total_distance_out;
 flat          layout(location=3) out vec3 light_dir_cam_out;
 flat          layout(location=4) out vec3 light_dir_side_out;
+noperspective layout(location=5) out float radius_out;
 
 vec2 OctWrap(vec2 v) {
     return (1.0 - abs(v)) * sign(v);
@@ -39,6 +43,7 @@ void main() {
 	gl_Position = vec4(position_total_distance.xyz,1.0);
 	total_distance_out = position_total_distance.w;
 	segment_SDF_field_out = sdf_in[per_vertex];
+	radius_out = radius_in[per_vertex];
 
 	const int per_segment = gl_BaseInstance + gl_InstanceID;
 

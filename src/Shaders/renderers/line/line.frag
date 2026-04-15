@@ -3,7 +3,7 @@
 #extension GL_ARB_fragment_shader_interlock : require
 
 layout(pixel_interlock_unordered) in;
-layout(early_fragment_tests) in;
+
 #endif
 #define PI 3.1415926538
 
@@ -40,6 +40,10 @@ noperspective layout(location = 1) in vec3 color_in;
 noperspective layout(location = 2) in float total_distance_in;
 flat          layout(location = 3) in vec3 light_dir_cam_in;
 flat          layout(location = 4) in vec3 light_dir_side_in;
+noperspective layout(location = 5) in float radius_in;
+
+uniform mat4 P;
+//uniform vec2 near_far;
 
 float rounding() {
     vec2 p = vec2(abs(segment_SDF_field_in.x),segment_SDF_field_in.y);
@@ -123,6 +127,45 @@ void main() {
     d = max(d, rounding());
 
     if (d > 0.0) discard;
+    /*
+    float r2 = segment_SDF_field_in.x / segment_SDF_field_in.z; r2 *= r2;
+    float z_offset = sqrt(1.0 - r2);
+
+    float dist = (2.0 * near_far.x * near_far.y) / (near_far.y + near_far.x - (gl_FragCoord.z * 2.0 - 1.0) * (near_far.y - near_far.x));
+    float z_view = -dist + z_offset * radius_in;
+    float clip_z = z_view * P[2][2] + P[3][2];
+    float clip_w = z_view * P[2][3] + P[3][3];
+
+    float ndc_z = clip_z / clip_w;
+    
+    gl_FragDepth = (ndc_z + 1.0) / 2.0;
+    */
+    vec2 p = vec2(segment_SDF_field_in.x, segment_SDF_field_in.y);
+    vec2 dir = vec2(p.x, 0.0);
+    
+    if (p.y < 0.0) {
+        dir = p;
+    } else if (p.y > segment_SDF_field_in.w) {
+        dir = p - vec2(0.0, segment_SDF_field_in.w);
+    }
+    
+    float r2 = dot(dir, dir) / (segment_SDF_field_in.z * segment_SDF_field_in.z);
+    float z_offset = sqrt(max(1.0 - r2, 0.0));
+
+    float ndc_z_current = gl_FragCoord.z * 2.0 - 1.0;
+    float z_view = (P[3][2] - ndc_z_current * P[3][3]) / (ndc_z_current * P[2][3] - P[2][2]);
+    
+    z_view += z_offset * radius_in;
+
+    float clip_z = z_view * P[2][2] + P[3][2];
+    float clip_w = z_view * P[2][3] + P[3][3];
+
+    float ndc_z_new = clip_z / clip_w;
+    gl_FragDepth = (ndc_z_new + 1.0) / 2.0;
+
+    //vec3 normal = vec3(dir / segment_SDF_field_in.z, z_offset);
+    //vec4 color = get_color(normal, alpha);
+    //color = vec4(1.0);
 
     vec4 color = get_color(get_normal(), alpha);
 #ifdef TRANSPARENT

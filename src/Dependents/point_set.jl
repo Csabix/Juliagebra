@@ -73,7 +73,7 @@ function destroy!(self::PointSets) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointSetDependent)::PointSets = getDependentObservers(app)[_POINT_SETS]
 
-PointSet(callback::Function,dependents=Vector{<:DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =
+PointSet(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =
 build!(PointSetDependent(callback,dependents,color,width))
 
 PointSet(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =

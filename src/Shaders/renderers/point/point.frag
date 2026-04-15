@@ -1,4 +1,5 @@
 #version 460 core
+layout (depth_greater) out float gl_FragDepth;
 #define PI 3.1415926538
 
 #define PLUS_WIDTH 0.08
@@ -15,7 +16,7 @@ layout(location = 0) flat in vec3 color_in;
 layout(location = 1) flat in vec3 color_inv_in;
 layout(location = 2) flat in uint type_id_in;
 layout(location = 3) flat in float radius_in;
-layout(location = 4) flat in vec3 view_pos_in;
+layout(location = 4) flat in float z_view_in;
 
 uniform uint selected_id;
 uniform uint picked_id;
@@ -63,14 +64,13 @@ void main() {
     float diffuse = (light(normal, vec3(0,0,-1.0)) * FRONT + light(normal, light_dir_side_view) * SIDE) * DIFFUSE;
     color_out = vec4(color * (diffuse + AMBIENT), 1.0);
 
-
-
     float z_offset = sqrt(1.0 - r2);
-    vec3 sphere_pos = view_pos_in;
-    sphere_pos.z += z_offset * radius_in;
+    float sphere_pos_z = z_offset * radius_in + z_view_in;
 
-    vec4 clip_pos = P * vec4(sphere_pos, 1.0);
-    float ndc_z = clip_pos.z / clip_pos.w;
+    float clip_z = sphere_pos_z * P[2][2] + P[3][2];
+    float clip_w = sphere_pos_z * P[2][3] + P[3][3];
+
+    float ndc_z = clip_z / clip_w;
     
     gl_FragDepth = (ndc_z + 1.0) / 2.0;
 }

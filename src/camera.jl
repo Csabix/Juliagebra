@@ -37,9 +37,7 @@ end
 function get_matrices(self::Camera)
     return self._view_proj, self._view, self._proj
 end
-function get_near_far(self::Camera)
-    return 2.0f0*self._zFar/self._proj[1][1], 2.0f0*self._zNear/self._proj[1][1]
-end
+
 # TODO getting rid of get_matrices(self::Camera,zoom)
 function get_matrices(self::Camera,zoom)
     eye = -normalize(self._eye - self._at) * Float32(-(exp(zoom)-1.0f0))

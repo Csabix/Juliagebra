@@ -82,7 +82,7 @@ mutable struct PointRenderer
     updates::Vector{UInt8}
     
     function PointRenderer()
-        uniforms = String["V","P","VP","selected_id","picked_id","light_dir_side_view","width_near_far"]
+        uniforms = String["v_2_x","P","VP","selected_id","picked_id","light_dir_side_view","width_p_0_0"]
         shader::ShaderProgram = ShaderProgram(["renderers/point/point.vert","renderers/point/point.frag"], uniforms)
         return new(shader, PointsData[PointsData()],UInt8[0x0])
     end
@@ -163,18 +163,17 @@ function sync_all!(self::PointRenderer)::Nothing
 end
 
 function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
+    glDisable(GL_STENCIL_TEST)
     (vp, v, p) = get_matrices(cam)
     (_, side_light) = get_lights(cam)
 
     side_light = v[SOneTo(3), SOneTo(3)] * side_light
 
-    (n,f) = get_near_far(cam)
-
     activate(self.shader)
     uniform(self.shader,"VP",vp)
-    uniform(self.shader,"V",v)
+    uniform(self.shader,"v_2_x",v[3,:])
     uniform(self.shader,"P",p)
-    uniform(self.shader,"width_near_far",Vec3F(Float32(shrd._width),n,f))
+    uniform(self.shader,"width_p_0_0",Vec2F(Float32(shrd._width),p[1][1]))
     uniform(self.shader,"selected_id", shrd._selectedID)
     uniform(self.shader,"picked_id", shrd._pickedID)
     uniform(self.shader,"light_dir_side_view", side_light)
@@ -187,6 +186,6 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     end
     @time_gpu_end Renderer Point
     lock(self.points[1].buffer[1])
-
+    glEnable(GL_STENCIL_TEST)
     return nothing
 end

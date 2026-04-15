@@ -55,7 +55,8 @@ addedAll!(self::TextBoxRenderer) = return nothing
 title(::TextBoxRenderer)::String = return "TextBox"
 
 function render!(self::TextBoxRenderer, textBox::TextBoxDependent, app::AppDNA)
-    s::Scheduler = getScheduler(app)
+    m::ModelDNA = getModel(app)
+    s::Scheduler = getScheduler(m)
     label::String = getLabel(textBox)
     textBoxIdx::Int = getObserverID(textBox)
 

@@ -60,7 +60,8 @@ syncAll!(::ToggleRenderer) = return nothing
 title(::ToggleRenderer)::String = return "Toggle"
 
 function render!(self::ToggleRenderer, toggle::ToggleDependent, app::AppDNA)
-    s::Scheduler = getScheduler(app)
+    m::ModelDNA = getModel(app)
+    s::Scheduler = getScheduler(m)
     label::String = getLabel(toggle)
     toggleIdx::Int = getObserverID(toggle)
 

@@ -5,15 +5,15 @@ Juliagebra.Window() do
     
     a = Point(0.0, 0.0, 5.0)
 
-    surface1 = ParametricSurface(range(-10.0,10.0,100),range(-10.0,10.0,100)) do u, v
+    surface1 = ParametricSurface(range(-10.0,10.0,100),range(-10.0,10.0,100); color=(0.9,0.6,0.3)) do u, v
         x = u
         y = v
         z = (u^2 + v^2) * -0.05
 
-        return (x, y, z)
+        return (x, y, z + 2.0)
     end
 
-    surface2 = ParametricSurface(range(-10.0,10.0,100),range(-10.0,10.0,100), [a]) do u, v, p1
+    surface2 = ParametricSurface(range(-10.0,10.0,100),range(-10.0,10.0,100), [a]; color=(0.56,0.66,0.0)) do u, v, p1
         x = u
         y = v
         z = -1.0 * (u^2 + v^2) * -0.05

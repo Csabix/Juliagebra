@@ -1,23 +1,17 @@
 using Juliagebra
 
 Juliagebra.Window() do 
-    ORDER_FLIPPED = true
     
-    if (ORDER_FLIPPED)
-        s1 = Slider(label="Awesome")
-        t1 = Toggle()
-        s2 = Slider()
-        t2 = Toggle()
-    else
-        t1 = Toggle()
-        s1 = Slider()
-        t2 = Toggle()
-        s2 = Slider()
-    end
+    s1 = Slider(label="A slider with a label")
+    t1 = Toggle(label="A toggle with a label")
+    s2 = Slider()
+    t2 = Toggle()
+   
 
     txt1 = TextBox()
     txt2 = TextBox("A sample text\n" *
                    "to see how this looks."
+                   ; label = "A textbox with a label."
     )
     txt3 = TextBox("Another sample text\n" *
                    "to see how this looks."

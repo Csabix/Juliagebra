@@ -14,6 +14,7 @@ end
     return return (packed & 0xFF000000) == 0xFF000000
 end
 
+include("renderer_substitutions.jl")
 include("point_renderer.jl")
 include("line_renderer.jl")
 include("sphere_renderer.jl")

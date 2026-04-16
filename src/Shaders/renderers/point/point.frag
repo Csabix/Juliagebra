@@ -9,8 +9,7 @@ layout (depth_greater) out float gl_FragDepth;
 #define FRONT 0.2
 #define SIDE 0.8
 
-layout(location = 0) out vec4 color_out;
-layout(location = 1) out uint id_out;
+<OUTPUT>
 
 layout(location = 0) flat in vec3 color_in;
 layout(location = 1) flat in vec3 color_inv_in;
@@ -39,7 +38,6 @@ void main() {
     if (r2 > 1.0) discard;
 
     const uint id = type_id_in & ~(uint(255) << 24);
-    id_out = id;
     uint type = (type_id_in & (uint(255) << 24)) >> 24;
 
     uint inside_pattern;
@@ -54,7 +52,7 @@ void main() {
 
     uint selected = uint(selected_id == id) | uint(picked_id == id);
     if ((type_id_in & (uint(255) << 24)) >> 24 == uint(0)) selected = uint(0); // Until better highlighting
-    vec3 color = (selected ^ (inside_pattern & uint(r2 < 0.5))) == 0 ? color_in : color_inv_in;
+    vec3 col = (selected ^ (inside_pattern & uint(r2 < 0.5))) == 0 ? color_in : color_inv_in;
 
     vec2 angle = gl_PointCoord * PI;
     vec2 sin_vu = sin(angle);
@@ -62,7 +60,7 @@ void main() {
     vec3 normal = -vec3(sin_vu.x * cos_vu.y, cos_vu.x, sin_vu.x * sin_vu.y);
 
     float diffuse = (light(normal, vec3(0,0,-1.0)) * FRONT + light(normal, light_dir_side_view) * SIDE) * DIFFUSE;
-    color_out = vec4(color * (diffuse + AMBIENT), 1.0);
+    vec4 color = vec4(col * (diffuse + AMBIENT), 1.0);
 
     float z_offset = sqrt(1.0 - r2);
     float sphere_pos_z = z_offset * radius_in + z_view_in;
@@ -73,4 +71,6 @@ void main() {
     float ndc_z = clip_z / clip_w;
     
     gl_FragDepth = (ndc_z + 1.0) / 2.0;
+
+    <WRITE>
 }

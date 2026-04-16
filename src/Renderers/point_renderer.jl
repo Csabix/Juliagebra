@@ -83,7 +83,7 @@ mutable struct PointRenderer
     
     function PointRenderer()
         uniforms = String["v_2_x","P","VP","selected_id","picked_id","light_dir_side_view","width_p_0_0"]
-        shader::ShaderProgram = ShaderProgram(["renderers/point/point.vert","renderers/point/point.frag"], uniforms)
+        shader::ShaderProgram = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE)], uniforms)
         return new(shader, PointsData[PointsData()],UInt8[0x0])
     end
 end

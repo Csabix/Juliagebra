@@ -55,12 +55,16 @@ function read_shader_stage(
     replacements::Union{Nothing,Vector{Pair{String,String}}})::Union{Nothing,String}
     path = joinpath(_SHADER_FOLDER, path)
     
+    #=
     source::String = try
         read(path, String)
     catch _
         println("Failed to read file: $(path)")
         return nothing
     end
+    =#
+
+    source::String = resolve_includes(path)
 
     if !isnothing(defines)
         version_match = match(r"#version.*\n", source)
@@ -77,6 +81,36 @@ function read_shader_stage(
             source = replace(source, replacement)
         end
     end
+    return source
+end
+
+function resolve_includes(path::String, visited=String[])::String
+    path = abspath(path)
+    
+    if path in visited
+        cycle_path = join(visited_stack, "\n\t") * "\n\t" * path
+        println("Circular dependency detected:\n$cycle_path")
+        return ""
+    end
+
+    source::String = try
+        read(path, String)
+    catch _
+        println("Failed to read file: $path")
+        return ""
+    end
+
+    push!(visited, path)
+    
+    include_regex = r"#include\s+\"([^\"]+)\""
+    source = replace(source, include_regex => function (m)
+        inside_include = match(include_regex, m).captures[1]
+        include_path = joinpath(dirname(path), inside_include)
+        return resolve_includes(include_path, visited)
+    end)
+
+    pop!(visited)
+
     return source
 end
 

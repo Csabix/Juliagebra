@@ -19,6 +19,16 @@ function debug_callback(source::GLenum, typ::GLenum, id::GLuint, severity::GLenu
     return nothing
 end
 
+struct UBO_Data
+    VP::Mat4T{Float32}
+    V::Mat4T{Float32}
+    P::Mat4T{Float32}
+    light_side::Vec4F
+    light_cam::Vec4F
+    eye::Vec4F
+    width_height_aspect_width_u::Vec4F
+end
+
 mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
@@ -43,6 +53,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _behindOpaqueFBO::FrameBuffer
     _transparentFBO::FrameBuffer
 
+    _ubo::MappedBuffer{UBO_Data}
     _pixel_buffer::Buffer{UVec2}
     
     _empty_VAO::VertexArray
@@ -106,6 +117,10 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         transparentAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
         transparentFBO = FrameBuffer(transparentAttachments)
 
+        ubo = MappedBuffer{UBO_Data}()
+        reserve!(ubo, 1, 0)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo._id);
+
         pixel_buffer = Buffer{UVec2}()
         reserve!(pixel_buffer, shrd._width * shrd._height * 10, 0)
         empty_vao = VertexArray()
@@ -133,7 +148,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
             transparent_color_combiner,transparent_id_combiner,final_combiner,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
-            pixel_buffer,empty_vao,
+            ubo,pixel_buffer,empty_vao,
             gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -310,6 +325,18 @@ function update!(self::OpenGLData,cam::Camera)
 
     added_all!(self._renderers)
     sync_all!(self._renderers)
+
+    (vp, v, p) = get_matrices(cam)
+    (cam_light, side_light) = get_lights(cam)
+    
+    width::Float32 = Float32(self._shrd._width)
+    height::Float32 = Float32(self._shrd._height)
+    self._ubo[1] = UBO_Data(
+        vp,v,p,
+        Vec4F(side_light...,0.0f0),Vec4F(cam_light...,1.0f0),
+        Vec4F(cam._eye...,1.0f0),
+        Vec4F(width,height,width/height,reinterpret(Float32, UInt32(self._shrd._width)))
+    )
 
     pre_draw(self._renderers,cam,self._shrd)
     _opaque(self,cam)

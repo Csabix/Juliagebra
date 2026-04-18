@@ -1,15 +1,7 @@
 #version 460 core
 layout (depth_greater) out float gl_FragDepth;
+#include "../color_output.glsl"
 #define PI 3.1415926538
-
-#define PLUS_WIDTH 0.08
-#define AMBIENT 0.2
-#define DIFFUSE 0.8
-// The two directional light source
-#define FRONT 0.2
-#define SIDE 0.8
-
-<OUTPUT>
 
 layout(location = 0) flat in vec3 color_in;
 layout(location = 1) flat in vec3 color_inv_in;
@@ -20,8 +12,6 @@ layout(location = 4) flat in float z_view_in;
 uniform uint selected_id;
 uniform uint picked_id;
 uniform vec3 light_dir_side_view;
-uniform mat4 P;
-
 
 uint plusNorm() {
     vec2 dist = abs(gl_PointCoord - vec2(0.5));
@@ -72,5 +62,5 @@ void main() {
     
     gl_FragDepth = (ndc_z + 1.0) / 2.0;
 
-    <WRITE>
+    WRITE_COLOR(color, id, gl_FragCoord.z)
 }

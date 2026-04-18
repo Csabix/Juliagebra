@@ -82,7 +82,7 @@ mutable struct PointRenderer
     updates::Vector{UInt8}
     
     function PointRenderer()
-        uniforms = String["v_2_x","P","VP","selected_id","picked_id","light_dir_side_view","width_p_0_0"]
+        uniforms = String["selected_id","picked_id","light_dir_side_view"]
         shader::ShaderProgram = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE)], uniforms)
         return new(shader, PointsData[PointsData()],UInt8[0x0])
     end
@@ -170,10 +170,6 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     side_light = v[SOneTo(3), SOneTo(3)] * side_light
 
     activate(self.shader)
-    uniform(self.shader,"VP",vp)
-    uniform(self.shader,"v_2_x",v[3,:])
-    uniform(self.shader,"P",p)
-    uniform(self.shader,"width_p_0_0",Vec2F(Float32(shrd._width),p[1][1]))
     uniform(self.shader,"selected_id", shrd._selectedID)
     uniform(self.shader,"picked_id", shrd._pickedID)
     uniform(self.shader,"light_dir_side_view", side_light)

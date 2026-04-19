@@ -76,5 +76,6 @@ end
 function transparent(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
     #transparent(renderers.line,cam,shrd)
     transparent(renderers.sphere,cam,shrd)
+    transparent(renderers.triangle,cam,shrd)
     return nothing
 end

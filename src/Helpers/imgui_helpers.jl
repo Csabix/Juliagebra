@@ -37,6 +37,14 @@ function getButtonSize(text::String)
 end
 
 # ? Could microoptimize this by not creating buffers everytime if necessary
+function color_edit3(color::Vec3F, label::String)::Union{Vec3F,Nothing}
+    col = Float32[color[1], color[2], color[3]]
+    if CImGui.ColorEdit3(label, col)
+        return Vec3F(col[1], col[2], col[3])
+    end
+    return nothing
+end
+
 function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::Union{String,Nothing}
     result::Union{String,Nothing} = nothing
     buf = Vector{UInt8}(undef,buf_size)

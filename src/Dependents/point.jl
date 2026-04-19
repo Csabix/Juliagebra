@@ -6,12 +6,15 @@
 mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D
+    _color::Vec3F
+    _point_type::UInt32
+    _size::UInt8
 
     # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
         renderedDependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(renderedDependent,coord)
+        new(renderedDependent,coord,Vec3F(1.0,0.0,1.0),POINT_NONE,UInt8(25))
     end
 end
 
@@ -59,13 +62,15 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 # GREEN Thread
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
-    push!(self._refs, add!(self._renderers.point,Vec3F(point._coord),POINT_NONE,Vec3F(1.0,0.0,1.0),UInt8(25),aID))
+    push!(self._refs, add!(self._renderers.point,Vec3F(point._coord),point._point_type,point._color,point._size,aID))
 end
 
 # GREEN Thread
 function sync!(self::Points,point::PointDependent)
     ref = self._refs[getObserverID(point)]
+    aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
     update_coords!(self._renderers.point,ref,Vec3F(point._coord))
+    update_properties(self._renderers.point,ref,point._point_type,point._color,point._size,aID)
 end
 
 # GREEN Thread

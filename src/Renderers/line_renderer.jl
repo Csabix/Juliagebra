@@ -386,11 +386,23 @@ function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width:
     push!(self.update_list, ref)
 end
 
+function update_color_type!(self::LineRenderer, ref::UInt32, color::UInt32, n::Int)
+    for i in 0:(n-1)
+        old = self.color_type[ref + i]
+        reversed_bit = old & (UInt32(0xff) << 24)
+        self.color_type[ref + i] = (color & ~(UInt32(0xff) << 24)) | reversed_bit
+    end
+    self.updated |= _LINE_UPDATED_COLOR_TYPE
+end
+
 function sync_all!(self::LineRenderer)::Nothing
     if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0 || (self.updated & _LINE_UPDATED_COLOR_TYPE) != 0
         wait(self.distance_buffer_in)
         if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0
             copyto!(self.position_width_buffer_in, self.coords_widths)
+        end
+        if (self.updated & _LINE_UPDATED_COLOR_TYPE) != 0
+            upload!(self.color_type_buffer_in, self.color_type, 0)
         end
     end
     if length(self.update_list) != 0

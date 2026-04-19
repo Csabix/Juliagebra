@@ -107,6 +107,7 @@ end
 function sync!(self::Curves,curve::ParametricCurveDependent)
     ref = self._refs[getObserverID(curve)]
     update_coords!(self._renderers.line,ref,curve._tValues,curve._width)
+    update_color_type!(self._renderers.line,ref,curve._colors[1],length(curve._tValues))
 end
 
 # GREEN Thread

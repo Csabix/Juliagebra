@@ -563,6 +563,8 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 end
 
 function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    (_, _, p) = get_matrices(cam)
+
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)
@@ -575,6 +577,7 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"P", p)
         uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
@@ -593,6 +596,7 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"P", p)
         uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end

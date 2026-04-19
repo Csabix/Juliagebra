@@ -2,10 +2,10 @@
 
 layout(location = 0) in vec4 position_in;
 layout(location = 1) in vec4 normal_in;
-layout(location = 2) in vec3 color_in;
+layout(location = 2) in vec4 color_in;
 layout(location = 3) in uint id_in;
 
-layout(location = 0) flat out vec3 color_out;
+layout(location = 0) flat out vec4 color_out;
 layout(location = 1) flat out vec3 normal_out;
 layout(location = 2) flat out uint id_out;
 

@@ -127,6 +127,9 @@ void main() {
     d = max(d, rounding());
 
     if (d > 0.0) discard;
+#ifdef TRANSPARENT
+    if (DISCARD) discard;
+#endif
     /*
     float r2 = segment_SDF_field_in.x / segment_SDF_field_in.z; r2 *= r2;
     float z_offset = sqrt(1.0 - r2);

@@ -22,6 +22,7 @@ struct FrameBuffer
             end
         end
 
+        sort!(attachmentPoints)
         glDrawBuffers(length(attachmentPoints), attachmentPoints)
         if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             error("FrameBuffer creation failed!")

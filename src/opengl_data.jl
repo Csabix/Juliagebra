@@ -226,8 +226,8 @@ end
 function _opaque(self::OpenGLData,cam::Camera)::Nothing
     activate(self._opaqueFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-    clear_value = SVector{4, Int32}(0, 0, 0, 0)
-    glClearBufferiv(GL_COLOR, 1, clear_value)
+    clear_value = SVector{4, UInt32}(0, 0, 0, 0)
+    glClearBufferuiv(GL_COLOR, 1, clear_value)
 
     glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
@@ -293,15 +293,26 @@ end
 function _widgets(self::OpenGLData,cam::Camera)
     activate(self._opaqueFBO)
     glDepthFunc(GL_ALWAYS)
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     wh = Vec2F(self._shrd._width,self._shrd._height)
-    
+
+    # Color pass: blend on for anti-aliasing, but mask the integer ID attachment
+    # (GL_BLEND + integer attachment = GL_INVALID_OPERATION, so mask it off here)
+    glColorMaski(1,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh) end
     draw(self._orthoGizmoGL,cam,wh)
+    glDisable(GL_BLEND)
+    glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
 
-    glDisable(GL_BLEND);
+    # ID pass: blend off, mask color, write only IDs for hit-testing
+    if self._shrd._gizmoEnabled
+        glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
+        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh)
+        glColorMaski(0,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
+    end
+
     glDepthFunc(GL_LEQUAL)
 end
 

@@ -59,7 +59,7 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 # GREEN Thread
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
-    push!(self._refs, add!(self._renderers.point,Vec3F(point._coord),POINT_PLUS,Vec3F(1.0,0.0,1.0),UInt8(25),aID))
+    push!(self._refs, add!(self._renderers.point,Vec3F(point._coord),POINT_NONE,Vec3F(1.0,0.0,1.0),UInt8(25),aID))
 end
 
 # GREEN Thread

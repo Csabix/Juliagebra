@@ -238,6 +238,26 @@ function _opaque(self::OpenGLData,cam::Camera)::Nothing
     return nothing
 end
 
+function _opaque_lines(self::OpenGLData,cam::Camera)::Nothing
+    activate(self._opaqueFBO)
+    glStencilFunc(GL_ALWAYS, 1, 0xFF)
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+    glEnable(GL_STENCIL_TEST)
+    opaque_lines(self._renderers,cam,self._shrd)
+    glDisable(GL_STENCIL_TEST)
+    return nothing
+end
+
+function _behind_opaque(self::OpenGLData,cam::Camera)::Nothing
+    activate(self._opaqueFBO)
+    glDepthFunc(GL_GREATER)
+    glDepthMask(GL_FALSE)
+    behind_opaque(self._renderers,cam,self._shrd)
+    glDepthMask(GL_TRUE)
+    glDepthFunc(GL_LEQUAL)
+    return nothing
+end
+
 function _transparent(self::OpenGLData,cam::Camera)
     glDepthMask(GL_FALSE)::Nothing
     glEnable(GL_BLEND)::Nothing
@@ -324,6 +344,8 @@ function update!(self::OpenGLData,cam::Camera)
 
     pre_draw(self._renderers,cam,self._shrd)
     _opaque(self,cam)
+    _behind_opaque(self,cam)
+    _opaque_lines(self,cam)
     _transparent(self,cam)
     _widgets(self,cam)
 

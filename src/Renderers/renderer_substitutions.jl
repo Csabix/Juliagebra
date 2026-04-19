@@ -121,5 +121,9 @@ accum = vec4(color.rgb * color.a, color.a) * weight;
 reveal = color.a;
 """
 
-const OPAQUE = [opaque_output, opaque_color_write]
-const TRANSPARENT = [transparent_output, transparent_color_write]
+const no_behind_define = "<BEHIND_DEFINE>" => ""
+const behind_define    = "<BEHIND_DEFINE>" => "#define BEHIND"
+
+const OPAQUE        = [opaque_output, opaque_color_write, no_behind_define]
+const OPAQUE_BEHIND = [opaque_output, opaque_color_write, behind_define]
+const TRANSPARENT   = [transparent_output, transparent_color_write]

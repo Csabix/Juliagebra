@@ -14,6 +14,8 @@ function get_type_reversed(line_type::UInt8)::Tuple{UInt8,Bool}
     return line_type & ~mask, (line_type & mask) == mask
 end
 
+const _LINE_TYPE_BEHIND = UInt8[DASHED, DOTTED, DOTTED, DOTTED, DOTTED, DASHED]
+
 const _LINE_UPDATED_COORD_WIDTH::UInt32 = 1
 const _LINE_UPDATED_COLOR_TYPE::UInt32 = 2
 const _LINE_UPDATED_COORD_WIDTH_DYNAMIC::UInt32 = 4
@@ -558,6 +560,53 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     end
     @time_gpu_end Renderer Line Opaque Dynamic
     end
+    glDisable(GL_BLEND)
+    return nothing
+end
+
+function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    (_, _, p) = get_matrices(cam)
+    glEnable(GL_BLEND)
+    glBlendColor(0.0, 0.0, 0.0, 0.4)
+    glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA)
+    glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+
+    if (any(x -> x[2] != 0, self.draw_ranges))
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out,1)
+    bind_ssbo(self.color_buffer_out,2)
+    bind_ssbo(self.light_buffer_out,3)
+    bind_ssbo(self.sdf_buffer_out,4)
+    bind_ssbo(self.radius_buffer_out,5)
+    for type in 1:_LINE_TYPE_COUNT
+        (first,count) = self.draw_ranges[type]
+        if count == 0 continue end
+        behind_type = Int(_LINE_TYPE_BEHIND[type])
+        activate(self.shaders_opaque[behind_type])
+        uniform(self.shaders_opaque[behind_type],"P", p)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+    end
+    end
+
+    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
+    bind_ssbo(self.color_buffer_out_dynamic,2)
+    bind_ssbo(self.light_buffer_out_dynamic,3)
+    bind_ssbo(self.sdf_buffer_out_dynamic,4)
+    bind_ssbo(self.radius_buffer_out_dynamic,5)
+    for type in 1:_LINE_TYPE_COUNT
+        (first,count) = self.draw_ranges_dynamic[type]
+        if count == 0 continue end
+        behind_type = Int(_LINE_TYPE_BEHIND[type])
+        activate(self.shaders_opaque[behind_type])
+        uniform(self.shaders_opaque[behind_type],"P", p)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+    end
+    end
+
+    glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     glDisable(GL_BLEND)
     return nothing
 end

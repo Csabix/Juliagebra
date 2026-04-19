@@ -101,18 +101,21 @@ Base.length(points_data::PointsData)::Int = length(points_data.coords)
 
 mutable struct PointRenderer
     shader::ShaderProgram
+    shader_behind::ShaderProgram
     points::Vector{PointsData}
     updates::Vector{UInt8}
-    
+
     function PointRenderer()
         uniforms = String["v_2_x","P","VP","selected_id","picked_id","light_dir_side_view","width_p_0_0"]
-        shader::ShaderProgram = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE)], uniforms)
-        return new(shader, PointsData[PointsData()],UInt8[0x0])
+        shader        = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE)],        uniforms)
+        shader_behind = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE_BEHIND)], uniforms)
+        return new(shader, shader_behind, PointsData[PointsData()], UInt8[0x0])
     end
 end
 
 function destroy!(self::PointRenderer)::Nothing
     destroy!(self.shader)
+    destroy!(self.shader_behind)
     foreach(destroy!,self.points)
     return nothing
 end
@@ -215,5 +218,34 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     @time_gpu_end Renderer Point
     lock(self.points[1].buffer[1])
     glEnable(GL_STENCIL_TEST)
+    return nothing
+end
+
+function behind_opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
+    (vp, v, p) = get_matrices(cam)
+    (_, side_light) = get_lights(cam)
+    side_light = v[SOneTo(3), SOneTo(3)] * side_light
+
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+
+    activate(self.shader_behind)
+    uniform(self.shader_behind,"VP",vp)
+    uniform(self.shader_behind,"v_2_x",v[3,:])
+    uniform(self.shader_behind,"P",p)
+    uniform(self.shader_behind,"width_p_0_0",Vec2F(Float32(shrd._width),p[1][1]))
+    uniform(self.shader_behind,"selected_id", shrd._selectedID)
+    uniform(self.shader_behind,"picked_id", shrd._pickedID)
+    uniform(self.shader_behind,"light_dir_side_view", side_light)
+
+    for points_data in self.points
+        if length(points_data.coords) != 0
+            draw(points_data.buffer,GL_POINTS)
+        end
+    end
+
+    glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+    glDisable(GL_BLEND)
     return nothing
 end

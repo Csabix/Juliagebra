@@ -11,10 +11,11 @@ mutable struct PointDependent <: RenderedDependentDNA
     _size::UInt8
 
     # YELLOW Thread
-    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
+    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA};
+                            color="m", size::Integer=25, type::Integer=POINT_NONE)
         renderedDependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(renderedDependent,coord,Vec3F(1.0,0.0,1.0),POINT_NONE,UInt8(25))
+        new(renderedDependent,coord,get_color_vec3f(color),UInt32(type),UInt8(size))
     end
 end
 
@@ -84,17 +85,18 @@ Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_P
 # ? ---------------------------------
 
 # YELLOW Thread
-Point(x::Real,y::Real,z::Real)::PointDependent =
-build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}()))
+Point(x::Real,y::Real,z::Real; color="m", size::Integer=25, type::Integer=POINT_NONE)::PointDependent =
+build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}(); color=color, size=size, type=type))
 
 # YELLOW Thread
-Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
-build!(PointDependent(callback,dependents))
+Point(callback::Function,dependents::Vector{<:DependentDNA}; color="m", size::Integer=25, type::Integer=POINT_NONE) =
+build!(PointDependent(callback,dependents; color=color, size=size, type=type))
 
 # YELLOW Thread
-macro Point(callback::Expr)
+macro Point(callback::Expr, kw_args...)
+    parsed_kw_args = _parse_macro_kw_args([:color, :size, :type], kw_args...)
     callback = _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point; parsed_kw_args...)
 end
 
 export Point

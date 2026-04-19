@@ -11,7 +11,7 @@ getWindowName(self::PointsWindow) = "Points"
 
 function renderContent(self::PointsWindow)
     col_flags = CImGui.ImGuiTableColumnFlags_WidthFixed
-    if !CImGui.BeginTable("points_tbl", 6,
+    if !CImGui.BeginTable("points_tbl", 7,
             CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_RowBg |
             CImGui.ImGuiTableFlags_ScrollY)
         return
@@ -24,6 +24,7 @@ function renderContent(self::PointsWindow)
     CImGui.TableSetupColumn("Z")
     CImGui.TableSetupColumn("Color", col_flags, 100.0)
     CImGui.TableSetupColumn("Style", col_flags, 60.0)
+    CImGui.TableSetupColumn("Size",  col_flags, 80.0)
     CImGui.TableHeadersRow()
 
     for node in getNodes(self._graph)
@@ -71,6 +72,13 @@ function renderContent(self::PointsWindow)
         CImGui.SameLine()
         if CImGui.RadioButton("+##$id", !is_none)
             node._point_type = POINT_PLUS
+            afterNodeEval(node)
+        end
+
+        CImGui.TableNextColumn()
+        size_ref = Ref(Cint(node._size))
+        if CImGui.SliderInt("##psz$id", size_ref, 1, 100)
+            node._size = UInt8(clamp(size_ref[], 1, 255))
             afterNodeEval(node)
         end
     end

@@ -296,7 +296,7 @@ function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::
     push!(self.color_type, UInt32(0))
 
     push!(self.ranges,tuple(first,last,Int(type)))
-    return UInt32(first)
+    return UInt32(length(self.ranges))
 end
 
 function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::UInt32
@@ -364,7 +364,8 @@ function added_all!(self::LineRenderer)::Nothing
 end
 
 function update_coords!(self::LineRenderer,ref::UInt32,coords,width::Float32)
-    coords_widths_view = view(self.coords_widths, ref:UInt32(ref + length(coords) - 1))
+    first = self.ranges[ref][1]
+    coords_widths_view = view(self.coords_widths, first:UInt32(first + length(coords) - 1))
     copyto!(coords_widths_view,(Vec4F(coord...,width) for coord in coords))
     self.updated |= _LINE_UPDATED_COORD_WIDTH
 end
@@ -389,12 +390,25 @@ function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width:
 end
 
 function update_color_type!(self::LineRenderer, ref::UInt32, color::UInt32, n::Int)
+    first = self.ranges[ref][1]
     for i in 0:(n-1)
-        old = self.color_type[ref + i]
+        old = self.color_type[first + i]
         reversed_bit = old & (UInt32(0xff) << 24)
-        self.color_type[ref + i] = (color & ~(UInt32(0xff) << 24)) | reversed_bit
+        self.color_type[first + i] = (color & ~(UInt32(0xff) << 24)) | reversed_bit
     end
     self.updated |= _LINE_UPDATED_COLOR_TYPE
+end
+
+function update_type!(self::LineRenderer, ref::UInt32, new_type::UInt8)
+    (new_type_clean, reversed) = get_type_reversed(new_type)
+    (first, last, _) = self.ranges[ref]
+    for i in first:last
+        old_color = self.color_type[i] & ~(UInt32(0xff) << 24)
+        self.color_type[i] = pack_color_reversed(old_color, reversed)
+    end
+    self.ranges[ref] = (first, last, Int(new_type_clean))
+    _sort_lines!(self)
+    self.updated |= _LINE_UPDATED_COORD_WIDTH | _LINE_UPDATED_COLOR_TYPE
 end
 
 function sync_all!(self::LineRenderer)::Nothing

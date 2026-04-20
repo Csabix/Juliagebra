@@ -13,8 +13,8 @@ struct TriangleRenderer
 
     function TriangleRenderer()
         calc_normals = ShaderProgram(["renderers/triangle/triangle_normal.comp"])
-        opaque = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["MVP","MIT","lightDirCam","lightDirSide"])
-        transparent = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["MVP","MIT","lightDirCam","lightDirSide"])
+        opaque = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["M","MIT"])
+        transparent = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["M","MIT"])
 
         new(calc_normals,opaque,transparent,
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
@@ -106,16 +106,12 @@ function opaque(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
         empty!(self.update_normals)
     end
 
-    (vp, _, _) = get_matrices(cam)
-    (cam_light, side_light) = get_lights(cam)
     glDisable(GL_CULL_FACE)
     
     activate(self.shader_opaque)
-    uniform(self.shader_opaque,"lightDirCam",-cam_light)
-    uniform(self.shader_opaque,"lightDirSide",-side_light)
     for i in 1:length(self.buffers)
         if !is_packed_opaque(self.color_ids[i][1]) || length(self.buffers[i]) == 0 continue end
-        uniform(self.shader_opaque,"MVP",vp*self.matrices[i])
+        uniform(self.shader_opaque,"M",self.matrices[i])
         uniform(self.shader_opaque,"MIT",inv(transpose(self.matrices[i])))
         draw(self.buffers[i],GL_TRIANGLES)
     end

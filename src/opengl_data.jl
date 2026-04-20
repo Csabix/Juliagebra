@@ -23,10 +23,10 @@ struct UBO_Data
     VP::Mat4T{Float32}
     V::Mat4T{Float32}
     P::Mat4T{Float32}
-    light_side::Vec4F
-    light_cam::Vec4F
-    eye::Vec4F
-    width_height_aspect_width_u::Vec4F
+    _light_side_width::Vec4F
+    _light_cam_heigth::Vec4F
+    _eye_aspect::Vec4F
+    _at_width_u::Vec4F
 end
 
 mutable struct OpenGLData <: ObserverBuilderDNA
@@ -119,7 +119,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
         ubo = MappedBuffer{UBO_Data}()
         reserve!(ubo, 1, 0)
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo._id);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubo._id);
 
         pixel_buffer = Buffer{UVec2}()
         reserve!(pixel_buffer, shrd._width * shrd._height * 10, 0)
@@ -265,11 +265,11 @@ function _transparent(self::OpenGLData,cam::Camera)
     glClearBufferfv(GL_COLOR, 0, Float32[0.0f0, 0.0f0, 0.0f0, 0.0f0])
     glClearBufferfv(GL_COLOR, 1, Float32[1.0f0, 1.0f0, 1.0f0, 1.0f0])
     
-    bind_ssbo(self._pixel_buffer,0)
+    bind_ssbo(self._pixel_buffer,11)
     
     # draws
     glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT)
-    activate(self._depthstencilTexture,GL_TEXTURE0)
+    activate(self._depthstencilTexture,GL_TEXTURE12)
     transparent(self._renderers,cam,self._shrd)
     
     glEnable(GL_CULL_FACE)
@@ -333,9 +333,8 @@ function update!(self::OpenGLData,cam::Camera)
     height::Float32 = Float32(self._shrd._height)
     self._ubo[1] = UBO_Data(
         vp,v,p,
-        Vec4F(side_light...,0.0f0),Vec4F(cam_light...,1.0f0),
-        Vec4F(cam._eye...,1.0f0),
-        Vec4F(width,height,width/height,reinterpret(Float32, UInt32(self._shrd._width)))
+        Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
+        Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._shrd._width)))
     )
 
     pre_draw(self._renderers,cam,self._shrd)

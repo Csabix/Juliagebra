@@ -5,7 +5,7 @@ struct Data {
     uvec2 dist_id;
 };
 
-layout(std430, binding = 0) buffer DatBuff {
+layout(std430, binding = 11) buffer DatBuff {
     Data data[];
 };
 
@@ -59,17 +59,15 @@ void main() {
     frag = vec4(0.0);
 
     // WEIGHTED BLENDNED
-    if (dist_col[3].x != uint(0)) {
-        const ivec2 coords = ivec2(gl_FragCoord.xy);
-	    float revealage = texelFetch(reveal, coords, 0).r;
-        if (revealage != 1.0f) {
-            vec4 accumulation = texelFetch(accum, coords, 0);
-            if (isinf(max3(abs(accumulation.rgb))))
-	    	    accumulation.rgb = vec3(accumulation.a);
-            vec3 average_color = accumulation.rgb / max(accumulation.a, EPSILON);
-            float alpha = 1.0f - revealage;
-	        frag = vec4(average_color * alpha, alpha);
-        }
+    const ivec2 coords = ivec2(gl_FragCoord.xy);
+	float revealage = texelFetch(reveal, coords, 0).r;
+    if (revealage != 1.0f) {
+        vec4 accumulation = texelFetch(accum, coords, 0);
+        if (isinf(max3(abs(accumulation.rgb))))
+		    accumulation.rgb = vec3(accumulation.a);
+        vec3 average_color = accumulation.rgb / max(accumulation.a, EPSILON);
+        float alpha = 1.0f - revealage;
+	    frag = vec4(average_color * alpha, alpha);
     }
     // TOP 4 layer
     for (int i = 0; i < 4; ++i) {

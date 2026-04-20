@@ -55,15 +55,6 @@ function read_shader_stage(
     replacements::Union{Nothing,Vector{Pair{String,String}}})::Union{Nothing,String}
     path = joinpath(_SHADER_FOLDER, path)
     
-    #=
-    source::String = try
-        read(path, String)
-    catch _
-        println("Failed to read file: $(path)")
-        return nothing
-    end
-    =#
-
     source::String = resolve_includes(path)
 
     if !isnothing(defines)

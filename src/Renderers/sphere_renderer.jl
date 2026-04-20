@@ -18,10 +18,10 @@ mutable struct SphereRenderer
     updated_transparent::Bool
     
     function SphereRenderer()
-        uniforms_opaque = String["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION"]
+        uniforms_opaque = String["fov"]
         shader_opaque = ShaderProgram(["renderers/sphere/sphere.vert","renderers/sphere/sphere.frag"], uniforms_opaque)
-        uniforms_transparent = String["VP","cam","at","lightDirCam","lightDirSide","ASPECT_FOV_RESOLUTION","width","near"]
-        shader_transparent = ShaderProgram(["renderers/sphere/sphere.vert",("renderers/sphere/sphere_transparent.frag")], uniforms_transparent)
+        uniforms_transparent = String["fov","near"]
+        shader_transparent = ShaderProgram(["renderers/sphere/sphere.vert",(("renderers/sphere/sphere_transparent.frag",["TRANSPARENT"]))], uniforms_transparent)
         return new(
             shader_opaque, shader_transparent,
             Vector{Vec4F}(), Vector{Vec2T{UInt32}}(), Vector{Vec4F}(), Vector{Vec2T{UInt32}}(),
@@ -93,23 +93,15 @@ end
 
 function opaque(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
     if isempty(self.center_radius_opaque) return nothing end
-    (vp, _, _) = get_matrices(cam)
-    (cam_light, side_light) = get_lights(cam)
 
     glDisable(GL_CULL_FACE)
     
     activate(self.shader_opaque)
 
-    bind_ssbo(self.center_radius_buffer_opaque,1)
-    bind_ssbo(self.color_id_buffer_opaque,2)
+    bind_ssbo(self.center_radius_buffer_opaque,0)
+    bind_ssbo(self.color_id_buffer_opaque,1)
 
-    uniform(self.shader_opaque,"lightDirCam",-cam_light)
-    uniform(self.shader_opaque,"lightDirSide",-side_light)
-    uniform(self.shader_opaque,"VP",vp)
-    uniform(self.shader_opaque,"cam",cam._eye)
-    uniform(self.shader_opaque,"at",cam._at)
-    uniform(self.shader_opaque,"ASPECT_FOV_RESOLUTION",
-        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
+    uniform(self.shader_opaque,"fov",deg2rad(cam._fov))
 
     @time_gpu_begin Renderer Sphere Opaque
     glDrawArrays(GL_TRIANGLES,0,length(self.center_radius_opaque) * 6)
@@ -122,22 +114,13 @@ end
 
 function transparent(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
     if isempty(self.center_radius_transparent) return nothing end
-    (vp, _, _) = get_matrices(cam)
-    (cam_light, side_light) = get_lights(cam)
-    
+
     activate(self.shader_transparent)
 
-    bind_ssbo(self.center_radius_buffer_transparent,1)
-    bind_ssbo(self.color_id_buffer_transparent,2)
+    bind_ssbo(self.center_radius_buffer_transparent,0)
+    bind_ssbo(self.color_id_buffer_transparent,1)
 
-    uniform(self.shader_transparent,"lightDirCam",-cam_light)
-    uniform(self.shader_transparent,"lightDirSide",-side_light)
-    uniform(self.shader_transparent,"VP",vp)
-    uniform(self.shader_transparent,"cam",cam._eye)
-    uniform(self.shader_transparent,"at",cam._at)
-    uniform(self.shader_transparent,"ASPECT_FOV_RESOLUTION",
-        Vec4F(Float32(shrd._width)/Float32(shrd._height),deg2rad(cam._fov),Float32(shrd._width),Float32(shrd._height)))
-    uniform(self.shader_transparent,"width",UInt32(shrd._width))
+    uniform(self.shader_transparent,"fov",deg2rad(cam._fov))
 
     @time_gpu_begin Renderer Sphere Transparent
     uniform(self.shader_transparent,"near",1.0f0)

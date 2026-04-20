@@ -1,18 +1,24 @@
 #ifndef UBO
 #define UBO
 
-layout(std140, binding = 0) uniform UBO_Buffer {
+layout(std140, binding = 10) uniform UBO_Buffer {
     mat4 VP;
     mat4 V;
     mat4 P;
-    vec4 light_side;
-    vec4 light_cam;
-    vec4 eye;
-    vec4 width_height_aspect_width_u;
+    vec4 _light_side_width;
+    vec4 _light_cam_heigth;
+    vec4 _eye_aspect;
+    vec4 _at_width_u;
 };
-float width()  { return width_height_aspect_width_u.x; }
-float height() { return width_height_aspect_width_u.y; }
-float aspect() { return width_height_aspect_width_u.z; }
-uint width_u() { return floatBitsToUint(width_height_aspect_width_u.w); }
+
+float width()  { return _light_side_width.w; }
+float height() { return _light_cam_heigth.w; }
+float aspect() { return _eye_aspect.w; }
+uint width_u() { return floatBitsToUint(_at_width_u.w); }
+
+vec3 light_side() { return _light_side_width.xyz; }
+vec3 light_cam() { return _light_cam_heigth.xyz; }
+vec3 eye() { return _eye_aspect.xyz; }
+vec3 at() { return _at_width_u.xyz; }
 
 #endif

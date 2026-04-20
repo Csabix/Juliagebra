@@ -1,14 +1,12 @@
 #version 460 core
+#include "../../ubo.glsl"
 
-restrict readonly layout(std430, binding = 1) buffer CenterRadiusBuffer {
+restrict readonly layout(std430, binding = 0) buffer CenterRadiusBuffer {
     vec4 center_radius_in[];
 };
-restrict readonly layout(std430, binding = 2) buffer ColorIdBuffer {
+restrict readonly layout(std430, binding = 1) buffer ColorIdBuffer {
     uvec2 color_id_in[];
 };
-
-uniform mat4 VP;
-uniform vec3 cam;
 
 flat layout(location = 0) out vec4 color_out;
 flat layout(location = 1) out uint id_out;
@@ -37,11 +35,11 @@ void main() {
     center_out = center;
     radius_out = radius;
 
-    float dist = distance(cam, center);
+    float dist = distance(eye(), center);
     if (dist < radius) {
         gl_Position = vec4(base_offset,0.0,1.0);
     } else {
-        vec3 a = (cam - center) / dist; 
+        vec3 a = (eye() - center) / dist; 
         vec3 b = vec3(0.0, 0.0, 1.0);
 
         vec3 v = cross(a, b);

@@ -3,7 +3,7 @@
 struct FrameBuffer
     _id::GLuint
 
-    function FrameBuffer(attachements::Dict{GLuint,Texture2D})
+    function FrameBuffer(attachements)
         id = Ref{GLuint}(0)
         glGenFramebuffers(1,id)
         id = id[]
@@ -14,15 +14,12 @@ struct FrameBuffer
         attachmentPoints = Vector{GLenum}(undef,0)
 
         for (attachementPoint,texture) in attachements
-            #println("$(attachementPoint) - $(texture._id)")
-            
             glFramebufferTexture2D(GL_FRAMEBUFFER, attachementPoint, GL_TEXTURE_2D, texture._id, 0)
             if (attachementPoint != GL_DEPTH_ATTACHMENT && attachementPoint != GL_DEPTH_STENCIL_ATTACHMENT) && (attachementPoint != GL_STENCIL_ATTACHMENT)
                 push!(attachmentPoints,attachementPoint)
             end
         end
 
-        sort!(attachmentPoints)
         glDrawBuffers(length(attachmentPoints), attachmentPoints)
         if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             error("FrameBuffer creation failed!")

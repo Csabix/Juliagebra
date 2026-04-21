@@ -99,22 +99,25 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         accum = Texture2D(shrd._width,shrd._height,GL_RGBA16F,GL_RGBA,GL_HALF_FLOAT)
         reveal = Texture2D(shrd._width,shrd._height,GL_R8,GL_RED,GL_FLOAT)
 
-        opaqueAttachements = Dict{GLuint,Texture2D}()
-        opaqueAttachements[GL_COLOR_ATTACHMENT0] = rgba
-        opaqueAttachements[GL_COLOR_ATTACHMENT1] = id
-        opaqueAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
+        opaqueAttachements = (
+            (GL_COLOR_ATTACHMENT0, rgba),
+            (GL_COLOR_ATTACHMENT1, id),
+            (GL_DEPTH_STENCIL_ATTACHMENT, depth_stencil)
+        )
         opaqueFBO = FrameBuffer(opaqueAttachements)
 
-        behindOpaqueAttachements = Dict{GLuint,Texture2D}()
-        behindOpaqueAttachements[GL_COLOR_ATTACHMENT0] = rgba
-        behindOpaqueAttachements[GL_COLOR_ATTACHMENT1] = id
-        behindOpaqueAttachements[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil_behind_opaque
+        behindOpaqueAttachements = (
+            (GL_COLOR_ATTACHMENT0,rgba),
+            (GL_COLOR_ATTACHMENT1,id),
+            (GL_DEPTH_STENCIL_ATTACHMENT,depth_stencil_behind_opaque)
+        )
         behindOpaqueFBO = FrameBuffer(behindOpaqueAttachements)
 
-        transparentAttachments = Dict{GLuint,Texture2D}()
-        transparentAttachments[GL_COLOR_ATTACHMENT0] = accum
-        transparentAttachments[GL_COLOR_ATTACHMENT1] = reveal
-        transparentAttachments[GL_DEPTH_STENCIL_ATTACHMENT] = depth_stencil
+        transparentAttachments = (
+            (GL_COLOR_ATTACHMENT0,accum),
+            (GL_COLOR_ATTACHMENT1,reveal),
+            (GL_DEPTH_STENCIL_ATTACHMENT,depth_stencil)
+        )
         transparentFBO = FrameBuffer(transparentAttachments)
 
         ubo = MappedBuffer{UBO_Data}()

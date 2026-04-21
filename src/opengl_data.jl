@@ -331,24 +331,14 @@ function _widgets(self::OpenGLData,cam::Camera)
 
     wh = Vec2F(self._shrd._width,self._shrd._height)
 
-    # Color pass: blend on for anti-aliasing, but mask the integer ID attachment
-    # (GL_BLEND + integer attachment = GL_INVALID_OPERATION, so mask it off here)
-    glColorMaski(1,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
-    glEnable(GL_BLEND)
+    glDisable(GL_BLEND)
+    glEnablei(GL_BLEND, 0)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh) end
     draw(self._orthoGizmoGL,cam,wh)
-    glDisable(GL_BLEND)
-    glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
-
-    # ID pass: blend off, mask color, write only IDs for hit-testing
-    if self._shrd._gizmoEnabled
-        glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
-        draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh)
-        glColorMaski(0,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
-    end
 
     glDepthFunc(GL_LEQUAL)
+    glDisable(GL_BLEND)
 end
 
 function update!(self::OpenGLData,cam::Camera)

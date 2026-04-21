@@ -1,5 +1,6 @@
 #version 460 core
 layout(local_size_x = 32) in;
+#include "../../ubo.glsl"
 
 // Input
 restrict readonly layout(std430, binding = 0) buffer DistanceBufferIn {
@@ -28,13 +29,7 @@ restrict writeonly layout(std430, binding = 7) buffer RadiusBufferOut {
 	float out_radius[];
 };
 // Uniforms
-layout(location = 0) uniform mat4 VP;
-layout(location = 1) uniform vec2 WH;
-layout(location = 2) uniform vec3 Eye;
-layout(location = 3) uniform vec3 lightDirCam;
-layout(location = 4) uniform vec3 lightDirSide;
 layout(location = 5) uniform uint offset;
-layout(location = 6) uniform vec2 width_p_0_0;
 
 vec2 OctWrap(vec2 v) {
     return (1.0 - abs(v)) * sign(v);
@@ -49,12 +44,12 @@ vec2 Encode(vec3 n) {
 
 void calcLights(in uint index, in vec3 B, in vec3 C) {
     vec3 CI = normalize(B-C);
-    vec3 BE = normalize(B-Eye);
+    vec3 BE = normalize(B-eye());
     vec3 T = normalize(cross(CI,BE));
-    vec3 N = normalize(cross(T,CI));
+    vec3 N = normalize(cross(CI,T));
 
     mat3 TBN = transpose(mat3(T,CI,N));
-    out_lights[index] = vec4(Encode(TBN * lightDirCam),Encode(TBN * lightDirSide));
+    out_lights[index] = vec4(Encode(TBN * light_cam()),Encode(TBN * light_side()));
 }
 
 void main() {
@@ -64,7 +59,7 @@ void main() {
     const uint output_i = out_i * 5u;
 	vec4 A4 = vec4(in_position_widths[i   ].xyz, 1.0);
     vec4 B4 = vec4(in_position_widths[i+1u].xyz, 1.0);
-    const float width = in_position_widths[i+1u].w;
+    const float width_pixel = in_position_widths[i+1u].w;
     vec4 C4 = vec4(in_position_widths[i+2u].xyz, 1.0);
     vec4 D4 = vec4(in_position_widths[i+3u].xyz, 1.0);
     calcLights(out_i,B4.xyz,C4.xyz);
@@ -126,6 +121,7 @@ void main() {
     C4.xyz /= C4.w;
     D4.xyz /= D4.w;
 
+    const vec2 WH = vec2(width(), height());
     // Pixel coordinates
     const vec2 A = fma(A4.xy, vec2(0.5), vec2(0.5)) * WH;
     const vec2 B = fma(B4.xy, vec2(0.5), vec2(0.5)) * WH;
@@ -154,8 +150,8 @@ void main() {
     vec2 end_outer_offset   =  CB_dir - CB_dir_r;
     vec2 end_outer_third_offset = vec2(1.0/0.0);
 
-    vec2 sdf_begin = vec2(-width);
-    vec3 sdf_end = vec3(distances.y + width);
+    vec2 sdf_begin = vec2(-width_pixel);
+    vec3 sdf_end = vec3(distances.y + width_pixel);
     float third_sdf_side = 1.0/0.0;
 
     if (!any(isnan(A)) && distances.y > 1.0) {
@@ -165,11 +161,11 @@ void main() {
             begin_outer_offset = -inner_offset_ABC;
 
             if (dot(AB_dir,CB_dir) <= -0.9999) sdf_begin = vec2(0);
-            else sdf_begin = vec2(dot(begin_inner_offset,CB_dir),dot(begin_outer_offset,CB_dir))*width;
+            else sdf_begin = vec2(dot(begin_inner_offset,CB_dir),dot(begin_outer_offset,CB_dir))*width_pixel;
         } else {
             // ACUTE
-            float AB_l = distances.x / width;
-            float CB_l = distances.y / width;
+            float AB_l = distances.x / width_pixel;
+            float CB_l = distances.y / width_pixel;
             float ab = abs(dot(inner_offset_ABC,AB_dir));
             float cb = abs(dot(inner_offset_ABC,CB_dir));
             if (ab < AB_l && cb < CB_l) {
@@ -180,7 +176,7 @@ void main() {
                     begin_inner_offset = -CB_dir + CB_dir_r;
                     begin_outer_offset = -inner_offset_ABC;
                 }
-                sdf_begin = vec2(dot(begin_inner_offset,CB_dir),dot(begin_outer_offset,CB_dir))*width;
+                sdf_begin = vec2(dot(begin_inner_offset,CB_dir),dot(begin_outer_offset,CB_dir))*width_pixel;
             }
         }
     }
@@ -193,13 +189,13 @@ void main() {
 
             if (dot(-CB_dir,DC_dir) <= -0.9999) sdf_end.xy = vec2(distances.y);
             else {
-                sdf_end.xy = vec2(dot(end_inner_offset,CB_dir),dot(end_outer_offset,CB_dir)) * width;
+                sdf_end.xy = vec2(dot(end_inner_offset,CB_dir),dot(end_outer_offset,CB_dir)) * width_pixel;
                 sdf_end.xy += distances.y;
             }
         } else {
             // ACUTE
-            float BC_l = distances.y / width;
-            float DC_l = distances.z / width;
+            float BC_l = distances.y / width_pixel;
+            float DC_l = distances.z / width_pixel;
             float bc = abs(dot(inner_offset_BCD,-CB_dir));
             float dc = abs(dot(inner_offset_BCD,DC_dir));
             if (bc < BC_l && dc < DC_l) {
@@ -212,15 +208,15 @@ void main() {
                     end_outer_offset = -inner_offset_BCD;
                     end_outer_third_offset = -DC_dir + DC_dir_r;
                 }
-                third_sdf_side = dot(end_outer_third_offset, CB_dir_r) * width;
+                third_sdf_side = dot(end_outer_third_offset, CB_dir_r) * width_pixel;
 
-                sdf_end = vec3(dot(end_inner_offset,CB_dir),dot(end_outer_offset,CB_dir),dot(end_outer_third_offset,CB_dir)) * width;
+                sdf_end = vec3(dot(end_inner_offset,CB_dir),dot(end_outer_offset,CB_dir),dot(end_outer_third_offset,CB_dir)) * width_pixel;
                 sdf_end += distances.y;
             }
         }
     }
     /*
-    vec2 length_conversion = 2.0 / WH * width;
+    vec2 length_conversion = 2.0 / WH * width_pixel;
     float reverse = unpackUnorm4x8(in_color_types[i+2u]).a != 0.0 ? -1.0 : 1.0;
     out_position_distances[output_i]    = vec4(fma(length_conversion,begin_inner_offset    ,B4.xy), B4.z, reverse * (distace_B + sdf_begin.x));
     out_position_distances[output_i+1u] = vec4(fma(length_conversion,begin_outer_offset    ,B4.xy), B4.z, reverse * (distace_B + sdf_begin.y));
@@ -228,13 +224,13 @@ void main() {
     out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_outer_offset      ,C4.xy), C4.z, reverse * (distace_B + sdf_end.y));
     out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_outer_third_offset,C4.xy), C4.z, reverse * (distace_B + sdf_end.z));
 
-    out_sdf[output_i]    = vec4(width,sdf_begin.x       ,width,distances.y);
-    out_sdf[output_i+1u] = vec4(-width,sdf_begin.y      ,width,distances.y);
-    out_sdf[output_i+2u] = vec4(width,sdf_end.x         ,width,distances.y);
-    out_sdf[output_i+3u] = vec4(-width,sdf_end.y        ,width,distances.y);
-    out_sdf[output_i+4u] = vec4(third_sdf_side,sdf_end.z,width,distances.y);
+    out_sdf[output_i]    = vec4(width_pixel,sdf_begin.x       ,width_pixel,distances.y);
+    out_sdf[output_i+1u] = vec4(-width_pixel,sdf_begin.y      ,width_pixel,distances.y);
+    out_sdf[output_i+2u] = vec4(width_pixel,sdf_end.x         ,width_pixel,distances.y);
+    out_sdf[output_i+3u] = vec4(-width_pixel,sdf_end.y        ,width_pixel,distances.y);
+    out_sdf[output_i+4u] = vec4(third_sdf_side,sdf_end.z,width_pixel,distances.y);
     */
-    vec2 length_conversion = 2.0 / WH * width;
+    vec2 length_conversion = 2.0 / WH * width_pixel;
     float reverse = unpackUnorm4x8(in_color_types[i+2u]).a != 0.0 ? -1.0 : 1.0;
 
     float dz_per_px = distances.y > 0.0 ? (C4.z - B4.z) / distances.y : 0.0;
@@ -250,13 +246,13 @@ void main() {
     out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_outer_offset      ,C4.xy), z3, reverse * (distace_B + sdf_end.y));
     out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_outer_third_offset,C4.xy), z4, reverse * (distace_B + sdf_end.z));
 
-    out_sdf[output_i]    = vec4(width,sdf_begin.x       ,width,distances.y);
-    out_sdf[output_i+1u] = vec4(-width,sdf_begin.y      ,width,distances.y);
-    out_sdf[output_i+2u] = vec4(width,sdf_end.x         ,width,distances.y);
-    out_sdf[output_i+3u] = vec4(-width,sdf_end.y        ,width,distances.y);
-    out_sdf[output_i+4u] = vec4(third_sdf_side,sdf_end.z,width,distances.y);
+    out_sdf[output_i]    = vec4(width_pixel,sdf_begin.x       ,width_pixel,distances.y);
+    out_sdf[output_i+1u] = vec4(-width_pixel,sdf_begin.y      ,width_pixel,distances.y);
+    out_sdf[output_i+2u] = vec4(width_pixel,sdf_end.x         ,width_pixel,distances.y);
+    out_sdf[output_i+3u] = vec4(-width_pixel,sdf_end.y        ,width_pixel,distances.y);
+    out_sdf[output_i+4u] = vec4(third_sdf_side,sdf_end.z,width_pixel,distances.y);
 
-    float radius_conversion = 1.0 / width_p_0_0.y * width / width_p_0_0.x;
+    float radius_conversion = 1.0 / P[0][0] * width_pixel / width();
     float dw_per_px = distances.y > 0.0 ? (C4.w - B4.w) / distances.y : 0.0;
     out_radius[output_i]    = (B4.w + sdf_begin.x * dw_per_px) * radius_conversion;
     out_radius[output_i+1u] = (B4.w + sdf_begin.y * dw_per_px) * radius_conversion;

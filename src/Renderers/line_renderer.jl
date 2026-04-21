@@ -80,14 +80,12 @@ mutable struct LineRenderer
         updated::UInt32 = 0
         emptyVAO = VertexArray()
 
-        shader_predraw = ShaderProgram(["renderers/line/line.comp"],["VP","WH","Eye","lightDirCam","lightDirSide","offset","width_p_0_0"])
+        shader_predraw = ShaderProgram(["renderers/line/line.comp"],["offset"])
         shaders_opaque = Vector{ShaderProgram}()
         shaders_transparent = Vector{ShaderProgram}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
-        uniforms_opaque = ["P"#=,"near_far"=#]
-        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])],uniforms_opaque)) end
-        uniforms_transparent = ["P"#=,"near_far"=#,"width"]
-        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT"])],uniforms_transparent)) end
+        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
+        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT"])])) end
         
         # Static
 
@@ -467,13 +465,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     (cam_light, side_light) = get_lights(cam)
     activate(self.shader_predraw)
-    uniform(self.shader_predraw,"VP",vp)
-    uniform(self.shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    uniform(self.shader_predraw,"Eye",cam._eye)
-    uniform(self.shader_predraw,"lightDirCam", cam_light)
-    uniform(self.shader_predraw,"lightDirSide",side_light)
     uniform(self.shader_predraw,"offset",UInt32(0))
-    uniform(self.shader_predraw,"width_p_0_0",Vec2F(Float32(shrd._width),p[1][1]))
     @time_gpu_begin Renderer Line Pre_Draw Static
     glDispatchCompute(cld(length(self.coords_widths),32),1,1);
     @time_gpu_end Renderer Line Pre_Draw Static
@@ -493,12 +485,6 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     (cam_light, side_light) = get_lights(cam)
     activate(self.shader_predraw)
-    uniform(self.shader_predraw,"VP",vp)
-    uniform(self.shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    uniform(self.shader_predraw,"Eye",cam._eye)
-    uniform(self.shader_predraw,"lightDirCam", cam_light)
-    uniform(self.shader_predraw,"lightDirSide",side_light)
-    uniform(self.shader_predraw,"width_p_0_0",Vec2F(Float32(shrd._width),p[1,1]))
 
     prev_offset::UInt32 = 0
     offset::UInt32 = 0
@@ -536,17 +522,16 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     glDeleteSync(self.gpu_gpu_sync);
 
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,1)
-    bind_ssbo(self.color_buffer_out,2)
-    bind_ssbo(self.light_buffer_out,3)
-    bind_ssbo(self.sdf_buffer_out,4)
-    bind_ssbo(self.radius_buffer_out,5)
+    bind_ssbo(self.position_distance_buffer_out,0)
+    bind_ssbo(self.color_buffer_out,1)
+    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.sdf_buffer_out,3)
+    bind_ssbo(self.radius_buffer_out,4)
     @time_gpu_begin Renderer Line Opaque Static
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
-        uniform(self.shaders_opaque[type],"P", p)
         #uniform(self.shaders_opaque[type],"near_far", near_far)
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
@@ -558,17 +543,16 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     glDeleteSync(self.gpu_gpu_sync_dynamic);
 
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
-    bind_ssbo(self.color_buffer_out_dynamic,2)
-    bind_ssbo(self.light_buffer_out_dynamic,3)
-    bind_ssbo(self.sdf_buffer_out_dynamic,4)
-    bind_ssbo(self.radius_buffer_out_dynamic,5)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
+    bind_ssbo(self.color_buffer_out_dynamic,1)
+    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.sdf_buffer_out_dynamic,3)
+    bind_ssbo(self.radius_buffer_out_dynamic,4)
     @time_gpu_begin Renderer Line Opaque Dynamic
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
-        uniform(self.shaders_opaque[type],"P", p)
         #uniform(self.shaders_opaque[type],"near_far", near_far)
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
@@ -587,34 +571,32 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     if (any(x -> x[2] != 0, self.draw_ranges))
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,1)
-    bind_ssbo(self.color_buffer_out,2)
-    bind_ssbo(self.light_buffer_out,3)
-    bind_ssbo(self.sdf_buffer_out,4)
-    bind_ssbo(self.radius_buffer_out,5)
+    bind_ssbo(self.position_distance_buffer_out,0)
+    bind_ssbo(self.color_buffer_out,1)
+    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.sdf_buffer_out,3)
+    bind_ssbo(self.radius_buffer_out,4)
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         behind_type = Int(_LINE_TYPE_BEHIND[type])
         activate(self.shaders_opaque[behind_type])
-        uniform(self.shaders_opaque[behind_type],"P", p)
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
 
     if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
-    bind_ssbo(self.color_buffer_out_dynamic,2)
-    bind_ssbo(self.light_buffer_out_dynamic,3)
-    bind_ssbo(self.sdf_buffer_out_dynamic,4)
-    bind_ssbo(self.radius_buffer_out_dynamic,5)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
+    bind_ssbo(self.color_buffer_out_dynamic,1)
+    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.sdf_buffer_out_dynamic,3)
+    bind_ssbo(self.radius_buffer_out_dynamic,4)
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         behind_type = Int(_LINE_TYPE_BEHIND[type])
         activate(self.shaders_opaque[behind_type])
-        uniform(self.shaders_opaque[behind_type],"P", p)
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
@@ -631,17 +613,16 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,1)
-    bind_ssbo(self.color_buffer_out,2)
-    bind_ssbo(self.light_buffer_out,3)
-    bind_ssbo(self.sdf_buffer_out,4)
+    bind_ssbo(self.position_distance_buffer_out,0)
+    bind_ssbo(self.color_buffer_out,1)
+    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.sdf_buffer_out,3)
+    bind_ssbo(self.radius_buffer_out,4)
     @time_gpu_begin Renderer Line Transparent Static
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
-        uniform(self.shaders_transparent[type],"P", p)
-        uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Transparent Static
@@ -650,17 +631,16 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
 
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
-    bind_ssbo(self.color_buffer_out_dynamic,2)
-    bind_ssbo(self.light_buffer_out_dynamic,3)
-    bind_ssbo(self.sdf_buffer_out_dynamic,4)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
+    bind_ssbo(self.color_buffer_out_dynamic,1)
+    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.sdf_buffer_out_dynamic,3)
+    bind_ssbo(self.radius_buffer_out_dynamic,4)
     @time_gpu_begin Renderer Line Transparent Dynamic
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
-        uniform(self.shaders_transparent[type],"P", p)
-        uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Transparent Dynamic

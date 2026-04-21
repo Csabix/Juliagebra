@@ -1,18 +1,18 @@
 #version 460 core
 
-restrict readonly layout(std430, binding = 1) buffer PositionTotalDistanceBuffer {
+restrict readonly layout(std430, binding = 0) buffer PositionTotalDistanceBuffer {
 	vec4 position_total_distance_in[];
 };
-restrict readonly layout(std430, binding = 2) buffer ColorBuffer {
+restrict readonly layout(std430, binding = 1) buffer ColorBuffer {
 	uvec2 color_in[];
 };
-restrict readonly layout(std430, binding = 3) buffer LightDirBuffer {
+restrict readonly layout(std430, binding = 2) buffer LightDirBuffer {
 	vec4 light_dir_in[];
 };
-restrict readonly layout(std430, binding = 4) buffer SDFBuffer {
+restrict readonly layout(std430, binding = 3) buffer SDFBuffer {
 	vec4 sdf_in[];
 };
-restrict readonly layout(std430, binding = 5) buffer RadiusBuffer {
+restrict readonly layout(std430, binding = 4) buffer RadiusBuffer {
 	float radius_in[];
 };
 

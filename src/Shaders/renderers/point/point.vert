@@ -18,7 +18,7 @@ void main() {
     radius_out = (p.w / P[0][0]) * (gl_PointSize / width());
     float clip_z = (z_view_out + radius_out) * P[2][2] + P[3][2];
     float clip_w = (z_view_out + radius_out) * P[2][3] + P[3][3];
-    gl_Position = vec4(p.xy,clip_z,clip_w);
+    gl_Position = vec4(p.xy/p.w,clip_z/clip_w,1.0);
     color_out = color_size_in.rgb;
     color_inv_out = vec3(1.0) - color_size_in.rgb;
     type_id_out = type_id_in;

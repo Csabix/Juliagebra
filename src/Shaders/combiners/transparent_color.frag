@@ -53,7 +53,6 @@ void sort4(inout uvec2 dist_col[4]) {
 void main() {
     const uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
     uvec2 dist_col[4] = data[pixelIdx].dist_col;
-    if (dist_col[0].x == uint(0)) discard;
     sort4(dist_col);
 
     frag = vec4(0.0);

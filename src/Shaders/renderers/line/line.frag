@@ -8,7 +8,7 @@
 #define FRONT 0.2
 #define SIDE 0.8
 
-#ifdef TRANSPARENT
+#ifdef TRANSPARENT_WEIGHTED_ONLY
 #define DISCARD alpha > 0.7
 #else
 #define DISCARD alpha <= 0.7
@@ -90,22 +90,13 @@ float pattern() {
 }
 #endif
 
-#ifdef TRANSPARENT
-float pow4(float val) {
-    return val * val * val * val;
-}
-#endif
-
 void main() {
     float d = pattern();
     float alpha = 1.0 - smoothstep(max(-0.4*segment_SDF_field_in.z,-4.0), 0.0, d);
     alpha = alpha >= 0.9 ? 1.0 : alpha;
     d = max(d, rounding());
 
-    if (d > 0.0) discard;
-#ifdef TRANSPARENT
-    if (DISCARD) discard;
-#endif
+    if (d > 0.0 || DISCARD) discard;
     /*
     float r2 = segment_SDF_field_in.x / segment_SDF_field_in.z; r2 *= r2;
     float z_offset = sqrt(1.0 - r2);

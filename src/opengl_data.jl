@@ -278,7 +278,7 @@ function _behind_opaque(self::OpenGLData,cam::Camera)::Nothing
 end
 
 function _transparent(self::OpenGLData,cam::Camera)
-    glDepthMask(GL_FALSE)::Nothing
+    glDisable(GL_DEPTH_TEST)::Nothing
     glEnable(GL_BLEND)::Nothing
     glDisable(GL_CULL_FACE)::Nothing
     glBlendFunci(0, GL_ONE, GL_ONE)::Nothing
@@ -296,8 +296,10 @@ function _transparent(self::OpenGLData,cam::Camera)
     activate(self._depthstencilTexture,GL_TEXTURE12)
     transparent(self._renderers,cam,self._shrd)
     
+    glEnable(GL_DEPTH_TEST)
     glEnable(GL_CULL_FACE)
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE)
     
     activate(self._opaqueFBO)
     activate(self._empty_VAO)

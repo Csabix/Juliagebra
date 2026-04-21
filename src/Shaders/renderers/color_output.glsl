@@ -1,6 +1,6 @@
 #ifndef COLOR_OUTPUT
 #define COLOR_OUTPUT
-#if defined(TRANSPARENT) || defined (TRANSPARENT_WEIGHTED_ONLY)
+#if defined(TRANSPARENT)
 #extension GL_ARB_fragment_shader_interlock : require
 layout(pixel_interlock_unordered) in;
 #endif
@@ -14,7 +14,7 @@ layout(pixel_interlock_unordered) in;
 #define FRONT 0.2
 #define SIDE 0.8
 
-#if defined(TRANSPARENT) || defined (TRANSPARENT_WEIGHTED_ONLY)
+#if defined(TRANSPARENT)
 
 struct PixelData {
     uvec2 dist_col[4];
@@ -24,6 +24,11 @@ struct PixelData {
 coherent layout(std430, binding = 11) buffer PixelDataBuffer {
     PixelData _pixel_data[];
 };
+
+layout(location = 0) out vec4  _accum;
+layout(location = 1) out float _reveal;
+
+#elif defined(TRANSPARENT_WEIGHTED_ONLY)
 
 layout(location = 0) out vec4  _accum;
 layout(location = 1) out float _reveal;
@@ -83,24 +88,18 @@ _accum = vec4(color.rgb * color.a, color.a) * _weight;                          
 _reveal = color.a;
 
 #elif defined(TRANSPARENT_WEIGHTED_ONLY)
+layout(binding = 12) uniform sampler2D _depth_tex;
 
-#define WRITE_COLOR(color, id, depth)                                           \
-uint _pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width_u();       \
-uint _packedColor = packUnorm4x8(color);                                        \
-                                                                                \
-beginInvocationInterlockARB();                                                  \
-const float _dist_id_x = _pixel_data[pixelIdx].dist_id.x;                       \
-if (_dist_id_x == uint(0) || _dist_id_x > floatBitsToUint(depth))               \
-    _pixel_data[pixelIdx].dist_id = uvec2(floatBitsToUint(depth),id);           \
-endInvocationInterlockARB();                                                    \
-                                                                                \
-float _d = depth / 200;                                                         \
-float _d4 = _d*_d*_d*_d;                                                        \
-                                                                                \
-float _weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *   \
-           clamp(0.03 / (1e-5 + _d4), 1e-2, 3e3);                               \
-                                                                                \
-_accum = vec4(color.rgb * color.a, color.a) * _weight;                          \
+#define WRITE_COLOR(color, id, depth)                                                           \
+if (depth > texelFetch(_depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;                       \
+                                                                                                \
+float _d = depth / 200;                                                                         \
+float _d4 = _d * _d * _d * _d;                                                                  \
+                                                                                                \
+float _weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *                   \
+           clamp(0.03 / (1e-5 + _d4), 1e-2, 3e3);                                               \
+                                                                                                \
+_accum = vec4(color.rgb * color.a, color.a) * _weight;                                          \
 _reveal = color.a;
 
 #else

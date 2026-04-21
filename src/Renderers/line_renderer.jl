@@ -85,7 +85,7 @@ mutable struct LineRenderer
         shaders_transparent = Vector{ShaderProgram}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
         for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
-        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT"])])) end
+        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])])) end
         
         # Static
 

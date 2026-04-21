@@ -20,12 +20,12 @@ for i in 1:10
 end
 
 segment_types = [
-    CURVE_SOLID, 
-    CURVE_DASHED, 
-    CURVE_DOTTED, 
-    CURVE_WAVE, 
-    CURVE_DASH_DOT, 
-    CURVE_ARROW
+    SOLID, 
+    DASHED, 
+    DOTTED, 
+    WAVE, 
+    DASH_DOT, 
+    ARROW
 ]
 
 for stype in segment_types
@@ -36,4 +36,4 @@ for stype in segment_types
     end
 end
 
-play!()
+Juliagebra.wait()

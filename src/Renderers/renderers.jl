@@ -61,13 +61,13 @@ function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::N
     return nothing
 end
 
-function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+function opaque_occluder(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
     opaque(renderers.sphere,cam,shrd)
     opaque(renderers.triangle,cam,shrd)
     return nothing
 end
 
-function opaque_lines(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
     opaque(renderers.line,cam,shrd)
     opaque(renderers.point,cam,shrd)
     return nothing

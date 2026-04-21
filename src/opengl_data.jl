@@ -243,33 +243,34 @@ function _opaque(self::OpenGLData,cam::Camera)::Nothing
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
     clear_value = SVector{4, UInt32}(0, 0, 0, 0)
     glClearBufferuiv(GL_COLOR, 1, clear_value)
+    
+    opaque_occluder(self._renderers,cam,self._shrd)
 
     glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-    # TODO
     glEnable(GL_STENCIL_TEST)
     opaque(self._renderers,cam,self._shrd)
     glDisable(GL_STENCIL_TEST)
     return nothing
 end
 
-function _opaque_lines(self::OpenGLData,cam::Camera)::Nothing
-    activate(self._opaqueFBO)
-    glStencilFunc(GL_ALWAYS, 1, 0xFF)
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-    glEnable(GL_STENCIL_TEST)
-    opaque_lines(self._renderers,cam,self._shrd)
-    glDisable(GL_STENCIL_TEST)
-    return nothing
-end
-
 function _behind_opaque(self::OpenGLData,cam::Camera)::Nothing
-    activate(self._opaqueFBO)
-    glDepthFunc(GL_GREATER)
-    glDepthMask(GL_FALSE)
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, self._opaqueFBO._id)
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._behindOpaqueFBO._id)
+    glBlitFramebuffer(
+        0, 0, self._shrd._width, self._shrd._height,
+        0, 0, self._shrd._width, self._shrd._height,
+        GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, 
+        GL_NEAREST
+    )
+    activate(self._behindOpaqueFBO)
+    glClear(GL_DEPTH_BUFFER_BIT)
+    glStencilFunc(GL_GREATER, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+
+    glEnable(GL_STENCIL_TEST);
     behind_opaque(self._renderers,cam,self._shrd)
-    glDepthMask(GL_TRUE)
-    glDepthFunc(GL_LEQUAL)
+    glDisable(GL_STENCIL_TEST);
     return nothing
 end
 
@@ -361,7 +362,6 @@ function update!(self::OpenGLData,cam::Camera)
     pre_draw(self._renderers,cam,self._shrd)
     _opaque(self,cam)
     _behind_opaque(self,cam)
-    _opaque_lines(self,cam)
     _transparent(self,cam)
     _widgets(self,cam)
 

@@ -36,7 +36,10 @@ layout(location = 1) out uint _id_out;
 #endif
 
 #if defined(TRANSPARENT)
+layout(binding = 12) uniform sampler2D _depth_tex;
+
 #define WRITE_COLOR(color, id, depth)                                                           \
+if (depth > texelFetch(_depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;                       \
 uint _pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width_u();                       \
 uint _packedColor = packUnorm4x8(color);                                                        \
                                                                                                 \

@@ -45,6 +45,17 @@ function color_edit3(color::Vec3F, label::String)::Union{Vec3F,Nothing}
     return nothing
 end
 
+function color_edit4(color::Vec4F, label::String)::Union{Vec4F,Nothing}
+    col = Float32[color[1], color[2], color[3], color[4]]
+    flags = CImGui.ImGuiColorEditFlags_NoInputs |
+        CImGui.ImGuiColorEditFlags_AlphaBar     |
+        CImGui.ImGuiColorEditFlags_NoLabel
+    if CImGui.ColorEdit4(label, col, flags)
+        return Vec4F(col[1], col[2], col[3], col[4])
+    end
+    return nothing
+end
+
 function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::Union{String,Nothing}
     result::Union{String,Nothing} = nothing
     buf = Vector{UInt8}(undef,buf_size)

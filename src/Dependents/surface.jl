@@ -13,8 +13,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
     _uRange::Range
     _vRange::Range
 
-    _color::Vec3F
-    _transparent::Bool
+    _color::Vec4F
 
     # YELLOW Thread
     function ParametricSurfaceDependent(
@@ -35,7 +34,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
             0,
             uRange,
             vRange,
-            color,transparent)
+            Vec4F(color...,transparent ? 0.5f0 : 1.0f0))
     end
 end
 
@@ -191,12 +190,11 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
 
     aID = UInt32(getGraphID(surface) + ID_LOWER_BOUND)
     coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,layers(self._vertexes))
-    alpha = surface._transparent ? 0.5f0 : 1.0f0
     ref = add!(
         self._renderers.triangle,
         coords,
         mat4(1.0f0),
-        Vec4F(surface._color[1],surface._color[2],surface._color[3],alpha),
+        surface._color,
         aID)
     push!(self._refs, ref)
 end
@@ -209,7 +207,7 @@ function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepende
     coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,layers(self._vertexes))
     ref = self._refs[surface._layer]
     update_coords!(self._renderers.triangle,ref,coords)
-    update_color!(self._renderers.triangle,ref,surface._color,surface._transparent)
+    update_color!(self._renderers.triangle,ref,surface._color)
 end
 
 # ! Must have

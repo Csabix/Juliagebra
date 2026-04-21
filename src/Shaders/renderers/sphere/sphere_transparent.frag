@@ -7,7 +7,6 @@ flat layout(location = 1) in uint id_in;
 flat layout(location = 2) in vec3 center_in;
 flat layout(location = 3) in float radius_in;
 
-layout(binding = 12) uniform sampler2D depth_tex;
 uniform float fov;
 uniform float near;
 
@@ -92,8 +91,6 @@ void main(){
     vec4 vpPos = VP * vec4(spherePos,1.0); 
     float depth = (vpPos.xyzw / vpPos.w).z;
     depth = (depth + 1.0) / 2.0;
-
-    //if (depth > texelFetch(depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;
 
     rs.n = near == 1.0 ? rs.n : -rs.n;
     float diffuse = (max(dot(rs.n,light_cam()),0.0) * 0.3 + max(dot(rs.n,light_side()),0.0) * 0.7) * 0.8;

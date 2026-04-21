@@ -20,7 +20,6 @@ function renderContent(self::SurfacesWindow)
     CImGui.TableSetupScrollFreeze(0, 1)
     CImGui.TableSetupColumn("ID",          col_flags, 28.0)
     CImGui.TableSetupColumn("Color")
-    CImGui.TableSetupColumn("Transparent", col_flags, 90.0)
     CImGui.TableHeadersRow()
 
     for node in getNodes(self._graph)
@@ -33,16 +32,9 @@ function renderContent(self::SurfacesWindow)
         CImGui.Text("$id")
 
         CImGui.TableNextColumn()
-        new_color = color_edit3(node._color, "##scol$id")
+        new_color = color_edit4(node._color, "##scol$id")
         if new_color !== nothing
             node._color = new_color
-            afterNodeEval(node)
-        end
-
-        CImGui.TableNextColumn()
-        transp_ref = Ref(node._transparent)
-        if CImGui.Checkbox("##st$id", transp_ref)
-            node._transparent = transp_ref[]
             afterNodeEval(node)
         end
     end

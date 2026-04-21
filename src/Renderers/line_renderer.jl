@@ -14,6 +14,8 @@ function get_type_reversed(line_type::UInt8)::Tuple{UInt8,Bool}
     return line_type & ~mask, (line_type & mask) == mask
 end
 
+const _LINE_TYPE_BEHIND = UInt8[DASHED, DOTTED, DOTTED, DOTTED, DOTTED, DASHED]
+
 const _LINE_UPDATED_COORD_WIDTH::UInt32 = 1
 const _LINE_UPDATED_COLOR_TYPE::UInt32 = 2
 const _LINE_UPDATED_COORD_WIDTH_DYNAMIC::UInt32 = 4
@@ -294,7 +296,7 @@ function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::
     push!(self.color_type, UInt32(0))
 
     push!(self.ranges,tuple(first,last,Int(type)))
-    return UInt32(first)
+    return UInt32(length(self.ranges))
 end
 
 function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::UInt32
@@ -362,7 +364,8 @@ function added_all!(self::LineRenderer)::Nothing
 end
 
 function update_coords!(self::LineRenderer,ref::UInt32,coords,width::Float32)
-    coords_widths_view = view(self.coords_widths, ref:UInt32(ref + length(coords) - 1))
+    first = self.ranges[ref][1]
+    coords_widths_view = view(self.coords_widths, first:UInt32(first + length(coords) - 1))
     copyto!(coords_widths_view,(Vec4F(coord...,width) for coord in coords))
     self.updated |= _LINE_UPDATED_COORD_WIDTH
 end
@@ -386,11 +389,36 @@ function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width:
     push!(self.update_list, ref)
 end
 
+function update_color_type!(self::LineRenderer, ref::UInt32, color::UInt32, n::Int)
+    first = self.ranges[ref][1]
+    for i in 0:(n-1)
+        old = self.color_type[first + i]
+        reversed_bit = old & (UInt32(0xff) << 24)
+        self.color_type[first + i] = (color & ~(UInt32(0xff) << 24)) | reversed_bit
+    end
+    self.updated |= _LINE_UPDATED_COLOR_TYPE
+end
+
+function update_type!(self::LineRenderer, ref::UInt32, new_type::UInt8)
+    (new_type_clean, reversed) = get_type_reversed(new_type)
+    (first, last, _) = self.ranges[ref]
+    for i in first:last
+        old_color = self.color_type[i] & ~(UInt32(0xff) << 24)
+        self.color_type[i] = pack_color_reversed(old_color, reversed)
+    end
+    self.ranges[ref] = (first, last, Int(new_type_clean))
+    _sort_lines!(self)
+    self.updated |= _LINE_UPDATED_COORD_WIDTH | _LINE_UPDATED_COLOR_TYPE
+end
+
 function sync_all!(self::LineRenderer)::Nothing
     if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0 || (self.updated & _LINE_UPDATED_COLOR_TYPE) != 0
         wait(self.distance_buffer_in)
         if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0
             copyto!(self.position_width_buffer_in, self.coords_widths)
+        end
+        if (self.updated & _LINE_UPDATED_COLOR_TYPE) != 0
+            upload!(self.color_type_buffer_in, self.color_type, 0)
         end
     end
     if length(self.update_list) != 0
@@ -550,7 +578,56 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
+function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    (_, _, p) = get_matrices(cam)
+    glEnable(GL_BLEND)
+    glBlendColor(0.0, 0.0, 0.0, 0.4)
+    glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA)
+    glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+
+    if (any(x -> x[2] != 0, self.draw_ranges))
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out,1)
+    bind_ssbo(self.color_buffer_out,2)
+    bind_ssbo(self.light_buffer_out,3)
+    bind_ssbo(self.sdf_buffer_out,4)
+    bind_ssbo(self.radius_buffer_out,5)
+    for type in 1:_LINE_TYPE_COUNT
+        (first,count) = self.draw_ranges[type]
+        if count == 0 continue end
+        behind_type = Int(_LINE_TYPE_BEHIND[type])
+        activate(self.shaders_opaque[behind_type])
+        uniform(self.shaders_opaque[behind_type],"P", p)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+    end
+    end
+
+    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
+    activate(self.emptyVAO)
+    bind_ssbo(self.position_distance_buffer_out_dynamic,1)
+    bind_ssbo(self.color_buffer_out_dynamic,2)
+    bind_ssbo(self.light_buffer_out_dynamic,3)
+    bind_ssbo(self.sdf_buffer_out_dynamic,4)
+    bind_ssbo(self.radius_buffer_out_dynamic,5)
+    for type in 1:_LINE_TYPE_COUNT
+        (first,count) = self.draw_ranges_dynamic[type]
+        if count == 0 continue end
+        behind_type = Int(_LINE_TYPE_BEHIND[type])
+        activate(self.shaders_opaque[behind_type])
+        uniform(self.shaders_opaque[behind_type],"P", p)
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+    end
+    end
+
+    glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glDisable(GL_BLEND)
+    return nothing
+end
+
 function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    (_, _, p) = get_matrices(cam)
+
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)
@@ -563,6 +640,7 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"P", p)
         uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
@@ -581,6 +659,7 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"P", p)
         uniform(self.shaders_transparent[type],"width",UInt32(shrd._width))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end

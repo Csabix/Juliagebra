@@ -94,6 +94,14 @@ function color_line_combined(color_style::String)::Tuple{UInt32,UInt8}
     end
 end
 
+function get_color_vec3f(color)::Vec3F
+    packed = get_color(color)
+    return Vec3F(Float32( packed        & 0xff) / 255.0f0,
+                 Float32((packed >>  8) & 0xff) / 255.0f0,
+                 Float32((packed >> 16) & 0xff) / 255.0f0)
+end
+get_color_vec3f(color::Vec3F) = color
+
 function parse_line_style_colors(color_style::Union{Nothing,String},color,style)::Tuple{UInt8,Vector{UInt32}}
     if isnothing(color_style)
         return get_style(style), get_colors(color)

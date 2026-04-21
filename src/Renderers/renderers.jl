@@ -62,19 +62,26 @@ function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::N
 end
 
 function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    opaque(renderers.point,cam,shrd)
-    opaque(renderers.line,cam,shrd)
     opaque(renderers.sphere,cam,shrd)
     opaque(renderers.triangle,cam,shrd)
     return nothing
 end
 
+function opaque_lines(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    opaque(renderers.line,cam,shrd)
+    opaque(renderers.point,cam,shrd)
+    return nothing
+end
+
 function behind_opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
+    behind_opaque(renderers.line,cam,shrd)
+    behind_opaque(renderers.point,cam,shrd)
     return nothing
 end
 
 function transparent(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    #transparent(renderers.line,cam,shrd)
+    transparent(renderers.line,cam,shrd)
     transparent(renderers.sphere,cam,shrd)
+    transparent(renderers.triangle,cam,shrd)
     return nothing
 end

@@ -10,15 +10,17 @@ struct TriangleRenderer
     color_ids::Vector{Vec2T{UInt32}}
 
     update_normals::Vector{UInt32}
+    color_updates::Vector{UInt32}
 
     function TriangleRenderer()
         calc_normals = ShaderProgram(["renderers/triangle/triangle_normal.comp"])
         opaque = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["M","MIT"])
-        transparent = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["M","MIT"])
+        transparent = ShaderProgram(["renderers/triangle/triangle.vert",("renderers/triangle/triangle.frag",["TRANSPARENT"])],["M","MIT"])
 
         new(calc_normals,opaque,transparent,
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
             Vector{Mat4T{Float32}}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),
+            Vector{UInt32}(),
             Vector{UInt32}()
         )
     end
@@ -36,6 +38,19 @@ function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::Vec3F,
     push!(self.matrices, matrix)
     push!(self.color_ids,UVec2(packUnorm4x8(color)::UInt32,id))
     return UInt32(length(self.coords))
+end
+
+function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::Vec4F,id::UInt32)::UInt32
+    push!(self.coords, collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords)))
+    push!(self.matrices, matrix)
+    push!(self.color_ids,UVec2(packUnorm4x8(color)::UInt32,id))
+    return UInt32(length(self.coords))
+end
+
+function update_color!(self::TriangleRenderer, ref::UInt32, color::Vec4F)
+    id_val = self.color_ids[ref][2]
+    self.color_ids[ref] = Vec2T{UInt32}(packUnorm4x8(color), id_val)
+    push!(self.color_updates, ref)
 end
 
 function _triangle_renderer_buffer_array()
@@ -85,6 +100,13 @@ function sync_all!(self::TriangleRenderer)::Nothing
             upload!(buffer,1,self.coords[i])
         end
     end
+    for i in self.color_updates
+        buffer = self.buffers[i]
+        N = length(self.coords[i])
+        if N > 0
+            glClearNamedBufferSubData(id(buffer[3]),GL_RG32UI,0,N * sizeof(Vec2T{UInt32}), GL_RG_INTEGER, GL_UNSIGNED_INT, self.color_ids[i])
+        end
+    end
     return nothing
 end
 
@@ -101,18 +123,35 @@ end
 
 function opaque(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
     if isempty(self.coords) return nothing end
-    if !isempty(self.update_normals)
+    if !isempty(self.update_normals) || !isempty(self.color_updates)
         glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
         empty!(self.update_normals)
+        empty!(self.color_updates)
     end
 
     glDisable(GL_CULL_FACE)
-    
+
     activate(self.shader_opaque)
     for i in 1:length(self.buffers)
         if !is_packed_opaque(self.color_ids[i][1]) || length(self.buffers[i]) == 0 continue end
         uniform(self.shader_opaque,"M",self.matrices[i])
         uniform(self.shader_opaque,"MIT",inv(transpose(self.matrices[i])))
+        draw(self.buffers[i],GL_TRIANGLES)
+    end
+
+    glEnable(GL_CULL_FACE)
+    return nothing
+end
+
+function transparent(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
+    if isempty(self.coords) return nothing end
+    glDisable(GL_CULL_FACE)
+
+    activate(self.shader_transparent)
+    for i in 1:length(self.buffers)
+        if is_packed_opaque(self.color_ids[i][1]) || length(self.buffers[i]) == 0 continue end
+        uniform(self.shader_transparent,"M",self.matrices[i])
+        uniform(self.shader_transparent,"MIT",inv(transpose(self.matrices[i])))
         draw(self.buffers[i],GL_TRIANGLES)
     end
 

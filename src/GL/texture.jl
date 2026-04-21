@@ -37,5 +37,5 @@ resize!(self::Texture2D,width::Int,height::Int) = (self._width = width; self._he
 destroy!(self::Texture2D)::Nothing = glDeleteTextures(1,[self._id])
 
 createRGBATexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
-createIDTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_R32I,GL_RED_INTEGER,GL_UNSIGNED_INT)
+createIDTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT)
 createDepthTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)

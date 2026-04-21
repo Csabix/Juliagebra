@@ -150,7 +150,7 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
     if event.press
         if event.button == MOUSE_BUTTON_RIGHT
             self._shrd._pickedID = id
-            if id > 3
+            if id > 3 && id <= UInt32(3 + length(getNodes(self._graph)))
                 p = self._graph[self._shrd._pickedID]
                 if isa(p, PointDependent)
                     pp::PointDependent = p

@@ -106,7 +106,13 @@ end
 # GREEN Thread
 function sync!(self::Curves,curve::ParametricCurveDependent)
     ref = self._refs[getObserverID(curve)]
+    (_, _, cur_type) = self._renderers.line.ranges[ref]
+    (new_type_clean, _) = get_type_reversed(curve._type)
+    if cur_type != Int(new_type_clean)
+        update_type!(self._renderers.line, ref, curve._type)
+    end
     update_coords!(self._renderers.line,ref,curve._tValues,curve._width)
+    update_color_type!(self._renderers.line,ref,curve._colors[1],length(curve._tValues))
 end
 
 # GREEN Thread

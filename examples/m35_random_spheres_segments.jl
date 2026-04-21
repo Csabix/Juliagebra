@@ -36,4 +36,4 @@ for stype in segment_types
     end
 end
 
-Juliagebra.wait()
+Juliagebra.Wait()

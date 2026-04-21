@@ -107,9 +107,9 @@ mutable struct PointRenderer
 
     function PointRenderer()
         uniforms_opaque = String["selected_id","picked_id","light_dir_side_view"]
-        shader        = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE)],        uniforms_opaque)
         uniforms_behind = String["selected_id","picked_id"]
-        shader_behind = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",OPAQUE_BEHIND)], uniforms_behind)
+        shader = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag")], uniforms_opaque)
+        shader_behind = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",["OPAQUE_BEHIND"])], uniforms_behind)
         return new(shader, shader_behind, PointsData[PointsData()], UInt8[0x0])
     end
 end

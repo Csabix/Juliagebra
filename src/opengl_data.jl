@@ -247,12 +247,12 @@ function _opaque(self::OpenGLData,cam::Camera)::Nothing
     clear_value = SVector{4, UInt32}(0, 0, 0, 0)
     glClearBufferuiv(GL_COLOR, 1, clear_value)
     
-    opaque_occluder(self._renderers,cam,self._shrd)
+    opaque(self._renderers,cam,self._shrd)
 
     glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
     glEnable(GL_STENCIL_TEST)
-    opaque(self._renderers,cam,self._shrd)
+    opaque_occluder(self._renderers,cam,self._shrd)
     glDisable(GL_STENCIL_TEST)
     return nothing
 end
@@ -268,7 +268,7 @@ function _behind_opaque(self::OpenGLData,cam::Camera)::Nothing
     )
     activate(self._behindOpaqueFBO)
     glClear(GL_DEPTH_BUFFER_BIT)
-    glStencilFunc(GL_GREATER, 1, 0xFF);
+    glStencilFunc(GL_LESS, 0, 0xFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
 
     glEnable(GL_STENCIL_TEST);

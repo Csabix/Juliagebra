@@ -1,7 +1,6 @@
 #version 460 core
-<BEHIND_DEFINE>
-layout (depth_greater) out float gl_FragDepth;
 #include "../color_output.glsl"
+layout (depth_greater) out float gl_FragDepth;
 #define PI 3.1415926538
 
 layout(location = 0) flat in vec3 color_in;
@@ -27,7 +26,7 @@ void main() {
     vec2 coord = gl_PointCoord * 2.0 - 1.0;
     float r2 = dot(coord, coord);
     if (r2 > 1.0) discard;
-#ifdef BEHIND
+#ifdef OPAQUE_BEHIND
     float ring_alpha = smoothstep(0.75, 0.82, sqrt(r2));
     if (ring_alpha < 0.01) discard;
 #endif
@@ -55,7 +54,7 @@ void main() {
     vec3 normal = -vec3(sin_vu.x * cos_vu.y, cos_vu.x, sin_vu.x * sin_vu.y);
 
     float diffuse = (light(normal, vec3(0,0,-1.0)) * FRONT + light(normal, light_dir_side_view) * SIDE) * DIFFUSE;
-#ifndef BEHIND
+#ifndef OPAQUE_BEHIND
     vec4 color = vec4(col * (diffuse + AMBIENT), 1.0);
 #else
     vec4 color = vec4(col * AMBIENT, ring_alpha * 0.5);

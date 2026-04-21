@@ -40,6 +40,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _transparent_color_combiner::ShaderProgram
     _transparent_id_combiner::ShaderProgram
     _final_combiner::ShaderProgram
+    _highlighter::ShaderProgram
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -91,6 +92,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         transparent_color_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_color.frag"],["width"])
         transparent_id_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_id.frag"],["width"])
         final_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/final.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV_RESOLUTION","NEAR_FAR_DISTANCE_POWER"])
+        highlighter = ShaderProgram(["combiners/fullscreen.vert","combiners/highlighter.frag"],["idTex","highlighted_id"])
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -148,7 +150,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         camPos = Vec3F(0.0,0.0,0.0)
 
         self = new(shrd,widgets,observers,renderers,
-            transparent_color_combiner,transparent_id_combiner,final_combiner,
+            transparent_color_combiner,transparent_id_combiner,final_combiner,highlighter,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,pixel_buffer,empty_vao,
@@ -384,6 +386,17 @@ function update!(self::OpenGLData,cam::Camera)
     activate(self._rgbaTexture,GL_TEXTURE0)
     activate(self._depthstencilTexture,GL_TEXTURE1)
     glDrawArrays(GL_TRIANGLES,0,6)
+
+    if (self._shrd._selectedID > 3)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        activate(self._highlighter)
+        uniform(self._highlighter,"idTex",Int32(0))
+        uniform(self._highlighter,"highlighted_id",self._shrd._selectedID)
+        activate(self._idTexture,GL_TEXTURE0)
+        glDrawArrays(GL_TRIANGLES,0,6)
+        glDisable(GL_BLEND)
+    end
 end
 
 

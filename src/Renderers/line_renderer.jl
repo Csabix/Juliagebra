@@ -18,8 +18,7 @@ const _LINE_TYPE_BEHIND = UInt8[DASHED, DOTTED, DOTTED, DOTTED, DOTTED, DASHED]
 
 const _LINE_UPDATED_COORD_WIDTH::UInt32 = 1
 const _LINE_UPDATED_COLOR_TYPE::UInt32 = 2
-const _LINE_UPDATED_COORD_WIDTH_DYNAMIC::UInt32 = 4
-const _LINE_UPDATED_COLOR_TYPE_DYNAMIC::UInt32 = 8
+const _LINE_UPDATED_STYLE::UInt32 = 4
 
 export SOLID, DASHED, DOTTED, 
         WAVE, DASH_DOT, ARROW, ARROW_REVERSED
@@ -317,46 +316,58 @@ function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::
     return UInt32(length(self.coords_widths_dynamic))
 end
 
-function added_all!(self::LineRenderer)::Nothing
-    N = length(self.coords_widths) 
-    if N != length(self.position_width_buffer_in) && N > 1
-        _sort_lines!(self)
-        upload!(self.position_width_buffer_in, self.coords_widths, 0)
-        upload!(self.color_type_buffer_in, self.color_type, 0)
-        
-        self.distances = Vector{Float32}(undef, N)
-        reserve!(self.distance_buffer_in,N,0)
+function added_static!(self::LineRenderer)::Nothing
+    _sort_lines!(self)
+    upload!(self.position_width_buffer_in, self.coords_widths, 0)
+    upload!(self.color_type_buffer_in, self.color_type, 0)
 
-        reserve!(self.position_distance_buffer_out,5*(N-3),0)
-        reserve!(self.color_buffer_out,N-3,0)
-        reserve!(self.light_buffer_out,N-3,0)
-        reserve!(self.sdf_buffer_out,5*(N-3),0)
-        reserve!(self.radius_buffer_out,5*(N-3),0)
-        self.updated = 0
+    N = length(self.coords_widths)
+    self.distances = Vector{Float32}(undef, N)
+    reserve!(self.distance_buffer_in,N,0)
+
+    reserve!(self.position_distance_buffer_out,5*(N-3),0)
+    reserve!(self.color_buffer_out,N-3,0)
+    reserve!(self.light_buffer_out,N-3,0)
+    reserve!(self.sdf_buffer_out,5*(N-3),0)
+    reserve!(self.radius_buffer_out,5*(N-3),0)
+    self.updated = 0
+    return nothing
+end
+
+function added_dynamic!(self::LineRenderer)::Nothing
+    for i in (length(self.position_width_buffer_in_dynamic)+1):length(self.coords_widths_dynamic)
+        pw = MappedBuffer{Vec4F}()
+        upload!(pw, self.coords_widths_dynamic[i], 0)
+        push!(self.position_width_buffer_in_dynamic, pw)
+            
+        ct = Buffer{UInt32}()
+        upload!(ct, self.color_type_dynamic[i], 0)
+        push!(self.color_type_buffer_in_dynamic, ct)
+            
+        N = length(self.coords_widths_dynamic[i])
+        push!(self.distances_dynamic,Vector{Float32}(undef, N))
+
+        distance_buffer = MappedBuffer{Float32}()
+        reserve!(distance_buffer,N,0)
+        push!(self.distance_buffer_in_dynamic, distance_buffer)
     end
-    if length(self.coords_widths_dynamic) != length(self.position_width_buffer_in_dynamic)
-        for i in (length(self.position_width_buffer_in_dynamic)+1):length(self.coords_widths_dynamic)
-            pw = MappedBuffer{Vec4F}()
-            upload!(pw, self.coords_widths_dynamic[i], 0)
-            push!(self.position_width_buffer_in_dynamic, pw)
-            
-            ct = Buffer{UInt32}()
-            upload!(ct, self.color_type_dynamic[i], 0)
-            push!(self.color_type_buffer_in_dynamic, ct)
-            
-            N = length(self.coords_widths_dynamic[i])
-            push!(self.distances_dynamic,Vector{Float32}(undef, N))
+    N = sum(v -> length(v) - 3, self.coords_widths_dynamic)
+    reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
+    reserve!(self.color_buffer_out_dynamic,N,0)
+    reserve!(self.light_buffer_out_dynamic,N,0)
+    reserve!(self.sdf_buffer_out_dynamic,5*N,0)
+    reserve!(self.radius_buffer_out_dynamic,5*N,0)
+    return nothing
+end
 
-            distance_buffer = MappedBuffer{Float32}()
-            reserve!(distance_buffer,N,0)
-            push!(self.distance_buffer_in_dynamic, distance_buffer)
-        end
-        N = sum(v -> length(v) - 3, self.coords_widths_dynamic)
-        reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
-        reserve!(self.color_buffer_out_dynamic,N,0)
-        reserve!(self.light_buffer_out_dynamic,N,0)
-        reserve!(self.sdf_buffer_out_dynamic,5*N,0)
-        reserve!(self.radius_buffer_out_dynamic,5*N,0)
+function added_all!(self::LineRenderer)::Nothing
+    N = length(self.coords_widths)
+    if N != length(self.position_width_buffer_in) && N > 1
+        added_static!(self)
+    end
+
+    if length(self.coords_widths_dynamic) != length(self.position_width_buffer_in_dynamic)
+        added_dynamic!(self)
     end
     return nothing
 end
@@ -383,18 +394,39 @@ function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width:
     push!(color_type, 0x0)
 
     self.types_dynamic[ref] = type
-    self.updated |= _LINE_UPDATED_COLOR_TYPE_DYNAMIC
     push!(self.update_list, ref)
 end
 
-function update_color_type!(self::LineRenderer, ref::UInt32, color::UInt32, n::Int)
+function update_color!(self::LineRenderer, ref::UInt32, colors, N::Int)
     first = self.ranges[ref][1]
-    for i in 0:(n-1)
-        old = self.color_type[first + i]
-        reversed_bit = old & (UInt32(0xff) << 24)
-        self.color_type[first + i] = (color & ~(UInt32(0xff) << 24)) | reversed_bit
-    end
+    color_type_view = view(self.color_type, first:UInt32(first + N - 1))
+    old_reversed = (self.color_type[first] & (UInt32(0xff) << 24)) != 0
+
+    copyto!(color_type_view, (pack_color_reversed(color,old_reversed) for color in take(colors,N)))
+
     self.updated |= _LINE_UPDATED_COLOR_TYPE
+end
+
+function update_style!(self::LineRenderer, ref::UInt32, type, N::Int)::Nothing
+    N == 0 && return nothing
+    (new_type, new_reversed) = get_type_reversed(type)
+    (first, last, old_type) = self.ranges[ref]
+
+    old_reversed = (self.color_type[first] & (UInt32(0xff) << 24)) != 0
+
+    if new_type != old_type
+        self.ranges[ref] = (first, last, new_type)
+        self.updated |= _LINE_UPDATED_STYLE
+    end
+
+    if xor(new_reversed, old_reversed)
+        color_type_view = view(self.color_type, first:UInt32(first + N - 1))
+        reversed_value::UInt32 = UInt32(new_reversed ? 0xff : 0x00) << 24
+        map!(e -> e & ~(UInt32(0xff) << 24) | reversed_value, color_type_view)
+        self.updated |= _LINE_UPDATED_COLOR_TYPE
+    end
+
+    return nothing
 end
 
 function update_type!(self::LineRenderer, ref::UInt32, new_type::UInt8)
@@ -410,6 +442,10 @@ function update_type!(self::LineRenderer, ref::UInt32, new_type::UInt8)
 end
 
 function sync_all!(self::LineRenderer)::Nothing
+    if (self.updated & _LINE_UPDATED_STYLE != 0)
+        _sort_lines!(self)
+        self.updated |= _LINE_UPDATED_COORD_WIDTH | _LINE_UPDATED_COLOR_TYPE
+    end
     if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0 || (self.updated & _LINE_UPDATED_COLOR_TYPE) != 0
         wait(self.distance_buffer_in)
         if (self.updated & _LINE_UPDATED_COORD_WIDTH) != 0

@@ -55,6 +55,7 @@ function renderContent(self::CurvesWindow)
         new_color = color_edit3(cur_color, "##ccol$id")
         if new_color !== nothing
             node._colors[1] = _pack_rgb(new_color)
+            node._update_color = true
             afterNodeEval(node)
         end
 

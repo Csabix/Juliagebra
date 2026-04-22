@@ -39,7 +39,10 @@ end
 # ? Could microoptimize this by not creating buffers everytime if necessary
 function color_edit3(color::Vec3F, label::String)::Union{Vec3F,Nothing}
     col = Float32[color[1], color[2], color[3]]
-    if CImGui.ColorEdit3(label, col)
+    flags = CImGui.ImGuiColorEditFlags_NoInputs |
+        CImGui.ImGuiColorEditFlags_AlphaBar     |
+        CImGui.ImGuiColorEditFlags_NoLabel
+    if CImGui.ColorEdit3(label, col, flags)
         return Vec3F(col[1], col[2], col[3])
     end
     return nothing

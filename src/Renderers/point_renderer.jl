@@ -195,7 +195,6 @@ function sync_all!(self::PointRenderer)::Nothing
 end
 
 function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
-    glDisable(GL_STENCIL_TEST)
     (vp, v, p) = get_matrices(cam)
     (_, side_light) = get_lights(cam)
 
@@ -214,7 +213,6 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     end
     @time_gpu_end Renderer Point
     lock(self.points[1].buffer[1])
-    glEnable(GL_STENCIL_TEST)
     return nothing
 end
 

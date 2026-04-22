@@ -5,11 +5,11 @@ struct Data {
     uvec2 dist_id;
 };
 
-layout(std430, binding = 0) buffer DatBuff {
+readonly layout(std430, binding = 11) buffer DatBuff {
     Data data[];
 };
 
-layout (location = 1) out uint id;
+layout(location = 1) out uint id;
 
 layout(location = 0) uniform uint width;
 

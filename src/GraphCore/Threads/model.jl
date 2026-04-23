@@ -91,18 +91,16 @@ Decide at the beginning of the frame, which state the model is in.
 - This state is carried until the end of endState.
 """
 function decideState(self::Model)::ModelState
-    if !isempty(self._adder)
-        # ? Adder has elements, should handle thoose.
+    if !isFinished(self._scheduler)
+        # ? I still have the lock from ViewingState.
+        return EvalingState()
+    elseif !isempty(self._adder)
+        # ? Adder still has elements, should handle thoose.
         return BuildingState()
     elseif trylock(self._builder)
         # ? locked succesfully, Builder is stopped for this frame,
         # ? unlock Builder at the end of the frame.
-        if isFinished(self._scheduler)
-            @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
-            return ViewingState()
-        else
-            return EvalingState()
-        end
+        return ViewingState()
     else
         # ? failed locking, Builder must be building.
         return BuildingState()
@@ -114,7 +112,7 @@ end
 # ? BuildingState
 
 function beginState(self::Model, state::BuildingState)
-
+    return nothing
 end
 
 function update!(self::Model, ::BuildingState)
@@ -122,7 +120,7 @@ function update!(self::Model, ::BuildingState)
 end
 
 function endState(self::Model, state::BuildingState)
-
+    return nothing
 end
 
 
@@ -131,11 +129,7 @@ end
 # ? ViewingState
 
 function beginState(self::Model, state::ViewingState)
-
-end
-
-function schedule!(self::Model, d::DependentDNA)
-
+    return nothing
 end
 
 function update!(self::Model, ::ViewingState)
@@ -160,6 +154,7 @@ end
 function endState(self::Model, state::ViewingState)
     # ? Let Builder process Dependents.
     if isFinished(self._scheduler)
+        @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
         unlock(self._builder)
     end
 end
@@ -167,7 +162,7 @@ end
 # ? EvalingState
 
 function beginState(self::Model, state::EvalingState)
-    # TODO: Finish this for EvalingState.
+    return nothing
 end
 
 function update!(self::Model, ::EvalingState)
@@ -176,5 +171,9 @@ function update!(self::Model, ::EvalingState)
 end
 
 function endState(self::Model, state::EvalingState)
-    # TODO: Finish this for EvalingState.
+    # ? Let Builder process Dependents.
+    if isFinished(self._scheduler)
+        @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
+        unlock(self._builder)
+    end
 end

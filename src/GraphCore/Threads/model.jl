@@ -139,19 +139,48 @@ function update!(self::Model, ::ViewingState)
 
         if (mode isa SingleFrameSingleThread)
             @time_cpu_begin Graph_update
+            # ? Scheduler will schedule work only to Worker0.
             startGraphWorkers!(self._scheduler, self)
+            # ? Modell task shall complete Worker0.
             processUntilClosed!(getWorkers(self)[0], self)
+            # ? Worker0 forwards work to Internal Queue.
             processInternal!(self._synchronizer)
             @time_cpu_end Graph_update
         
-        elseif (mode isa MultipleFramesSingleThread)
+        elseif (mode isa SingleFrameTwoThreads)
+            @time_cpu_begin Graph_update
+            # ? Scheduler will schedule work only to Worker1.
             startGraphWorkers!(self._scheduler, self)
+            # ? Must process Root nodes.
             processInternal!(self._synchronizer)
+            # ? Modell Task must process all Observed and wait for all work to be completed.
+            processUntilFinishedExternal!(self._synchronizer, self)
+            @time_cpu_end Graph_update
+
+        elseif (mode isa SingleFrameMultipleThreads)
+            @time_cpu_begin Graph_update
+            # ? Scheduler will schedule work to all Workeri.
+            startGraphWorkers!(self._scheduler, self)
+            # ? Must process Root nodes.
+            processInternal!(self._synchronizer)
+            # ? Modell Task must process all Observed and wait for all work to be completed.
+            processUntilFinishedExternal!(self._synchronizer, self)
+            @time_cpu_end Graph_update
+
+        elseif (mode isa MultipleFramesSingleThread)
+            # ? Scheduler will schedule work to all Workeri.
+            startGraphWorkers!(self._scheduler, self)
+            # ? Must process Root nodes.
+            processInternal!(self._synchronizer)
+            # ? Process only available observers.
             processAvailableExternal!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.
         elseif (mode isa MultipleFramesMultipleThreads)
+            # ? Scheduler will schedule work to all Workeri.
             startGraphWorkers!(self._scheduler, self)
+            # ? Must process Root nodes.
             processInternal!(self._synchronizer)
+            # ? Process only available observers.
             processAvailableExternal!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.
         end

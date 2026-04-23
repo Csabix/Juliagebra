@@ -56,10 +56,15 @@ end
 
 function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)
     observers = Set{ObserverDNA}()
-    
-    while !isFinished(getScheduler(model))
+    s::Scheduler = getScheduler(model)
+
+    while !isReached(s._syncedGoal)
         _processExternal!(self,model,observers)
     end
+
+    wait(s._evaledGoal)
+
+    @assert isFinished(s) "Scheduler must be finished here!"
 
     for o in observers in 
         syncAll!(o)

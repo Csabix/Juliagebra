@@ -7,9 +7,11 @@
     _window::Window = Window()
     _selectedState::Int = 1
     _states::Vector{String} = [
-        "Single Threaded - Single Frame",
-        "Single Threaded - Multiple Frames",
-        "Multi Threaded - Multiple Frames"
+        "Single Frame - Single Threaded",
+        "Single Frame - Two Threaded",
+        "Single Frame - Multi Threaded",
+        "Multiple Frames - Single Threaded",
+        "Multiple Frames - Multi Threaded"
     ]
 end
 
@@ -113,9 +115,13 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
         for idx in 1:length(wo) 
             _renderWorker(self, app, idx)
         end
+    elseif self._selectedState == 4
+        _renderWorker(self, app, 1)
+    elseif self._selectedState == 5
+        for idx in 1:length(wo) 
+            _renderWorker(self, app, idx)
+        end
     end
-    
-    
 
     CImGui.Text("Synchronizer")
     CImGui.Separator()

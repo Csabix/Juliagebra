@@ -7,6 +7,8 @@ const PER_FRAME_MERGE::Int = 25
 
 abstract type SchedulingMode end
 struct SingleFrameSingleThread <: SchedulingMode end
+struct SingleFrameTwoThreads <: SchedulingMode end
+struct SingleFrameMultipleThreads <: SchedulingMode end
 struct MultipleFramesSingleThread <: SchedulingMode end
 struct MultipleFramesMultipleThreads <: SchedulingMode end
 
@@ -29,6 +31,8 @@ Manages correct graph evaluation scheduling.
     _mode::SchedulingMode = SingleFrameSingleThread()
     _modes::Vector{SchedulingMode} = [
         SingleFrameSingleThread(),
+        SingleFrameTwoThreads(),
+        SingleFrameMultipleThreads(),
         MultipleFramesSingleThread(),
         MultipleFramesMultipleThreads()
     ]
@@ -47,7 +51,7 @@ function _isFinishedCorrectly(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
 end
 
-function _isFinishedCorrectly(self::Scheduler, ::Union{MultipleFramesSingleThread,MultipleFramesMultipleThreads})::Bool
+function _isFinishedCorrectly(self::Scheduler, ::SchedulingMode)::Bool
     for c in self._evaled
         if !isCompleted(c)
             return false
@@ -164,7 +168,7 @@ function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFo
     return (wd, localIDs)
 end
 
-function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingleThread)
+function _distributeWork(self::Scheduler, model::ModelDNA, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
     w1::EvalWorkeri = getWorkers(model)[1]
     
     w1d::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
@@ -233,7 +237,7 @@ function _createWorkContainers(wd::Vector{WorkerFood}, w::Workers, tags::Vector{
     return wds
 end
 
-function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesMultipleThreads)
+function _distributeWork(self::Scheduler, model::ModelDNA, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads})
     wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
     w::Workers = getWorkers(model)
 

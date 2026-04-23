@@ -26,11 +26,12 @@ Base.string(self::Goal)::String = return "$(self._count)/$(self._goal)"
 # ? ---------------------------------
 
 mutable struct AtomicGoal
+    _condition::Threads.Condition
     @atomic _count::Int
     _goal::Int
 
     function AtomicGoal()
-        new(0,0)
+        new(Threads.Condition(ReentrantLock()),0,0)
     end
 end
 
@@ -40,7 +41,22 @@ function isReached(self::AtomicGoal)::Bool
 end
 
 function increment(self::AtomicGoal)
-    @atomic self._count += 1
+    result = @atomic self._count += 1
+    if result == self._goal
+        lock(self._condition)
+        notify(self._condition)
+        unlock(self._condition)
+    end
+end
+
+function Base.wait(self::AtomicGoal)
+    if !(isReached(self))
+        lock(self._condition)
+        while !(isReached(self))
+            wait(self._condition)
+        end
+        unlock(self._condition)
+    end
 end
 
 function reset!(self::AtomicGoal, goal::Int)

@@ -30,7 +30,9 @@ function processInternal!(self::Synchronizer)
     
     for _ in 1:self._taken
         d::ObservedDNA = popfirst!(self._internal)
-        o::ObserverDNA = _handleSyncCall(d)
+        o::ObserverDNA = getObserver(d)
+        sync!(o,d)
+        
         push!(observers, o)
     end
 
@@ -44,15 +46,7 @@ function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
     observers = Set{ObserverDNA}()
 
     for _ in 1:self._taken
-        data::SyncFood = take!(self._external)
-        d::ObservedDNA = data.observed
-        o::ObserverDNA = _handleSyncCall(d)
-        
-        s::Scheduler = getScheduler(model)
-        s._synced[data.syncedIdx] = true
-        increment(s._syncedGoal)
-
-        push!(observers, o)
+        _processExternal!(self,model,observers)
     end
 
     for o in observers in 
@@ -60,8 +54,26 @@ function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
     end
 end
 
-function _handleSyncCall(self::ObservedDNA)
-    o::ObserverDNA = getObserver(self)
-    sync!(o,self)
-    return o
+function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)
+    observers = Set{ObserverDNA}()
+    
+    while !isFinished(getScheduler(model))
+        _processExternal!(self,model,observers)
+    end
+
+    for o in observers in 
+        syncAll!(o)
+    end
+end
+
+function _processExternal!(self::Synchronizer, model::ModelDNA, observers::Set{ObserverDNA})
+    data::SyncFood = take!(self._external)
+    o::ObserverDNA = getObserver(data.observed)
+    sync!(o,data.observed)
+        
+    s::Scheduler = getScheduler(model)
+    s._synced[data.syncedIdx] = true
+    increment(s._syncedGoal)
+
+    push!(observers, o)
 end

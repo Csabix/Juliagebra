@@ -110,68 +110,7 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::SingleFrameSingleTh
     end
 end
 
-function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingleThread)
-    w1::EvalWorkeri = getWorkers(model)[1]
-    
-    w1d::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupDistribution(self)
-
-    # ? Distribute scheduling.
-    put!(w1, w1d)
-end
-
-function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesMultipleThreads)
-    wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupDistribution(self)
-
-
-    # ? Calculate node max height.
-    heights::Vector{Int} = [1 for _ in wd]
-    for idx in reverse(eachindex(wd))
-        d::DependentDNA = getDependent(wd[idx])
-        height = heights[localIDs[getGraphID(d)]]
-        
-        for parent in getGraphParents(d) 
-            id = getGraphID(parent)
-
-            if haskey(localIDs,id)
-                _height = heights[localIDs[id]]
-                heights[localIDs[id]] = max(_height, height+1)
-            end
-        end        
-    end
-
-    w::Workers = getWorkers(model)
-    
-    # ? Assign nodes to workers.
-    heightTags::Dict{Int,Int} = Dict{Int,Int}()
-    tags::Vector{Int} = []
-    tagMax = length(w)
-    for idx in eachindex(wd)
-        height = heights[idx]
-
-        if !haskey(heightTags,height)
-            heightTags[height] = 0
-        else
-            _height = heightTags[height] + 1
-            heightTags[height] = (_height % tagMax)
-        end
-
-        push!(tags,heightTags[height]+1)
-    end
-
-    # ? Create work containers.
-    wds::Vector{Vector{WorkerFood}} = [[] for _ in 1:tagMax]
-    for idx in eachindex(tags)
-        push!(wds[tags[idx]], wd[idx])
-    end
-
-    # ? Send work.
-    for idx in 1:tagMax 
-        self._scheduled[idx] = length(wds[idx])
-        put!(w[idx],wds[idx])
-    end
-end
-
-function _setupDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int,Int}}
+function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int,Int}}
     evaledGoal = length(self._schedule)
     syncedGoal = 0
 
@@ -223,5 +162,97 @@ function _setupDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int
     @assert length(self._synced) == syncedGoal "Goal is inconsistent!"
 
     return (wd, localIDs)
+end
+
+function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesSingleThread)
+    w1::EvalWorkeri = getWorkers(model)[1]
+    
+    w1d::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
+
+    # ? Distribute scheduling.
+    put!(w1, w1d)
+end
+
+function _calculateNodeWeights(wd::Vector{WorkerFood}, localIDs::Dict{Int, Int})::Vector{Int}
+    # ? Calculate node weights based on max height.
+    heights::Vector{Int} = [1 for _ in wd]
+    for idx in reverse(eachindex(wd))
+        d::DependentDNA = getDependent(wd[idx])
+        height = heights[localIDs[getGraphID(d)]]
+        
+        for parent in getGraphParents(d) 
+            id = getGraphID(parent)
+
+            if haskey(localIDs,id)
+                _height = heights[localIDs[id]]
+                heights[localIDs[id]] = max(_height, height+1)
+            end
+        end        
+    end
+
+    return heights
+end
+
+function _assignNodesToWorkers(wd::Vector{WorkerFood}, w::Workers, heights::Vector{Int})::Vector{Int}
+    # ? Which worker gets the node at idx in heights.
+    tags::Vector{Int} = []
+    
+    # ? For a height, which Worker is the next one.
+    heightTags::Dict{Int,Int} = Dict{Int,Int}()
+    
+    # ? For rotating between workers, which is the max.
+    tagMax = length(w)
+    
+    for idx in eachindex(wd)
+        height = heights[idx]
+
+        if !haskey(heightTags,height)
+            heightTags[height] = 0
+        else
+            _height = heightTags[height] + 1
+            heightTags[height] = (_height % tagMax)
+        end
+
+        push!(tags,heightTags[height]+1)
+    end
+
+    return tags
+end
+
+function _createWorkContainers(wd::Vector{WorkerFood}, w::Workers, tags::Vector{Int})::Vector{Vector{WorkerFood}}
+    # ? Amount of workers, to distribute to.
+    tagMax = length(w)
+
+    # ? Vectors for each worker to complete.
+    wds::Vector{Vector{WorkerFood}} = [[] for _ in 1:tagMax]
+    
+    for idx in eachindex(tags)
+        push!(wds[tags[idx]], wd[idx])
+    end
+
+    return wds
+end
+
+function _distributeWork(self::Scheduler, model::ModelDNA, ::MultipleFramesMultipleThreads)
+    wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
+    w::Workers = getWorkers(model)
+
+    # ? Calculate node weights.
+    heights::Vector{Int} = _calculateNodeWeights(wd, localIDs)
+    @assert length(heights) == length(wd) "Every node must get one weight!"
+
+    # ? Assign nodes with weights to workers.
+    tags::Vector{Int} = _assignNodesToWorkers(wd, w, heights)
+    @assert length(tags) == length(heights) "Every weight must get one worker!"
+
+    # ? Create work containers.
+    wds::Vector{Vector{WorkerFood}} = _createWorkContainers(wd, w, tags)
+    @assert length(wds) == length(w) "Every worker must get a container!"
+
+    # ? Send work.
+    for idx in eachindex(wds) 
+        self._scheduled[idx] = length(wds[idx])
+        put!(w[idx],wds[idx])
+    end
 end
 

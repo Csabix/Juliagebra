@@ -173,7 +173,7 @@ function beginState(self::Model, state::EvalingState)
 end
 
 function update!(self::Model, ::EvalingState)
-    processInternal!(self._synchronizer)
+    # ? Internal was processed in ViewingState, which started EvalingState.
     processAvailableExternal!(self._synchronizer, self)
 end
 

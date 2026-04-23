@@ -118,7 +118,7 @@ void main() {
     } else if (p.y > segment_SDF_field_in.w) {
         dir = p - vec2(0.0, segment_SDF_field_in.w);
     }
-    
+    /*
     float r2 = dot(dir, dir) / (segment_SDF_field_in.z * segment_SDF_field_in.z);
     float z_offset = sqrt(max(1.0 - r2, 0.0));
 
@@ -130,6 +130,48 @@ void main() {
     float clip_z = z_view * P[2][2] + P[3][2];
     float clip_w = z_view * P[2][3] + P[3][3];
 
+    float ndc_z_new = clip_z / clip_w;
+    float depth = (ndc_z_new + 1.0) / 2.0;
+    gl_FragDepth = depth;
+    */
+    float r2 = dot(dir, dir) / (segment_SDF_field_in.z * segment_SDF_field_in.z);
+    float z_offset_base = sqrt(max(1.0 - r2, 0.0));
+
+    float ndc_z_current = gl_FragCoord.z * 2.0 - 1.0;
+    float z_view = (P[3][2] - ndc_z_current * P[3][3]) / (ndc_z_current * P[2][3] - P[2][2]);
+    
+    // --- Depth Correction for Viewing Angle ---
+    
+    // 1. Calculate how fast the view-space Z is changing across the screen
+    vec2 dz_view_dp = vec2(dFdx(z_view), dFdy(z_view));
+    
+    // 2. Calculate the screen-space gradient of the distance along the segment
+    vec2 dlen_dp = vec2(dFdx(segment_SDF_field_in.y), dFdy(segment_SDF_field_in.y));
+    float len_grad_sqr = dot(dlen_dp, dlen_dp);
+    
+    // 3. Find the change in view-space Z per pixel ALONG the segment direction
+    float dz_dl_pixel = 0.0;
+    if (len_grad_sqr > 1e-5) {
+        vec2 dir_y = dlen_dp / sqrt(len_grad_sqr);
+        dz_dl_pixel = dot(dz_view_dp, dir_y);
+    }
+    
+    // 4. Calculate the view-space physical size of one pixel
+    float pixel_radius = max(segment_SDF_field_in.z, 0.001);
+    float scale = radius_in / pixel_radius;
+    
+    // 5. Compute the view-space slope and the resulting angle correction factor
+    // slope = (change in Z) / (change in XY plane)
+    float slope = dz_dl_pixel / max(scale, 1e-6);
+    float angle_correction = sqrt(1.0 + slope * slope); // Mathematically equivalent to 1 / sin(theta)
+    
+    // 6. Apply the corrected offset
+    z_view += z_offset_base * radius_in * angle_correction;
+    
+    // ------------------------------------------
+    
+    float clip_z = z_view * P[2][2] + P[3][2];
+    float clip_w = z_view * P[2][3] + P[3][3];
     float ndc_z_new = clip_z / clip_w;
     float depth = (ndc_z_new + 1.0) / 2.0;
     gl_FragDepth = depth;

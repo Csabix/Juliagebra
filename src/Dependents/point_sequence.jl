@@ -1,11 +1,11 @@
 mutable struct PointSequenceDependent <:RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coords::Vector{Vec3D}
-    _color::Vec3F
+    _color::UInt32
     _width::Float32
 
     # YELLOW Thread
-    function PointSequenceDependent(callback::Function,dependents::Vector{<:DependentDNA},color::Tuple{Real,Real,Real},width::Real)
+    function PointSequenceDependent(callback::Function,dependents::Vector{<:DependentDNA},color::UInt32,width::Real)
         dependent = RenderedDependent(callback,dependents)
         coords = Vector{Vec3D}()
 
@@ -72,10 +72,10 @@ function destroy!(self::PointSequences) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointSequenceDependent)::PointSequences = getDependentObservers(app)[_POINT_SEQUENCES]
 
-PointSequence(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSequenceDependent =
-build!(PointSequenceDependent(callback,dependents,color,width))
+PointSequence(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color="m",width=25.0f0)::PointSequenceDependent =
+build!(PointSequenceDependent(callback,dependents,get_color(color),width))
 
-PointSequence(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::PointSequenceDependent =
+PointSequence(dependents::Vector{<:DependentDNA};color="m",width=25.0f0)::PointSequenceDependent =
 PointSequence(_deps_collect,dependents;color=color,width=width)
 
 macro PointSequence(callback::Expr, kw_args...)

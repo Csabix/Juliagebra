@@ -34,9 +34,9 @@ for (index, mesh) in enumerate(scene)
         tc = TriangleCluster(scene[index],[slider];color=(1.0,1.0,0.0,1.0)) do s
             return z_rot(s + 2*pi*index/length(scene)) * transform((5,0,0)) * z_rot(s)
         end
-        #PointCloud([tc]) do tc
-        #    return get_positions(tc)
-        #end
+        PointSet([tc]) do tc
+            return get_positions(tc)
+        end
     else
         TriangleCluster(scene[index],[slider];color=(0.0,1.0,1.0,0.5)) do s
             return z_rot(s + 2*pi*index/length(scene)) * transform((5,0,0)) * z_rot(s)

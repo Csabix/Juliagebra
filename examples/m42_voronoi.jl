@@ -15,14 +15,14 @@ Juliagebra.Window() do
     end
     voro = GenericValueHolder(voronoi,Any,[triangulation])
 
-    s1 = SegmentSequence([movable_point_cloud,triangulation];color=(0,0,1),width=3.0) do coords, tri
+    s1 = SegmentSequence([movable_point_cloud,triangulation];color=(0.0,0.0,1.0),width=3.0) do coords, tri
         real_edges = (e for e in each_edge(tri) if all(v > 0 for v in e))
         
         aa = [coords[index] for index in Iterators.flatten(real_edges)]
         return aa
     end
 
-    s2 = SegmentSequence([voro];color=(0,0,0)) do voro
+    s2 = SegmentSequence([voro];color=(0.0,0.0,0.0)) do voro
         coords = [vec3(x,y,0.1) for (x,y) = voro.polygon_points]
         edges = reduce(vcat, [
             [x, y] for vec in values(voro.polygons) 
@@ -36,5 +36,5 @@ Juliagebra.Window() do
         return aa
     end
 
-    PointSequence([Intersection(s1,s2;maxIntersectionNum=300)])
+    PointSequence([Intersection(s1,s2;maxIntersectionNum=300)],color="w",width=10.0)
 end

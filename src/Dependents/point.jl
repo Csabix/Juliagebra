@@ -6,16 +6,16 @@
 mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D
-    _color::Vec3F
+    _color::UInt32
     _point_type::UInt32
     _size::UInt8
 
     # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA};
-                            color="m", size::Integer=25, type::Integer=POINT_NONE)
+                            color::UInt32, size::Integer=25, type::Integer=POINT_NONE)
         renderedDependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(renderedDependent,coord,get_color_vec3f(color),UInt32(type),UInt8(size))
+        new(renderedDependent,coord,color,UInt32(type),UInt8(size))
     end
 end
 
@@ -63,7 +63,8 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 # GREEN Thread
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
-    push!(self._refs, add!(self._renderers.point,Vec3F(point._coord),point._point_type,point._color,point._size,aID))
+    ref = add!(self._renderers.point,Vec3F(point._coord),point._point_type,point._color,point._size,aID)
+    push!(self._refs, ref)
 end
 
 # GREEN Thread
@@ -86,11 +87,11 @@ Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_P
 
 # YELLOW Thread
 Point(x::Real,y::Real,z::Real; color="m", size::Integer=25, type::Integer=POINT_NONE)::PointDependent =
-build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}(); color=color, size=size, type=type))
+build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}(); color=get_color(color), size=size, type=type))
 
 # YELLOW Thread
 Point(callback::Function,dependents::Vector{<:DependentDNA}; color="m", size::Integer=25, type::Integer=POINT_NONE) =
-build!(PointDependent(callback,dependents; color=color, size=size, type=type))
+build!(PointDependent(callback,dependents; color=get_color(color), size=size, type=type))
 
 # YELLOW Thread
 macro Point(callback::Expr, kw_args...)

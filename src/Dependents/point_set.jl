@@ -1,11 +1,11 @@
 mutable struct PointSetDependent <:RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coords::Vector{Vec3D}
-    _color::Vec3F
+    _color::UInt32
     _width::Float32
 
     # YELLOW Thread
-    function PointSetDependent(callback::Function,dependents::Vector{<:DependentDNA},color::Tuple{Real,Real,Real},width::Real)
+    function PointSetDependent(callback::Function,dependents::Vector{<:DependentDNA},color::UInt32,width::Real)
         dependent = RenderedDependent(callback,dependents)
         coords = Vector{Vec3D}()
 
@@ -73,11 +73,11 @@ function destroy!(self::PointSets) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointSetDependent)::PointSets = getDependentObservers(app)[_POINT_SETS]
 
-PointSet(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =
-build!(PointSetDependent(callback,dependents,color,width))
+PointSet(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color="m",width=25.0f0)::PointSetDependent =
+build!(PointSetDependent(callback,dependents,get_color(color),width))
 
-PointSet(dependents::Vector{<:DependentDNA};color=(0.0,1.0,1.0),width=25.0f0)::PointSetDependent =
-PointSet(_deps_collect,dependents;color=color,width=width)
+PointSet(dependents::Vector{<:DependentDNA};color="m",width=25.0f0)::PointSetDependent =
+PointSet(_deps_collect,dependents;color=get_color(color),width=width)
 
 PointSet(positions) =
 GenericValueHolder(_deps_collect,Vector{Vec3D},[Point(p...) for p in positions])

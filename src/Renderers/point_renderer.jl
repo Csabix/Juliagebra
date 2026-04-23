@@ -6,12 +6,8 @@ const _POINT_UPDATED_PROPERTY::UInt8 = 2
 const POINT_NONE::UInt32 = 0
 const POINT_PLUS::UInt32 = 1
 
-function pack_point_property(type::UInt32,color::Vec3F,size::UInt8,id::UInt32)::Vec2T{UInt32}
-    c1 = UInt32(round(clamp(color[1], 0.0, 1.0) * 255.0))
-    c2 = UInt32(round(clamp(color[2], 0.0, 1.0) * 255.0))
-    c3 = UInt32(round(clamp(color[3], 0.0, 1.0) * 255.0))
-    c4 = UInt32(size)
-    color_size = (c4 << 24) | (c3 << 16) | (c2 << 8) | c1
+function pack_point_property(type::UInt32,color::UInt32,size::UInt8,id::UInt32)::Vec2T{UInt32}
+    color_size = (UInt32(size) << 24) | color & ~(UInt32(0xff) << 24)
     type_id = id | (type << 24)
     return Vec2T{UInt32}(color_size, type_id)
 end
@@ -39,7 +35,7 @@ function destroy!(points_data::PointsData)
     destroy!(points_data.buffer)
 end
 
-function add!(points_data::PointsData,coord::Vec3F,type::UInt32,color::Vec3F,size::UInt8,id::UInt32)
+function add!(points_data::PointsData,coord::Vec3F,type::UInt32,color::UInt32,size::UInt8,id::UInt32)
     push!(points_data.coords,coord)
     prop = pack_point_property(type,color,size,id)
     push!(points_data.color_sizes, prop.x)
@@ -71,7 +67,7 @@ update_coords!(points_data::PointsData, coord::Vec3F, offset::Int = 1) =
 update_coords!(points_data::PointsData, coords, offset::Int = 1) =
     copyto!(view(points_data.coords,offset:(offset + length(coords) - 1U)),coords)
 
-function update_properties!(points_data::PointsData, type::UInt32, color::Vec3F, size::UInt8, id::UInt32, offset::Int = 1)
+function update_properties!(points_data::PointsData, type::UInt32, color::UInt32, size::UInt8, id::UInt32, offset::Int = 1)
     prop = pack_point_property(type, color, size, id)
     points_data.color_sizes[offset] = prop.x
     points_data.type_ids[offset]    = prop.y
@@ -90,7 +86,7 @@ function update!(points_data::PointsData, coords, types, colors, sizes, ids)
     empty!(points_data.color_sizes)
     empty!(points_data.type_ids)
     append!(points_data.coords, coords)
-    for (t,c,s,id) in zip(types, colors, sizes, ids)
+    for (t,c,s,id) in zip(take(types,length(coords)), colors, sizes, ids)
         prop = pack_point_property(t,c,s,id)
         push!(points_data.color_sizes, prop.x)
         push!(points_data.type_ids,    prop.y)
@@ -121,7 +117,7 @@ function destroy!(self::PointRenderer)::Nothing
     return nothing
 end
 
-function add!(self::PointRenderer,coord::Vec3F,type::UInt32,color::Vec3F,size::UInt8,id::UInt32)::UInt32
+function add!(self::PointRenderer,coord::Vec3F,type::UInt32,color::UInt32,size::UInt8,id::UInt32)::UInt32
     add!(self.points[1], coord, type, color, size, id)
     return UInt32(length(self.points[1]))
 end
@@ -149,7 +145,7 @@ function update_coords!(self::PointRenderer,ref::UInt32,coord::Vec3F)
     update_coords!(self.points[1], coord, Int(ref))
     self.updates[1] |= _POINT_UPDATED_COORD
 end
-function update_properties(self::PointRenderer,ref::UInt32,type::UInt32,color::Vec3F,size::UInt8,id::UInt32)
+function update_properties(self::PointRenderer,ref::UInt32,type::UInt32,color::UInt32,size::UInt8,id::UInt32)
     update_properties!(self.points[1], type, color, size, id, Int(ref))
     self.updates[1] |= _POINT_UPDATED_PROPERTY
 end

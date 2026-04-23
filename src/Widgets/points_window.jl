@@ -57,9 +57,10 @@ function renderContent(self::PointsWindow)
         end
 
         CImGui.TableNextColumn()
-        new_color = color_edit3(node._color, "##pcol$id")
+        old_color = unpack_color(node._color)
+        new_color = color_edit3(Vec3F(old_color[1],old_color[2],old_color[3]), "##pcol$id")
         if new_color !== nothing
-            node._color = new_color
+            node._color = get_color((new_color[1],new_color[2],new_color[3]))
             afterNodeEval(node)
         end
 

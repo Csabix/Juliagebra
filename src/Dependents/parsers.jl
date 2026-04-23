@@ -110,3 +110,11 @@ function parse_line_style_colors(color_style::Union{Nothing,String},color,style)
         return style, UInt32[color]
     end
 end
+
+function unpack_color(c::UInt32)::Vec4F
+    r = Float32( c        & 0xff) / 255.0f0
+    g = Float32((c >>  8) & 0xff) / 255.0f0
+    b = Float32((c >> 16) & 0xff) / 255.0f0
+    a = Float32((c >> 24) & 0xff) / 255.0f0
+    return Vec4F(r, g, b, a)
+end

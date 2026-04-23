@@ -5,10 +5,8 @@ using DelaunayTriangulation # <-- third party dependency, slow start because of 
 
 vec3 = Vec3D
 
-App()
-
 initial_positions = [vec3(col[1],col[2],0.5-sqrt((0.5-col[1])^2 + (0.5-col[2])^2)) for col = eachcol(rand(2, 20))]
-movable_point_cloud = PointCloud(initial_positions)
+movable_point_cloud = PointSet(initial_positions)
 
 triangulation = TriangleCluster([movable_point_cloud]) do coords
     points = [getfield(p, f) for f in (:x, :y), p in coords]
@@ -17,4 +15,4 @@ triangulation = TriangleCluster([movable_point_cloud]) do coords
     return [coords[index] for index in Iterators.flatten(real_triangles)]
 end
 
-play!()
+Juliagebra.Wait()

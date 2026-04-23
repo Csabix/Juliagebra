@@ -189,7 +189,6 @@ end
 
 # GREEN Thread
 function play!(self::App)
-    
     init!(self)
     
     lock(self._synchronizer._initCondition)

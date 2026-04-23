@@ -53,6 +53,10 @@ function update_color!(self::TriangleRenderer, ref::UInt32, color::Vec4F)
     push!(self.color_updates, ref)
 end
 
+function update_transform!(self::TriangleRenderer, ref::UInt32, transform)
+    self.matrices[ref] = Mat4T{Float32}(transform)
+end
+
 function _triangle_renderer_buffer_array()
     attributes = [nothing,nothing,
     [VertexAttrib(false,4,GL_UNSIGNED_BYTE,GL_TRUE,0),

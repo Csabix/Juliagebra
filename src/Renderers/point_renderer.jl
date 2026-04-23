@@ -65,7 +65,7 @@ update_coords!(points_data::PointsData, coord::Vec3F, offset::Int = 1) =
     points_data.coords[offset] = coord
 
 update_coords!(points_data::PointsData, coords, offset::Int = 1) =
-    copyto!(view(points_data.coords,offset:(offset + length(coords) - 1U)),coords)
+    copyto!(view(points_data.coords,offset:(offset + length(coords) - 1)),coords)
 
 function update_properties!(points_data::PointsData, type::UInt32, color::UInt32, size::UInt8, id::UInt32, offset::Int = 1)
     prop = pack_point_property(type, color, size, id)

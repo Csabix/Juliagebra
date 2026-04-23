@@ -62,10 +62,7 @@ end
 
 function sync!(self::PointSets,point_set::PointSetDependent)
     ref = self._refs[getObserverID(point_set)]
-    view = update_coords!(self._renderers.point,ref,UInt32(length(point_set._coords)))
-    for (i, coord) in enumerate(point_set._coords)
-        view[i] = Vec3F(coord)
-    end
+    update_coords!(self._renderers.point,ref,point_set._coords)
 end
 
 function destroy!(self::PointSets) end

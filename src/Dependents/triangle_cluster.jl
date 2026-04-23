@@ -126,6 +126,7 @@ function sync!(self::TriangleClusters,cluster::TriangleClusterDependent)
     ref = self._refs[getObserverID(cluster)]
     update_coords!(self._renderers.triangle,ref,triangulated)
     update_color!(self._renderers.triangle,ref,unpack_color(cluster._color))
+    update_transform!(self._renderers.triangle,ref,cluster._transform)
 end
 
 # ! Must have

@@ -24,7 +24,7 @@ end
 Base.put!(self::Synchronizer, observed::ObservedDNA) = push!(self._internal, observed)
 Base.put!(self::Synchronizer, f::SyncFood) = put!(self._external, f)
 
-function processBatch!(self::Synchronizer)
+function processInternal!(self::Synchronizer)
     self._taken = length(self._internal)
     observers = Set{ObserverDNA}()
     
@@ -39,13 +39,7 @@ function processBatch!(self::Synchronizer)
     end
 end
 
-function _handleSyncCall(self::ObservedDNA)
-    o::ObserverDNA = getObserver(self)
-    sync!(o,self)
-    return o
-end
-
-function processB!(self::Synchronizer, model::ModelDNA)
+function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
     self._taken = Base.n_avail(self._external)
     observers = Set{ObserverDNA}()
 
@@ -64,4 +58,10 @@ function processB!(self::Synchronizer, model::ModelDNA)
     for o in observers in 
         syncAll!(o)
     end
+end
+
+function _handleSyncCall(self::ObservedDNA)
+    o::ObserverDNA = getObserver(self)
+    sync!(o,self)
+    return o
 end

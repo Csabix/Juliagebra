@@ -116,7 +116,7 @@ function beginState(self::Model, state::BuildingState)
 end
 
 function update!(self::Model, ::BuildingState)
-    processBatch!(self._adder)
+    processAvailable!(self._adder)
 end
 
 function endState(self::Model, state::BuildingState)
@@ -133,28 +133,35 @@ function beginState(self::Model, state::ViewingState)
 end
 
 function update!(self::Model, ::ViewingState)
-    # TODO: Finish this for other scheduler modes.
-    if (self._scheduler._mode isa SingleFrameSingleThread) && !isempty(self._scheduler)
-        @time_cpu_begin Graph_update
-        startGraphWorkers!(self._scheduler, self)
-        processUntilClosed!(getWorkers(self)[0], self)
-        processBatch!(self._synchronizer)
-        @time_cpu_end Graph_update
-    elseif (self._scheduler._mode isa MultipleFramesSingleThread) && !isempty(self._scheduler) 
-        startGraphWorkers!(self._scheduler, self)
-        processBatch!(self._synchronizer)
-        processB!(self._synchronizer, self)
-    elseif (self._scheduler._mode isa MultipleFramesMultipleThreads) && !isempty(self._scheduler) 
-        startGraphWorkers!(self._scheduler, self)
-        processBatch!(self._synchronizer)
-        processB!(self._synchronizer, self)
+    
+    if !isempty(self._scheduler)
+        mode = self._scheduler._mode
+
+        if (mode isa SingleFrameSingleThread)
+            @time_cpu_begin Graph_update
+            startGraphWorkers!(self._scheduler, self)
+            processUntilClosed!(getWorkers(self)[0], self)
+            processInternal!(self._synchronizer)
+            @time_cpu_end Graph_update
+        
+        elseif (mode isa MultipleFramesSingleThread)
+            startGraphWorkers!(self._scheduler, self)
+            processInternal!(self._synchronizer)
+            processAvailableExternal!(self._synchronizer, self)
+            # ? Let Model step into next state, BuildingState.
+        elseif (mode isa MultipleFramesMultipleThreads)
+            startGraphWorkers!(self._scheduler, self)
+            processInternal!(self._synchronizer)
+            processAvailableExternal!(self._synchronizer, self)
+            # ? Let Model step into next state, BuildingState.
+        end
     end
 end
 
 function endState(self::Model, state::ViewingState)
-    # ? Let Builder process Dependents.
     if isFinished(self._scheduler)
         @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
+        # ? Let Builder process Dependents. Next state for sure will be ViewingState.
         unlock(self._builder)
     end
 end
@@ -166,14 +173,14 @@ function beginState(self::Model, state::EvalingState)
 end
 
 function update!(self::Model, ::EvalingState)
-    processBatch!(self._synchronizer)
-    processB!(self._synchronizer, self)
+    processInternal!(self._synchronizer)
+    processAvailableExternal!(self._synchronizer, self)
 end
 
 function endState(self::Model, state::EvalingState)
-    # ? Let Builder process Dependents.
     if isFinished(self._scheduler)
         @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
+        # ? Let Builder process Dependents. Next state for sure will be ViewingState.
         unlock(self._builder)
     end
 end

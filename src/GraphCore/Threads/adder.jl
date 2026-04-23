@@ -17,7 +17,7 @@ Base.put!(self::Adder,o::ObservedDNA) = put!(self._in,o)
 Base.isempty(self::Adder)::Bool = return isempty(self._in)
 
 # Green Thread
-function processBatch!(self::Adder)
+function processAvailable!(self::Adder)
     takeNum = Base.n_avail(self._in)
     addedAllSet = Set{ObserverDNA}()
     

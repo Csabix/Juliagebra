@@ -86,8 +86,6 @@ end
 # ! EvalWorkeri
 # ? ---------------------------------
 
-
-
 const EvalWorkeri = EvalWorker{Channel{Vector{WorkerFood}}}
 
 Base.put!(self::EvalWorkeri, fs::Vector{WorkerFood}) = put!(self._in,fs)

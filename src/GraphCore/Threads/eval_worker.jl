@@ -130,7 +130,7 @@ end
 # ? ---------------------------------
 
 @kwdef mutable struct Workers
-    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:8])
+    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:(max(1,Threads.threadpoolsize()-2))])
     _worker0::EvalWorker0 = EvalWorker0()
 end
 

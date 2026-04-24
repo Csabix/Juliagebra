@@ -3,7 +3,7 @@
 # ! Builder
 # ? ---------------------------------
 
-const BUILDER_IN_CHANNEL_SIZE = 100
+const BUILDER_IN_CHANNEL_SIZE = 8192
 const _BuilderT = Union{DependentDNA,Tuple{ObservedDNA,ObserverDNA}}
 
 """

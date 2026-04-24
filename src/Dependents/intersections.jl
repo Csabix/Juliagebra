@@ -167,3 +167,26 @@ function _Intersection(geometry1::DependentDNA,geometry2::DependentDNA, T1::Type
 end
 
 export Intersection
+
+function ParametricCurve(it::IntersectionCalculatorDependent{<:Union{Nothing,PSegment}}; maxIntersectionNum=25)
+    return ParametricCurve(range(0, maxIntersectionNum * 3 - 1, maxIntersectionNum * 3), [it]) do t, it 
+        idx = floor(Int, t)
+        idx1 = div(idx,3) + 1
+        idx2 = idx % 3 + 1
+
+        iit = it[idx1]
+
+        if isnothing(iit)
+            return Vec3DNan
+        end
+
+        if idx2 == 1
+            return iit.p0
+        elseif  idx2 == 2
+            return iit.p1
+        else  
+            @assert idx2 == 3 "idx2 must be 3!"
+            return Vec3DNan
+        end
+    end
+end

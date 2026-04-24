@@ -17,7 +17,7 @@ Calls sync!() and syncAll!() on arrived Dependents.
 """
 @kwdef mutable struct Synchronizer
     _internal::Queue{ObservedDNA} = Queue{ObservedDNA}()
-    _external::Channel{SyncFood} = Channel{SyncFood}(1024)
+    _external::Channel{SyncFood} = Channel{SyncFood}(8192)
     _taken::Int = 0
 end
 

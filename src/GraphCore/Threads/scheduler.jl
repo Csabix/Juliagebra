@@ -36,7 +36,7 @@ Manages correct graph evaluation scheduling.
         MultipleFramesSingleThread(),
         MultipleFramesMultipleThreads()
     ]
-    _scheduled::Vector{Int} = [0 for _ in 1:8]
+    _scheduled::Vector{Int} = [0 for _ in 1:max(1,Threads.threadpoolsize()-2)]
 end
 
 Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : push!(self._in,dependent)
@@ -237,6 +237,61 @@ function _createWorkContainers(wd::Vector{WorkerFood}, w::Workers, tags::Vector{
     return wds
 end
 
+function _isTopologicalOrdered(wd::Vector{WorkerFood})::Bool
+    localIDs::Dict{Int,Int} = Dict{Int,Int}()
+    
+    # ? gather graphID -> idx
+    for idx in eachindex(wd)
+        data = wd[idx].data
+        
+        if data isa SyncFood
+            sf::SyncFood = data
+            o::ObservedDNA = sf.observed
+            @assert !haskey(localIDs, getGraphID(o)) "Observeds are not unique!"
+            localIDs[getGraphID(o)] = idx 
+
+        else # ? data isa DependentDNA
+            d::DependentDNA = data
+            @assert !haskey(localIDs, getGraphID(d)) "Dependents are not unique!"
+            localIDs[getGraphID(d)] = idx
+        end
+    end
+
+    for idx in eachindex(wd)
+        data = wd[idx].data
+        
+        od::Union{ObservedDNA,DependentDNA,Nothing} = nothing
+
+        if data isa SyncFood
+            sf::SyncFood = data
+            o::ObservedDNA = sf.observed
+            od = o
+        else # ? data isa DependentDNA
+            d::DependentDNA = data
+            od = d            
+        end
+
+        for parent in getGraphParents(od)
+            pid = getGraphID(parent)
+            
+            if haskey(localIDs, pid)
+                pidx = localIDs[pid]
+                if idx <= pidx
+                    # ? Parent is below in the list, so topological order is violated.
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
+end
+
+function _sortByWeight(wd::Vector{WorkerFood}, weights::Vector{Int})::Tuple{Vector{WorkerFood}, Vector{Int}}
+    idxs = sortperm(weights; rev=true)
+    return (wd[idxs], weights[idxs])
+end
+
 function _distributeWork(self::Scheduler, model::ModelDNA, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads})
     wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
     w::Workers = getWorkers(model)
@@ -244,6 +299,9 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::Union{SingleFrameMu
     # ? Calculate node weights.
     heights::Vector{Int} = _calculateNodeWeights(wd, localIDs)
     @assert length(heights) == length(wd) "Every node must get one weight!"
+
+    wd, heights = _sortByWeight(wd, heights)
+    @assert _isTopologicalOrdered(wd) "Schedule is not in topological order!"
 
     # ? Assign nodes with weights to workers.
     tags::Vector{Int} = _assignNodesToWorkers(wd, w, heights)

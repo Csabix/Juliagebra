@@ -3,7 +3,7 @@
 # ! Adder
 # ? ---------------------------------
 
-const ADDER_IN_CHANNEL_SIZE = 100
+const ADDER_IN_CHANNEL_SIZE = 8192
 
 """
 Calls added! and addedAll! calls on built Dependents if needed.

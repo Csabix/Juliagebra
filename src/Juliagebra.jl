@@ -82,7 +82,6 @@ include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
-include("Widgets/Windows/graph_window.jl")
 
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
@@ -138,6 +137,8 @@ include("GraphCore/Threads/synchronizer.jl")
 include("GraphCore/Threads/eval_worker.jl")
 include("GraphCore/Threads/scheduler.jl")
 include("GraphCore/Threads/model.jl")
+
+include("Widgets/Windows/graph_window.jl")
 
 include("App/starter.jl")
 include("App/commander.jl")

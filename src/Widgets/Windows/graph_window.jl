@@ -5,14 +5,10 @@
 
 @kwdef mutable struct GraphWindow <: WindowDNA
     _window::Window = Window()
-    _selectedState::Int = 1
-    _states::Vector{String} = [
-        "Single Frame - Single Threaded",
-        "Single Frame - Two Threaded",
-        "Single Frame - Multi Threaded",
-        "Multiple Frames - Single Threaded",
-        "Multiple Frames - Multi Threaded"
-    ]
+    _renderState::Int = 1
+    _updateState::Int = 1
+    _workerIDs::Vector{Vector{Int}} = [[] for _ in 0:MAX_WORKER_NUM()]
+    _workerTimes::Vector{Vector{Float32}} = [[] for _ in 0:MAX_WORKER_NUM()]
 end
 
 _Window_(self::GraphWindow)::Window = return self._window
@@ -20,7 +16,46 @@ getWindowName(::GraphWindow) = return "Graph"
 
 function update!(self::GraphWindow, model::ModelDNA)
     s::Scheduler = getScheduler(model)
-    setMode(s,self._selectedState)
+    self._updateState = self._renderState
+    setMode(s, self._updateState)
+    
+    if isVisible(self)
+        _update1(self, getMode(s, self._updateState), model)
+    end
+end
+
+function _update1(self::GraphWindow, ::SingleFrameSingleThread, model::ModelDNA)
+    _update2(self, 0, model)
+end
+
+function _update1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::ModelDNA)
+    _update2(self, 1, model)
+end
+
+function _update1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::ModelDNA)
+    for idx in 1:length(getWorkers(model)) 
+        _update2(self, idx, model)
+    end
+end
+
+function _update2(self::GraphWindow, idx::Int, model::ModelDNA)
+    _ids::Vector{Int} = self._workerIDs[idx+1]
+    _times::Vector{Float32} = self._workerTimes[idx+1]
+    
+    Base.resize!(_ids,0)
+    Base.resize!(_times,0)
+    
+    w::EvalWorker = getWorkers(model)[idx]
+    wIDs::Vector{Int} = getProcessedIDs(w)
+    wTimes::Vector{Float64} = getProcessedTimes(w)
+    
+    for id in wIDs 
+        push!(_ids, id)
+    end
+
+    for t in wTimes
+        push!(_times,Float32(t))
+    end
 end
 
 function renderContent(self::GraphWindow, app::AppDNA)
@@ -91,76 +126,58 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
     CImGui.Spacing()
     CImGui.Spacing()
 
+    CImGui.Text("Synchronizer")
+    CImGui.Separator()
+    CImGui.Text("taken: $(sy._taken)")
+    CImGui.Spacing()
+    CImGui.Spacing()
+    CImGui.Spacing()
+
     CImGui.Text("Select Scheduler mode:")
     
+    states::Vector{String} = ["$(getMode(sc,idx))" for idx in 1:getModesLength(sc)]
+
     CImGui.SetNextItemWidth(-1)
-    if (CImGui.BeginCombo("##SchedulerModes",self._states[self._selectedState]))
-        for idx in eachindex(self._states) 
-            state = self._states[idx]
-            
-            if CImGui.Selectable(state)
-                self._selectedState = idx
+    if (CImGui.BeginCombo("##SchedulerModes", states[self._updateState]))
+        for idx in eachindex(states)             
+            if CImGui.Selectable(states[idx])
+                self._renderState = idx
             end    
         end
 
         CImGui.EndCombo()
     end
 
-
-    if self._selectedState == 1
-        _renderWorker(self, app, 0)
-    elseif self._selectedState == 2
-        _renderWorker(self, app, 1)
-    elseif self._selectedState == 3
-        for idx in 1:length(wo) 
-            _renderWorker(self, app, idx)
-        end
-    elseif self._selectedState == 4
-        _renderWorker(self, app, 1)
-    elseif self._selectedState == 5
-        for idx in 1:length(wo) 
-            _renderWorker(self, app, idx)
-        end
-    end
-
-    CImGui.Text("Synchronizer")
-    CImGui.Separator()
-    CImGui.Text("taken: $(sy._taken)")
-    
+    _renderEvaluationTab1(self, getMode(sc, self._updateState), m)
 end
 
-function _renderWorker(::GraphWindow, app::AppDNA, idx::Int)
-    m::Model = getModel(app)
-    sc::Scheduler = getScheduler(m)
-    wo::Workers = getWorkers(m)
-    w::EvalWorker = wo[idx]
-    CImGui.Text("Worker$(idx)")
+function _renderEvaluationTab1(self::GraphWindow, ::SingleFrameSingleThread, model::ModelDNA)
+    _renderWorker(self, 0)
+end
+
+function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::ModelDNA)
+    _renderWorker(self, 1)
+end
+
+function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::ModelDNA)
+    for idx in 1:length(getWorkers(model))
+        _renderWorker(self, idx)
+    end
+end
+
+function _renderWorker(self::GraphWindow, idx::Int)
     CImGui.Separator()
 
-    if 0 < idx
-        CImGui.Text("Scheduled: $(sc._scheduled[idx])")
-    end
+    _ids::Vector{Int} = self._workerIDs[idx+1]
+    _times::Vector{Float32} = self._workerTimes[idx+1]
+
+    maxVal::Float32 = Float32(0.0)
+    !isempty(_times) ? maxVal = maximum(_times) : nothing
+    CImGui.PlotHistogram("##$(idx)", _times, length(_times), 0, "Worker$(idx)", 0.0, maxVal, (-1.0,50.0), sizeof(Float32))
     
-    CImGui.Text("Processed:")
-        
-    maxVal = 0.0
-
-    if !isempty(w._processed)
-        maxVal = maximum(w._processed)
-    end
-        
-    if maxVal < 0.2
-        maxVal = 0.2
-    elseif maxVal < 0.5
-        maxVal = 0.5
-    elseif  maxVal < 1.0
-        maxVal = 1.0
-    elseif maxVal < 1.5
-        maxVal = 1.5
-    end
-
-    CImGui.PlotHistogram("##$(idx)", w._processed, length(w._processed), 0, "Worker$(idx)", 0.0,maxVal, (-1.0,50.0), sizeof(Float32))
-        
+    CImGui.Text("Processed: $(length(_ids))")
+    CImGui.Text("Slowest time: $(maxVal)")
+    
     CImGui.Spacing()
     CImGui.Spacing()
     CImGui.Spacing()

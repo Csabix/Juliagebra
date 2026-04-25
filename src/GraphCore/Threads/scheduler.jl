@@ -6,11 +6,22 @@
 const PER_FRAME_MERGE::Int = 25
 
 abstract type SchedulingMode end
+
 struct SingleFrameSingleThread <: SchedulingMode end
+Base.string(::SingleFrameSingleThread) = "Single Frame - Single Threaded"
+
 struct SingleFrameTwoThreads <: SchedulingMode end
+Base.string(::SingleFrameTwoThreads) = "Single Frame - Two Threaded"
+
 struct SingleFrameMultipleThreads <: SchedulingMode end
+Base.string(::SingleFrameMultipleThreads) = "Single Frame - Multi Threaded"
+
 struct MultipleFramesSingleThread <: SchedulingMode end
+Base.string(::MultipleFramesSingleThread) = "Multiple Frames - Single Threaded"
+
 struct MultipleFramesMultipleThreads <: SchedulingMode end
+Base.string(::MultipleFramesMultipleThreads) = "Multiple Frames - Multi Threaded"
+
 
 
 """
@@ -36,7 +47,6 @@ Manages correct graph evaluation scheduling.
         MultipleFramesSingleThread(),
         MultipleFramesMultipleThreads()
     ]
-    _scheduled::Vector{Int} = [0 for _ in 1:max(1,Threads.threadpoolsize()-2)]
 end
 
 Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : push!(self._in,dependent)
@@ -46,6 +56,8 @@ Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
 isFinishedCorrectly(self::Scheduler)::Bool = return _isFinishedCorrectly(self, self._mode)
 setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
+getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
+getModesLength(self::Scheduler)::Int = return length(self._modes)
 
 function _isFinishedCorrectly(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
@@ -242,34 +254,14 @@ function _isTopologicalOrdered(wd::Vector{WorkerFood})::Bool
     
     # ? gather graphID -> idx
     for idx in eachindex(wd)
-        data = wd[idx].data
+        od::Union{ObservedDNA,DependentDNA} = getDependent(wd[idx])
         
-        if data isa SyncFood
-            sf::SyncFood = data
-            o::ObservedDNA = sf.observed
-            @assert !haskey(localIDs, getGraphID(o)) "Observeds are not unique!"
-            localIDs[getGraphID(o)] = idx 
-
-        else # ? data isa DependentDNA
-            d::DependentDNA = data
-            @assert !haskey(localIDs, getGraphID(d)) "Dependents are not unique!"
-            localIDs[getGraphID(d)] = idx
-        end
+        @assert !haskey(localIDs, getGraphID(od)) "Dependents are not unique!"
+        localIDs[getGraphID(od)] = idx 
     end
 
     for idx in eachindex(wd)
-        data = wd[idx].data
-        
-        od::Union{ObservedDNA,DependentDNA,Nothing} = nothing
-
-        if data isa SyncFood
-            sf::SyncFood = data
-            o::ObservedDNA = sf.observed
-            od = o
-        else # ? data isa DependentDNA
-            d::DependentDNA = data
-            od = d            
-        end
+        od::Union{ObservedDNA,DependentDNA} = getDependent(wd[idx])
 
         for parent in getGraphParents(od)
             pid = getGraphID(parent)
@@ -313,7 +305,6 @@ function _distributeWork(self::Scheduler, model::ModelDNA, ::Union{SingleFrameMu
 
     # ? Send work.
     for idx in eachindex(wds) 
-        self._scheduled[idx] = length(wds[idx])
         put!(w[idx],wds[idx])
     end
 end

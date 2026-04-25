@@ -57,9 +57,11 @@ end
 function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)
     observers = Set{ObserverDNA}()
     s::Scheduler = getScheduler(model)
+    self._taken = 0
 
     while !isReached(s._syncedGoal)
         _processExternal!(self,model,observers)
+        self._taken += 1
     end
 
     wait(s._evaledGoal)

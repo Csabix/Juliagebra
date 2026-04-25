@@ -20,60 +20,56 @@ getDependent(self::WorkerFood{SyncFood})::ObservedDNA = return self.data.observe
 # ! EvalWorker
 # ? ---------------------------------
 
-"""
-Calls onNodeEval() on put nodes, then sends them to synchronizer.
-"""
-mutable struct EvalWorker{T<:Union{Queue{DependentDNA}, Channel{Vector{WorkerFood}}}}
-    _in::T
-    _processed::Vector{Float32}
-
-    function EvalWorker(in::T) where {T}#<:Union{Queue{DependentDNA}, Channel{DependentDNA}}}
-        new{T}(in,[])
-    end
-
-    function EvalWorker{Queue{DependentDNA}}()
-        return EvalWorker(Queue{DependentDNA}())
-    end
-
-    function EvalWorker{Channel{Vector{WorkerFood}}}()
-        return EvalWorker(Channel{Vector{WorkerFood}}(1))
-    end
+function pushEndTime!(self::EvalWorker, id::Int, startTime::Float64)
+    ids::Vector{Int} = getProcessedIDs(self)
+    ts::Vector{Float64} = getProcessedTimes(self)
+    
+    push!(ids,id)
+    push!(ts,(time()-startTime)*1000)
 end
 
 # ? ---------------------------------
 # ! EvalWorker0
 # ? ---------------------------------
 
-const EvalWorker0 = EvalWorker{Queue{DependentDNA}}
+"""
+Calls onNodeEval() on put nodes, then sends them to synchronizer.
+"""
+@kwdef mutable struct EvalWorker0 <: EvalWorker
+    _in::Queue{DependentDNA} = Queue{DependentDNA}()
+    _processedIDs::Vector{Int} = []
+    _processedTimes::Vector{Float64} = []
+end
 
 Base.put!(self::EvalWorker0, d::DependentDNA) = push!(self._in,d)
 Base.take!(self::EvalWorker0)::DependentDNA = return popfirst!(self._in)
 Base.length(self::EvalWorker0) = return length(self._in)
+getProcessedIDs(self::EvalWorker0)::Vector{Int} = return self._processedIDs
+getProcessedTimes(self::EvalWorker0)::Vector{Float64} = return self._processedTimes
+
 
 function processUntilClosed!(self::EvalWorker0, model::ModelDNA)
+    Base.resize!(self._processedIDs,0)
+    Base.resize!(self._processedTimes,0)
     taken = length(self)
-    Base.resize!(self._processed,0)
 
     for _ in 1:taken
-        _process1(self, model, take!(self))
+        startTime = time()
+        
+        d::DependentDNA = take!(self)
+        _process1(self, model, d)
+
+        pushEndTime!(self, getGraphID(d), startTime)
     end
 end
 
-function _process1(self::EvalWorker0, ::ModelDNA, d::DependentDNA)
-    startTime = time()
+function _process1(self::EvalWorker0, ::ModelDNA, d::DependentDNA)    
     @invokelatest _process2(d)
-    endTime = time()-startTime
-
-    push!(self._processed, Float32(endTime * 1000))
 end
 
-function _process1(self::EvalWorker0, model::ModelDNA, o::ObservedDNA)
-    startTime = time()
+function _process1(self::EvalWorker0, model::ModelDNA, o::ObservedDNA)    
     @invokelatest _process2(o)
     put!(getSynchronizer(model),o)
-    endTime = time()-startTime
-
-    push!(self._processed, Float32(endTime * 1000))
 end
 
 function _process2(dependent::DependentDNA)
@@ -86,14 +82,26 @@ end
 # ! EvalWorkeri
 # ? ---------------------------------
 
-const EvalWorkeri = EvalWorker{Channel{Vector{WorkerFood}}}
+"""
+Calls onNodeEval() on put nodes, then sends them to synchronizer.
+"""
+@kwdef mutable struct EvalWorkeri <: EvalWorker
+    _in::Channel{Vector{WorkerFood}} = Channel{Vector{WorkerFood}}(1)
+    _processedIDs::Vector{Int} = []
+    _processedTimes::Vector{Float64} = []
+end
 
 Base.put!(self::EvalWorkeri, fs::Vector{WorkerFood}) = put!(self._in,fs)
 Base.take!(self::EvalWorkeri)::DependentDNA = return take!(self._in)
 destroy!(self::EvalWorkeri) = close(self._in)
+getProcessedIDs(self::EvalWorkeri)::Vector{Int} = return self._processedIDs
+getProcessedTimes(self::EvalWorkeri)::Vector{Float64} = return self._processedTimes
     
 function processUntilClosed!(self::EvalWorkeri, model::ModelDNA)
     for foods in self._in
+        Base.resize!(self._processedIDs,0)
+        Base.resize!(self._processedTimes,0)
+        
         for food in foods 
             conditions::Vector{CompletedCondition} = food.conditions
 
@@ -101,8 +109,12 @@ function processUntilClosed!(self::EvalWorkeri, model::ModelDNA)
             for c in conditions
                 wait(c)
             end
-
+            
+            startTime = time()
+            
             _process1(self, model, food.evaled, food.data)
+            
+            pushEndTime!(self, getGraphID(getDependent(food)), startTime)
         end
     end
 
@@ -129,8 +141,10 @@ end
 # ! Workers
 # ? ---------------------------------
 
+MAX_WORKER_NUM() = max(1,Threads.threadpoolsize()-2)
+
 @kwdef mutable struct Workers
-    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:(max(1,Threads.threadpoolsize()-2))])
+    _workersi::Vector{EvalWorkeri} = Vector{EvalWorkeri}([EvalWorkeri() for i in 1:MAX_WORKER_NUM()])
     _worker0::EvalWorker0 = EvalWorker0()
 end
 

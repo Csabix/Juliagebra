@@ -9,6 +9,7 @@
     _updateState::Int = 1
     _workerIDs::Vector{Vector{Int}} = [[] for _ in 0:MAX_WORKER_NUM()]
     _workerTimes::Vector{Vector{Float32}} = [[] for _ in 0:MAX_WORKER_NUM()]
+    _workerPlotIdx::Vector{Int64} = [0 for _ in 0:MAX_WORKER_NUM()]
 end
 
 _Window_(self::GraphWindow)::Window = return self._window
@@ -152,20 +153,20 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
 end
 
 function _renderEvaluationTab1(self::GraphWindow, ::SingleFrameSingleThread, model::ModelDNA)
-    _renderWorker(self, 0)
+    _renderWorker(self, 0, model)
 end
 
 function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::ModelDNA)
-    _renderWorker(self, 1)
+    _renderWorker(self, 1, model)
 end
 
 function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::ModelDNA)
     for idx in 1:length(getWorkers(model))
-        _renderWorker(self, idx)
+        _renderWorker(self, idx, model)
     end
 end
 
-function _renderWorker(self::GraphWindow, idx::Int)
+function _renderWorker(self::GraphWindow, idx::Int, model::ModelDNA)
     CImGui.Separator()
 
     _ids::Vector{Int} = self._workerIDs[idx+1]
@@ -174,7 +175,24 @@ function _renderWorker(self::GraphWindow, idx::Int)
     maxVal::Float32 = Float32(0.0)
     !isempty(_times) ? maxVal = maximum(_times) : nothing
     CImGui.PlotHistogram("##$(idx)", _times, length(_times), 0, "Worker$(idx)", 0.0, maxVal, (-1.0,50.0), sizeof(Float32))
-    
+        
+    if !isempty(_ids)
+        CImGui.Text("Plot id to graphID:")
+        CImGui.SameLine()
+        idxx = idx+1
+
+        plotIdx = input1i(self._workerPlotIdx[idxx], "##plotIdx$(idx)" , 1, 10)
+        self._workerPlotIdx[idxx] = !isnothing(plotIdx) ? clamp(plotIdx, 0, length(_ids)-1) : clamp(self._workerPlotIdx[idxx], 0, length(_ids)-1)
+        d::DependentDNA = getDependent(getGraph(model),_ids[self._workerPlotIdx[idxx]+1])
+        
+        txtStr = replace("$(typeof(d))",r"Juliagebra\.|JuliaGLM\." => "")
+        CImGui.Text("Node: $(txtStr)")
+        
+        CImGui.Text("graphID: $(getGraphID(d))")
+    else
+        CImGui.Text("Empty schedule!")
+    end
+
     CImGui.Text("Processed: $(length(_ids))")
     CImGui.Text("Slowest time: $(maxVal)")
     

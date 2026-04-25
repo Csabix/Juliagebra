@@ -54,16 +54,21 @@ Base.isempty(self::Scheduler)::Bool = return isempty(self._in)
 Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
-isFinishedCorrectly(self::Scheduler)::Bool = return _isFinishedCorrectly(self, self._mode)
+isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
+isFinishedFirst(self::Scheduler)::Bool = return length(self._evaled)!=0 && length(self._synced)!=0
 setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
 getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
 getModesLength(self::Scheduler)::Int = return length(self._modes)
 
-function _isFinishedCorrectly(::Scheduler, ::SingleFrameSingleThread)::Bool
+
+
+function _isFinishedCorrectly!(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
 end
 
-function _isFinishedCorrectly(self::Scheduler, ::SchedulingMode)::Bool
+function _isFinishedCorrectly!(self::Scheduler, ::SchedulingMode)::Bool
+    @assert isFinishedFirst(self) "Not first finish!"
+    
     for c in self._evaled
         if !isCompleted(c)
             return false

@@ -42,10 +42,11 @@ function processInternal!(self::Synchronizer)
 end
 
 function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
-    self._taken = Base.n_avail(self._external)
+    taken = Base.n_avail(self._external)
+    self._taken += taken
     observers = Set{ObserverDNA}()
 
-    for _ in 1:self._taken
+    for _ in 1:taken
         _processExternal!(self,model,observers)
     end
 
@@ -57,7 +58,6 @@ end
 function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)
     observers = Set{ObserverDNA}()
     s::Scheduler = getScheduler(model)
-    self._taken = 0
 
     while !isReached(s._syncedGoal)
         _processExternal!(self,model,observers)

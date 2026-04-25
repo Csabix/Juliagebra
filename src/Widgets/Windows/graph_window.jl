@@ -7,6 +7,8 @@
     _window::Window = Window()
     _renderState::Int = 1
     _updateState::Int = 1
+    _toggle::Int = 1
+    _vsync::Int = 1
     _workerIDs::Vector{Vector{Int}} = [[] for _ in 0:MAX_WORKER_NUM()]
     _workerTimes::Vector{Vector{Float32}} = [[] for _ in 0:MAX_WORKER_NUM()]
     _workerPlotIdx::Vector{Int64} = [0 for _ in 0:MAX_WORKER_NUM()]
@@ -22,6 +24,11 @@ function update!(self::GraphWindow, model::ModelDNA)
     
     if isVisible(self)
         _update1(self, getMode(s, self._updateState), model)
+    end
+
+    if self._vsync != self._toggle
+        self._vsync = self._toggle
+        GLFW.SwapInterval(self._vsync)
     end
 end
 
@@ -147,6 +154,16 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
         end
 
         CImGui.EndCombo()
+    end
+
+    toggleState = (self._vsync == 1) ? true : false
+    toggleStateRef = Ref(toggleState)
+
+
+    CImGui.Text("Vsync:")
+    CImGui.SameLine()
+    if CImGui.Checkbox("##Vsync",toggleStateRef)
+        self._toggle = abs(self._toggle - 1)
     end
 
     _renderEvaluationTab1(self, getMode(sc, self._updateState), m)

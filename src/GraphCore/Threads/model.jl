@@ -168,6 +168,7 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
 
         elseif (mode isa MultipleFramesSingleThread)
+            @time_cpu_begin Graph_update
             # ? Scheduler will schedule work to all Workeri.
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
@@ -176,6 +177,7 @@ function update!(self::Model, ::ViewingState)
             processAvailableExternal!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.
         elseif (mode isa MultipleFramesMultipleThreads)
+            @time_cpu_begin Graph_update
             # ? Scheduler will schedule work to all Workeri.
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
@@ -189,7 +191,15 @@ end
 
 function endState(self::Model, state::ViewingState)
     if isFinished(self._scheduler)
-        @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
+        if isFinishedFirst(self._scheduler)
+            isCorrect = isFinishedCorrectly!(self._scheduler)
+            @assert isCorrect "Evaling didn't finish correctly!"
+            
+            if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
+                @time_cpu_end Graph_update
+            end
+        end
+
         # ? Let Builder process Dependents. Next state for sure will be ViewingState.
         unlock(self._builder)
     end
@@ -208,7 +218,15 @@ end
 
 function endState(self::Model, state::EvalingState)
     if isFinished(self._scheduler)
-        @assert isFinishedCorrectly(self._scheduler) "Evaling didn't finish correctly!"
+        if isFinishedFirst(self._scheduler)
+            isCorrect = isFinishedCorrectly!(self._scheduler)
+            @assert isCorrect "Evaling didn't finish correctly!" 
+            
+            if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
+                @time_cpu_end Graph_update
+            end
+        end
+
         # ? Let Builder process Dependents. Next state for sure will be ViewingState.
         unlock(self._builder)
     end

@@ -6,6 +6,8 @@
 const BUILDER_IN_CHANNEL_SIZE = 8192
 const _BuilderT = Union{DependentDNA,Tuple{ObservedDNA,ObserverDNA}}
 
+global _builderTimes = Vector{Float64}()
+
 """
 Builds un-built Dependents up until added! and addedAll!! calls.
 """
@@ -30,6 +32,12 @@ function processUntilClosed!(self::Builder, model::ModelDNA)
         end
     end
 
+    #global BUILDER_PATH
+
+    #open(BUILDER_PATH, "a") do io
+    #    println(io, join(_builderTimes,","))        
+    #end
+
     println("ThreadID($(Threads.threadid())): Builder Ended!")
 end
 
@@ -38,8 +46,11 @@ function _build(model::ModelDNA, dependent::DependentDNA)
     @assert isUnbuilt(dependent) "Dependent is already built!"
     
     graph::DependentGraph = getGraph(model)
-    
+
+    startTime = time_ns()
     add!!(graph,dependent)
+    endTime = time_ns()
+    push!(_builderTimes,(endTime-startTime)/1000000.0)
 
     setEntryNodes(dependent)
     onNodeEval(dependent)
@@ -56,7 +67,11 @@ function _build(model::ModelDNA, oo::Tuple{ObservedDNA,ObserverDNA})
     adder::Adder = getAdder(model)
 
     add!!(observer,observed)
+    
+    startTime = time_ns()
     add!!(graph,observed)
+    endTime = time_ns()
+    push!(_builderTimes,(endTime-startTime)/1000000.0)
 
     setEntryNodes(observed)
     onNodeEval(observed)

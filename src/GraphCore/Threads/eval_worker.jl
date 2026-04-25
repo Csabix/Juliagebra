@@ -20,12 +20,12 @@ getDependent(self::WorkerFood{SyncFood})::ObservedDNA = return self.data.observe
 # ! EvalWorker
 # ? ---------------------------------
 
-function pushEndTime!(self::EvalWorker, id::Int, startTime::Float64)
+function pushEndTime!(self::EvalWorker, id::Int, startTime::UInt64)
     ids::Vector{Int} = getProcessedIDs(self)
     ts::Vector{Float64} = getProcessedTimes(self)
     
     push!(ids,id)
-    push!(ts,(time()-startTime)*1000)
+    push!(ts,(time_ns()-startTime)/1000000.0)
 end
 
 # ? ---------------------------------
@@ -54,7 +54,7 @@ function processUntilClosed!(self::EvalWorker0, model::ModelDNA)
     taken = length(self)
 
     for _ in 1:taken
-        startTime = time()
+        startTime = time_ns()
         
         d::DependentDNA = take!(self)
         _process1(self, model, d)
@@ -110,7 +110,7 @@ function processUntilClosed!(self::EvalWorkeri, model::ModelDNA)
                 wait(c)
             end
             
-            startTime = time()
+            startTime = time_ns()
             
             _process1(self, model, food.evaled, food.data)
             

@@ -60,6 +60,12 @@ end
 
 function Wait()
     global greenTask
+    
+    if isnothing(greenTask)
+        @warn "Can't wait on empty scnene!"
+        return
+    end
+    
     wait(greenTask)
     println("ThreadID($(Threads.threadid())): Main Thread Ended!")
 end

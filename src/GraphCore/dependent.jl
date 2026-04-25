@@ -11,9 +11,13 @@ mutable struct Dependent
 
     function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
         schedule = Schedule()
-        entryNodes = Vector{Any}(undef,length(graphParents))
+        
+        _graphParents = copy(graphParents)
+        @assert allunique(_graphParents) "Dependent parents have duplicates!"
+
+        entryNodes = Vector{Any}(undef,length(_graphParents))
     
-        new(0,graphParents,entryNodes,schedule,callback)
+        new(0,_graphParents,entryNodes,schedule,callback)
     end
 end
 
@@ -22,7 +26,7 @@ _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for 
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
-getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
+getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID
 getSchedule(self::DependentDNA) = return _Dependent_(self)._schedule
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 

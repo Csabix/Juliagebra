@@ -20,12 +20,12 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     
     graph = _DependentGraph_(self)
     assetDependent = _Dependent_(asset)
-    assetDependent._graphID = length(graph._dependentObjects) + 1 + ID_LOWER_BOUND
+    assetDependent._graphID = length(graph._dependentObjects) + 1
     
     for graphItem in graph._dependentObjects
         graphItemChain = getSchedule(graphItem)
         for assetParent in assetDependent._graphParents
-            if (assetParent in dependentsOf(graphItemChain)) || assetParent === graphItem
+            if (assetParent === graphItem) || (assetParent in dependentsOf(graphItemChain))
                 enchain!(graphItemChain,asset)
                 break
             end

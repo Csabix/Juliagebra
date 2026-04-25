@@ -11,6 +11,7 @@
     _vsync::Int = 1
     _workerIDs::Vector{Vector{Int}} = [[] for _ in 0:MAX_WORKER_NUM()]
     _workerTimes::Vector{Vector{Float32}} = [[] for _ in 0:MAX_WORKER_NUM()]
+    _workerSum::Vector{Float64} = [0.0 for _ in 0:MAX_WORKER_NUM()]
     _workerPlotIdx::Vector{Int64} = [0 for _ in 0:MAX_WORKER_NUM()]
 end
 
@@ -64,6 +65,8 @@ function _update2(self::GraphWindow, idx::Int, model::ModelDNA)
     for t in wTimes
         push!(_times,Float32(t))
     end
+
+    self._workerSum[idx+1] = sum(wTimes)
 end
 
 function renderContent(self::GraphWindow, app::AppDNA)
@@ -212,6 +215,7 @@ function _renderWorker(self::GraphWindow, idx::Int, model::ModelDNA)
 
     CImGui.Text("Processed: $(length(_ids))")
     CImGui.Text("Slowest time: $(maxVal)")
+    CImGui.Text("Sum time: $(self._workerSum[idx+1])")
     
     CImGui.Spacing()
     CImGui.Spacing()

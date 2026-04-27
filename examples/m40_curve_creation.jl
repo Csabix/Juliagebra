@@ -3,11 +3,11 @@ using JuliaGLM
 using LinearAlgebra
 
 const width::Float64 = 0.2
-const Vec2D = GenericDependent{Vec2T{Float64}}
-const Scalar = GenericDependent{Float64}
+#const Vec2D = GenericDependent{Vec2T{Float64}}
+#const Scalar = GenericDependent{Float64}
 
 function triangle(a,b,c,col)
-    ParametricSurface(3,3,0.0,1.0,0.0,1.0,[a,b,c];color=col) do u,v,a,b,c
+    ParametricSurface(range(0.0,1.0,3),range(0.0,1.0,3),[a,b,c];color=col) do u,v,a,b,c
         if (u>=0.5 && v>=0.5)
             u = 0.5
             v = 0.5
@@ -17,7 +17,7 @@ function triangle(a,b,c,col)
 end
 
 function distance(A,B)
-    return Scalar(0,[A,B]) do A, B
+    return ValueHolder(Float64,[A,B]) do A, B
         return norm(A - B)
     end
 end
@@ -32,19 +32,24 @@ rot_clockwise(v) = Vec2T{Float64}(v.y, -v.x)
 rot_counter_clockwise(v) = Vec2T{Float64}(-v.y, v.x)
 
 function curve_segment(A,B,C,D)
+    sr = ValueHolder(width)
+    Sphere(A,sr,color=(0.1,0.1,0.1,0.1))
+    Sphere(B,sr,color=(0.1,0.1,0.1,0.1))
+    Sphere(C,sr,color=(0.1,0.1,0.1,0.1))
+    Sphere(D,sr,color=(0.1,0.1,0.1,0.1))
     distance_X = distance(A,B)
     distance_Y = distance(C,B)
     distance_Z = distance(C,D)
 
-    AB_dir = Vec2D(get_direction,(0,0), [A, B])
-    CB_dir = Vec2D(get_direction,(0,0), [C, B])
-    DC_dir = Vec2D(get_direction,(0,0), [D, C])
+    AB_dir = ValueHolder(get_direction,Vec2T{Float64},[A, B])
+    CB_dir = ValueHolder(get_direction,Vec2T{Float64},[C, B])
+    DC_dir = ValueHolder(get_direction,Vec2T{Float64},[D, C])
 
-    AB_dir_r = Vec2D(rot_clockwise,(0,0), [AB_dir])
-    CB_dir_r = Vec2D(rot_counter_clockwise,(0,0), [CB_dir])
-    DC_dir_r = Vec2D(rot_counter_clockwise,(0,0), [DC_dir])
+    AB_dir_r = ValueHolder(rot_clockwise, Vec2T{Float64}, [AB_dir])
+    CB_dir_r = ValueHolder(rot_counter_clockwise, Vec2T{Float64}, [CB_dir])
+    DC_dir_r = ValueHolder(rot_counter_clockwise, Vec2T{Float64}, [DC_dir])
 
-    inner_offset_ABC = Vec2D((0,0), [AB_dir, AB_dir_r, CB_dir, CB_dir_r]) do AB_dir, AB_dir_r, CB_dir, CB_dir_r
+    inner_offset_ABC = ValueHolder(Vec2T{Float64},[AB_dir, AB_dir_r, CB_dir, CB_dir_r]) do AB_dir, AB_dir_r, CB_dir, CB_dir_r
         if dot(AB_dir,CB_dir) <= -0.9999
             return CB_dir_r
         else
@@ -52,7 +57,7 @@ function curve_segment(A,B,C,D)
         end
     end
 
-    inner_offset_BCD = Vec2D((0,0), [CB_dir, CB_dir_r, DC_dir, DC_dir_r]) do CB_dir, CB_dir_r, DC_dir, DC_dir_r
+    inner_offset_BCD = ValueHolder(Vec2T{Float64},[CB_dir, CB_dir_r, DC_dir, DC_dir_r]) do CB_dir, CB_dir_r, DC_dir, DC_dir_r
         if dot(-CB_dir, DC_dir) <= -0.9999
             return CB_dir_r
         else
@@ -60,7 +65,17 @@ function curve_segment(A,B,C,D)
         end
     end
 
-    begin_inner_offset = Vec2D((0,0), [CB_dir, CB_dir_r, AB_dir, inner_offset_ABC, distance_X, distance_Y]) do CB_dir, CB_dir_r, AB_dir, inner_offset_ABC, distance_X, distance_Y
+    function draw_vector(origin,dir;color="c",style="->",width=5.0f0)
+        offset = Point([origin,dir],size=0) do o,d
+            d3 = Vec3D(d[1],0.0,d[2])
+            return o + d3
+        end
+        Segment(origin, offset;color=color,style=style,width=width)
+    end
+    draw_vector(B,inner_offset_ABC;color="y")
+    draw_vector(C,inner_offset_BCD;color="m")
+
+    begin_inner_offset = ValueHolder(Vec2T{Float64},[CB_dir, CB_dir_r, AB_dir, inner_offset_ABC, distance_X, distance_Y]) do CB_dir, CB_dir_r, AB_dir, inner_offset_ABC, distance_X, distance_Y
         if dot(AB_dir,CB_dir) <= 0.00006
             return inner_offset_ABC
         else
@@ -80,7 +95,7 @@ function curve_segment(A,B,C,D)
         end
     end
 
-    begin_outer_offset = Vec2D((0,0), [AB_dir, CB_dir, CB_dir_r, inner_offset_ABC, distance_X, distance_Y]) do AB_dir, CB_dir, CB_dir_r, inner_offset_ABC, dX, dY
+    begin_outer_offset = ValueHolder(Vec2T{Float64},[AB_dir, CB_dir, CB_dir_r, inner_offset_ABC, distance_X, distance_Y]) do AB_dir, CB_dir, CB_dir_r, inner_offset_ABC, dX, dY
         # Obtuse Case
         if dot(AB_dir, CB_dir) <= 0.00006
             return -inner_offset_ABC
@@ -102,7 +117,7 @@ function curve_segment(A,B,C,D)
         end
     end
 
-    end_inner_offset = Vec2D((0,0), [CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, distance_Y, distance_Z]) do CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, dY, dZ
+    end_inner_offset = ValueHolder(Vec2T{Float64},[CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, distance_Y, distance_Z]) do CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, dY, dZ
         # Obtuse Case
         if dot(-CB_dir, DC_dir) <= 0.00006
             return inner_offset_BCD
@@ -123,7 +138,7 @@ function curve_segment(A,B,C,D)
         end
     end
 
-    end_outer_offset = Vec2D((0,0), [CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, distance_Y, distance_Z]) do CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, dY, dZ
+    end_outer_offset = ValueHolder(Vec2T{Float64},[CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, distance_Y, distance_Z]) do CB_dir, CB_dir_r, DC_dir, inner_offset_BCD, dY, dZ
         if dot(-CB_dir, DC_dir) <= 0.00006
             return -inner_offset_BCD
         else
@@ -139,7 +154,7 @@ function curve_segment(A,B,C,D)
         end
     end
 
-    end_outer_third_offset = Vec2D((Inf, Inf), [CB_dir, DC_dir, DC_dir_r, inner_offset_BCD, distance_Y, distance_Z]) do CB_dir, DC_dir, DC_dir_r, inner_offset_BCD, dY, dZ
+    end_outer_third_offset = ValueHolder(Vec2T{Float64},[CB_dir, DC_dir, DC_dir_r, inner_offset_BCD, distance_Y, distance_Z]) do CB_dir, DC_dir, DC_dir_r, inner_offset_BCD, dY, dZ
         # Only exists in specific Acute case
         if dot(-CB_dir, DC_dir) > 0.00006
             BC_l, DC_l = dY ./ width, dZ ./ width
@@ -179,9 +194,6 @@ function curve_segment(A,B,C,D)
     triangle(r3,r4,r5,(0,0,1))
 end
 
-App()
-
-
 A = Point(0, 0, 0)
 B = Point(0, 0, 1)
 C = Point(1, 0, 2)
@@ -193,9 +205,9 @@ curve_segment(A,B,C,D)
 curve_segment(B,C,D,E)
 curve_segment(C,D,E,F)
 
-Segment(A,B,type=CURVE_ARROW)
-Segment(B,C,type=CURVE_ARROW)
-Segment(C,D,type=CURVE_ARROW)
-Segment(D,E,type=CURVE_ARROW)
+Segment(A,B,style=ARROW)
+Segment(B,C,style=ARROW)
+Segment(C,D,style=ARROW)
+Segment(D,E,style=ARROW)
 
-play!()
+Juliagebra.Wait()

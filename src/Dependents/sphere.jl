@@ -153,7 +153,7 @@ function Sphere(center::PointDependent,p1::PointDependent; color = (0.980f0,0.46
 end
 
 # YELLOW Thread
-function Sphere(center::PointDependent,radius::ValueHolderDNA{Float64}; color = (0.031f0,0.337f0,0.412f0,1.0f0))
+function Sphere(center::PointDependent,radius; color = (0.031f0,0.337f0,0.412f0,1.0f0))
     deps = Vector{DependentDNA}([center,radius])
     call = function (center,radius)
         return (center,radius)

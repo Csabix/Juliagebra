@@ -204,7 +204,7 @@ function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepende
     copy!(surface._uvValues,self._vertexes,surface._layer)
     copy!(surface._uvNormals,self._normals,surface._layer)
 
-    coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,layers(self._vertexes))
+    coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,surface._layer)
     ref = self._refs[surface._layer]
     update_coords!(self._renderers.triangle,ref,coords)
     update_color!(self._renderers.triangle,ref,surface._color)

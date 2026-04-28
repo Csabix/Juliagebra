@@ -261,6 +261,11 @@ function play!(self::App)
         implicitApp = nothing
     end
 
+    #global EVAL_PATH
+    #open(EVAL_PATH, "a") do io
+    #    println(io, join(_mlines,","))        
+    #end
+
 end
 
 function init!(self::App)

@@ -7,7 +7,7 @@
     _window::Window = Window()
     _renderState::Int = 1
     _updateState::Int = 1
-    _toggle::Int = 1
+    _toggle::Int = 0
     _vsync::Int = 1
     _workerIDs::Vector{Vector{Int}} = [[] for _ in 0:MAX_WORKER_NUM()]
     _workerTimes::Vector{Vector{Float32}} = [[] for _ in 0:MAX_WORKER_NUM()]
@@ -71,13 +71,13 @@ end
 
 function renderContent(self::GraphWindow, app::AppDNA)
     if CImGui.BeginTabBar("Graph")
-        if CImGui.BeginTabItem("Dependents")
-            _renderDependentsTab(self,app)
-            CImGui.EndTabItem()
-        end
-
         if CImGui.BeginTabItem("Evaluation")
             _renderEvaluationTab(self,app)
+            CImGui.EndTabItem()
+        end
+        
+        if CImGui.BeginTabItem("Dependents")
+            _renderDependentsTab(self,app)
             CImGui.EndTabItem()
         end
 

@@ -33,7 +33,6 @@ function processUntilClosed!(self::Builder, model::ModelDNA)
     end
 
     #global BUILDER_PATH
-
     #open(BUILDER_PATH, "a") do io
     #    println(io, join(_builderTimes,","))        
     #end

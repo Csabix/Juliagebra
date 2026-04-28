@@ -124,7 +124,19 @@ function endState(self::Model, state::BuildingState)
 end
 
 
+global _mlines = [
+    NaN64,
+    NaN64,
+    NaN64,
+    NaN64,
+    NaN64
+]
 
+_mline(::SingleFrameSingleThread) = 1
+_mline(::SingleFrameTwoThreads) = 2
+_mline(::SingleFrameMultipleThreads) = 3
+_mline(::MultipleFramesSingleThread) = 4
+_mline(::MultipleFramesMultipleThreads) = 5
 
 # ? ViewingState
 
@@ -146,7 +158,10 @@ function update!(self::Model, ::ViewingState)
             # ? Worker0 forwards work to Internal Queue.
             processInternal!(self._synchronizer)
             @time_cpu_end Graph_update
-        
+            
+            block = @get_block Graph_update
+            _mlines[_mline(mode)] = _cputime(block)
+
         elseif (mode isa SingleFrameTwoThreads)
             @time_cpu_begin Graph_update
             # ? Scheduler will schedule work only to Worker1.
@@ -156,6 +171,9 @@ function update!(self::Model, ::ViewingState)
             # ? Modell Task must process all Observed and wait for all work to be completed.
             processUntilFinishedExternal!(self._synchronizer, self)
             @time_cpu_end Graph_update
+            
+            block = @get_block Graph_update
+            _mlines[_mline(mode)] = _cputime(block)
 
         elseif (mode isa SingleFrameMultipleThreads)
             @time_cpu_begin Graph_update
@@ -166,6 +184,9 @@ function update!(self::Model, ::ViewingState)
             # ? Modell Task must process all Observed and wait for all work to be completed.
             processUntilFinishedExternal!(self._synchronizer, self)
             @time_cpu_end Graph_update
+            
+            block = @get_block Graph_update
+            _mlines[_mline(mode)] = _cputime(block)
 
         elseif (mode isa MultipleFramesSingleThread)
             @time_cpu_begin Graph_update
@@ -197,6 +218,9 @@ function endState(self::Model, state::ViewingState)
             
             if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
                 @time_cpu_end Graph_update
+                
+                block = @get_block Graph_update
+                _mlines[_mline(self._scheduler._mode)] = _cputime(block)
             end
         end
 
@@ -224,6 +248,9 @@ function endState(self::Model, state::EvalingState)
             
             if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
                 @time_cpu_end Graph_update
+                
+                block = @get_block Graph_update
+                _mlines[_mline(self._scheduler._mode)] = _cputime(block)
             end
         end
 

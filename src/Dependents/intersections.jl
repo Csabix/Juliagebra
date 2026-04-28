@@ -168,8 +168,8 @@ end
 
 export Intersection
 
-function ParametricCurve(it::IntersectionCalculatorDependent{<:Union{Nothing,PSegment}}; maxIntersectionNum=25)
-    return ParametricCurve(range(0, maxIntersectionNum * 3 - 1, maxIntersectionNum * 3), [it]) do t, it 
+function ParametricCurve(it::IntersectionCalculatorDependent{<:Union{Nothing,PSegment}}; maxIntersectionNum=25, color=(0.941, 0.914, 0.141))
+    return ParametricCurve(range(0, maxIntersectionNum * 3 - 1, maxIntersectionNum * 3), [it]; color) do t, it 
         idx = floor(Int, t)
         idx1 = div(idx,3) + 1
         idx2 = idx % 3 + 1

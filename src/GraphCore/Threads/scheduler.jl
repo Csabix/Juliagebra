@@ -31,7 +31,7 @@ Manages correct graph evaluation scheduling.
     _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
     _schedule::Schedule = Schedule()
-    _roots::Set{ObservedDNA} = Set{ObservedDNA}()
+    _roots::Set{SubjectDNA} = Set{SubjectDNA}()
     
     _evaled::Vector{CompletedCondition} = Vector{CompletedCondition}()
     _evaledGoal::AtomicGoal = AtomicGoal()
@@ -107,7 +107,7 @@ function startGraphWorkers!(self::Scheduler, model::ModelDNA)
         # ? Filter out heads, which are not in the schedules.
         empty!(self._roots)
         for d in heads
-            if (d isa ObservedDNA) && !(d in dependentsOf(self._schedule))
+            if (d isa SubjectDNA) && !(d in dependentsOf(self._schedule))
                 push!(self._roots,d)
             end
         end
@@ -162,9 +162,9 @@ function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFo
         evaled = CompletedCondition()
         push!(self._evaled, evaled)
         
-        if d isa ObservedDNA
-            # ? o is Observed, so create synced condition.
-            o::ObservedDNA = d
+        if d isa SubjectDNA
+            # ? o is Subject, so create synced condition.
+            o::SubjectDNA = d
             syncedGoal+=1
             push!(self._synced, false)
 
@@ -259,14 +259,14 @@ function _isTopologicalOrdered(wd::Vector{WorkerFood})::Bool
     
     # ? gather graphID -> idx
     for idx in eachindex(wd)
-        od::Union{ObservedDNA,DependentDNA} = getDependent(wd[idx])
-        
+        od::Union{SubjectDNA,DependentDNA} = getDependent(wd[idx])
+
         @assert !haskey(localIDs, getGraphID(od)) "Dependents are not unique!"
-        localIDs[getGraphID(od)] = idx 
+        localIDs[getGraphID(od)] = idx
     end
 
     for idx in eachindex(wd)
-        od::Union{ObservedDNA,DependentDNA} = getDependent(wd[idx])
+        od::Union{SubjectDNA,DependentDNA} = getDependent(wd[idx])
 
         for parent in getGraphParents(od)
             pid = getGraphID(parent)

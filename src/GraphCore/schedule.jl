@@ -16,9 +16,9 @@ function enchain!(self::Schedule,item::DependentDNA)
     push!(self._vec,item)
 end
 
-function enchain!(self::Schedule,item::ObservedDNA)
-    observer = _Observed_(item)._observer
-    @assert !isnothing(observer) "Observer of Observed can't be nothing!"
+function enchain!(self::Schedule,item::SubjectDNA)
+    observer = _Subject_(item)._observer
+    @assert !isnothing(observer) "Observer of Subject can't be nothing!"
     @assert (length(self)>0) ? (getGraphID(item)>getGraphID(self._vec[end])) : true "IDs must be increasing!"
     push!(self._vec,item)
 end

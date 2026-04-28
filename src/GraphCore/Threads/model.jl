@@ -69,12 +69,12 @@ function build!(self::Model, dependent::T)::T where {T<:DependentDNA}
 end
 
 """
-Send a newly constructed Observed to the build system of a Model.
-- An Observer for this Observed is required.
+Send a newly constructed Subject to the build system of a Model.
+- An Observer for this Subject is required.
 """
-function build!(self::Model, observed::U, observer::ObserverDNA{V})::U where {V<:ObservedDNA, U<:V}
-    put!(self._builder, (observed, observer))
-    return observed
+function build!(self::Model, subject::U, observer::ObserverDNA{V})::U where {V<:SubjectDNA, U<:V}
+    put!(self._builder, (subject, observer))
+    return subject
 end
 
 """
@@ -168,7 +168,7 @@ function update!(self::Model, ::ViewingState)
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
             processInternal!(self._synchronizer)
-            # ? Modell Task must process all Observed and wait for all work to be completed.
+            # ? Modell Task must process all Subject and wait for all work to be completed.
             processUntilFinishedExternal!(self._synchronizer, self)
             @time_cpu_end Graph_update
             
@@ -181,7 +181,7 @@ function update!(self::Model, ::ViewingState)
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
             processInternal!(self._synchronizer)
-            # ? Modell Task must process all Observed and wait for all work to be completed.
+            # ? Modell Task must process all Subject and wait for all work to be completed.
             processUntilFinishedExternal!(self._synchronizer, self)
             @time_cpu_end Graph_update
             

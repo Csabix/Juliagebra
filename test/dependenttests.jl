@@ -26,16 +26,16 @@
 
     SUT._DependentGraph_(self::TestDependentGraph)::SUT.DependentGraph = return self._dependentGraph
     
-    mutable struct TestObserved <: SUT.ObservedDNA
-        _observed::SUT.Observed
+    mutable struct TestSubject <: SUT.SubjectDNA
+        _subject::SUT.Subject
         _onNodeEvalCalledNum::Int
         _onNodeEvalParentNums::Vector
     end
 
-    SUT._Observed_(self::TestObserved)::SUT.Observed = return self._observed
+    SUT._Subject_(self::TestSubject)::SUT.Subject = return self._subject
     
-    mutable struct TestObserver <: SUT.ObserverDNA{TestObserved}
-        _observer::SUT.Observer{TestObserved}
+    mutable struct TestObserver <: SUT.ObserverDNA{TestSubject}
+        _observer::SUT.Observer{TestSubject}
         _addedCalled::Int
         _syncCalled::Int
         _syncAllCalled::Int
@@ -44,18 +44,18 @@
         _syncItems::Vector
 
         function TestObserver()
-            new(SUT.Observer{TestObserved}(),
+            new(SUT.Observer{TestSubject}(),
                 0,0,0,[],[])
         end
     end
     
     SUT._Observer_(self::TestObserver)::SUT.Observer = return self._observer
-    function SUT.added!(collector::TestObserver,collected::TestObserved) 
+    function SUT.added!(collector::TestObserver,collected::TestSubject) 
         collector._addedCalled += 1
         push!(collector._addedItems,collected)
     end
     SUT.addedAll!(self::TestObserver) = nothing
-    function SUT.sync!(collector::TestObserver,collected::TestObserved) 
+    function SUT.sync!(collector::TestObserver,collected::TestSubject) 
         collector._syncCalled += 1
         push!(collector._syncItems,collected)
     end
@@ -65,16 +65,16 @@
 
     NULL_OBSERVER = TestObserver()
 
-    TestObserved() = TestObserved(() -> (), Vector{SUT.DependentDNA}())
-    TestObserved(callback::Function,graphParents::Vector{SUT.DependentDNA}) = TestObserved(callback,graphParents,NULL_OBSERVER)
-    function TestObserved(callback::Function,graphParents::Vector{SUT.DependentDNA},observer)
-        self = TestObserved(SUT.Observed(callback,graphParents),0,[])
+    TestSubject() = TestSubject(() -> (), Vector{SUT.DependentDNA}())
+    TestSubject(callback::Function,graphParents::Vector{SUT.DependentDNA}) = TestSubject(callback,graphParents,NULL_OBSERVER)
+    function TestSubject(callback::Function,graphParents::Vector{SUT.DependentDNA},observer)
+        self = TestSubject(SUT.Subject(callback,graphParents),0,[])
         SUT.add!!(observer,self)
         return self
     end
 
     SUT.onNodeEval(self::TestDependent) = _onNodeEval(self)
-    SUT.onNodeEval(self::TestObserved) = _onNodeEval(self)
+    SUT.onNodeEval(self::TestSubject) = _onNodeEval(self)
     function _onNodeEval(self) 
         self._onNodeEvalCalledNum += 1
         parents = SUT.getGraphParents(self)
@@ -82,7 +82,7 @@
     end 
 
     clearState(self::TestDependent) = _clearState(self)
-    clearState(self::TestObserved) = _clearState(self)
+    clearState(self::TestSubject) = _clearState(self)
     function _clearState(self::SUT.DependentDNA) 
         self._onNodeEvalCalledNum = 0
         self._onNodeEvalParentNums = []
@@ -321,9 +321,9 @@
         end
     end
 
-    function init_observed_jsonGraph(GraphT::DataType,ObservedT::DataType,ObserverT::DataType,jsonGraph,observerConfigName)
+    function init_subject_jsonGraph(GraphT::DataType,SubjectT::DataType,ObserverT::DataType,jsonGraph,observerConfigName)
         graph = GraphT()
-        observed = []
+        subject = []
         observers = []
 
         for observerConfig in jsonGraph["observer_configs"][observerConfigName]
@@ -332,7 +332,7 @@
 
         for nodeIndex in eachindex(jsonGraph["node_paths"])
             nodePaths = jsonGraph["node_paths"][nodeIndex]
-            nodeParents = Vector{SUT.DependentDNA}([observed[parentIndex] for parentIndex in nodePaths])
+            nodeParents = Vector{SUT.DependentDNA}([subject[parentIndex] for parentIndex in nodePaths])
             nodeObserver = nothing
 
             for observerConfigIndex in eachindex(jsonGraph["observer_configs"][observerConfigName])
@@ -344,18 +344,18 @@
             end
 
             if !isnothing(nodeObserver)
-                dependent = test_add!!(graph,ObservedT(() -> (),nodeParents),nodeObserver)
+                dependent = test_add!!(graph,SubjectT(() -> (),nodeParents),nodeObserver)
             else
-                dependent = test_add!!(graph,ObservedT(() -> (),nodeParents))
+                dependent = test_add!!(graph,SubjectT(() -> (),nodeParents))
             end
             
-            push!(observed,dependent)
+            push!(subject,dependent)
         end
 
-        return (graph,observed,observers)
+        return (graph,subject,observers)
     end
 
-    function test_added_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+    function test_added_totalCallCount(graph,subject,observers,jsonGraph,observerConfigName)
         observerConfigs = jsonGraph["observer_configs"][observerConfigName]
 
         for observerConfigIndex in eachindex(observerConfigs)
@@ -364,7 +364,7 @@
         end
     end
 
-    function test_added_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+    function test_added_subjectCalledOnly(graph,subject,observers,jsonGraph,observerConfigName)
         observerConfigs = jsonGraph["observer_configs"][observerConfigName]
 
         for observerConfigIndex in eachindex(observerConfigs)
@@ -373,101 +373,101 @@
             @test length(observers[observerConfigIndex]._addedItems) == length(observerConfig)
 
             for addedItemIndex in observerConfig
-                @test observed[addedItemIndex] in observers[observerConfigIndex]._addedItems
+                @test subject[addedItemIndex] in observers[observerConfigIndex]._addedItems
             end
         end
     end
 
-    function test_sync_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+    function test_sync_totalCallCount(graph,subject,observers,jsonGraph,observerConfigName)
         observerConfigs = jsonGraph["observer_configs"][observerConfigName]
         
         for testPath in jsonGraph["test_paths"]
             testPathEvalNodeIndex = parse(Int,testPath[1])
             testPathNodeIndexes = testPath[2]
 
-            evaledDependent = observed[testPathEvalNodeIndex]
+            evaledDependent = subject[testPathEvalNodeIndex]
             SUT.evalGraph(evaledDependent)
 
             for observerConfigIndex in eachindex(observerConfigs)
                 observerConfig = observerConfigs[observerConfigIndex]
                 
-                observedInPathCount = 0
-                for observedIndex in observerConfig
-                    if observedIndex in testPathNodeIndexes
-                        observedInPathCount += 1
+                subjectInPathCount = 0
+                for subjectIndex in observerConfig
+                    if subjectIndex in testPathNodeIndexes
+                        subjectInPathCount += 1
                     end
                 end
                 
                 observer = observers[observerConfigIndex]
 
-                if (evaledDependent isa SUT.ObservedDNA && SUT.getObserver(evaledDependent) === observer)
-                    @test observer._syncCalled == observedInPathCount + 1
+                if (evaledDependent isa SUT.SubjectDNA && SUT.getObserver(evaledDependent) === observer)
+                    @test observer._syncCalled == subjectInPathCount + 1
                 else
-                    @test observer._syncCalled == observedInPathCount
+                    @test observer._syncCalled == subjectInPathCount
                 end
             end
 
             clear_observers(observers)
-            clear_dependents(observed)
+            clear_dependents(subject)
         end
     end
 
-    function test_sync_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+    function test_sync_subjectCalledOnly(graph,subject,observers,jsonGraph,observerConfigName)
         observerConfigs = jsonGraph["observer_configs"][observerConfigName]
         
         for testPath in jsonGraph["test_paths"]
             testPathEvalNodeIndex = parse(Int,testPath[1])
             testPathNodeIndexes = testPath[2]
 
-            evaledDependent = observed[testPathEvalNodeIndex]
+            evaledDependent = subject[testPathEvalNodeIndex]
             SUT.evalGraph(evaledDependent)
 
             for observerConfigIndex in eachindex(observerConfigs)
                 observerConfig = observerConfigs[observerConfigIndex]
                 
-                observedInPath = []
-                for observedIndex in observerConfig
-                    if observedIndex in testPathNodeIndexes
-                        push!(observedInPath,observed[observedIndex])
+                subjectInPath = []
+                for subjectIndex in observerConfig
+                    if subjectIndex in testPathNodeIndexes
+                        push!(subjectInPath,subject[subjectIndex])
                     end
                 end
                 
                 observer = observers[observerConfigIndex]
 
-                if (evaledDependent isa SUT.ObservedDNA && SUT.getObserver(evaledDependent) === observer)
-                    @test length(observer._syncItems) == length(observedInPath) + 1
+                if (evaledDependent isa SUT.SubjectDNA && SUT.getObserver(evaledDependent) === observer)
+                    @test length(observer._syncItems) == length(subjectInPath) + 1
                     @test evaledDependent in observers[observerConfigIndex]._syncItems
                 else
-                    @test length(observer._syncItems) == length(observedInPath)
+                    @test length(observer._syncItems) == length(subjectInPath)
                     
                 end
 
-                for observed in observedInPath
-                    @test observed in observers[observerConfigIndex]._syncItems
+                for subject in subjectInPath
+                    @test subject in observers[observerConfigIndex]._syncItems
                 end
             end
 
             clear_observers(observers)
-            clear_dependents(observed)
+            clear_dependents(subject)
         end
     end
 
-    function test_syncAll_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+    function test_syncAll_totalCallCount(graph,subject,observers,jsonGraph,observerConfigName)
         observerConfigs = jsonGraph["observer_configs"][observerConfigName]
         
         for testPath in jsonGraph["test_paths"]
             testPathEvalNodeIndex = parse(Int,testPath[1])
             testPathNodeIndexes = testPath[2]
 
-            evaledDependent = observed[testPathEvalNodeIndex]
+            evaledDependent = subject[testPathEvalNodeIndex]
             SUT.evalGraph(evaledDependent)
 
             for observerConfigIndex in eachindex(observerConfigs)
                 observerConfig = observerConfigs[observerConfigIndex]
                 
                 observerInPath = false
-                for observedIndex in observerConfig
-                    if observedIndex in testPathNodeIndexes
+                for subjectIndex in observerConfig
+                    if subjectIndex in testPathNodeIndexes
                         observerInPath = true
                         break
                     end
@@ -483,7 +483,7 @@
             end
 
             clear_observers(observers)
-            clear_dependents(observed)
+            clear_dependents(subject)
         end
     end
 
@@ -521,73 +521,73 @@
         end
     end
 
-    @testset verbose = true "DependentGraph - Observed children tests" begin
+    @testset verbose = true "DependentGraph - Subject children tests" begin
         GraphT = TestDependentGraph
-        ObservedT = TestObserved
+        SubjectT = TestSubject
         ObserverT = TestObserver
         jsonGraphData = JSON.parsefile("graph_data.json")
 
         @testset "add!! on empty graph with empty dependent" begin
-            test_empty_add!!(GraphT,ObservedT)
+            test_empty_add!!(GraphT,SubjectT)
         end
 
         @testset "add!! works on $(treeTestData[1] + 1) deep tree of dependents with $(treeTestData[2]) number of childs" for treeTestData in [(1,2),(3,2),(5,3)]
-            test_tree_add!!(GraphT,ObservedT,treeTestData)
+            test_tree_add!!(GraphT,SubjectT,treeTestData)
         end
 
         @testset "evalGraph evaluates only once on graph: \"$(testGraph[1])\"" for testGraph in testGraphs
             name,graphData = testGraph
-            test_evalGraph(GraphT,ObservedT,graphData) 
+            test_evalGraph(GraphT,SubjectT,graphData) 
         end
 
         @testset verbose = true "Graph with Observers tests on jsonGraph: \"$(jsonGraph["name"])\"" for jsonGraph in jsonGraphData["graphs"]
             
             @testset "evalGraph evaluates only once on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_eval_totalCallCount(graph,observed,jsonGraph)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_eval_totalCallCount(graph,subject,jsonGraph)
             end
             
             @testset "evalGraph evaluates only on dependents in path on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"] 
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_eval_dependentsCalledOnly(graph,observed,jsonGraph)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_eval_dependentsCalledOnly(graph,subject,jsonGraph)
             end
 
             @testset "evalGraph evaluates in correct order on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"] 
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_eval_orderOfDependentsCalled(graph,observed,jsonGraph)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_eval_orderOfDependentsCalled(graph,subject,jsonGraph)
             end
 
             @testset "added call count is correct on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"] 
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_added_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_added_totalCallCount(graph,subject,observers,jsonGraph,observerConfigName)
             end
 
-            @testset "added calls only on observed items on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
+            @testset "added calls only on subject items on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_added_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_added_subjectCalledOnly(graph,subject,observers,jsonGraph,observerConfigName)
             end
 
             @testset "sync call count is correct on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_sync_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_sync_totalCallCount(graph,subject,observers,jsonGraph,observerConfigName)
             end
 
-            @testset "sync calls only on correct observed in observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
+            @testset "sync calls only on correct subject in observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_sync_observedCalledOnly(graph,observed,observers,jsonGraph,observerConfigName)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_sync_subjectCalledOnly(graph,subject,observers,jsonGraph,observerConfigName)
             end
 
             @testset "syncAll call count is correct on observerSetup: \"$(observerConfig[1])\"" for observerConfig in jsonGraph["observer_configs"]
                 observerConfigName,observerConfigData = observerConfig
-                graph,observed,observers = init_observed_jsonGraph(GraphT,ObservedT,ObserverT,jsonGraph,observerConfigName)
-                test_syncAll_totalCallCount(graph,observed,observers,jsonGraph,observerConfigName)
+                graph,subject,observers = init_subject_jsonGraph(GraphT,SubjectT,ObserverT,jsonGraph,observerConfigName)
+                test_syncAll_totalCallCount(graph,subject,observers,jsonGraph,observerConfigName)
             end
         end
     end

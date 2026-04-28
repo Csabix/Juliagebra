@@ -60,7 +60,7 @@ end
 
 function update!(self::StepperRenderer, app::AppDNA)
     m::Model = getModel(app)
-    steppers::Vector{StepperDependent} = getObservedItems(self)
+    steppers::Vector{StepperDependent} = getSubjectItems(self)
 
     for stepperIdx in eachindex(steppers)
         stepper::StepperDependent = steppers[stepperIdx]

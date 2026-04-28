@@ -4,7 +4,7 @@
 # ? ---------------------------------
 
 const BUILDER_IN_CHANNEL_SIZE = 8192
-const _BuilderT = Union{DependentDNA,Tuple{ObservedDNA,ObserverDNA}}
+const _BuilderT = Union{DependentDNA,Tuple{SubjectDNA,ObserverDNA}}
 
 global _builderTimes = Vector{Float64}()
 
@@ -56,25 +56,25 @@ function _build(model::ModelDNA, dependent::DependentDNA)
 end
 
 # YELLOW Thread
-function _build(model::ModelDNA, oo::Tuple{ObservedDNA,ObserverDNA})
-    observed::ObservedDNA = oo[1]
+function _build(model::ModelDNA, oo::Tuple{SubjectDNA,ObserverDNA})
+    subject::SubjectDNA = oo[1]
     observer::ObserverDNA = oo[2]
-    
-    @assert isUnbuilt(observed) "Observed is already built!"
-    
+
+    @assert isUnbuilt(subject) "Subject is already built!"
+
     graph::DependentGraph = getGraph(model)
     adder::Adder = getAdder(model)
 
-    add!!(observer,observed)
-    
+    add!!(observer,subject)
+
     startTime = time_ns()
-    add!!(graph,observed)
+    add!!(graph,subject)
     endTime = time_ns()
     push!(_builderTimes,(endTime-startTime)/1000000.0)
 
-    setEntryNodes(observed)
-    onNodeEval(observed)
+    setEntryNodes(subject)
+    onNodeEval(subject)
 
-    # ? Forward the Observed to the Adder.
-    put!(adder,observed)
+    # ? Forward the Subject to the Adder.
+    put!(adder,subject)
 end

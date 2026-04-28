@@ -14,7 +14,7 @@ struct WorkerFood{T<:Union{DependentDNA, SyncFood}}
 end
 
 getDependent(self::WorkerFood{<:DependentDNA})::DependentDNA = return self.data
-getDependent(self::WorkerFood{SyncFood})::ObservedDNA = return self.data.observed
+getDependent(self::WorkerFood{SyncFood})::SubjectDNA = return self.data.subject
 
 # ? ---------------------------------
 # ! EvalWorker
@@ -67,7 +67,7 @@ function _process1(self::EvalWorker0, ::ModelDNA, d::DependentDNA)
     @invokelatest _process2(d)
 end
 
-function _process1(self::EvalWorker0, model::ModelDNA, o::ObservedDNA)    
+function _process1(self::EvalWorker0, model::ModelDNA, o::SubjectDNA)
     @invokelatest _process2(o)
     put!(getSynchronizer(model),o)
 end
@@ -128,8 +128,8 @@ function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedConditio
 end
 
 function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, data::SyncFood)
-    o::ObservedDNA = data.observed
-    
+    o::SubjectDNA = data.subject
+
     @invokelatest _process2(o)
     notify(evaled)
     increment(getScheduler(model)._evaledGoal)

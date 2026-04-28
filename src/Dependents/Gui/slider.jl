@@ -64,7 +64,7 @@ end
 const ANIM_LENGTH = 5.0
 
 function update!(self::SliderRenderer, app::AppDNA)
-    sliders::Vector{SliderDependent} = getObservedItems(self)
+    sliders::Vector{SliderDependent} = getSubjectItems(self)
     m::Model = getModel(app)
 
     for sliderIdx in  eachindex(sliders)

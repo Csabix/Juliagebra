@@ -101,7 +101,7 @@ include("GraphCore/value_holder.jl")
 include("GraphCore/generic_value_holder.jl")
 include("GraphCore/source_value_holder.jl")
 #include("GraphCore/unary_value_holder.jl")
-include("GraphCore/observed_dependent.jl")
+include("GraphCore/subject_dependent.jl")
 
 include("Dependents/dependent_renderer.jl")
 include("Dependents/rendered_dependent.jl")

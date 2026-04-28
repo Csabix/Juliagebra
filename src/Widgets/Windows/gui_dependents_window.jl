@@ -29,9 +29,9 @@ function renderContent(self::GuiDependentsWindow, app::AppDNA)
                 CImGui.Text("$(title(observer)) dependents:")
                 CImGui.Separator()
 
-                for observed in getObservedItems(observer) 
-                    CImGui.PushID(getGraphID(observed))
-                    render!(observer, observed, app)
+                for subject in getSubjectItems(observer)
+                    CImGui.PushID(getGraphID(subject))
+                    render!(observer, subject, app)
                     CImGui.PopID()
                 end
             end

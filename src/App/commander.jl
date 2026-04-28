@@ -111,7 +111,7 @@ function _Build!(dependent::DependentDNA, app::AppDNA)
     build!(getModel(app),dependent)
 end
 
-function _Build!(observed::ObservedDNA, app::AppDNA)
-    build!(getModel(app), observed, Dependent2Observer(app,observed))
+function _Build!(subject::SubjectDNA, app::AppDNA)
+    build!(getModel(app), subject, Dependent2Observer(app,subject))
 end
 

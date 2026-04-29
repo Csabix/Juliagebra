@@ -91,11 +91,10 @@ void main(){
     
     if(rs.t < 0.0) discard;
     
-    vec3 spherePos = eye() + v * rs.t;
-    
-    vec4 vpPos = VP * vec4(spherePos,1.0); 
-    float depth = (vpPos.xyzw / vpPos.w).z;
-    depth = (depth + 1.0) / 2.0;
+    vec4 p = vec4(fma(v,vec3(rs.t),eye()), 1.0);
+    float zc = dot(vec4(VP[0].z, VP[1].z, VP[2].z, VP[3].z), p);
+    float wc = dot(vec4(VP[0].w, VP[1].w, VP[2].w, VP[3].w), p);
+    float depth = fma((zc / wc),0.5,0.5);
 
     rs.n = rs.isOutside ? rs.n : -rs.n;
     float diffuse = (max(dot(rs.n,light_cam()),0.0) * 0.3 + max(dot(rs.n,light_side()),0.0) * 0.7) * 0.8;

@@ -1,7 +1,7 @@
 #version 460 core
 layout(local_size_x = 32) in;
 #include "../../ubo.glsl"
-
+#line 5
 // Input
 restrict readonly layout(std430, binding = 0) buffer DistanceBufferIn {
     float in_distances[];
@@ -19,14 +19,14 @@ restrict writeonly layout(std430, binding = 3) buffer PositionDistanceBufferOut 
 restrict writeonly layout(std430, binding = 4) buffer ColorBufferOut {
 	uvec2 out_color[];
 };
-restrict writeonly layout(std430, binding = 5) buffer LightBufferOut {
-	vec4 out_lights[];
+restrict writeonly layout(std430, binding = 5) buffer SegmentBeginBufferOut {
+	vec4 begin_pos_rad[];
 };
 restrict writeonly layout(std430, binding = 6) buffer SDFBufferOut {
 	vec4 out_sdf[];
 };
-restrict writeonly layout(std430, binding = 7) buffer RadiusBufferOut {
-	float out_radius[];
+restrict writeonly layout(std430, binding = 7) buffer SegmentEndBufferOut {
+	vec4 end_pos_rad[];
 };
 // Uniforms
 layout(location = 5) uniform uint offset;
@@ -42,16 +42,6 @@ vec2 Encode(vec3 n) {
     return n.xy;
 }
 
-void calcLights(in uint index, in vec3 B, in vec3 C) {
-    vec3 CI = normalize(B-C);
-    vec3 BE = normalize(B-eye());
-    vec3 T = normalize(cross(CI,BE));
-    vec3 N = normalize(cross(CI,T));
-
-    mat3 TBN = transpose(mat3(T,CI,N));
-    out_lights[index] = vec4(Encode(TBN * light_cam()),Encode(TBN * light_side()));
-}
-
 void main() {
 	const uint i = gl_GlobalInvocationID.x;
     const uint out_i = i + offset;
@@ -62,11 +52,19 @@ void main() {
     const float width_pixel = in_position_widths[i+1u].w;
     vec4 C4 = vec4(in_position_widths[i+2u].xyz, 1.0);
     vec4 D4 = vec4(in_position_widths[i+3u].xyz, 1.0);
-    calcLights(out_i,B4.xyz,C4.xyz);
+
+    begin_pos_rad[out_i].xyz = B4.xyz;
+    end_pos_rad[out_i].xyz = C4.xyz;
+
     A4 = VP * A4;
     B4 = VP * B4;
     C4 = VP * C4;
     D4 = VP * D4;
+
+    float radius_conversion = 2.0 / P[0][0] * width_pixel / width();
+    begin_pos_rad[out_i].w = B4.w * radius_conversion;
+    end_pos_rad[out_i].w = C4.w * radius_conversion;
+
     // Clipping
     if (B4.z + B4.w < 0.0 && C4.z + C4.w < 0.0) {
         B4 = vec4(0.0/0.0);
@@ -123,140 +121,121 @@ void main() {
 
     const vec2 WH = vec2(width(), height());
     // Pixel coordinates
-    const vec2 A = fma(A4.xy, vec2(0.5), vec2(0.5)) * WH;
-    const vec2 B = fma(B4.xy, vec2(0.5), vec2(0.5)) * WH;
-    const vec2 C = fma(C4.xy, vec2(0.5), vec2(0.5)) * WH;
-    const vec2 D = fma(D4.xy, vec2(0.5), vec2(0.5)) * WH;
+    vec2 A = fma(A4.xy, vec2(0.5), vec2(0.5)) * WH;
+    vec2 B = fma(B4.xy, vec2(0.5), vec2(0.5)) * WH;
+    vec2 C = fma(C4.xy, vec2(0.5), vec2(0.5)) * WH;
+    vec2 D = fma(D4.xy, vec2(0.5), vec2(0.5)) * WH;
 
-    const vec3 distances = vec3(distance(A,B), distance(C,B), distance(C,D));
+    float l_AB = distance(A,B);
+    float l_CB = distance(C,B);
+    float l_DC = distance(C,D);
 
-    const vec2 AB_dir = (A-B) / distances.x; // A <-- B C D
-    const vec2 CB_dir = (C-B) / distances.y; // A B --> C D
-    const vec2 DC_dir = (D-C) / distances.z; // A B C --> D
+    vec2 dir_AB = (A - B) / l_AB; // A <-- B C D
+    vec2 dir_CB = (C - B) / l_CB; // A B --> C D
+    vec2 dir_BC = -dir_CB; // A B <-- C D
+    vec2 dir_DC = (D - C) / l_DC; // A B C --> D
 
-    const vec2 AB_dir_r = vec2( AB_dir.y,-AB_dir.x);
-    const vec2 CB_dir_r = vec2(-CB_dir.y, CB_dir.x);
-    const vec2 DC_dir_r = vec2(-DC_dir.y, DC_dir.x);
+    vec2 dir_r_AB = vec2( dir_AB.y,-dir_AB.x);
+    vec2 dir_r_CB = vec2(-dir_CB.y, dir_CB.x);
+    vec2 dir_r_BC = dir_r_CB;
+    vec2 dir_r_DC = vec2(-dir_DC.y, dir_DC.x);
 
-    const vec2 inner_offset_ABC = dot(AB_dir,CB_dir) <= -0.9999 ? CB_dir_r :
-        (1.0/dot(AB_dir_r,CB_dir)) * CB_dir + (1.0/dot(CB_dir_r,AB_dir)) * AB_dir;
+    vec2 dir_r_inner_AB = dot(dir_r_AB, -dir_BC) < 0.0 ? -dir_r_AB : dir_r_AB;
+    vec2 dir_r_inner_BC = dot(dir_r_BC, dir_AB) < 0.0 ? -dir_r_BC : dir_r_BC;
+    vec2 inner_offset_ABC = abs(dot(dir_AB, dir_BC)) > 0.9999 ? dir_r_inner_AB : (dir_r_inner_AB + dir_r_inner_BC) / (1.0 + dot(dir_r_inner_AB, dir_r_inner_BC));
 
-    const vec2 inner_offset_BCD = dot(-CB_dir,DC_dir) <= -0.9999 ? CB_dir_r :
-        (1.0/dot(CB_dir_r,DC_dir)) * DC_dir + (1.0/dot(DC_dir_r,-CB_dir)) * -CB_dir;
+    vec2 dir_r_inner_CB = dot(dir_r_CB, dir_DC) < 0.0 ? -dir_r_CB : dir_r_CB;
+    vec2 dir_r_inner_DC = dot(dir_r_DC, dir_BC) < 0.0 ? -dir_r_DC : dir_r_DC;
+    vec2 inner_offset_BCD = abs(dot(dir_CB,dir_DC)) > 0.9999 ? dir_r_inner_DC : (dir_r_inner_CB + dir_r_inner_DC) / (1.0 + dot(dir_r_inner_CB, dir_r_inner_DC));
 
-    vec2 begin_inner_offset = -CB_dir + CB_dir_r;
-    vec2 begin_outer_offset = -CB_dir - CB_dir_r;
-    vec2 end_inner_offset   =  CB_dir + CB_dir_r;
-    vec2 end_outer_offset   =  CB_dir - CB_dir_r;
-    vec2 end_outer_third_offset = vec2(1.0/0.0);
+    //vec2 right_offset_ABC = abs(dot(dir_AB,dir_BC)) > 0.9999 ? dir_r_AB : (dir_r_AB + dir_r_BC) / (1.0 + dot(dir_r_AB, dir_r_BC));
+    //vec2 right_offset_BCD = abs(dot(dir_CB,dir_DC)) > 0.9999 ? dir_r_DC : (dir_r_CB + dir_r_DC) / (1.0 + dot(dir_r_CB, dir_r_DC));
+    const vec2 right_offset_ABC = dot(dir_AB,dir_CB) <= -0.9999 ? dir_r_CB :
+        (1.0/dot(dir_r_AB,dir_CB)) * dir_CB + (1.0/dot(dir_r_CB,dir_AB)) * dir_AB;
+
+    const vec2 right_offset_BCD = dot(-dir_CB,dir_DC) <= -0.9999 ? dir_r_CB :
+        (1.0/dot(dir_r_CB,dir_DC)) * dir_DC + (1.0/dot(dir_r_DC,-dir_CB)) * -dir_CB;
+
+    vec2 begin_right_offset = -dir_CB + dir_r_CB;
+    vec2 begin_left_offset  = -dir_CB - dir_r_CB;
+    vec2 end_right_offset   =  dir_CB + dir_r_CB;
+    vec2 end_left_offset    =  dir_CB - dir_r_CB;
+    vec2 end_third_offset   = vec2(1.0/0.0);
 
     vec2 sdf_begin = vec2(-width_pixel);
-    vec3 sdf_end = vec3(distances.y + width_pixel);
+    vec3 sdf_end = vec3(l_CB + width_pixel);
     float third_sdf_side = 1.0/0.0;
 
-    if (!any(isnan(A)) && distances.y > 1.0) {
-        if (dot(AB_dir,CB_dir) <= 0.00006) {
-            // OBSTUSE
-            begin_inner_offset =  inner_offset_ABC;
-            begin_outer_offset = -inner_offset_ABC;
-
-            if (dot(AB_dir,CB_dir) <= -0.9999) sdf_begin = vec2(0);
-            else sdf_begin = vec2(dot(begin_inner_offset,CB_dir),dot(begin_outer_offset,CB_dir))*width_pixel;
+    vec2 dir_ABC = normalize(inner_offset_ABC);
+    float cos_ABC = abs(dot(dir_AB,dir_ABC));
+    float l_ABC = width_pixel * cos_ABC * inversesqrt(1.0 - cos_ABC * cos_ABC);
+    bool overlap_ABC = l_ABC > l_AB || l_ABC > l_CB;
+    if (!any(isnan(A))) {
+        if (dot(dir_AB, dir_BC) >= 0.0) {
+            // OBTUSE
+            begin_right_offset =  right_offset_ABC;
+            begin_left_offset  = -right_offset_ABC;
         } else {
             // ACUTE
-            float AB_l = distances.x / width_pixel;
-            float CB_l = distances.y / width_pixel;
-            float ab = abs(dot(inner_offset_ABC,AB_dir));
-            float cb = abs(dot(inner_offset_ABC,CB_dir));
-            if (ab < AB_l && cb < CB_l) {
-                begin_inner_offset = inner_offset_ABC;
-                begin_outer_offset = -CB_dir - CB_dir_r;
-
-                if (dot(inner_offset_ABC, AB_dir + CB_dir) < 0.0) {
-                    begin_inner_offset = -CB_dir + CB_dir_r;
-                    begin_outer_offset = -inner_offset_ABC;
+            if (!overlap_ABC) {
+                float cos_half = dot(dir_r_BC, dir_ABC);
+                float sin_half = inversesqrt(1.0 - cos_half * cos_half);
+                float t = (1.0 - cos_half) * sin_half;
+                if (dot(right_offset_ABC, inner_offset_ABC) > 0.0) {
+                    begin_right_offset = inner_offset_ABC;
+                    begin_left_offset = -dir_r_BC + t * dir_BC;
+                } else {
+                    begin_left_offset = inner_offset_ABC;
+                    begin_right_offset = dir_r_BC + t * dir_BC;
                 }
-                sdf_begin = vec2(dot(begin_inner_offset,CB_dir),dot(begin_outer_offset,CB_dir))*width_pixel;
             }
         }
+        sdf_begin = vec2(dot(begin_right_offset,dir_CB),dot(begin_left_offset,dir_CB))*width_pixel;
+    }
+
+    vec2 dir_BCD = normalize(inner_offset_BCD);
+    float cos_BCD = abs(dot(dir_DC,dir_BCD));
+    float l_BCD = width_pixel * cos_BCD * inversesqrt(1.0 - cos_BCD * cos_BCD);
+    bool overlap_BCD = l_BCD > l_DC || l_BCD > l_CB;
+    if (!any(isnan(D))) {
+        if (dot(dir_DC, dir_CB) >= 0.0) {
+            // OBTUSE
+            end_right_offset =  right_offset_BCD;
+            end_left_offset  = -right_offset_BCD;
+        } else {
+            // ACUTE
+            if (!overlap_BCD) {
+                float cos_half = dot(dir_r_BC, dir_BCD);
+                float sin_half = inversesqrt(1.0 - cos_half * cos_half);
+                float t = (1.0 - cos_half) * sin_half;
+                if (dot(right_offset_BCD, inner_offset_BCD) > 0.0) {
+                    end_right_offset =  inner_offset_BCD;
+                    end_left_offset  = -dir_r_CB + t * dir_CB;
+                    end_third_offset = -dir_r_DC - t * dir_DC;
+                } else {
+                    end_left_offset  = inner_offset_BCD;
+                    end_right_offset = dir_r_CB + t * dir_CB;
+                    end_third_offset = dir_r_DC - t * dir_DC;
+                }
+            }
+        }
+        third_sdf_side = dot(end_third_offset, dir_r_CB) * width_pixel;
+        sdf_end = vec3(dot(end_right_offset,dir_CB),dot(end_left_offset,dir_CB),dot(end_third_offset,dir_CB)) * width_pixel;
+        sdf_end += l_CB;
     }
     
-    if (!any(isnan(D))) {
-        if (dot(-CB_dir,DC_dir) <= 0.00006) {
-            // OBSTUSE
-            end_inner_offset =  inner_offset_BCD;
-            end_outer_offset = -inner_offset_BCD;
-
-            if (dot(-CB_dir,DC_dir) <= -0.9999) sdf_end.xy = vec2(distances.y);
-            else {
-                sdf_end.xy = vec2(dot(end_inner_offset,CB_dir),dot(end_outer_offset,CB_dir)) * width_pixel;
-                sdf_end.xy += distances.y;
-            }
-        } else {
-            // ACUTE
-            float BC_l = distances.y / width_pixel;
-            float DC_l = distances.z / width_pixel;
-            float bc = abs(dot(inner_offset_BCD,-CB_dir));
-            float dc = abs(dot(inner_offset_BCD,DC_dir));
-            if (bc < BC_l && dc < DC_l) {
-                end_inner_offset = inner_offset_BCD;
-                end_outer_offset = CB_dir - CB_dir_r;
-                end_outer_third_offset = -DC_dir - DC_dir_r;
-
-                if (dot(inner_offset_BCD, -CB_dir + DC_dir) < 0.0) {
-                    end_inner_offset = CB_dir + CB_dir_r;
-                    end_outer_offset = -inner_offset_BCD;
-                    end_outer_third_offset = -DC_dir + DC_dir_r;
-                }
-                third_sdf_side = dot(end_outer_third_offset, CB_dir_r) * width_pixel;
-
-                sdf_end = vec3(dot(end_inner_offset,CB_dir),dot(end_outer_offset,CB_dir),dot(end_outer_third_offset,CB_dir)) * width_pixel;
-                sdf_end += distances.y;
-            }
-        }
-    }
-    /*
+    
     vec2 length_conversion = 2.0 / WH * width_pixel;
     float reverse = unpackUnorm4x8(in_color_types[i+2u]).a != 0.0 ? -1.0 : 1.0;
-    out_position_distances[output_i]    = vec4(fma(length_conversion,begin_inner_offset    ,B4.xy), B4.z, reverse * (distace_B + sdf_begin.x));
-    out_position_distances[output_i+1u] = vec4(fma(length_conversion,begin_outer_offset    ,B4.xy), B4.z, reverse * (distace_B + sdf_begin.y));
-    out_position_distances[output_i+2u] = vec4(fma(length_conversion,end_inner_offset      ,C4.xy), C4.z, reverse * (distace_B + sdf_end.x));
-    out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_outer_offset      ,C4.xy), C4.z, reverse * (distace_B + sdf_end.y));
-    out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_outer_third_offset,C4.xy), C4.z, reverse * (distace_B + sdf_end.z));
+    out_position_distances[output_i]    = vec4(fma(length_conversion,begin_right_offset,B4.xy), B4.z, reverse * (distace_B + sdf_begin.x));
+    out_position_distances[output_i+1u] = vec4(fma(length_conversion,begin_left_offset ,B4.xy), B4.z, reverse * (distace_B + sdf_begin.y));
+    out_position_distances[output_i+2u] = vec4(fma(length_conversion,end_right_offset  ,C4.xy), C4.z, reverse * (distace_B + sdf_end.x));
+    out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_left_offset   ,C4.xy), C4.z, reverse * (distace_B + sdf_end.y));
+    out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_third_offset  ,C4.xy), C4.z, reverse * (distace_B + sdf_end.z));
 
-    out_sdf[output_i]    = vec4(width_pixel,sdf_begin.x       ,width_pixel,distances.y);
-    out_sdf[output_i+1u] = vec4(-width_pixel,sdf_begin.y      ,width_pixel,distances.y);
-    out_sdf[output_i+2u] = vec4(width_pixel,sdf_end.x         ,width_pixel,distances.y);
-    out_sdf[output_i+3u] = vec4(-width_pixel,sdf_end.y        ,width_pixel,distances.y);
-    out_sdf[output_i+4u] = vec4(third_sdf_side,sdf_end.z,width_pixel,distances.y);
-    */
-    vec2 length_conversion = 2.0 / WH * width_pixel;
-    float reverse = unpackUnorm4x8(in_color_types[i+2u]).a != 0.0 ? -1.0 : 1.0;
-
-    float dz_per_px = distances.y > 0.0 ? (C4.z - B4.z) / distances.y : 0.0;
-    float z0 = B4.z + sdf_begin.x * dz_per_px;
-    float z1 = B4.z + sdf_begin.y * dz_per_px;
-    float z2 = B4.z + sdf_end.x * dz_per_px;
-    float z3 = B4.z + sdf_end.y * dz_per_px;
-    float z4 = B4.z + sdf_end.z * dz_per_px;
-
-    out_position_distances[output_i]    = vec4(fma(length_conversion,begin_inner_offset    ,B4.xy), z0, reverse * (distace_B + sdf_begin.x));
-    out_position_distances[output_i+1u] = vec4(fma(length_conversion,begin_outer_offset    ,B4.xy), z1, reverse * (distace_B + sdf_begin.y));
-    out_position_distances[output_i+2u] = vec4(fma(length_conversion,end_inner_offset      ,C4.xy), z2, reverse * (distace_B + sdf_end.x));
-    out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_outer_offset      ,C4.xy), z3, reverse * (distace_B + sdf_end.y));
-    out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_outer_third_offset,C4.xy), z4, reverse * (distace_B + sdf_end.z));
-
-    out_sdf[output_i]    = vec4(width_pixel,sdf_begin.x       ,width_pixel,distances.y);
-    out_sdf[output_i+1u] = vec4(-width_pixel,sdf_begin.y      ,width_pixel,distances.y);
-    out_sdf[output_i+2u] = vec4(width_pixel,sdf_end.x         ,width_pixel,distances.y);
-    out_sdf[output_i+3u] = vec4(-width_pixel,sdf_end.y        ,width_pixel,distances.y);
-    out_sdf[output_i+4u] = vec4(third_sdf_side,sdf_end.z,width_pixel,distances.y);
-
-    float radius_conversion = 1.0 / P[0][0] * width_pixel / width();
-    float dw_per_px = distances.y > 0.0 ? (C4.w - B4.w) / distances.y : 0.0;
-    out_radius[output_i]    = (B4.w + sdf_begin.x * dw_per_px) * radius_conversion;
-    out_radius[output_i+1u] = (B4.w + sdf_begin.y * dw_per_px) * radius_conversion;
-    out_radius[output_i+2u] = (B4.w + sdf_end.x   * dw_per_px) * radius_conversion;
-    out_radius[output_i+3u] = (B4.w + sdf_end.y   * dw_per_px) * radius_conversion;
-    out_radius[output_i+4u] = (B4.w + sdf_end.z   * dw_per_px) * radius_conversion;
+    out_sdf[output_i]    = vec4( width_pixel,   sdf_begin.x,width_pixel,l_CB);
+    out_sdf[output_i+1u] = vec4(-width_pixel,   sdf_begin.y,width_pixel,l_CB);
+    out_sdf[output_i+2u] = vec4( width_pixel,   sdf_end.x,  width_pixel,l_CB);
+    out_sdf[output_i+3u] = vec4(-width_pixel,   sdf_end.y,  width_pixel,l_CB);
+    out_sdf[output_i+4u] = vec4( third_sdf_side,sdf_end.z,  width_pixel,l_CB);
 }

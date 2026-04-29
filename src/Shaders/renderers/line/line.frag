@@ -17,9 +17,10 @@
 noperspective layout(location = 0) in vec4 segment_SDF_field_in;
 noperspective layout(location = 1) in vec3 color_in;
 noperspective layout(location = 2) in float total_distance_in;
-flat          layout(location = 3) in vec3 light_dir_cam_in;
-flat          layout(location = 4) in vec3 light_dir_side_in;
-noperspective layout(location = 5) in float radius_in;
+flat          layout(location = 3) in vec4 begin_pos_rad_in;
+flat          layout(location = 4) in vec4 end_pos_rad_in;
+
+uniform float fov;
 
 float rounding() {
     vec2 p = vec2(abs(segment_SDF_field_in.x),segment_SDF_field_in.y);
@@ -28,13 +29,8 @@ float rounding() {
     return p.x - segment_SDF_field_in.z;
 }
 
-vec3 get_normal() {
-    float val = mix(0.0,PI,(segment_SDF_field_in.x * 0.5 + 0.5 * segment_SDF_field_in.z)/segment_SDF_field_in.z);
-    return vec3(-cos(val),0,sin(val));
-}
-
 vec4 get_color(in vec3 normal, in float alpha) {
-    float diffuse = (max(dot(normal,light_dir_cam_in),0.0) * 0.3 + max(dot(normal,light_dir_side_in),0.0) * 0.7) * 0.8;
+    float diffuse = (max(dot(normal,light_cam()),0.0) * 0.3 + max(dot(normal,light_side()),0.0) * 0.7) * 0.8;
     float ambient = 0.2;
     return vec4(color_in * (diffuse + ambient), alpha);
 }
@@ -90,6 +86,105 @@ float pattern() {
 }
 #endif
 
+vec3 rayDirection() {
+    const float ASPECT = aspect();
+    const float FOV    = fov;
+    const vec2 RESOLUTION = vec2(width(),height());
+
+    vec3 look_dir = normalize(eye() - at());
+    vec3 right = normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
+    vec3 up = normalize(cross(right, look_dir));
+
+    float focal_length = -1.0 / tan(FOV * 0.5);
+    vec2 screen_uv = (gl_FragCoord.xy / RESOLUTION) * 2.0 - 1.0; 
+    
+    screen_uv.x *= ASPECT;
+
+    return normalize(screen_uv.x  * right + 
+                     screen_uv.y  * up + 
+                     focal_length * look_dir);
+}
+
+float iSphere(vec3 ro, vec3 rd, vec3 sp, float r) {
+    vec3 oc = ro - sp;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - r * r;
+    float h = sqrt(b * b - c);
+    float t = -b - h;
+    if (t < 0.0) t = -b + h;
+    return t > 0.0 ? t : -10000.0;
+}
+
+float iUnevenCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float ra, float rb, out vec3 normal) {
+    float t = 10000.0;
+    t = min(t, iSphere(ro, rd, pa, ra));
+    t = min(t, iSphere(ro, rd, pb, rb));
+    
+    vec3 ba = pb - pa;
+    float l = length(ba);
+    
+    if (l > 1e-5) {
+        vec3 v = ba / l;
+        vec3 oc = ro - pa;
+        float y0 = dot(oc, v);
+        float dy = dot(rd, v);
+        
+        vec3 w0 = oc - y0 * v;
+        vec3 wd = rd - dy * v;
+        
+        float dr = (rb - ra) / l;
+        float r0 = ra + y0 * dr;
+        float rd_r = dy * dr;
+        
+        float A = dot(wd, wd) - rd_r * rd_r;
+        float B = dot(w0, wd) - r0 * rd_r;
+        float C = dot(w0, w0) - r0 * r0;
+        
+        float h = B * B - A * C;
+        if (h >= 0.0) {
+            h = sqrt(h);
+            float t3 = -1.0;
+            if (abs(A) > 1e-6) {
+                float ta = (-B - h) / A;
+                float tb = (-B + h) / A;
+                if (ta > 0.0 && tb > 0.0) t = min(ta, tb);
+                else if (ta > 0.0) t = ta;
+                else if (tb > 0.0) t = tb;
+            } else if (abs(B) > 1e-6) {
+                t3 = -0.5 * C / B;
+            }
+            
+            if (t3 > 0.0) {
+                float y = y0 + t3 * dy;
+                if(y >= 0.0 && y <= l) {
+                    t = min(t,t3);
+                }
+            }
+        }
+    }
+    
+    if (t >= 10000.0) return -1.0;
+
+    if (l > 1e-5) {
+        vec3 pt = ro + t * rd;
+        vec3 v = ba / l;
+        float y = dot(pt - pa, v);
+        vec3 proj = pa + y * v;
+        vec3 radVec = normalize(pt - proj);
+        
+        float dr = (rb - ra) / l;
+        float hyp = sqrt(1.0 + dr * dr);
+        float s = dr / hyp;
+        float c_factor = 1.0 / hyp;
+        
+        normal = radVec * c_factor - v * s;
+    } else {
+        normal = normalize((ro + t * rd) - pa);
+    }
+    
+    return t;
+}
+
 void main() {
     float d = pattern();
     float alpha = 1.0 - smoothstep(max(-0.4*segment_SDF_field_in.z,-4.0), 0.0, d);
@@ -97,89 +192,26 @@ void main() {
     d = max(d, rounding());
 
     if (d > 0.0 || DISCARD) discard;
-    /*
-    float r2 = segment_SDF_field_in.x / segment_SDF_field_in.z; r2 *= r2;
-    float z_offset = sqrt(1.0 - r2);
 
-    float dist = (2.0 * near_far.x * near_far.y) / (near_far.y + near_far.x - (gl_FragCoord.z * 2.0 - 1.0) * (near_far.y - near_far.x));
-    float z_view = -dist + z_offset * radius_in;
-    float clip_z = z_view * P[2][2] + P[3][2];
-    float clip_w = z_view * P[2][3] + P[3][3];
+    vec3 ro = eye();
+    vec3 rd = rayDirection();
+    
+    vec3 pa = begin_pos_rad_in.xyz;
+    float ra = begin_pos_rad_in.w;
+    vec3 pb = end_pos_rad_in.xyz;
+    float rb = end_pos_rad_in.w;
+    
+    vec3 normal;
+    float t = iUnevenCapsule(ro, rd, pa, pb, ra, rb, normal);
+    if (t < 0.0) discard;
 
-    float ndc_z = clip_z / clip_w;
+    vec4 p = vec4(fma(rd,vec3(t),eye()), 1.0);
+    float zc = dot(vec4(VP[0].z, VP[1].z, VP[2].z, VP[3].z), p);
+    float wc = dot(vec4(VP[0].w, VP[1].w, VP[2].w, VP[3].w), p);
+    float depth = fma((zc / wc),0.5,0.5);
     
-    gl_FragDepth = (ndc_z + 1.0) / 2.0;
-    */
-    vec2 p = vec2(segment_SDF_field_in.x, segment_SDF_field_in.y);
-    vec2 dir = vec2(p.x, 0.0);
-    
-    if (p.y < 0.0) {
-        dir = p;
-    } else if (p.y > segment_SDF_field_in.w) {
-        dir = p - vec2(0.0, segment_SDF_field_in.w);
-    }
-    /*
-    float r2 = dot(dir, dir) / (segment_SDF_field_in.z * segment_SDF_field_in.z);
-    float z_offset = sqrt(max(1.0 - r2, 0.0));
-
-    float ndc_z_current = gl_FragCoord.z * 2.0 - 1.0;
-    float z_view = (P[3][2] - ndc_z_current * P[3][3]) / (ndc_z_current * P[2][3] - P[2][2]);
-    
-    z_view += z_offset * radius_in;
-
-    float clip_z = z_view * P[2][2] + P[3][2];
-    float clip_w = z_view * P[2][3] + P[3][3];
-
-    float ndc_z_new = clip_z / clip_w;
-    float depth = (ndc_z_new + 1.0) / 2.0;
-    gl_FragDepth = depth;
-    */
-    float r2 = dot(dir, dir) / (segment_SDF_field_in.z * segment_SDF_field_in.z);
-    float z_offset_base = sqrt(max(1.0 - r2, 0.0));
-
-    float ndc_z_current = gl_FragCoord.z * 2.0 - 1.0;
-    float z_view = (P[3][2] - ndc_z_current * P[3][3]) / (ndc_z_current * P[2][3] - P[2][2]);
-    
-    // --- Depth Correction for Viewing Angle ---
-    
-    // 1. Calculate how fast the view-space Z is changing across the screen
-    vec2 dz_view_dp = vec2(dFdx(z_view), dFdy(z_view));
-    
-    // 2. Calculate the screen-space gradient of the distance along the segment
-    vec2 dlen_dp = vec2(dFdx(segment_SDF_field_in.y), dFdy(segment_SDF_field_in.y));
-    float len_grad_sqr = dot(dlen_dp, dlen_dp);
-    
-    // 3. Find the change in view-space Z per pixel ALONG the segment direction
-    float dz_dl_pixel = 0.0;
-    if (len_grad_sqr > 1e-5) {
-        vec2 dir_y = dlen_dp / sqrt(len_grad_sqr);
-        dz_dl_pixel = dot(dz_view_dp, dir_y);
-    }
-    
-    // 4. Calculate the view-space physical size of one pixel
-    float pixel_radius = max(segment_SDF_field_in.z, 0.001);
-    float scale = radius_in / pixel_radius;
-    
-    // 5. Compute the view-space slope and the resulting angle correction factor
-    // slope = (change in Z) / (change in XY plane)
-    float slope = dz_dl_pixel / max(scale, 1e-6);
-    float angle_correction = sqrt(1.0 + slope * slope); // Mathematically equivalent to 1 / sin(theta)
-    
-    // 6. Apply the corrected offset
-    z_view += z_offset_base * radius_in * angle_correction;
-    
-    // ------------------------------------------
-    
-    float clip_z = z_view * P[2][2] + P[3][2];
-    float clip_w = z_view * P[2][3] + P[3][3];
-    float ndc_z_new = clip_z / clip_w;
-    float depth = (ndc_z_new + 1.0) / 2.0;
     gl_FragDepth = depth;
 
-    //vec3 normal = vec3(dir / segment_SDF_field_in.z, z_offset);
-    //vec4 color = get_color(normal, alpha);
-    //color = vec4(1.0);
-
-    vec4 color = get_color(get_normal(), alpha);
+    vec4 color = get_color(normal, alpha);
     WRITE_COLOR(color, 0, depth)
 }

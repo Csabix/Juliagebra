@@ -46,9 +46,9 @@ mutable struct LineRenderer
 
     position_distance_buffer_out::Buffer{Vec4F}
     color_buffer_out::Buffer{UVec2}
-    light_buffer_out::Buffer{Vec4F}
+    begin_pos_rad::Buffer{Vec4F}
     sdf_buffer_out::Buffer{Vec4F}
-    radius_buffer_out::Buffer{Float32}
+    end_pos_rad::Buffer{Vec4F}
 
     gpu_gpu_sync::GLsync
 
@@ -68,9 +68,9 @@ mutable struct LineRenderer
 
     position_distance_buffer_out_dynamic::Buffer{Vec4F}
     color_buffer_out_dynamic::Buffer{UVec2}
-    light_buffer_out_dynamic::Buffer{Vec4F}
+    begin_pos_rad_dynamic::Buffer{Vec4F}
     sdf_buffer_out_dynamic::Buffer{Vec4F}
-    radius_buffer_out_dynamic::Buffer{Vec4F}
+    end_pos_rad_dynamic::Buffer{Vec4F}
 
     gpu_gpu_sync_dynamic::GLsync
 
@@ -83,8 +83,8 @@ mutable struct LineRenderer
         shaders_opaque = Vector{ShaderProgram}()
         shaders_transparent = Vector{ShaderProgram}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
-        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
-        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])])) end
+        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])],["fov"])) end
+        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])],["fov"])) end
         
         # Static
 
@@ -102,9 +102,9 @@ mutable struct LineRenderer
 
         position_distance_buffer_out = Buffer{Vec4F}()
         color_buffer_out = Buffer{UVec2}()
-        light_buffer_out = Buffer{Vec4F}()
+        begin_pos_rad = Buffer{Vec4F}()
         sdf_buffer_out = Buffer{Vec4F}()
-        radius_buffer_out = Buffer{Float32}()
+        end_pos_rad = Buffer{Vec4F}()
 
         gpu_gpu_sync::GLsync = C_NULL
 
@@ -125,9 +125,9 @@ mutable struct LineRenderer
 
         position_distance_buffer_out_dynamic = Buffer{Vec4F}()
         color_buffer_out_dynamic = Buffer{UVec2}()
-        light_buffer_out_dynamic = Buffer{Vec4F}()
+        begin_pos_rad_dynamic = Buffer{Vec4F}()
         sdf_buffer_out_dynamic = Buffer{Vec4F}()
-        radius_buffer_out_dynamic = Buffer{Vec4F}()
+        end_pos_rad_dynamic = Buffer{Vec4F}()
 
         gpu_gpu_sync_dynamic = C_NULL
 
@@ -137,13 +137,13 @@ mutable struct LineRenderer
             coords_widths,color_type,
             distances,
             distance_buffer_in,color_type_buffer_in,position_width_buffer_in,
-            position_distance_buffer_out,color_buffer_out,light_buffer_out,sdf_buffer_out,radius_buffer_out,
+            position_distance_buffer_out,color_buffer_out,begin_pos_rad,sdf_buffer_out,end_pos_rad,
             gpu_gpu_sync,
             update_list,types_dynamic,draw_ranges_dynamic,
             coords_widths_dynamic,color_type_dynamic,
             distances_dynamic,
             distance_buffer_in_dynamic,color_type_buffer_in_dynamic,position_width_buffer_in_dynamic,
-            position_distance_buffer_out_dynamic,color_buffer_out_dynamic,light_buffer_out_dynamic,sdf_buffer_out_dynamic,radius_buffer_out_dynamic,
+            position_distance_buffer_out_dynamic,color_buffer_out_dynamic,begin_pos_rad_dynamic,sdf_buffer_out_dynamic,end_pos_rad_dynamic,
             gpu_gpu_sync_dynamic)
     end
 end
@@ -261,9 +261,9 @@ function destroy!(self::LineRenderer)::Nothing
 
     destroy!(self.position_distance_buffer_out)
     destroy!(self.color_buffer_out)
-    destroy!(self.light_buffer_out)
+    destroy!(self.begin_pos_rad)
     destroy!(self.sdf_buffer_out)
-    destroy!(self.radius_buffer_out)
+    destroy!(self.end_pos_rad)
 
     foreach(destroy!,self.distance_buffer_in_dynamic)
     foreach(destroy!,self.color_type_buffer_in_dynamic)
@@ -271,9 +271,9 @@ function destroy!(self::LineRenderer)::Nothing
 
     destroy!(self.position_distance_buffer_out_dynamic)
     destroy!(self.color_buffer_out_dynamic)
-    destroy!(self.light_buffer_out_dynamic)
+    destroy!(self.begin_pos_rad_dynamic)
     destroy!(self.sdf_buffer_out_dynamic)
-    destroy!(self.radius_buffer_out_dynamic)
+    destroy!(self.end_pos_rad_dynamic)
 
     return nothing
 end
@@ -327,9 +327,9 @@ function added_static!(self::LineRenderer)::Nothing
 
     reserve!(self.position_distance_buffer_out,5*(N-3),0)
     reserve!(self.color_buffer_out,N-3,0)
-    reserve!(self.light_buffer_out,N-3,0)
+    reserve!(self.begin_pos_rad,N-3,0)
     reserve!(self.sdf_buffer_out,5*(N-3),0)
-    reserve!(self.radius_buffer_out,5*(N-3),0)
+    reserve!(self.end_pos_rad,N-3,0)
     self.updated = 0
     return nothing
 end
@@ -354,9 +354,9 @@ function added_dynamic!(self::LineRenderer)::Nothing
     N = sum(v -> length(v) - 3, self.coords_widths_dynamic)
     reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
     reserve!(self.color_buffer_out_dynamic,N,0)
-    reserve!(self.light_buffer_out_dynamic,N,0)
+    reserve!(self.begin_pos_rad_dynamic,N,0)
     reserve!(self.sdf_buffer_out_dynamic,5*N,0)
-    reserve!(self.radius_buffer_out_dynamic,5*N,0)
+    reserve!(self.end_pos_rad_dynamic,5*N,0)
     return nothing
 end
 
@@ -473,9 +473,9 @@ function sync_all!(self::LineRenderer)::Nothing
         if N > length(self.color_buffer_out_dynamic)
             reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
             reserve!(self.color_buffer_out_dynamic,N,0)
-            reserve!(self.light_buffer_out_dynamic,N,0)
+            reserve!(self.begin_pos_rad_dynamic,N,0)
             reserve!(self.sdf_buffer_out_dynamic,5*N,0)
-            reserve!(self.radius_buffer_out_dynamic,5*N,0)
+            reserve!(self.end_pos_rad_dynamic,5*N,0)
         end
     end
     self.updated = 0
@@ -495,9 +495,9 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     bind_ssbo(self.position_width_buffer_in,2)
     bind_ssbo(self.position_distance_buffer_out,3)
     bind_ssbo(self.color_buffer_out,4)
-    bind_ssbo(self.light_buffer_out,5)
+    bind_ssbo(self.begin_pos_rad,5)
     bind_ssbo(self.sdf_buffer_out,6)
-    bind_ssbo(self.radius_buffer_out,7)
+    bind_ssbo(self.end_pos_rad,7)
 
     (cam_light, side_light) = get_lights(cam)
     activate(self.shader_predraw)
@@ -515,9 +515,9 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     bind_ssbo(self.position_distance_buffer_out_dynamic,3)
     bind_ssbo(self.color_buffer_out_dynamic,4)
-    bind_ssbo(self.light_buffer_out_dynamic,5)
+    bind_ssbo(self.begin_pos_rad_dynamic,5)
     bind_ssbo(self.sdf_buffer_out_dynamic,6)
-    bind_ssbo(self.radius_buffer_out_dynamic,7)
+    bind_ssbo(self.end_pos_rad_dynamic,7)
 
     (cam_light, side_light) = get_lights(cam)
     activate(self.shader_predraw)
@@ -560,15 +560,15 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.emptyVAO)
     bind_ssbo(self.position_distance_buffer_out,0)
     bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.begin_pos_rad,2)
     bind_ssbo(self.sdf_buffer_out,3)
-    bind_ssbo(self.radius_buffer_out,4)
+    bind_ssbo(self.end_pos_rad,4)
     @time_gpu_begin Renderer Line Opaque Static
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
-        #uniform(self.shaders_opaque[type],"near_far", near_far)
+        uniform(self.shaders_opaque[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Opaque Static
@@ -581,15 +581,15 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.emptyVAO)
     bind_ssbo(self.position_distance_buffer_out_dynamic,0)
     bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.begin_pos_rad_dynamic,2)
     bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    bind_ssbo(self.radius_buffer_out_dynamic,4)
+    bind_ssbo(self.end_pos_rad_dynamic,4)
     @time_gpu_begin Renderer Line Opaque Dynamic
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
-        #uniform(self.shaders_opaque[type],"near_far", near_far)
+        uniform(self.shaders_opaque[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Opaque Dynamic
@@ -609,14 +609,15 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.emptyVAO)
     bind_ssbo(self.position_distance_buffer_out,0)
     bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.begin_pos_rad,2)
     bind_ssbo(self.sdf_buffer_out,3)
-    bind_ssbo(self.radius_buffer_out,4)
+    bind_ssbo(self.end_pos_rad,4)
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         behind_type = Int(_LINE_TYPE_BEHIND[type])
         activate(self.shaders_opaque[behind_type])
+        uniform(self.shaders_opaque[behind_type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
@@ -625,14 +626,15 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.emptyVAO)
     bind_ssbo(self.position_distance_buffer_out_dynamic,0)
     bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.begin_pos_rad_dynamic,2)
     bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    bind_ssbo(self.radius_buffer_out_dynamic,4)
+    bind_ssbo(self.end_pos_rad_dynamic,4)
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         behind_type = Int(_LINE_TYPE_BEHIND[type])
         activate(self.shaders_opaque[behind_type])
+        uniform(self.shaders_opaque[behind_type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
@@ -651,14 +653,15 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.emptyVAO)
     bind_ssbo(self.position_distance_buffer_out,0)
     bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.light_buffer_out,2)
+    bind_ssbo(self.begin_pos_rad,2)
     bind_ssbo(self.sdf_buffer_out,3)
-    bind_ssbo(self.radius_buffer_out,4)
+    bind_ssbo(self.end_pos_rad,4)
     @time_gpu_begin Renderer Line Transparent Static
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Transparent Static
@@ -669,14 +672,15 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.emptyVAO)
     bind_ssbo(self.position_distance_buffer_out_dynamic,0)
     bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.light_buffer_out_dynamic,2)
+    bind_ssbo(self.begin_pos_rad_dynamic,2)
     bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    bind_ssbo(self.radius_buffer_out_dynamic,4)
+    bind_ssbo(self.end_pos_rad_dynamic,4)
     @time_gpu_begin Renderer Line Transparent Dynamic
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
+        uniform(self.shaders_transparent[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Transparent Dynamic

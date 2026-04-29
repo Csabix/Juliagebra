@@ -6,22 +6,21 @@ restrict readonly layout(std430, binding = 0) buffer PositionTotalDistanceBuffer
 restrict readonly layout(std430, binding = 1) buffer ColorBuffer {
 	uvec2 color_in[];
 };
-restrict readonly layout(std430, binding = 2) buffer LightDirBuffer {
-	vec4 light_dir_in[];
+restrict readonly layout(std430, binding = 2) buffer SegmentBeginBuffer {
+	vec4 begin_pos_rad[];
 };
 restrict readonly layout(std430, binding = 3) buffer SDFBuffer {
 	vec4 sdf_in[];
 };
-restrict readonly layout(std430, binding = 4) buffer RadiusBuffer {
-	float radius_in[];
+restrict readonly layout(std430, binding = 4) buffer SegmentEndBuffer {
+	vec4 end_pos_rad[];
 };
 
 noperspective layout(location=0) out vec4 segment_SDF_field_out;
 noperspective layout(location=1) out vec3 color_out;
 noperspective layout(location=2) out float total_distance_out;
-flat          layout(location=3) out vec3 light_dir_cam_out;
-flat          layout(location=4) out vec3 light_dir_side_out;
-noperspective layout(location=5) out float radius_out;
+flat		  layout(location=3) out vec4 begin_pos_rad_out;
+flat		  layout(location=4) out vec4 end_pos_rad_out;
 
 vec2 OctWrap(vec2 v) {
     return (1.0 - abs(v)) * sign(v);
@@ -43,11 +42,10 @@ void main() {
 	gl_Position = vec4(position_total_distance.xyz,1.0);
 	total_distance_out = position_total_distance.w;
 	segment_SDF_field_out = sdf_in[per_vertex];
-	radius_out = radius_in[per_vertex];
 
 	const int per_segment = gl_BaseInstance + gl_InstanceID;
 
 	color_out = unpackUnorm4x8(gl_VertexID > 1 ? color_in[per_segment].y : color_in[per_segment].x).xyz;
-	light_dir_cam_out = Decode(light_dir_in[per_segment].xy);
-	light_dir_side_out = Decode(light_dir_in[per_segment].zw);
+	begin_pos_rad_out = begin_pos_rad[per_segment];
+	end_pos_rad_out = end_pos_rad[per_segment];
 }

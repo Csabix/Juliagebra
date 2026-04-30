@@ -148,13 +148,8 @@ void main() {
     vec2 dir_r_inner_DC = dot(dir_r_DC, dir_BC) < 0.0 ? -dir_r_DC : dir_r_DC;
     vec2 inner_offset_BCD = abs(dot(dir_CB,dir_DC)) > 0.9999 ? dir_r_inner_DC : (dir_r_inner_CB + dir_r_inner_DC) / (1.0 + dot(dir_r_inner_CB, dir_r_inner_DC));
 
-    //vec2 right_offset_ABC = abs(dot(dir_AB,dir_BC)) > 0.9999 ? dir_r_AB : (dir_r_AB + dir_r_BC) / (1.0 + dot(dir_r_AB, dir_r_BC));
-    //vec2 right_offset_BCD = abs(dot(dir_CB,dir_DC)) > 0.9999 ? dir_r_DC : (dir_r_CB + dir_r_DC) / (1.0 + dot(dir_r_CB, dir_r_DC));
-    const vec2 right_offset_ABC = dot(dir_AB,dir_CB) <= -0.9999 ? dir_r_CB :
-        (1.0/dot(dir_r_AB,dir_CB)) * dir_CB + (1.0/dot(dir_r_CB,dir_AB)) * dir_AB;
-
-    const vec2 right_offset_BCD = dot(-dir_CB,dir_DC) <= -0.9999 ? dir_r_CB :
-        (1.0/dot(dir_r_CB,dir_DC)) * dir_DC + (1.0/dot(dir_r_DC,-dir_CB)) * -dir_CB;
+    vec2 right_offset_ABC = abs(dot(dir_AB,dir_BC)) > 0.9999 ? dir_r_AB : (dir_r_AB + dir_r_BC) / (1.0 + dot(dir_r_AB, dir_r_BC));
+    vec2 right_offset_BCD = abs(dot(dir_CB,dir_DC)) > 0.9999 ? dir_r_DC : (dir_r_CB + dir_r_DC) / (1.0 + dot(dir_r_CB, dir_r_DC));
 
     vec2 begin_right_offset = -dir_CB + dir_r_CB;
     vec2 begin_left_offset  = -dir_CB - dir_r_CB;
@@ -170,7 +165,7 @@ void main() {
     float cos_ABC = abs(dot(dir_AB,dir_ABC));
     float l_ABC = width_pixel * cos_ABC * inversesqrt(1.0 - cos_ABC * cos_ABC);
     bool overlap_ABC = l_ABC > l_AB || l_ABC > l_CB;
-    if (!any(isnan(A))) {
+    if (!any(isnan(A)) && l_CB > 1.0) {
         if (dot(dir_AB, dir_BC) >= 0.0) {
             // OBTUSE
             begin_right_offset =  right_offset_ABC;

@@ -71,9 +71,7 @@ end
 # GREEN Thread
 function sync!(self::Points,point::PointDependent)
     ref = self._refs[getObserverID(point)]
-    aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
     update_coords!(self._renderers.point,ref,Vec3F(point._coord))
-    #update_properties(self._renderers.point,ref,UInt8(point._style),point._color,point._size,aID)
 end
 
 # GREEN Thread

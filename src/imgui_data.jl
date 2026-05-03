@@ -52,7 +52,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         add!(dock,Console())
         add!(dock,PerformanceWindow())
         add!(dock,GraphViewerWindow(graph))
-        add!(dock,PointsWindow(graph))
+        add!(dock,PointsWindow(graph,openglD._renderers.point))
         add!(dock,CurvesWindow(graph))
         add!(dock,SurfacesWindow(graph))
 

@@ -81,9 +81,6 @@ include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
 include("Widgets/graph_viewer_window.jl")
-include("Widgets/points_window.jl")
-include("Widgets/curves_window.jl")
-include("Widgets/surfaces_window.jl")
 
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")
@@ -108,6 +105,10 @@ include("GraphCore/observed_dependent.jl")
 
 
 include("Dependents/dependents.jl")
+
+include("Widgets/points_window.jl")
+include("Widgets/curves_window.jl")
+include("Widgets/surfaces_window.jl")
 
 # TODO: Continue this.
 include("GraphCore/observer_pool.jl")

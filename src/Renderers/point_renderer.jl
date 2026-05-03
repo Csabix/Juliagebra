@@ -1,20 +1,16 @@
 # GREEN Thread
-
-const _POINT_UPDATED_COORD::UInt8 = 1
-const _POINT_UPDATED_PROPERTY::UInt8 = 2
-
 @bitflag PointPropertyUpdate::UInt8 begin
-    _POINT_PROP_NONE        = 0
-    _POINT_PROP_COORD       = 1
-    _POINT_PROP_COLOR_SIZE  = 2
-    _POINT_PROP_STYLE_ID    = 4
+    _POINT_PROP_NONE        = 0x0
+    _POINT_PROP_COORD       = 0x1
+    _POINT_PROP_COLOR_SIZE  = 0x2
+    _POINT_PROP_STYLE_ID    = 0x4
 end
 
 const POINT_NONE::UInt8 = 0
 const POINT_PLUS::UInt8 = 1
 
 function pack_point_property(color::UInt32,style::UInt8,size::UInt8,id::UInt32)::Tuple{UInt32, UInt32}
-    const lower_mask = ~(UInt32(0xff) << 24)
+    lower_mask = ~(UInt32(0xff) << 24)
     color_size = (UInt32(size) << 24) | color & lower_mask
     style_id = (UInt32(style) << 24) | id & lower_mask
     return color_size, style_id
@@ -32,12 +28,9 @@ end
     coords::Vector{Vec3F}       = Vector{Vec3F}()
     color_sizes::Vector{UInt32} = Vector{UInt32}()
     style_ids::Vector{UInt32}   = Vector{UInt32}()
-    update::PointPropertyUpdate = _POINT_PROP_NONE
 end
 
-function destroy!(points_data::PointsData)
-    destroy!(points_data.buffer)
-end
+destroy!(points_data::PointsData) = destroy!(points_data.buffer)
 
 function add!(points_data::PointsData,coord::Vec3F,color::UInt32,style::UInt8,size::UInt8,id::UInt32)
     push!(points_data.coords,coord)
@@ -62,74 +55,66 @@ function added_all!(points_data::PointsData)
         upload!(points_data.buffer,1,points_data.coords,0)
         upload!(points_data.buffer,2,points_data.color_sizes,0)
         upload!(points_data.buffer,3,points_data.style_ids,0)
-        points_data.update = _POINT_PROP_NONE
     end
 end
 
 function update_coords!(points_data::PointsData, coord::Vec3F, offset::Int = 1)
     points_data.coords[offset] = coord
-    points_data.update |= _POINT_PROP_COORD
 end
 function update_coords!(points_data::PointsData, coords, offset::Int = 1)
     copyto!(view(points_data.coords,offset:(offset + length(coords) - 1)),coords)
-    points_data.update |= _POINT_PROP_COORD
 end
 
 function update_colors!(points_data::PointsData, color::UInt32, offset::Int = 1)
-    const upper_mask = UInt32(0xff) << 24
-    const lower_mask = ~(UInt32(0xff) << 24)
+    upper_mask = UInt32(0xff) << 24
+    lower_mask = ~(UInt32(0xff) << 24)
     points_data.color_sizes[offset] = points_data.color_sizes[offset] & upper_mask | color & lower_mask
-    points_data.update = _POINT_PROP_COLOR_SIZE
 end
-function update_colors!(points_data::PointsData, len::Int, colors, offset::Int = 1)
+function update_colors!(points_data::PointsData, len, colors, offset::Int = 1)
     for (i,color) in enumerate(take(colors,len))
         update_colors!(points_data,color,offset+i-1)
     end
 end
 
 function update_sizes!(points_data::PointsData, size::UInt8, offset::Int = 1)
-    const lower_mask = ~(UInt32(0xff) << 24)
+    lower_mask = ~(UInt32(0xff) << 24)
     points_data.color_sizes[offset] = (UInt32(size) << 24) | points_data.color_sizes[offset] & lower_mask
-    points_data.update = _POINT_PROP_COLOR_SIZE
 end
-function update_sizes!(points_data::PointsData, len::Int, sizes, offset::Int = 0)
+function update_sizes!(points_data::PointsData, len, sizes, offset::Int = 1)
     for (i,size) in enumerate(take(sizes,len))
-        update_sizes!(points_data,size,offset+i)
+        update_sizes!(points_data,size,offset+i-1)
     end
 end
 
 function update_styles!(points_data::PointsData, style::UInt8, offset::Int = 1)
-    const lower_mask = ~(UInt32(0xff) << 24)
+    lower_mask = ~(UInt32(0xff) << 24)
     points_data.style_ids[offset] = (UInt32(style) << 24) | points_data.style_ids[offset] & lower_mask
-    points_data.update = _POINT_PROP_STYLE_ID
 end
-function update_styles!(points_data::PointsData, len::Int, styles, offset::Int)
+function update_styles!(points_data::PointsData, len, styles, offset::Int = 1)
     for (i,style) in enumerate(take(styles,len))
-        update_styles!(points_data,style,offset+i)
+        update_styles!(points_data,style,offset+i-1)
     end
 end
 
 function update_ids!(points_data::PointsData, id::UInt32, offset::Int = 1)
-    const upper_mask = UInt32(0xff) << 24
-    const lower_mask = ~(UInt32(0xff) << 24)
+    upper_mask = UInt32(0xff) << 24
+    lower_mask = ~(UInt32(0xff) << 24)
     points_data.style_ids[offset] = points_data.style_ids[offset] & upper_mask | id & lower_mask
-    points_data.update = _POINT_PROP_STYLE_ID
 end
-function update_ids!(points_data::PointsData, len::Int, ids, offset::Int = 0)
+function update_ids!(points_data::PointsData, len::Int, ids, offset::Int = 1)
     for (i,id) in enumerate(take(ids,len))
-        update_ids!(points_data,id,offset+i)
+        update_ids!(points_data,id,offset+i-1)
     end
 end
 
 function update_properties!(points_data::PointsData, color::UInt32, style::UInt8, size::UInt8, id::UInt32, offset::Int = 1)
     prop = pack_point_property(color,style,size,id)
     points_data.color_sizes[offset] = prop[1]
-    points_data.style_ids[offset]    = prop[2]
-    points_data.update |= _POINT_PROP_COLOR_SIZE | _POINT_PROP_STYLE_ID
+    points_data.style_ids[offset]   = prop[2]
 end
-function update_properties!(points_data::PointsData, len::Int, colors, styles, sizes, ids, offset::Int = 0)
+function update_properties!(points_data::PointsData, len::Int, colors, styles, sizes, ids, offset::Int = 1)
     for (i,(color,style,size,id)) in enumerate(zip(take(colors,len), styles, sizes, ids))
-        update_properties!(points_data,color,style,size,id,offset+i)
+        update_properties!(points_data,color,style,size,id,offset+i-1)
     end
 end
 
@@ -138,39 +123,36 @@ function update!(points_data::PointsData, coords, colors, styles, sizes, ids)
     empty!(points_data.color_sizes)
     empty!(points_data.style_ids)
     append!(points_data.coords, coords)
-    for (color,style,size,id) in zip(take(colors,length(colors)), styles, sizes, ids)
+    for (color,style,size,id) in zip(take(colors,length(coords)), styles, sizes, ids)
         prop = pack_point_property(color,style,size,id)
         push!(points_data.color_sizes, prop[1])
-        push!(points_data.type_ids,    prop[2])
+        push!(points_data.style_ids,   prop[2])
     end
-    points_data.update |= _POINT_PROP_COLOR_SIZE | _POINT_PROP_STYLE_ID | _POINT_PROP_COORD
 end
 
-function sync_all!(points_data::PointsData)
+function sync_all!(points_data::PointsData, update_flags::PointPropertyUpdate)
     n = length(points_data.coords)
 
-    if points_data.update & _POINT_PROP_COORD == _POINT_PROP_COORD
+    if update_flags & _POINT_PROP_COORD == _POINT_PROP_COORD
         if n != length(points_data.buffer[1])
             reserve!(points_data.buffer,1,length(points_data.coords),0)
         end
         copyto!(points_data.buffer[1], points_data.coords)
     end
 
-    if points_data.update & _POINT_PROP_COLOR_SIZE == _POINT_PROP_COLOR_SIZE
+    if update_flags & _POINT_PROP_COLOR_SIZE == _POINT_PROP_COLOR_SIZE
         if n != length(points_data.buffer[2])
             reserve!(points_data.buffer,2,n,0)
         end
         copyto!(points_data.buffer[2], points_data.color_sizes)
     end
 
-    if points_data.update & _POINT_PROP_STYLE_ID == _POINT_PROP_STYLE_ID
+    if update_flags & _POINT_PROP_STYLE_ID == _POINT_PROP_STYLE_ID
         if n != length(points_data.buffer[3])
             reserve!(points_data.buffer,3,n,0)
         end
-        copyto!(points_data.buffer[3], points_data.type_ids)
+        copyto!(points_data.buffer[3], points_data.style_ids)
     end
-
-    points_data.update = _POINT_PROP_NONE
     return nothing
 end
 
@@ -180,13 +162,14 @@ mutable struct PointRenderer
     shader::ShaderProgram
     shader_behind::ShaderProgram
     points::Vector{PointsData}
+    updates::Vector{PointPropertyUpdate}
 
     function PointRenderer()
         uniforms_opaque = String["selected_id","picked_id","light_dir_side_view"]
         uniforms_behind = String["selected_id","picked_id"]
         shader = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag")], uniforms_opaque)
         shader_behind = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",["OPAQUE_BEHIND"])], uniforms_behind)
-        return new(shader, shader_behind, PointsData[PointsData()], UInt8[0x0])
+        return new(shader, shader_behind, PointsData[PointsData()], PointPropertyUpdate[_POINT_PROP_NONE])
     end
 end
 
@@ -212,30 +195,81 @@ function add_dynamic!(self::PointRenderer,coords,colors,styles,sizes,ids)::UInt3
     points_data::PointsData = PointsData()
     add!(points_data, coords, colors, styles, sizes, ids)
     push!(self.points, points_data)
-    push!(self.updates,0x0)
+    push!(self.updates, _POINT_PROP_NONE)
     return length(self.points)
 end
 
-function added_all!(self::PointRenderer)::Nothing
-    foreach(added_all!,self.points)
-    return nothing
+added_all!(self::PointRenderer)::Nothing = foreach(added_all!,self.points)
+
+function update_coords!(self::PointRenderer,ref::UInt32,coord::Vec3F)
+    update_coords!(self.points[1], coord, Int(ref))
+    self.updates[1] |= _POINT_PROP_COORD
+end
+function update_colors!(self::PointRenderer,ref::UInt32,color::UInt32)
+    update_colors!(self.points[1], color, Int(ref))
+    self.updates[1] |= _POINT_PROP_COLOR_SIZE
+end
+function update_sizes!(self::PointRenderer,ref::UInt32,size::UInt8)
+    update_sizes!(self.points[1], size, Int(ref))
+    self.updates[1] |= _POINT_PROP_COLOR_SIZE
+end
+function update_styles!(self::PointRenderer,ref::UInt32,style::UInt8)
+    update_styles!(self.points[1], style, Int(ref))
+    self.updates[1] |= _POINT_PROP_STYLE_ID
+end
+function update_properties!(self::PointRenderer,ref::UInt32,color::UInt32,style::UInt8,size::UInt8,id::UInt32)
+    update_properties!(self.points[1], color, style, size, id, Int(ref))
+    self.updates[1] |= _POINT_PROP_COLOR_SIZE | _POINT_PROP_STYLE_ID
 end
 
-update_coords!(self::PointRenderer,ref::UInt32,coord::Vec3F) = update_coords!(self.points[1], coord, Int(ref))
-update_properties(self::PointRenderer,ref::UInt32,color::UInt32,style::UInt8,size::UInt8,id::UInt32) =
-    update_properties!(self.points[1], color, style, size, id, Int(ref))
-
-update_coords!(self::PointRenderer,ref::UInt32,coords) = update_coords!(self.points[1], coords, Int(ref))
-update_properties(self::PointRenderer,ref::UInt32,length::UInt32,colors,styles,sizes,ids) =
+function update_coords!(self::PointRenderer,ref::UInt32,coords)
+    update_coords!(self.points[1], coords, Int(ref))
+    self.updates[1] |= _POINT_PROP_COORD
+end
+function update_colors!(self::PointRenderer,ref::UInt32,length,colors)
+    update_colors!(self.points[1], length, colors, Int(ref))
+    self.updates[1] |= _POINT_PROP_COLOR_SIZE
+end
+function update_sizes!(self::PointRenderer,ref::UInt32,length,sizes)
+    update_sizes!(self.points[1], length, sizes, Int(ref))
+    self.updates[1] |= _POINT_PROP_COLOR_SIZE
+end
+function update_styles!(self::PointRenderer,ref::UInt32,length,styles)
+    update_styles!(self.points[1], length, styles, Int(ref))
+    self.updates[1] |= _POINT_PROP_STYLE_ID
+end
+function update_properties(self::PointRenderer,ref::UInt32,length::UInt32,colors,styles,sizes,ids)
     update_properties!(self.points[1], length, colors, styles, sizes, ids, ref)
+    self.updates[1] |= _POINT_PROP_COLOR_SIZE | _POINT_PROP_STYLE_ID
+end
 
-update_dyncamic!(self::PointRenderer,ref::UInt32,coords,colors,styles,sizes,ids) =
+function update_dyncamic!(self::PointRenderer,ref::UInt32,coords,colors,styles,sizes,ids)
     update!(self.points[ref], coords, colors, styles, sizes, ids)
+    self.updates[ref] = _POINT_PROP_COORD | _POINT_PROP_COLOR_SIZE | _POINT_PROP_STYLE_ID
+end
+function update_colors_dynamic!(self::PointRenderer,ref::UInt32,colors)
+    update_colors!(self.points[ref], length(self.points[ref].coords), colors)
+    self.updates[ref] |= _POINT_PROP_COLOR_SIZE
+end
+function update_sizes_dynamic!(self::PointRenderer,ref::UInt32,sizes)
+    update_sizes!(self.points[ref], length(self.points[ref].coords), sizes)
+    self.updates[ref] |= _POINT_PROP_COLOR_SIZE
+end
+function update_styles_dynamic!(self::PointRenderer,ref::UInt32,styles)
+    update_styles!(self.points[ref], length(self.points[ref].coords), styles)
+    self.updates[ref] |= _POINT_PROP_STYLE_ID
+end
 
 function sync_all!(self::PointRenderer)::Nothing
-    all(e -> e.update == _POINT_PROP_NONE) && return nothing
+    all(u -> u == _POINT_PROP_NONE, self.updates) && return nothing
+    
     wait(self.points[1].buffer[1])
-    foreach(sync_all!,self.points)
+    for i in 1:length(self.points)
+        if self.updates[i] != _POINT_PROP_NONE
+            sync_all!(self.points[i], self.updates[i])
+        end
+        self.updates[i] = _POINT_PROP_NONE
+    end
     return nothing
 end
 

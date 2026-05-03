@@ -102,12 +102,12 @@ function get_color_vec3f(color)::Vec3F
 end
 get_color_vec3f(color::Vec3F) = color
 
-function parse_line_style_colors(color_style::Union{Nothing,String},color,style)::Tuple{UInt8,Vector{UInt32}}
+function parse_line_colors_style(color_style::Union{Nothing,String},color,style)::Tuple{Vector{UInt32},UInt8}
     if isnothing(color_style)
-        return get_style(style), get_colors(color)
+        return get_colors(color), get_style(style)
     else
         (color, style) = color_line_combined(color_style)
-        return style, UInt32[color]
+        return UInt32[color], style
     end
 end
 
@@ -117,4 +117,33 @@ function unpack_color(c::UInt32)::Vec4F
     b = Float32((c >> 16) & 0xff) / 255.0f0
     a = Float32((c >> 24) & 0xff) / 255.0f0
     return Vec4F(r, g, b, a)
+end
+
+const _point_style::Dict{AbstractString,UInt8} = Dict(
+    "."  => POINT_NONE,
+    "+" => POINT_PLUS
+)
+
+function get_point_style(style::UInt8)::UInt8
+    return style
+end
+
+function get_point_style(style)::UInt8
+    if haskey(_point_style, style)
+        return _point_style[style]
+    else
+        return POINT_NONE
+    end
+end
+
+function parse_point_color_style(color_style::Union{Nothing,String},color,style)::Tuple{UInt32,UInt8}
+    if isnothing(color_style)
+        return get_color(color), get_point_style(style)
+    else
+        if isletter(color_style[1])
+            return get_color(color_style), get_point_style(view(color_style,2:length(color_style)))
+        else
+            return get_color("c"), get_point_style(color_style)
+        end
+    end
 end

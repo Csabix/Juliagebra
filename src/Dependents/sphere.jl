@@ -7,18 +7,15 @@ mutable struct SphereDependent <: RenderedDependentDNA
     _dependent::RenderedDependent
     _center::Vec3D
     _radius::Float64
-    _color::Vec4F
+    _color::UInt8
 
     # YELLOW Thread
     function SphereDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        color::Vec4F
-        )
-
+        color::UInt8)
         dependent = RenderedDependent(callback,dependents)
-        center  = Vec3DNan
-        radius = 0.0f0
-
+        center = Vec3DNan
+        radius = 0.0
         return new(dependent,center,radius,color)
     end
 end
@@ -30,6 +27,8 @@ _RenderedDependent_(self::SphereDependent)::RenderedDependent = return self._dep
 # YELLOW Thread
 # RED Thread
 onNodeEval(self::SphereDependent) = evalCallbackDp(self)
+
+Base.eltype(dependent::SphereDependent)::DataType = Tuple{Vec3D, Float64}
 
 function evalCallbackDpReturn(self::SphereDependent,cr::Tuple{Vec3D,Float64})
     self._center = cr[1]
@@ -141,36 +140,56 @@ Dependent2Observer(app::AppDNA,::SphereDependent)::Spheres = getDependentObserve
 # ! Sphere
 # ? ---------------------------------
 
+_get_dependent_sphere(dep::DependentDNA) = dep, eltype(dep) <: Number
+_get_dependent_sphere(dep) = isa(dep,Number) ? (SourceValueHolder(Float64(dep)), true) : (SourceValueHolder(Vec3D(dep)), false)
+
 # YELLOW Thread
-function Sphere(center::PointDependent,p1::PointDependent; color = (0.980f0,0.467f0,0.306f0,1.0f0))::SphereDependent
-    deps = Vector{DependentDNA}([center,p1])
-    call = function (center,p1)
+function Sphere(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
+                color="b")::SphereDependent
+    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
+    return build!(SphereDependent(callback,dependents,c))
+end
+
+function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;
+    color="b")::SphereDependent
+    call_p = function (center,p1)
         radius = norm(center - p1)
         return (center,radius)
     end
-
-    return build!(SphereDependent(call,deps,Vec4F(color)))
-end
-
-# YELLOW Thread
-function Sphere(center::PointDependent,radius; color = (0.031f0,0.337f0,0.412f0,1.0f0))
-    deps = Vector{DependentDNA}([center,radius])
-    call = function (center,radius)
+    call_r = function (center,radius)
         return (center,radius)
     end
+    (c,_) = _get_dependent_sphere(center)
+    (p_or_r,scalar) = _get_dependent_sphere(radius_or_p1)
 
-    return build!(SphereDependent(call,deps,Vec4F(color)))
+    deps = DependentDNA[
+        c,
+        p_or_r
+    ]
+    return Sphere(scalar ? call_r : call_p,deps,color_data;color=color)
 end
 
-# YELLOW Thread
-function Sphere(p1::PointDependent,p2::PointDependent,p3::PointDependent,p4::PointDependent; color = (0.697f0,0.230f0,0.958f0,1.0f0))
-    deps = [p1,p2,p3,p4]
+function Sphere(p1,p2,p3,p4,color_data::Union{Nothing,String}=nothing;
+    color="b")::SphereDependent
     call = function (p1,p2,p3,p4)
         s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
         return s
     end
+    deps = DependentDNA[
+        get_dependent_sphere(p1)[1],
+        get_dependent_sphere(p2)[1],
+        get_dependent_sphere(p3)[1],
+        get_dependent_sphere(p4)[1]
+    ]
+    return Sphere(call,deps,color_data;color=color)
+end
 
-   return build!(SphereDependent(call,deps,Vec4F(color)))
+macro Sphere(callback::Expr,args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_data,),(:color,), args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Sphere,
+                                positional_args,kw_args)
 end
 
 export Sphere
+export @Sphere

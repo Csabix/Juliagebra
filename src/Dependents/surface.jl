@@ -13,15 +13,14 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
     _uRange::Range
     _vRange::Range
 
-    _color::Vec4F
+    _color::UInt32
 
     # YELLOW Thread
     function ParametricSurfaceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         uRange::Range,
         vRange::Range,
-        color::Vec3F,
-        transparent::Bool
+        color::UInt32,
         ) where {Range<:AbstractRange}
 
         rd = RenderedDependent(callback,dependents)
@@ -34,7 +33,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
             0,
             uRange,
             vRange,
-            Vec4F(color...,transparent ? 0.5f0 : 1.0f0))
+            color)
     end
 end
 
@@ -222,18 +221,20 @@ Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceR
 # ? ---------------------------------
 
 # YELLOW Thread
-ParametricSurface(callback::Function,
-uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
-dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();
-transparent::Bool=false,color = Vec3F(0.8,0.0,0.3)) =
-build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,Vec3F(color...),transparent))
+function ParametricSurface(callback::Function,
+                           uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
+                           dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
+                           color="g")
+    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
+    build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
+end
 
-macro ParametricSurface(callback::Expr,uRange,vRange,kw_args...)
-    parsed_kw_args = _parse_macro_kw_args([:transparent, :color], kw_args...)
+macro ParametricSurface(callback::Expr,uRange,vRange,args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_data,),(:color,), args...)
     callback = _validate_callback_expr(callback, 2)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricSurface,
-        (cb, deps) -> (cb, uRange, vRange, deps);
-        parsed_kw_args...)
+                                positional_args,kw_args,
+                                (cb, deps) -> (cb, uRange, vRange, deps))
 end
 
 export ParametricSurface

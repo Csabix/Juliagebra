@@ -7,6 +7,8 @@ const _SPHERES::UInt = 6
 const _SURFACES::UInt = 7
 const _TRIANGLE_CLUSTERS::UInt = 8
 
+Base.eltype(dependent::DependentDNA)::DataType = error("Eltype not defined")
+
 include("parsers.jl")
 include("dependent_renderer.jl")
 include("rendered_dependent.jl")

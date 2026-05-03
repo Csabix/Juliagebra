@@ -10,7 +10,7 @@ mutable struct TriangleClusterDependent <: RenderedDependentDNA
     
     function TriangleClusterDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        mesh::BaseMesh,transform,color
+        mesh::BaseMesh,transform::Mat4T{Float64},color::UInt32
     )
         _mesh = Mesh(get_positions(mesh),get_indices(mesh))
         dependent = RenderedDependent(callback,dependents)
@@ -145,16 +145,37 @@ export get_positions
 # ? ---------------------------------
 
 # YELLOW Thread
-TriangleCluster(callback::Function,mesh::BaseMesh,dependents::Vector{<:DependentDNA}=DependentDNA[];
-                color="c") =
-build!(TriangleClusterDependent(callback,dependents,mesh,dmat4(1.0),get_color(color)))
+function TriangleCluster(callback::Function,mesh::BaseMesh,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
+    color="g")::TriangleCluster
+    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
+    return build!(TriangleClusterDependent(callback,dependents,mesh,dmat4(1.0),c))
+end
 
-TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[];
-                color="c") =
-build!(TriangleClusterDependent(callback,dependents,Mesh(),dmat4(1.0),get_color(color)))
+TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
+                color="g") = TriangleCluster(callback,Mesh(),dependents,color_data;color=color)
 
-TriangleCluster(mesh::BaseMesh;
-                color="c") =
-build!(TriangleClusterDependent(DEFAULT_CALLBACK,Vector{DependentDNA}(),mesh,dmat4(1.0),get_color(color)))
+TriangleCluster(mesh::BaseMesh,color_data::Union{Nothing,String}=nothing;
+                color="g") = TriangleCluster(DEFAULT_CALLBACK,mesh,DependentDNA[],color_data;color=color)
+
+function _TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}, args...; color="g")
+    mesh = Mesh()
+    color_data::Union{Nothing,String}=nothing
+    for arg in args
+        if arg isa BaseMesh
+            mesh = arg
+        else
+            color_data = arg
+        end
+    end
+    TriangleCluster(callback,mesh,dependents,color_data;color=color)
+end
+
+macro TriangleCluster(callback::Expr,args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:mesh, :color_data),(:color,), args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra._TriangleCluster,
+                                positional_args,kw_args)
+end
 
 export TriangleCluster
+export @TriangleCluster

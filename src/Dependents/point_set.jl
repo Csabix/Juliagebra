@@ -2,14 +2,15 @@ mutable struct PointSetDependent <:RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coords::Vector{Vec3D}
     _color::UInt32
-    _width::Float32
+    _style::UInt8
+    _size::UInt8
 
     # YELLOW Thread
-    function PointSetDependent(callback::Function,dependents::Vector{<:DependentDNA},color::UInt32,width::Real)
+    function PointSetDependent(callback::Function,dependents::Vector{<:DependentDNA},
+                               color::UInt32,style::UInt8,size::UInt8)
         dependent = RenderedDependent(callback,dependents)
         coords = Vector{Vec3D}()
-
-        new(dependent,coords,color,width)
+        new(dependent,coords,color,style,size)
     end
 end
 
@@ -20,6 +21,7 @@ Base.string(self::PointSetDependent) = "PointSetDependent[$(_Dependent_(self)._g
 # RED Thread
 onNodeEval(self::PointSetDependent) = evalCallbackDp(self)
 
+Base.eltype(dependent::PointSetDependent)::DataType = Vector{Vec3D}
 evalCallbackDpEntry(self::PointSetDependent)::Vector{Vec3D} = self._coords
 
 function evalCallbackDpReturn(self::PointSetDependent,coords::Vector{Vec3D})
@@ -50,14 +52,13 @@ Base.string(self::PointSets) = return "PointSets($(length(self._buffers)))"
 # GREEN Thread
 function added!(self::PointSets,point_set::PointSetDependent)
     aID = UInt32(getGraphID(point_set) + ID_LOWER_BOUND)
-    push!(self._refs,
-        add!(self._renderers.point,
-               (Vec3F(coord) for coord in point_set._coords),
-               cycle([POINT_NONE]),
-               cycle([point_set._color]),
-               cycle([UInt8(point_set._width)]),
-               cycle([aID]))::UInt32
-    )
+    ref = add!(self._renderers.point,
+        (Vec3F(coord) for coord in point_set._coords),
+        cycle([point_set._color]),
+        cycle([point_set._style]),
+        cycle([UInt8(point_set._size)]),
+        cycle([aID]))
+    push!(self._refs, ref)
 end
 
 function sync!(self::PointSets,point_set::PointSetDependent)
@@ -70,19 +71,25 @@ function destroy!(self::PointSets) end
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointSetDependent)::PointSets = getDependentObservers(app)[_POINT_SETS]
 
-PointSet(callback::Function,dependents::Vector{<:DependentDNA}=Vector{DependentDNA}();color="m",width=25.0f0)::PointSetDependent =
-build!(PointSetDependent(callback,dependents,get_color(color),width))
+function PointSet(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25)::PointSetDependent
+    (c,s) = parse_point_color_style(color_style,color,style)
+    build!(PointSetDependent(callback,dependents,c,s,round(UInt8,size)))
+end
 
-PointSet(dependents::Vector{<:DependentDNA};color="m",width=25.0f0)::PointSetDependent =
-PointSet(_deps_collect,dependents;color=get_color(color),width=width)
+PointSet(dependents::Vector{<:DependentDNA},color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25)::PointSetDependent =
+PointSet(_deps_collect,dependents,color_style;color=color,style=style,size=size)
 
-PointSet(positions) =
-GenericValueHolder(_deps_collect,Vector{Vec3D},[Point(p...) for p in positions])
+PointSet(positions,color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25) =
+GenericValueHolder(_deps_collect,Vector{Vec3D},[Point(p[1],p[2],p[3],color_style;color=color,style=style,size=size) for p in positions])
 
-macro PointSet(callback::Expr, kw_args...)
-    parsed_kw_args = _parse_macro_kw_args([:color, :width], kw_args...)
+macro PointSet(callback::Expr, args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size), args...)
     callback = _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.PointSet; parsed_kw_args...)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.PointSet,
+                                positional_args, kw_args)
 end
 
 export PointSet

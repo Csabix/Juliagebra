@@ -7,12 +7,12 @@ mutable struct SphereDependent <: RenderedDependentDNA
     _dependent::RenderedDependent
     _center::Vec3D
     _radius::Float64
-    _color::UInt8
+    _color::UInt32
 
     # YELLOW Thread
     function SphereDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        color::UInt8)
+        color::UInt32)
         dependent = RenderedDependent(callback,dependents)
         center = Vec3DNan
         radius = 0.0
@@ -128,7 +128,7 @@ end
 # GREEN Thread
 function sync!(self::Spheres,sphere::SphereDependent)
     index = self._indexes[getObserverID(sphere)]
-    update_coord_radius!(self._renderers.sphere,index,Vec3F(sphere._center),Float32(sphere._radius),sphere._color[4])
+    update_coord_radius!(self._renderers.sphere,index,Vec3F(sphere._center),Float32(sphere._radius),sphere._color)
 end
 
 function destroy!(self::Spheres) end
@@ -176,10 +176,10 @@ function Sphere(p1,p2,p3,p4,color_data::Union{Nothing,String}=nothing;
         return s
     end
     deps = DependentDNA[
-        get_dependent_sphere(p1)[1],
-        get_dependent_sphere(p2)[1],
-        get_dependent_sphere(p3)[1],
-        get_dependent_sphere(p4)[1]
+        _get_dependent_sphere(p1)[1],
+        _get_dependent_sphere(p2)[1],
+        _get_dependent_sphere(p3)[1],
+        _get_dependent_sphere(p4)[1]
     ]
     return Sphere(call,deps,color_data;color=color)
 end

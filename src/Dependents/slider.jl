@@ -22,6 +22,8 @@ _GuiDependent_(self::SliderDependent)::GuiDependent = return self._dependent
 # RED Thread
 onNodeEval(self::SliderDependent) = evalCallbackDp(self)
 
+Base.eltype(dependent::SliderDependent)::DataType = Float64
+
 evalCallbackDpEntry(self::SliderDependent)::Float64 = return Float64(self._value.y)
 
 evalCallbackDpReturn(self::SliderDependent, v::Vec3F) = self._value = v

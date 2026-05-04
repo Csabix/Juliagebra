@@ -41,14 +41,14 @@ function destroy!(self::SphereRenderer)::Nothing
     return nothing
 end
 
-function add!(self::SphereRenderer,coord::Vec3F,radius::Float32,color::Vec4F,id::UInt32)::UInt32
-    if (color[4] == 1.0f0)
+function add!(self::SphereRenderer,coord::Vec3F,radius::Float32,color::UInt32,id::UInt32)::UInt32
+    if is_packed_opaque(color)
         push!(self.center_radius_opaque, Vec4F(coord[1],coord[2],coord[3],radius))
-        push!(self.color_id_opaque, Vec2T{UInt32}(packUnorm4x8(color),id))
+        push!(self.color_id_opaque, Vec2T{UInt32}(color,id))
         return UInt32(length(self.center_radius_opaque))
     else
         push!(self.center_radius_transparent, Vec4F(coord[1],coord[2],coord[3],radius))
-        push!(self.color_id_transparent, Vec2T{UInt32}(packUnorm4x8(color),id))
+        push!(self.color_id_transparent, Vec2T{UInt32}(color,id))
         return UInt32(length(self.center_radius_transparent))
     end
 end
@@ -67,8 +67,8 @@ function added_all!(self::SphereRenderer)::Nothing
     return nothing
 end
 
-function update_coord_radius!(self::SphereRenderer,ref::UInt32,coord::Vec3F,radius::Float32,alpha::Float32)
-    if alpha == 1.0f0
+function update_coord_radius!(self::SphereRenderer,ref::UInt32,coord::Vec3F,radius::Float32,color::UInt32)
+    if is_packed_opaque(color)
         self.center_radius_opaque[ref] = Vec4F(coord[1],coord[2],coord[3],radius)
         self.updated_opaque = true
     else

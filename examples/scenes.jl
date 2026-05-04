@@ -123,3 +123,16 @@ SegmentSequence(segseq_points,[sc],2,color="green");
 SegmentSequence(segseq_points,[sd],3,color=(0,0,255));
 SegmentSequence(segseq_points,[se],4,color=(0.5,0.5,0.5));
 SegmentSequence(segseq_points,[sf],5,style="~",size=10);
+
+##
+
+Sphere((0,0,0),1,"r");
+Sphere((0,0,2),(0,0,1),color="green");
+Sphere((2,0,0),Slider(0.0,1.0,1.0));
+Sphere((2,0,2),Point(2,0,3),color=(0.5,0.5,0.5,0.5));
+
+# Any combination should work
+Sphere(Point(0,1,-3 ),Point(1,0,-3 ),Point(0,0,-3 ),Point(0.1,0,-2 ));
+Sphere(Point(0,1,-6 ),Point(1,0,-6 ),Point(0,0,-6 ),     (0.1,0,-5 ));
+Sphere(Point(0,1,-9 ),Point(1,0,-9 ),     (0,0,-9 ),     (0.1,0,-8 ));
+Sphere(Point(0,1,-12),     (1,0,-12),     (0,0,-12),     (0.1,0,-11));

@@ -26,6 +26,8 @@ _flip!(self::ToggleDependent) = self._state = !self._state
 # RED Thread
 onNodeEval(self::ToggleDependent) = evalCallbackDp(self)
 
+Base.eltype(dependent::ToggleDependent)::DataType = Bool
+
 evalCallbackDpEntry(self::ToggleDependent)::Bool = return self._state
 
 evalCallbackDpReturn(self::ToggleDependent, val::Bool) = self._state = val

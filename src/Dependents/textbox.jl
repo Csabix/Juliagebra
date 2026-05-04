@@ -22,6 +22,8 @@ _GuiDependent_(self::TextBoxDependent)::GuiDependent = return self._dependent
 # RED Thread
 onNodeEval(self::TextBoxDependent) = evalCallbackDp(self)
 
+Base.eltype(dependent::TextBoxDependent)::DataType = String
+
 evalCallbackDpEntry(self::TextBoxDependent)::String = return self._text   
 
 evalCallbackDpReturn(self::TextBoxDependent, text::String) = self._text = text

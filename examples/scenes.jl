@@ -136,3 +136,7 @@ Sphere(Point(0,1,-3 ),Point(1,0,-3 ),Point(0,0,-3 ),Point(0.1,0,-2 ));
 Sphere(Point(0,1,-6 ),Point(1,0,-6 ),Point(0,0,-6 ),     (0.1,0,-5 ));
 Sphere(Point(0,1,-9 ),Point(1,0,-9 ),     (0,0,-9 ),     (0.1,0,-8 ));
 Sphere(Point(0,1,-12),     (1,0,-12),     (0,0,-12),     (0.1,0,-11));
+
+p = Point(0,0,4)
+s = Slider()
+@Sphere () -> (p,s) "r";

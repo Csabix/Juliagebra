@@ -13,8 +13,6 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
 
     _tValues::Vector{Vec3D} # ? Calculated value for each t
 
-    _update_color::Bool
-
     # YELLOW Thread
     function ParametricCurveDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
@@ -22,7 +20,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
         color::Vector{UInt32},style::UInt8,size::Float32)
         dependent = RenderedDependent(callback,dependents)
         tValues = Vector{Vec3D}(undef,length(range))
-        new(dependent,range,color,size,style,tValues,false)
+        new(dependent,range,color,size,style,tValues)
     end
 end
 
@@ -107,12 +105,7 @@ end
 # GREEN Thread
 function sync!(self::Curves,curve::ParametricCurveDependent)
     ref = self._refs[getObserverID(curve)]
-    update_coords!(self._renderers.line,ref,curve._tValues,curve._size)
-    if curve._update_color
-        update_color!(self._renderers.line,ref,cycle(curve._colors),length(curve._tValues))
-        curve._update_color = false
-    end
-    update_style!(self._renderers.line,ref,curve._style,length(curve._tValues))
+    update_coords!(self._renderers.line,ref,curve._tValues)
 end
 
 # GREEN Thread
@@ -126,7 +119,7 @@ function ParametricCurve(callback::Function,range::AbstractRange{Float64},
                 dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
                 color="c",style="-",size=5.0f0)::ParametricCurveDependent
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return build!(ParametricCurveDependent(callback,dependents,range,c,s,size))
+    return build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size)))
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

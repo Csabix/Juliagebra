@@ -2,8 +2,9 @@
 mutable struct CurvesWindow <: WindowDNA
     _window::Window
     _graph::DependentGraphDNA
+    _renderer::LineRenderer
 
-    CurvesWindow(graph::DependentGraphDNA) = new(Window(), graph)
+    CurvesWindow(graph::DependentGraphDNA, renderer::LineRenderer) = new(Window(), graph, renderer)
 end
 
 _Window_(self::CurvesWindow)::Window = self._window
@@ -13,17 +14,35 @@ const _CURVE_STYLE_LABELS = ["-", "--", ":", "~", "-.", "->", "<-"]
 # values match SOLID=1..ARROW=6, ARROW_REVERSED=ARROW|(1<<7)=134 from line_renderer.jl
 const _CURVE_STYLE_VALUES = UInt8[1, 2, 3, 4, 5, 6, 134]
 
-function _unpack_rgb(packed::UInt32)::Vec3F
-    r = Float32( packed        & 0xff) / 255.0f0
-    g = Float32((packed >>  8) & 0xff) / 255.0f0
-    b = Float32((packed >> 16) & 0xff) / 255.0f0
-    return Vec3F(r, g, b)
+function set_color(r::LineRenderer,d::ParametricCurveDependent)
+    ref = getObserver(d)._refs[getObserverID(d)]
+    update_colors!(r,ref,cycle(d._colors))
+end
+function set_color(r::LineRenderer,d::SegmentSequenceDependent)
+    ref = getObserver(d)._refs[getObserverID(d)]
+    if d._break_every >= 2
+        update_colors_dynamic!(r,ref,custom_interleaver(collect(Iterators.take(Iterators.cycle(d._colors),length(d._values))),zero(UInt32),d._break_every))
+    else
+        update_colors_dynamic!(r,ref,Iterators.cycle(d._colors))
+    end
 end
 
-function _pack_rgb(color::Vec3F)::UInt32
-    return UInt32(round(clamp(color[1], 0f0, 1f0) * 255)) |
-           (UInt32(round(clamp(color[2], 0f0, 1f0) * 255)) << 8) |
-           (UInt32(round(clamp(color[3], 0f0, 1f0) * 255)) << 16)
+function set_style(r::LineRenderer,d::ParametricCurveDependent)
+    ref = getObserver(d)._refs[getObserverID(d)]
+    update_style!(r,ref,d._style)
+end
+function set_style(r::LineRenderer,d::SegmentSequenceDependent)
+    ref = getObserver(d)._refs[getObserverID(d)]
+    update_style_dynamic!(r,ref,d._style)
+end
+
+function set_size(r::LineRenderer,d::ParametricCurveDependent)
+    ref = getObserver(d)._refs[getObserverID(d)]
+    update_size!(r,ref,d._size)
+end
+function set_size(r::LineRenderer,d::SegmentSequenceDependent)
+    ref = getObserver(d)._refs[getObserverID(d)]
+    update_size_dynamic!(r,ref,d._size)
 end
 
 function renderContent(self::CurvesWindow)
@@ -42,7 +61,9 @@ function renderContent(self::CurvesWindow)
     CImGui.TableHeadersRow()
 
     for node in getNodes(self._graph)
-        node isa ParametricCurveDependent || continue
+        if !(node isa ParametricCurveDependent || node isa SegmentSequenceDependent)
+            continue
+        end
 
         id = getGraphID(node)
         CImGui.TableNextRow()
@@ -60,11 +81,10 @@ function renderContent(self::CurvesWindow)
 
         # 1. Inline Color Pickers (Limited)
         for i in 1:min(num_colors, display_limit)
-            cur_color = _unpack_rgb(node._colors[i])
-            new_color = color_edit3(cur_color, "##ccol$(id)_$i")
+            new_color = color_edit3(node._colors[i], "##ccol$(id)_$i")
             
             if new_color !== nothing
-                node._colors[i] = _pack_rgb(new_color)
+                node._colors[i] = new_color
                 changed = true
             end
             CImGui.SameLine()
@@ -81,7 +101,7 @@ function renderContent(self::CurvesWindow)
         # 3. Add Color Button (+)
         # Uses Cyan: RGB(0, 1, 1)
         if CImGui.Button("+##add$id")
-            push!(node._colors, _pack_rgb(Vec3F(0f0, 1f0, 1f0)))
+            push!(node._colors, get_color((0,255,255)))
             changed = true
         end
         CImGui.SameLine()
@@ -105,12 +125,11 @@ function renderContent(self::CurvesWindow)
             CImGui.Separator()
             if CImGui.BeginChild("popup_scroll_$id", CImGui.ImVec2(150, 200), true)
                 for i in 1:length(node._colors) # length might have changed via buttons
-                    cur_color = _unpack_rgb(node._colors[i])
                     CImGui.Text("$i:") 
                     CImGui.SameLine()
-                    new_color = color_edit3(cur_color, "##pcol$(id)_$i")
+                    new_color = color_edit3(node._colors[i], "##pcol$(id)_$i")
                     if new_color !== nothing
-                        node._colors[i] = _pack_rgb(new_color)
+                        node._colors[i] = new_color
                         changed = true
                     end
                 end
@@ -121,25 +140,24 @@ function renderContent(self::CurvesWindow)
 
         # Trigger updates if colors were edited, added, or removed
         if changed
-            node._update_color = true
-            afterNodeEval(node)
+            set_color(self._renderer,node)
         end
 
         # --- Width Column ---
         CImGui.TableNextColumn()
-        w_ref = Ref(node._width)
+        w_ref = Ref(node._size)
         if CImGui.SliderFloat("##cw$id", w_ref, 1.0f0, 20.0f0)
-            node._width = w_ref[]
-            afterNodeEval(node)
+            node._size = w_ref[]
+            set_size(self._renderer,node)
         end
 
         # --- Style Column ---
         CImGui.TableNextColumn()
-        cur_idx = something(findfirst(==(node._type), _CURVE_STYLE_VALUES), 1) - 1
+        cur_idx = something(findfirst(==(node._style), _CURVE_STYLE_VALUES), 1) - 1
         style_ref = Ref(Cint(cur_idx))
         if CImGui.Combo("##cst$id", style_ref, _CURVE_STYLE_LABELS, length(_CURVE_STYLE_LABELS))
-            node._type = _CURVE_STYLE_VALUES[style_ref[] + 1]
-            afterNodeEval(node)
+            node._style = _CURVE_STYLE_VALUES[style_ref[] + 1]
+            set_style(self._renderer,node)
         end
     end
 

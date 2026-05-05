@@ -30,7 +30,7 @@ function evalCallbackDpReturn(self::TriangleClusterDependent,position_indices::T
 end
 function evalCallbackDpReturn(self::TriangleClusterDependent,position_indices::Tuple{Any,Vector})
     evalCallbackDpReturn(self, position_indices[1])
-    self._mesh = Mesh(self._mesh.positions,UInt32.position_indices[2])
+    self._mesh = Mesh(self._mesh.positions,UInt32.(position_indices[2]))
 end
 evalCallbackDpReturn(self::TriangleClusterDependent,v::Mesh) = self._mesh = v
 evalCallbackDpReturn(self::TriangleClusterDependent,v::AbstractMatrix) = self._transform = Mat4T{Float64}(v)
@@ -111,7 +111,7 @@ function added!(self::TriangleClusters,cluster::TriangleClusterDependent)
         self._renderers.triangle,
         triangulated,
         Mat4T{Float32}(cluster._transform),
-        unpack_color(cluster._color),
+        cluster._color,
         aID)
     push!(self._refs, ref)
 end
@@ -125,7 +125,7 @@ function sync!(self::TriangleClusters,cluster::TriangleClusterDependent)
     end
     ref = self._refs[getObserverID(cluster)]
     update_coords!(self._renderers.triangle,ref,triangulated)
-    update_color!(self._renderers.triangle,ref,unpack_color(cluster._color))
+    update_color!(self._renderers.triangle,ref,cluster._color)
     update_transform!(self._renderers.triangle,ref,cluster._transform)
 end
 
@@ -146,7 +146,7 @@ export get_positions
 
 # YELLOW Thread
 function TriangleCluster(callback::Function,mesh::BaseMesh,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-    color="g")::TriangleCluster
+    color="g")::TriangleClusterDependent
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
     return build!(TriangleClusterDependent(callback,dependents,mesh,dmat4(1.0),c))
 end
@@ -155,7 +155,7 @@ TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}=DependentD
                 color="g") = TriangleCluster(callback,Mesh(),dependents,color_data;color=color)
 
 TriangleCluster(mesh::BaseMesh,color_data::Union{Nothing,String}=nothing;
-                color="g") = TriangleCluster(DEFAULT_CALLBACK,mesh,DependentDNA[],color_data;color=color)
+                color="g") = TriangleCluster(()->dmat4(1.0),mesh,DependentDNA[],color_data;color=color)
 
 function _TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}, args...; color="g")
     mesh = Mesh()

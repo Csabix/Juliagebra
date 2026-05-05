@@ -52,7 +52,7 @@ end
 end
 
 @inline function upload!(self::BufferBase{T}, data::AbstractVector{T})::Bool where {T}
-    if length(data) == 0 return end
+    if length(data) == 0 return false end
     glNamedBufferSubData(self._id, 0, length(data) * sizeof(T), data)
     return false
 end

@@ -39,7 +39,7 @@ end
 # ? Could microoptimize this by not creating buffers everytime if necessary
 function color_edit3(color::UInt32, label::String)::Union{UInt32,Nothing}
     c4 = unpack_color(color)
-    col = Float32[c4[1], c4[2], c4[3]]
+    col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
             CImGui.ImGuiColorEditFlags_NoLabel
     if CImGui.ColorEdit3(label, col, flags)
@@ -48,13 +48,14 @@ function color_edit3(color::UInt32, label::String)::Union{UInt32,Nothing}
     return nothing
 end
 
-function color_edit4(color::Vec4F, label::String)::Union{Vec4F,Nothing}
-    col = Float32[color[1], color[2], color[3], color[4]]
+function color_edit4(color::UInt32, label::String)::Union{UInt32,Nothing}
+    c4 = unpack_color(color)
+    col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3]), Float32(c4[4])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
         CImGui.ImGuiColorEditFlags_AlphaBar     |
         CImGui.ImGuiColorEditFlags_NoLabel
     if CImGui.ColorEdit4(label, col, flags)
-        return Vec4F(col[1], col[2], col[3], col[4])
+        return get_color((col[1], col[2], col[3], col[4]))
     end
     return nothing
 end

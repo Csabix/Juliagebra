@@ -140,3 +140,138 @@ Sphere(Point(0,1,-12),     (1,0,-12),     (0,0,-12),     (0.1,0,-11));
 p = Point(0,0,4)
 s = Slider()
 @Sphere () -> (p,s) "r";
+
+##
+
+Triangle(     (0,0,0.1),   (1,1,0.1),   (0,1,0.1));
+Triangle(     (0,0,1),     (1,1,1),Point(0,1,1),"r");
+Triangle(     (0,0,2),Point(1,1,2),Point(0,1,2),color="white");
+Triangle(Point(0,0,3),Point(1,1,3),Point(0,1,3),color=(0.5,0.5,0.5,0.5));
+
+function parametric_sphere(u, v, c)
+    r = 1.0
+    theta = 2 * π * u
+    phi = π * v
+    
+    x = c[1] + r * sin(phi) * cos(theta)
+    y = c[3] + r * cos(phi)
+    z = c[2] + r * sin(phi) * sin(theta)
+    
+    return (x, y, z)
+end
+
+ParametricSurface(parametric_sphere,range(0.0,1.0,50),range(0.0,1.0,50),[Point(3,0,0)],color=(100,100,80,250));
+
+p = Point(-3,0,0);
+r = Slider();
+@ParametricSurface(range(0.0,1.0,50),range(0.0,1.0,50),color="y") do u,v
+    theta = 2 * π * u
+    phi = π * v
+    
+    x = p[1] + r * sin(phi) * cos(theta)
+    y = p[3] + r * cos(phi)
+    z = p[2] + r * sin(phi) * sin(theta)
+    
+    return (x, y, z)
+end;
+
+dir = @__DIR__ ;
+FILE = dir * "\\scenes\\scene_1.fbx";
+scene = load_scene(FILE;scale_factor=0.5f0);
+
+TriangleCluster(scene[1];color=(1.0,1.0,0.0,1.0));
+TriangleCluster(scene[2],"r");
+TriangleCluster(scene[3], [Point(3, 3, 3)]; color=(0.5, 0.5, 0.5, 0.5)) do p
+    return [
+        1.0  0.0  0.0  p[1];
+        0.0  1.0  0.0  p[2];
+        0.0  0.0  1.0  p[3];
+        0.0  0.0  0.0  1.0
+    ]
+end;
+
+scale = Slider(0.0,0.1,5.0)
+@TriangleCluster(scene[2];color="k") do
+    return [
+        scale  0.0    0.0    0.0
+        0.0    scale  0.0    0.0;
+        0.0    0.0    scale  0.0;
+        0.0    0.0    0.0    1.0
+    ]
+end;
+
+count = Slider(0.0,0.0,100.0)
+@TriangleCluster("c") do
+    n_segments = Int(floor(count[]))
+    vertices = Vector{Tuple{Float64, Float64, Float64}}()
+    
+    # Spiral Settings
+    turns = 5.0
+    h_step = 0.05   # Vertical rise per radian
+    r_base = 1.0    # Starting radius
+    width = 0.3     # Ribbon width
+    
+    for i in 0:n_segments-1
+        # Parameter t
+        t1 = i / 100.0  # Normalized based on max slider range for consistency
+        t2 = (i + 1) / 100.0
+        
+        θ1 = t1 * turns * 2π
+        θ2 = t2 * turns * 2π
+        
+        # Radii
+        r1 = r_base + (t1 * 0.5)
+        r2 = r_base + (t2 * 0.5)
+        
+        # Z-height
+        z1 = θ1 * h_step
+        z2 = θ2 * h_step
+
+        # Coordinates for the inner edge
+        p1_in  = (r1 * cos(θ1), r1 * sin(θ1), z1)
+        p2_in  = (r2 * cos(θ2), r2 * sin(θ2), z2)
+        
+        # Coordinates for the outer edge
+        p1_out = ((r1 + width) * cos(θ1), (r1 + width) * sin(θ1), z1)
+        p2_out = ((r2 + width) * cos(θ2), (r2 + width) * sin(θ2), z2)
+
+        # TRIANGLE 1 (Inner1 -> Outer1 -> Inner2)
+        # Maintaining Counter-Clockwise winding
+        push!(vertices, p1_out)
+        push!(vertices, p1_in)
+        push!(vertices, p2_in)
+
+        # TRIANGLE 2 (Outer1 -> Outer2 -> Inner2)
+        push!(vertices, p2_out)
+        push!(vertices, p1_out)
+        push!(vertices, p2_in)
+    end
+    return vertices
+end;
+
+# Zero based vertex indexing
+TriangleCluster(color="w") do
+    cx, cy, cz = 3.0, 3.0, 3.0
+    s = 0.5
+
+    positions = [
+        (cx-s, cy-s, cz-s),
+        (cx+s, cy-s, cz-s),
+        (cx+s, cy+s, cz-s),
+        (cx-s, cy+s, cz-s),
+        (cx-s, cy-s, cz+s),
+        (cx+s, cy-s, cz+s),
+        (cx+s, cy+s, cz+s),
+        (cx-s, cy+s, cz+s) 
+    ]
+
+    indices = [
+        0, 1, 2,  0, 2, 3,
+        4, 6, 5,  4, 7, 6,
+        0, 7, 4,  0, 3, 7,
+        1, 6, 2,  1, 5, 6,
+        3, 6, 7,  3, 2, 6,
+        0, 5, 1,  0, 4, 5
+    ]
+    return positions, indices
+end;

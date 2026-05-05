@@ -33,23 +33,16 @@ function destroy!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
 end
 
-function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::Vec3F,id::UInt32)::UInt32
+function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,id::UInt32)::UInt32
     push!(self.coords, collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords)))
     push!(self.matrices, matrix)
-    push!(self.color_ids,UVec2(packUnorm4x8(color)::UInt32,id))
+    push!(self.color_ids,UVec2(color,id))
     return UInt32(length(self.coords))
 end
 
-function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::Vec4F,id::UInt32)::UInt32
-    push!(self.coords, collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords)))
-    push!(self.matrices, matrix)
-    push!(self.color_ids,UVec2(packUnorm4x8(color)::UInt32,id))
-    return UInt32(length(self.coords))
-end
-
-function update_color!(self::TriangleRenderer, ref::UInt32, color::Vec4F)
+function update_color!(self::TriangleRenderer, ref::UInt32, color::UInt32)
     id_val = self.color_ids[ref][2]
-    self.color_ids[ref] = Vec2T{UInt32}(packUnorm4x8(color), id_val)
+    self.color_ids[ref] = Vec2T{UInt32}(color, id_val)
     push!(self.color_updates, ref)
 end
 
@@ -118,6 +111,7 @@ function pre_draw(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
     if isempty(self.update_normals) return nothing end
     activate(self.shader_calc_normals)
     for i in self.update_normals
+        if length(self.coords[i]) == 0 continue end
         bind_ssbo(self.buffers[i][1],0)
         bind_ssbo(self.buffers[i][2],1)
         glDispatchCompute(cld(length(self.coords[i]),64),1,1);
@@ -137,7 +131,7 @@ function opaque(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     activate(self.shader_opaque)
     for i in 1:length(self.buffers)
-        if !is_packed_opaque(self.color_ids[i][1]) || length(self.buffers[i]) == 0 continue end
+        if !is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
         uniform(self.shader_opaque,"M",self.matrices[i])
         uniform(self.shader_opaque,"MIT",inv(transpose(self.matrices[i])))
         draw(self.buffers[i],GL_TRIANGLES)
@@ -153,7 +147,7 @@ function transparent(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothi
 
     activate(self.shader_transparent)
     for i in 1:length(self.buffers)
-        if is_packed_opaque(self.color_ids[i][1]) || length(self.buffers[i]) == 0 continue end
+        if is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
         uniform(self.shader_transparent,"M",self.matrices[i])
         uniform(self.shader_transparent,"MIT",inv(transpose(self.matrices[i])))
         draw(self.buffers[i],GL_TRIANGLES)

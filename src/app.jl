@@ -156,6 +156,7 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
                     pp::PointDependent = p
                     self._opengl._gizmoGL._pos = Vec3F(pp._coord)
                     self._shrd._gizmoEnabled = true
+                    self._shrd._gizmoConstraints = pp._constraints
                     mouse_capture = true
                 else
                     self._shrd._gizmoEnabled = false

@@ -344,7 +344,7 @@ function _widgets(self::OpenGLData,cam::Camera)
     glDisable(GL_BLEND)
     glEnablei(GL_BLEND, 0)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh) end
+    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh,self._shrd._gizmoConstraints) end
     draw(self._orthoGizmoGL,cam,wh)
 
     glDepthFunc(GL_LEQUAL)

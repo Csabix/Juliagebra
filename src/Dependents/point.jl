@@ -3,19 +3,27 @@
 # ! PointDependent
 # ? ---------------------------------
 
+const AXIS_NONE::UInt8 = 0x0
+const AXIS_X::UInt8    = 0x1
+const AXIS_Y::UInt8    = 0x2
+const AXIS_Z::UInt8    = 0x4
+const AXIS_FULL::UInt8 = 0x7
+export AXIS_NONE, AXIS_X, AXIS_Y, AXIS_Z, AXIS_FULL
+
 mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D
     _color::UInt32
     _style::UInt8
     _size::UInt8
+    _constraints::UInt8
 
     # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},
-                            color::UInt32,style::UInt8,size::UInt8)
+                            color::UInt32,style::UInt8,size::UInt8,axis_constraint::UInt8)
         dependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(dependent,coord,color,style,UInt8(size))
+        new(dependent,coord,color,style,UInt8(size),axis_constraint)
     end
 end
 
@@ -86,19 +94,23 @@ Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_P
 
 # YELLOW Thread
 function Point(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-    color="m",style=".",size=25)
+    color="m",style=".",size=25,axis_constraint=AXIS_NONE)
     (c,s) = parse_point_color_style(color_style,color,style)
-    build!(PointDependent(callback,dependents,c,s,round(UInt8,size)))
+    build!(PointDependent(callback,dependents,c,s,round(UInt8,size),axis_constraint))
 end
 
 # YELLOW Thread
 Point(x::Real,y::Real,z::Real,color_style::Union{Nothing,String}=nothing;
-    color="m",style=".",size=25)::PointDependent =
-Point(() -> Vec3D(x,y,z),DependentDNA[],color_style,color=color,style=style,size=size)
+    color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y|AXIS_Z)::PointDependent =
+Point(() -> Vec3D(x,y,z),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
+
+Point(x::Real,y::Real,color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y)::PointDependent =
+Point(() -> Vec3D(x,y,0.0),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
 
 # YELLOW Thread
 macro Point(callback::Expr, args...)
-    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size), args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size, :axis_constraint), args...)
     callback = _validate_callback_expr(callback, 0)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.Point,
                                 positional_args, kw_args)

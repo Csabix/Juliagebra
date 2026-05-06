@@ -5,9 +5,11 @@ uniform mat4 VP;
 uniform vec3 gizmoCenter = vec3(0.0,0.0,0.0);
 uniform float gizmoScale;
 uniform uint selectedID;
+uniform uint gizmo_axis;
 
 const vec3 vertices[6] = vec3[6](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0),vec3(0,0,1),vec3(0,0,-1));
 const uint ids[6] = uint[6](uint(1),uint(1),uint(2),uint(2),uint(3),uint(3));
+const uint axes[3] = uint[3](uint(1),uint(2),uint(4));
 uint indices[6] = uint[6](uint(0),uint(1),uint(2),uint(3),uint(4),uint(5));
 
 flat out vec3 color_v_out;
@@ -37,7 +39,7 @@ void main(){
     color_v_out = abs(vertices[current_index]);
     vec3 position = gl_VertexID % 2 == 0 ? vertices[current_index] : vec3(0);
     id_v_out = ids[current_index];
-    if (selectedID != uint(0) && selectedID != id_v_out) {
+    if (((axes[current_index >> 1] & gizmo_axis) == uint(0)) || (selectedID != uint(0) && selectedID != id_v_out)) {
         position = vec3(nanVal);
     }
     gl_Position = VP * vec4(position*gizmoScale + gizmoCenter, 1.0);

@@ -5,15 +5,15 @@ using JuliaGLM
 
 # Point
 a = Point(1,0,-1);
-b = Point(1,0,0,"r+");
-c = Point(1,0,1,color="green");
-d = Point(1,0,2,color=(0,0,255));
+b = Point(1,0,"r+");
+c = Point(1,0,1,color="green",axis_constraint=AXIS_X);
+d = Point(1,0,2,color=(0,0,255),axis_constraint=AXIS_X|AXIS_Z);
 e = Point(1,0,3,color=(0.5,0.5,0.5));
 f = Point(1,0,4,style="+",size=50);
 
 Point(() -> Vec3D(0,0,-1))
 const offset_point(p) = p .- (2,0,0)
-Point(offset_point,[a]);
+Point(offset_point,[a];axis_constraint=AXIS_FULL); # Default AXIS_NONE -> Can't be moved using gizmo
 Point(offset_point,[b],"r+");
 Point(offset_point,[c],color="green");
 Point(offset_point,[d],color=(0,0,255));

@@ -37,10 +37,20 @@ function onNodeEval(self::ParametricCurveDependent)
     end
 end
 
-evalCallbackDpReturn(self::ParametricCurveDependent,v,index)          = ((x,y,z) = v ; self._tValues[index] = Vec3D(x,y,z))
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)   = self._tValues[index] = v
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)   = self._tValues[index] = Vec3D(v)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index) = self._tValues[index] = Vec3DNan
+function evalCallbackDpReturn(self::ParametricCurveDependent,v,index)
+    if length(v) == 3
+        self._tValues[index] = Vec3D(v[1],v[2],v[3])
+    else
+        self._tValues[index] = Vec3D(v[1],v[2],0.0)
+    end
+end
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Tuple{Any,Any},index)     = self._tValues[index] = Vec3D(v[1],v[2],0.0)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Tuple{Any,Any,Any},index) = self._tValues[index] = Vec3D(v[1],v[2],v[3])
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)              = self._tValues[index] = v
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)              = self._tValues[index] = Vec3D(v)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec2D,index)              = self._tValues[index] = Vec3D(v[1],v[2],0.0)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec2F,index)              = self._tValues[index] = Vec3D(v[1],v[2],0.0)
+evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index)            = self._tValues[index] = Vec3DNan
 
 # ? For Intersectable ParametricCurves.
 

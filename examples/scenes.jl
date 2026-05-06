@@ -83,14 +83,17 @@ PointSequence(pointseq_points,[sf],style="+",size=50);
 ##
 ParametricCurve(range(-pi,pi,30)) do t
     (t/pi,1,sin(t))
-end
+end;
 ParametricCurve(range(-pi,pi,30),[Point(0,2,0)],"g->") do t,p
     (t/pi,0,sin(t)) .+ p
-end
+end;
 p = Point(0,3,0)
 @ParametricCurve(range(-pi,pi,30),"m:") do t
     (t/pi,0,sin(t)) .+ p
-end
+end;
+ParametricCurve(range(-pi,pi,30)) do a
+    return sin(a), cos(a)
+end;
 
 # Calls Parametric curve under the hood
 Segment(     (-1,0,0),     ( 1,0,0));
@@ -123,7 +126,9 @@ SegmentSequence(segseq_points,[sc],2,color="green");
 SegmentSequence(segseq_points,[sd],3,color=(0,0,255));
 SegmentSequence(segseq_points,[se],4,color=(0.5,0.5,0.5));
 SegmentSequence(segseq_points,[sf],5,style="~",size=10);
-
+SegmentSequence() do
+    [(3,0),(3,1),(4,0),(4,1),(5,0),(5,1),(6,0),(6,1),(7,0),(7,1)]
+end;
 ##
 
 Sphere((0,0,0),1,"r");

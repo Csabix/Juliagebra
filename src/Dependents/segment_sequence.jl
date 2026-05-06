@@ -33,10 +33,17 @@ onNodeEval(self::SegmentSequenceDependent) = evalCallbackDp(self)
 
 Base.eltype(dependent::SegmentSequenceDependent)::DataType = Vector{Vec3D}
 
+function evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
+    self._values = [Vec3D(coord...) for coord in coords]
+end
+function evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{T}) where T <: Tuple{Any, Any}
+    self._values = [Vec3D(coord...,0.0) for coord in coords]
+end
 evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3D})  = self._values = coords
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec2D})  = self._values = [Vec3D(coord...,0.0) for coord in coords]
 evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3F})  = self._values = [Vec3D(coord...) for coord in coords]
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Tuple})  = self._values = [Vec3D(coord...) for coord in coords]
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = [Vec3D(coord...) for coord in coords]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec2F})  = self._values = [Vec3D(coord...,0.0) for coord in coords]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = [length(c) == 3 ? Vec3D(c[1],c[2],c[3]) : Vec3D(c[1],c[2],0.0) for c in coords]
 evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = Vec3D[]
 
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}

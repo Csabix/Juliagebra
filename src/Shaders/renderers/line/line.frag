@@ -20,8 +20,6 @@ noperspective layout(location = 2) in float total_distance_in;
 flat          layout(location = 3) in vec4 begin_pos_rad_in;
 flat          layout(location = 4) in vec4 end_pos_rad_in;
 
-uniform float fov;
-
 float rounding() {
     vec2 p = vec2(abs(segment_SDF_field_in.x),segment_SDF_field_in.y);
     if( p.y < 0.0 ) return length(p) - segment_SDF_field_in.z;
@@ -87,22 +85,17 @@ float pattern() {
 #endif
 
 vec3 rayDirection() {
-    const float ASPECT = aspect();
-    const float FOV    = fov;
-    const vec2 RESOLUTION = vec2(width(),height());
+    vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
+    vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
+    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
 
-    vec3 look_dir = normalize(eye() - at());
-    vec3 right = normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
-    vec3 up = normalize(cross(right, look_dir));
-
-    float focal_length = -1.0 / tan(FOV * 0.5);
-    vec2 screen_uv = (gl_FragCoord.xy / RESOLUTION) * 2.0 - 1.0; 
-    
-    screen_uv.x *= ASPECT;
+    float focal_length = -1.0 / tan(fov() * 0.5);
+    vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
+    screen_uv.x *= aspect();
 
     return normalize(screen_uv.x  * right + 
                      screen_uv.y  * up + 
-                     focal_length * look_dir);
+                     focal_length * backward);
 }
 
 float iSphere(vec3 ro, vec3 rd, vec3 sp, float r) {

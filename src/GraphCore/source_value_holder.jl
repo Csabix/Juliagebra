@@ -46,5 +46,7 @@ end
 
 # YELLOW Thread
 ValueHolder(value) = SourceValueHolder(value)
+WrapValue(value)::DependentDNA = value isa DependentDNA ? value : ValueHolder(value)
 
 export SourceValueHolder
+export WrapValue

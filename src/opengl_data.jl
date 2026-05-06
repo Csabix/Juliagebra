@@ -27,6 +27,7 @@ struct UBO_Data
     _light_cam_heigth::Vec4F
     _eye_aspect::Vec4F
     _at_width_u::Vec4F
+    _near_far_fov_unused::Vec4F
 end
 
 mutable struct OpenGLData <: ObserverBuilderDNA
@@ -91,7 +92,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
         transparent_color_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_color.frag"],["width"])
         transparent_id_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_id.frag"],["width"])
-        final_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/final.frag"],["frameTex","depthTex","AT","EYE","ASPECT_FOV_RESOLUTION","NEAR_FAR_DISTANCE_POWER"])
+        final_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/final.frag"],["frameTex","depthTex","distance_distance_power"])
         highlighter = ShaderProgram(["combiners/fullscreen.vert","combiners/highlighter.frag"],["idTex","highlighted_id"])
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -364,7 +365,8 @@ function update!(self::OpenGLData,cam::Camera)
     self._ubo[1] = UBO_Data(
         vp,v,p,
         Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
-        Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._shrd._width)))
+        Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._shrd._width))),
+        Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),0.0f0)
     )
 
     pre_draw(self._renderers,cam,self._shrd)
@@ -376,14 +378,10 @@ function update!(self::OpenGLData,cam::Camera)
     readID(self)
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     activate(self._empty_VAO)
-    distance = 10 ^ floor(log10(norm(cam._at - cam._eye)))
     activate(self._final_combiner)
     uniform(self._final_combiner,"frameTex",Int32(0))
     uniform(self._final_combiner,"depthTex",Int32(1))
-    uniform(self._final_combiner,"EYE",cam._eye)
-    uniform(self._final_combiner,"AT",cam._at)
-    uniform(self._final_combiner,"NEAR_FAR_DISTANCE_POWER",Vec3F(cam._zNear,cam._zFar,distance))
-    uniform(self._final_combiner,"ASPECT_FOV_RESOLUTION",Vec4F(Float32(self._shrd._width)/Float32(self._shrd._height),deg2rad(cam._fov),Float32(self._shrd._width),Float32(self._shrd._height)))
+    uniform(self._final_combiner,"distance_distance_power",Vec2F(norm(cam._at - cam._eye),10 ^ floor(log10(norm(cam._at - cam._eye)))))
     activate(self._rgbaTexture,GL_TEXTURE0)
     activate(self._depthstencilTexture,GL_TEXTURE1)
     glDrawArrays(GL_TRIANGLES,0,6)

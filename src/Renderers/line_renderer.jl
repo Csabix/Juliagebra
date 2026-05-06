@@ -87,8 +87,8 @@ mutable struct LineRenderer
         shaders_opaque = Vector{ShaderProgram}()
         shaders_transparent = Vector{ShaderProgram}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
-        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])],["fov"])) end
-        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])],["fov"])) end
+        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
+        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])])) end
         
         # Static
 
@@ -617,7 +617,6 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
-        uniform(self.shaders_opaque[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Opaque Static
@@ -638,7 +637,6 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_opaque[type])
-        uniform(self.shaders_opaque[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Opaque Dynamic
@@ -666,7 +664,6 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         if count == 0 continue end
         behind_type = Int(_LINE_TYPE_BEHIND[type])
         activate(self.shaders_opaque[behind_type])
-        uniform(self.shaders_opaque[behind_type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
@@ -683,7 +680,6 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         if count == 0 continue end
         behind_type = Int(_LINE_TYPE_BEHIND[type])
         activate(self.shaders_opaque[behind_type])
-        uniform(self.shaders_opaque[behind_type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
@@ -710,7 +706,6 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
-        uniform(self.shaders_transparent[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Transparent Static
@@ -729,7 +724,6 @@ function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
         activate(self.shaders_transparent[type])
-        uniform(self.shaders_transparent[type],"fov", deg2rad(cam._fov))
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     @time_gpu_end Renderer Line Transparent Dynamic

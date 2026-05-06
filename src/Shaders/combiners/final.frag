@@ -1,14 +1,12 @@
 #version 460 core
+#include "../ubo.glsl"
 
 out vec4 color_out;
 
 uniform sampler2D frameTex;
 uniform sampler2D depthTex;
 
-uniform vec3 EYE;
-uniform vec3 AT;
-uniform vec4 ASPECT_FOV_RESOLUTION = vec4(1.0,0.8726646,640.0,480.0);
-uniform vec3 NEAR_FAR_DISTANCE_POWER; // near_z, far_z of the camera, nearest power of ten of the distance
+uniform vec2 distance_distance_power;
 
 vec4 grid(vec3 position, float scale) {
     vec2 coord = position.xy / scale;
@@ -31,55 +29,48 @@ vec4 grid(vec3 position, float scale) {
 }
 
 float computeLinearDepth(float clip_space_depth) {
-    const float NEAR = NEAR_FAR_DISTANCE_POWER.x;
-    const float FAR  = NEAR_FAR_DISTANCE_POWER.y;
+    const float NEAR = znear();
+    const float FAR  = zfar();
     return ((FAR * NEAR) / (NEAR - FAR)) / (clip_space_depth - (FAR / (FAR - NEAR)));
 }
 
 vec3 rayDirection() {
-    const float ASPECT    = ASPECT_FOV_RESOLUTION.x;
-    const float FOV       = ASPECT_FOV_RESOLUTION.y;
-    const vec2 resolution = ASPECT_FOV_RESOLUTION.zw;
+    vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
+    vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
+    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
 
-    vec3 look_dir = normalize(EYE - AT);
-    vec3 right = normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
-    vec3 up = normalize(cross(right, look_dir));
-
-    float focal_length = -1.0 / tan(FOV * 0.5);
-    vec2 screen_uv = (gl_FragCoord.xy / resolution) * 2.0 - 1.0; 
-    
-    screen_uv.x *= ASPECT;
+    float focal_length = -1.0 / tan(fov() * 0.5);
+    vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
+    screen_uv.x *= aspect();
 
     return normalize(screen_uv.x  * right + 
                      screen_uv.y  * up + 
-                     focal_length * look_dir);
+                     focal_length * backward);
 }
 
 void main() {
-    const float NEAR           = NEAR_FAR_DISTANCE_POWER.x;
-    const float FAR            = NEAR_FAR_DISTANCE_POWER.y;
-    const float DISTANCE       = distance(EYE,AT);
-    const float DISTANCE_POWER = NEAR_FAR_DISTANCE_POWER.z;
+    const float DISTANCE       = distance_distance_power.x;
+    const float DISTANCE_POWER = distance_distance_power.y;
     const ivec2 coords = ivec2(gl_FragCoord.xy);
 
 	color_out = texelFetch(frameTex, coords, 0);
 
     vec3 ray_dir = rayDirection();
-    float t = -EYE.z / ray_dir.z;
-    vec3 frag_position = EYE + t * ray_dir;
+    float t = -eye().z / ray_dir.z;
+    vec3 frag_position = eye() + t * ray_dir;
     
     float depth = texelFetch(depthTex, coords, 0).x;
     float depth_lin = computeLinearDepth(depth);
-    vec3 view_forward = normalize(AT - EYE);
+    vec3 view_forward = normalize(at() - eye());
     float grid_view_z = t * dot(ray_dir, view_forward);
 
     vec4 gridColor = grid(frag_position, DISTANCE_POWER/10.0);
     gridColor = mix(gridColor,grid(frag_position, DISTANCE_POWER),smoothstep(DISTANCE_POWER,10.0*DISTANCE_POWER,DISTANCE));
-    float fade = max(0.0,((2.0*DISTANCE) - distance(AT,frag_position)) / (2.0*DISTANCE));
+    float fade = max(0.0,((2.0*DISTANCE) - distance(at(),frag_position)) / (2.0*DISTANCE));
     gridColor.w *= fade;
 
     bool hit_in_front_of_camera = t > 0.0;
-    bool hit_in_render_distance = grid_view_z <= FAR && grid_view_z < depth_lin;
+    bool hit_in_render_distance = grid_view_z <= zfar() && grid_view_z < depth_lin;
     bool outside_render_distance = depth == 1.0;
     if(hit_in_front_of_camera && (hit_in_render_distance || outside_render_distance)){
         color_out = mix(color_out, gridColor, gridColor.w);

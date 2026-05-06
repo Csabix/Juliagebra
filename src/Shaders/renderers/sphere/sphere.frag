@@ -6,8 +6,6 @@ flat layout(location = 1) in uint id_in;
 flat layout(location = 2) in vec3 center_in;
 flat layout(location = 3) in float radius_in;
 
-uniform float fov;
-
 struct Ray {
 	vec3 p0; float tmin;
 	vec3 v;	 float tmax;
@@ -60,22 +58,17 @@ TraceResult intersectSphere(Ray ray, Sphere s)
 }
 
 vec3 rayDirection() {
-    const float ASPECT = aspect();
-    const float FOV    = fov;
-    const vec2 RESOLUTION = vec2(width(),height());
+    vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
+    vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
+    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
 
-    vec3 look_dir = normalize(eye() - at());
-    vec3 right = normalize(cross(look_dir, vec3(0.0, 0.0, 1.0)));
-    vec3 up = normalize(cross(right, look_dir));
-
-    float focal_length = -1.0 / tan(FOV * 0.5);
-    vec2 screen_uv = (gl_FragCoord.xy / RESOLUTION) * 2.0 - 1.0; 
-    
-    screen_uv.x *= ASPECT;
+    float focal_length = -1.0 / tan(fov() * 0.5);
+    vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
+    screen_uv.x *= aspect();
 
     return normalize(screen_uv.x  * right + 
                      screen_uv.y  * up + 
-                     focal_length * look_dir);
+                     focal_length * backward);
 }
 
 void main(){

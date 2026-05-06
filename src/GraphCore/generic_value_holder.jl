@@ -41,7 +41,7 @@ ValueHolder(callback::Function,T::Type,dependents::Vector{<:DependentDNA}) = Gen
 
 macro ValueHolder(callback::Expr, T)
     _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.ValueHolder, (cb, deps) -> (cb,T,deps))
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ValueHolder, Vector{Any}(), Dict{Symbol,Any}(), (cb, deps) -> (cb,T,deps))
 end
 
 export GenericValueHolder

@@ -17,9 +17,9 @@ function pack_point_property(color::UInt32,style::UInt8,size::UInt8,id::UInt32):
 end
 
 function _point_renderer_buffer_array()
-    attributes = [nothing,
-        [VertexAttrib(false,4,GL_UNSIGNED_BYTE,GL_TRUE,0)],   # loc 1: color+size (4 normalized bytes)
-        [VertexAttrib(true,1,GL_UNSIGNED_INT,GL_FALSE,0)]]    # loc 2: style_id   (1 uint, offset 0)
+    attributes = Union{Nothing,Vector{VertexAttrib}}[nothing,
+        VertexAttrib[VertexAttrib(false,4,GL_UNSIGNED_BYTE,GL_TRUE,0)],   # loc 1: color+size (4 normalized bytes)
+        VertexAttrib[VertexAttrib(true,1,GL_UNSIGNED_INT,GL_FALSE,0)]]    # loc 2: style_id   (1 uint, offset 0)
     return BufferArray{Tuple{MappedBuffer{Vec3F}, MappedBuffer{UInt32}, MappedBuffer{UInt32}}}(attributes)
 end
 

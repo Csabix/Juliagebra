@@ -23,7 +23,7 @@ include("lazy_lbvh.jl")
 include("intersections.jl")
 include("segment.jl")
 include("triangle.jl")
-#include("Dependents/tetrahedra.jl")
+include("tetrahedra.jl")
 include("segment_sequence.jl")
 include("triangle_cluster.jl")
 

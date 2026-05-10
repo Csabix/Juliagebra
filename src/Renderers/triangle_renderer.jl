@@ -1,4 +1,4 @@
-struct TriangleRenderer
+mutable struct TriangleRenderer
     shader_calc_normals::ShaderProgram
     shader_opaque::ShaderProgram
     shader_transparent::ShaderProgram
@@ -24,6 +24,18 @@ struct TriangleRenderer
             Vector{UInt32}()
         )
     end
+end
+
+function reset!(self::TriangleRenderer)::Nothing
+    foreach(destroy!, self.buffers)
+
+    self.buffers = Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}()
+    self.matrices = Vector{Mat4T{Float32}}()
+    self.coords = Vector{Vector{Vec3F}}()
+    self.color_ids = Vector{Vec2T{UInt32}}()
+    self.update_normals = Vector{UInt32}()
+    self.color_updates = Vector{UInt32}()
+    return nothing
 end
 
 function destroy!(self::TriangleRenderer)::Nothing

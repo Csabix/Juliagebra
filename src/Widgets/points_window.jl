@@ -1,10 +1,10 @@
 
 mutable struct PointsWindow <: WindowDNA
     _window::Window
-    _graph::DependentGraphDNA
+    _model::ModelDNA
     _renderer::PointRenderer
 
-    PointsWindow(graph::DependentGraphDNA, renderer::PointRenderer) = new(Window(), graph, renderer)
+    PointsWindow(model::ModelDNA, renderer::PointRenderer) = new(Window(), model, renderer)
 end
 
 _Window_(self::PointsWindow)::Window = self._window
@@ -85,7 +85,7 @@ function renderContent(self::PointsWindow)
     CImGui.TableSetupColumn("Size",  col_flags, 80.0)
     CImGui.TableHeadersRow()
 
-    for node in getNodes(self._graph)
+    for node in getNodes(self._model._graph)
         if !(node isa PointDependent || node isa PointSetDependent || node isa PointSequenceDependent)
             continue
         end
@@ -109,19 +109,34 @@ function renderContent(self::PointsWindow)
             CImGui.TableNextColumn()
             CImGui.PushItemWidth(-1)
             if CImGui.InputDouble("##x$id", x_ref, 0.0, 0.0, "%.4f")
-                set(node, x_ref[], coord.y, coord.z)
+                node._coord = Vec3D(
+                    x_ref[],
+                    coord[2],
+                    coord[3]
+                )
+                schedule(self._model,node)
             end
 
             CImGui.TableNextColumn()
             CImGui.PushItemWidth(-1)
             if CImGui.InputDouble("##y$id", y_ref, 0.0, 0.0, "%.4f")
-                set(node, coord.x, y_ref[], coord.z)
+                node._coord = Vec3D(
+                    coord[1],
+                    y_ref[],
+                    coord[3]
+                )
+                schedule(self._model,node)
             end
 
             CImGui.TableNextColumn()
             CImGui.PushItemWidth(-1)
             if CImGui.InputDouble("##z$id", z_ref, 0.0, 0.0, "%.4f")
-                set(node, coord.x, coord.y, z_ref[])
+                node._coord = Vec3D(
+                    coord[1],
+                    coord[2],
+                    z_ref[]
+                )
+                schedule(self._model,node)
             end
         else
             CImGui.TableNextColumn()

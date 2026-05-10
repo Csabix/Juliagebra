@@ -164,7 +164,8 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     end
 end
 
-function reset!(self::OpenGLData)
+function resetObservers!(self::OpenGLData)
+    reset!(self._renderers)
     reset_dependent_observers(self, self._observers)
 end
 

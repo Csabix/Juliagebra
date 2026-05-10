@@ -147,7 +147,7 @@ _get_dependent_sphere(dep) = isa(dep,Number) ? (SourceValueHolder(Float64(dep)),
 function Sphere(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
                 color="b")::SphereDependent
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return build!(SphereDependent(callback,dependents,c))
+    return Build!(SphereDependent(callback,dependents,c))
 end
 
 function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;

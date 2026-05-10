@@ -1,10 +1,10 @@
 
 mutable struct SurfacesWindow <: WindowDNA
     _window::Window
-    _graph::DependentGraphDNA
+    _model::ModelDNA
     _renderer::TriangleRenderer
 
-    SurfacesWindow(graph::DependentGraphDNA, renderer::TriangleRenderer) = new(Window(), graph, renderer)
+    SurfacesWindow(model::ModelDNA, renderer::TriangleRenderer) = new(Window(), model, renderer)
 end
 
 _Window_(self::SurfacesWindow)::Window = self._window
@@ -32,7 +32,7 @@ function renderContent(self::SurfacesWindow)
     CImGui.TableSetupColumn("Color")
     CImGui.TableHeadersRow()
 
-    for node in getNodes(self._graph)
+    for node in getNodes(self._model._graph)
         if !(node isa ParametricSurfaceDependent || node isa TriangleClusterDependent)
             continue
         end

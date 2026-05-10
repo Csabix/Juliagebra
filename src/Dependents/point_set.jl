@@ -74,7 +74,7 @@ Dependent2Observer(app::AppDNA,::PointSetDependent)::PointSets = getDependentObs
 function PointSet(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
     color="m",style=".",size=25)::PointSetDependent
     (c,s) = parse_point_color_style(color_style,color,style)
-    build!(PointSetDependent(callback,dependents,c,s,round(UInt8,size)))
+    Build!(PointSetDependent(callback,dependents,c,s,round(UInt8,size)))
 end
 
 PointSet(dependents::Vector{<:DependentDNA},color_style::Union{Nothing,String}=nothing;

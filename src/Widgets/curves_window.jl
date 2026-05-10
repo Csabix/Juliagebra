@@ -1,10 +1,10 @@
 
 mutable struct CurvesWindow <: WindowDNA
     _window::Window
-    _graph::DependentGraphDNA
+    _model::ModelDNA
     _renderer::LineRenderer
 
-    CurvesWindow(graph::DependentGraphDNA, renderer::LineRenderer) = new(Window(), graph, renderer)
+    CurvesWindow(model::ModelDNA, renderer::LineRenderer) = new(Window(), model, renderer)
 end
 
 _Window_(self::CurvesWindow)::Window = self._window
@@ -60,7 +60,7 @@ function renderContent(self::CurvesWindow)
     CImGui.TableSetupColumn("Style",  col_flags, 65.0 )
     CImGui.TableHeadersRow()
 
-    for node in getNodes(self._graph)
+    for node in getNodes(self._model._graph)
         if !(node isa ParametricCurveDependent || node isa SegmentSequenceDependent)
             continue
         end

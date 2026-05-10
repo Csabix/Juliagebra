@@ -129,7 +129,7 @@ function ParametricCurve(callback::Function,range::AbstractRange{Float64},
                 dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
                 color="c",style="-",size=5.0f0)::ParametricCurveDependent
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size)))
+    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size)))
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

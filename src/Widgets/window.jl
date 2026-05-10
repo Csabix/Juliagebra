@@ -14,14 +14,15 @@ _Window_(self::WindowDNA)::Window = error("Missing \"_Window_\" func for type of
 
 getWindowName(self::WindowDNA) = error("Missing \"getWindowName\" func for type of \"$(typeof(self))\"!")
 renderContent(self::WindowDNA) = error("Missing \"renderContent\" func for type of \"$(typeof(self))\"!")
+renderContent(self::WindowDNA, ::AppDNA) = renderContent(self)
 
-function render(self::WindowDNA)
+function render(self::WindowDNA, app::AppDNA)
     if (isVisible(self))
         isVisible_Ref = Ref(isVisible(self))
 
         CImGui.Begin(getWindowName(self),isVisible_Ref)
         
-        renderContent(self)
+        renderContent(self, app)
 
         CImGui.End()
 

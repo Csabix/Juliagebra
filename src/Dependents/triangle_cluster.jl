@@ -148,7 +148,7 @@ export get_positions
 function TriangleCluster(callback::Function,mesh::BaseMesh,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
     color="g")::TriangleClusterDependent
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return build!(TriangleClusterDependent(callback,dependents,mesh,dmat4(1.0),c))
+    return Build!(TriangleClusterDependent(callback,dependents,mesh,dmat4(1.0),c))
 end
 
 TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;

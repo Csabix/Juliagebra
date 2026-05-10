@@ -30,6 +30,27 @@ mutable struct SphereRenderer
     end
 end
 
+function reset!(self::SphereRenderer)::Nothing
+    destroy!(self.center_radius_buffer_opaque)
+    destroy!(self.color_id_buffer_opaque)
+    destroy!(self.center_radius_buffer_transparent)
+    destroy!(self.color_id_buffer_transparent)
+
+    self.center_radius_opaque = Vector{Vec4F}()
+    self.color_id_opaque = Vector{Vec2T{UInt32}}()
+    self.center_radius_transparent = Vector{Vec4F}()
+    self.color_id_transparent = Vector{Vec2T{UInt32}}()
+
+    self.center_radius_buffer_opaque = MappedBuffer{Vec4F}()
+    self.color_id_buffer_opaque = Buffer{Vec2T{UInt32}}()
+    self.center_radius_buffer_transparent = MappedBuffer{Vec4F}()
+    self.color_id_buffer_transparent = Buffer{Vec2T{UInt32}}()
+
+    self.updated_opaque = false
+    self.updated_transparent = false
+    return nothing
+end
+
 function destroy!(self::SphereRenderer)::Nothing
     destroy!(self.shader_opaque)
     destroy!(self.shader_transparent)

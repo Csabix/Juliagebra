@@ -37,21 +37,18 @@ evalCallbackDpReturn(self::ToggleDependent, ::Nothing) = return nothing
 # ! ToggleRenderer
 # ? ---------------------------------
 
+# TODO: copy Bools, instead of views!
 mutable struct ToggleRenderer <: GuiRendererDNA{ToggleDependent}
     _guiRenderer::GuiRenderer{ToggleDependent}
 
     # GREEN Thread
-    function ToggleRenderer()
-        guiRenderer = GuiRenderer{ToggleDependent}()
-
-        new(guiRenderer)
-    end
+    ToggleRenderer(imgui::ImGuiDNA) = new(GuiRenderer{ToggleDependent}(imgui))
 end
 
 _GuiRenderer_(self::ToggleRenderer) = return self._guiRenderer
 
 # GREEN Thread
-added!(::ToggleRenderer,::ToggleDependent) = return nothing
+_added!(::ToggleRenderer,::ToggleDependent) = return nothing
 
 # GREEN Thread
 addedAll!(::ToggleRenderer) = return nothing
@@ -62,25 +59,20 @@ sync!(::ToggleRenderer,::ToggleDependent) = return nothing
 # GREEN Thread
 syncAll!(::ToggleRenderer) = return nothing
 
-# GREEN Thread
-function render!(self::ToggleRenderer)
-    CImGui.Text("ToggleDependents:")
-    CImGui.Separator()
+title(::ToggleRenderer)::String = return "Toggle"
 
-    for toggleIdx in eachindex(getObservedItems(self))
-        toggle::ToggleDependent = self[toggleIdx]
-        label = getLabel(toggle)
+function render!(self::ToggleRenderer, toggle::ToggleDependent, app::AppDNA)
+    m::ModelDNA = getModel(app)
+    s::Scheduler = getScheduler(m)
+    label::String = getLabel(toggle)
+    toggleIdx::Int = getObserverID(toggle)
 
-        toggleState = toggle._state
-        toggleStateRef = Ref(toggleState)
+    toggleState = toggle._state
+    toggleStateRef = Ref(toggleState)
 
-        if(CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
-            # ! Take into note, that the user can only click on one element at every frame,
-            # ! so multiple evalGraph calls under a single frame can't happen!
-            _flip!(toggle)
-            evalGraph(toggle)
-        end
-
+    if (CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
+        _flip!(toggle)
+        schedule(s,toggle)
     end
 end
 
@@ -90,11 +82,11 @@ end
 
 # YELLOW Thread
 Toggle(; label="") =
-build!(ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
+Build!(ToggleDependent(() -> (return false), Vector{DependentDNA}(),label))
 
 # YELLOW Thread
 Toggle(callback::Function,dependents::Vector{<:DependentDNA}; label="") =
-build!(ToggleDependent(callback, dependents,label))
+Build!(ToggleDependent(callback, dependents,label))
 
 # YELLOW Thread
 macro Toggle(callback::Expr, kw_args...)

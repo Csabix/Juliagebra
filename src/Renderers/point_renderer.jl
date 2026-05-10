@@ -173,6 +173,13 @@ mutable struct PointRenderer
     end
 end
 
+function reset!(self::PointRenderer)::Nothing
+    foreach(destroy!,self.points)
+    self.points = PointsData[PointsData()]
+    self.updates = PointPropertyUpdate[_POINT_PROP_NONE]
+    return nothing
+end
+
 function destroy!(self::PointRenderer)::Nothing
     destroy!(self.shader)
     destroy!(self.shader_behind)

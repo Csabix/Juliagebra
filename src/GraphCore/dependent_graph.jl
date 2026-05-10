@@ -2,13 +2,8 @@
 # ! DependentGraph
 # ? ---------------------------------
 
-mutable struct DependentGraph <: DependentGraphDNA
-    _dependentObjects::Vector{DependentDNA}
-
-    function DependentGraph()
-        new(Vector{DependentDNA}())
-    end
-
+@kwdef mutable struct DependentGraph <: DependentGraphDNA
+    _dependentObjects::Vector{DependentDNA} = Vector{DependentDNA}()
 end
 
 _DependentGraph_(self::DependentGraphDNA)::DependentGraph = error("Missing \"_DependentGraph_\" func for type of \"$(typeof(self))\"!")
@@ -16,17 +11,21 @@ _DependentGraph_(self::DependentGraph)::DependentGraph = return self
 
 getNodes(self::DependentGraphDNA) = return _DependentGraph_(self)._dependentObjects
 
-# TODO: idotol valo fugges, timestep alapu osszefesulessel
+function Base.empty!(self::DependentGraphDNA)
+    g::DependentGraph =_DependentGraph_(self)
+    empty!(g._dependentObjects)
+end
 
 function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     
     graph = _DependentGraph_(self)
     assetDependent = _Dependent_(asset)
-
+    assetDependent._graphID = length(graph._dependentObjects) + 1
+    
     for graphItem in graph._dependentObjects
-        graphItemChain = getChain(graphItem)
+        graphItemChain = getSchedule(graphItem)
         for assetParent in assetDependent._graphParents
-            if (assetParent in dependentsOf(graphItemChain)) || assetParent === graphItem
+            if (assetParent === graphItem) || (assetParent in dependentsOf(graphItemChain))
                 enchain!(graphItemChain,asset)
                 break
             end
@@ -34,32 +33,15 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
     end
     
     push!(graph._dependentObjects,asset)
-    assetDependent._graphID = length(graph._dependentObjects) + ID_LOWER_BOUND
 end
 
-function buildFromPlan!(plan::PlanDNA,graph::DependentGraphDNA)
-    dependent = Plan2Dependent(plan)
-    
-    add!!(graph,dependent)
-    _Plan_(plan)._dependent = dependent
-
-    return dependent
-end
-
-function buildFromPlan!(plan::ObservedPlanDNA,graph::DependentGraphDNA,builder::ObserverBuilderDNA)
-    observer = Plan2Observer(builder,plan)
-    observed = Plan2Dependent(plan) 
-
-    add!!(observer,observed)
-    add!!(graph,observed)
-    _Plan_(plan)._dependent = observed
-
-    return (observer,observed)
-end
-
-function Base.getindex(self::DependentGraphDNA,id::Integer)::DependentDNA
+function Base.getindex(self::DependentGraphDNA, _pickedID::Integer)::DependentDNA
     graph = _DependentGraph_(self)
-    return graph._dependentObjects[id - ID_LOWER_BOUND]
+    return graph._dependentObjects[_pickedID - ID_LOWER_BOUND]
+end
+
+function getDependent(self::DependentGraphDNA, graphID::Int)::DependentDNA
+    return _DependentGraph_(self)._dependentObjects[graphID]
 end
 
 function to_string(self::DependentGraphDNA)

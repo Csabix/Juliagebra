@@ -33,6 +33,9 @@ end
 # YELLOW Thread
 # RED Thread
 onNodeEval(self::SourceValueHolderDNA) = return nothing
+function Base.eltype(dependent::SourceValueHolderDependent{T}) where T
+    return T
+end
 evalCallbackDpReturn(self::SourceValueHolderDNA, ::Any) = return nothing
 
 # ? ---------------------------------
@@ -41,7 +44,7 @@ evalCallbackDpReturn(self::SourceValueHolderDNA, ::Any) = return nothing
 
 # YELLOW Thread
 function SourceValueHolder(value::T)::SourceValueHolderDependent{T} where T
-    return build!(SourceValueHolderDependent{T}(value))
+    return Build!(SourceValueHolderDependent{T}(value))
 end
 
 # YELLOW Thread

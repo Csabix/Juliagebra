@@ -225,7 +225,7 @@ function ParametricSurface(callback::Function,
                            dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
                            color="g")
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
+    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
 end
 
 macro ParametricSurface(callback::Expr,uRange,vRange,args...)

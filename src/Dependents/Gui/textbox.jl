@@ -32,21 +32,18 @@ evalCallbackDpReturn(self::TextBoxDependent, text::String) = self._text = text
 # ! TextBoxRenderer
 # ? ---------------------------------
 
+# TODO: copy Strings, instead of views!
 mutable struct TextBoxRenderer <: GuiRendererDNA{TextBoxDependent}
     _guiRenderer::GuiRenderer{TextBoxDependent}
 
     # GREEN Thread
-    function TextBoxRenderer()
-        guiRenderer = GuiRenderer{TextBoxDependent}()
-
-        new(guiRenderer)
-    end
+    TextBoxRenderer(imgui::ImGuiDNA) = new(GuiRenderer{TextBoxDependent}(imgui))
 end
 
 _GuiRenderer_(self::TextBoxRenderer) = return self._guiRenderer
 
 # GREEN Thread
-added!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
+_added!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
 
 # GREEN Thread
 sync!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
@@ -57,26 +54,26 @@ syncAll!(self::TextBoxRenderer) = return nothing
 # GREEN Thread
 addedAll!(self::TextBoxRenderer) = return nothing
 
-function render!(self::TextBoxRenderer)
-    CImGui.Text("TextBoxDependents:")
-    CImGui.Separator()
+title(::TextBoxRenderer)::String = return "TextBox"
 
-    for textBoxIdx in eachindex(getObservedItems(self))
-        textBox = self[textBoxIdx]
-        label = getLabel(textBox)
+function render!(self::TextBoxRenderer, textBox::TextBoxDependent, app::AppDNA)
+    m::ModelDNA = getModel(app)
+    s::Scheduler = getScheduler(m)
+    label::String = getLabel(textBox)
+    textBoxIdx::Int = getObserverID(textBox)
 
+    if !(label == "")
         CImGui.Text("$(label)")
-        proposedText = txtbox("##$(textBoxIdx)",textBox._text)
+    end
 
-        if (!isnothing(proposedText))
-            textBox._text = proposedText
-        end
+    proposedText = txtbox("##$(textBoxIdx)",textBox._text)
 
-        if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
-            # ! Take into note, that the user can only click on one element at every frame,
-            # ! so multiple evalGraph calls under a single frame can't happen! 
-            evalGraph(textBox)
-        end
+    if (!isnothing(proposedText))
+        textBox._text = proposedText
+    end
+
+    if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
+        schedule(s,textBox)
     end
 end
 
@@ -86,19 +83,19 @@ end
 
 # YELLOW Thread
 TextBox(; label="") =
-build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
+Build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
     return ""
 end)
 
 # YELLOW Thread
 TextBox(text::String; label="") =
-build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
+Build!(TextBoxDependent(Vector{DependentDNA}(),label) do 
     return text
 end)
 
 # YELLOW Thread
 TextBox(callback::Function, dependents::Vector{<:DependentDNA}; label="") =
-build!(TextBoxDependent(callback,dependents,label))
+Build!(TextBoxDependent(callback,dependents,label))
 
 # YELLOW Thread
 macro TextBox(callback::Expr, kw_args...)

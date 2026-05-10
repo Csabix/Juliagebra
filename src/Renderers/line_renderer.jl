@@ -253,6 +253,58 @@ function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
 end
 
+function reset!(self::LineRenderer)::Nothing
+    destroy!(self.distance_buffer_in)
+    destroy!(self.color_style_buffer_in)
+    destroy!(self.position_width_buffer_in)
+
+    destroy!(self.position_distance_buffer_out)
+    destroy!(self.color_buffer_out)
+    destroy!(self.begin_pos_rad)
+    destroy!(self.sdf_buffer_out)
+    destroy!(self.end_pos_rad)
+
+    foreach(destroy!,self.distance_buffer_in_dynamic)
+    foreach(destroy!,self.color_style_buffer_in_dynamic)
+    foreach(destroy!,self.position_width_buffer_in_dynamic)
+
+    destroy!(self.position_distance_buffer_out_dynamic)
+    destroy!(self.color_buffer_out_dynamic)
+    destroy!(self.begin_pos_rad_dynamic)
+    destroy!(self.sdf_buffer_out_dynamic)
+    destroy!(self.end_pos_rad_dynamic)
+
+    self.ranges = Vector{Tuple{Int,Int,Int}}()
+    self.draw_ranges = fill((0,0),_LINE_TYPE_COUNT)
+    self.coords_sizes = Vec4F[Vec4FNan]
+    self.color_style = UInt32[0x0]
+    self.distances = Vector{Float32}()
+    self.distance_buffer_in = MappedBuffer{Float32}()
+    self.color_style_buffer_in = Buffer{UInt32}()
+    self.position_width_buffer_in = MappedBuffer{Vec4F}()
+    self.position_distance_buffer_out = Buffer{Vec4F}()
+    self.color_buffer_out = Buffer{UVec2}()
+    self.begin_pos_rad = Buffer{Vec4F}()
+    self.sdf_buffer_out = Buffer{Vec4F}()
+    self.end_pos_rad = Buffer{Vec4F}()
+
+    self.update_list = Vector{UInt32}()
+    self.types_dynamic = Vector{UInt8}()
+    self.draw_ranges_dynamic = fill((0,0),_LINE_TYPE_COUNT)
+    self.coords_sizes_dynamic = Vector{Vector{Vec4F}}()
+    self.color_style_dynamic = Vector{Vector{UInt32}}()
+    self.distances_dynamic = Vector{Vector{Float32}}()
+    self.distance_buffer_in_dynamic = Vector{MappedBuffer{Float32}}()
+    self.color_style_buffer_in_dynamic = Vector{Buffer{UInt32}}()
+    self.position_width_buffer_in_dynamic = Vector{MappedBuffer{Vec4F}}()
+    self.position_distance_buffer_out_dynamic = Buffer{Vec4F}()
+    self.color_buffer_out_dynamic = Buffer{UVec2}()
+    self.begin_pos_rad_dynamic = Buffer{Vec4F}()
+    self.sdf_buffer_out_dynamic = Buffer{Vec4F}()
+    self.end_pos_rad_dynamic = Buffer{Vec4F}()
+    return nothing
+end
+
 function destroy!(self::LineRenderer)::Nothing
     destroy!(self.emptyVAO)
     destroy!(self.shader_predraw)

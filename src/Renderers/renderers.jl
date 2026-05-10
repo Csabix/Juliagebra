@@ -14,7 +14,6 @@ end
     return return (packed & 0xFF000000) == 0xFF000000
 end
 
-include("renderer_substitutions.jl")
 include("point_renderer.jl")
 include("line_renderer.jl")
 include("sphere_renderer.jl")
@@ -83,5 +82,13 @@ function transparent(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)
     transparent(renderers.line,cam,shrd)
     transparent(renderers.sphere,cam,shrd)
     transparent(renderers.triangle,cam,shrd)
+    return nothing
+end
+
+function reset!(renderers::PrimitiveRenderers)::Nothing
+    reset!(renderers.point)
+    reset!(renderers.line)
+    reset!(renderers.sphere)
+    reset!(renderers.triangle)
     return nothing
 end

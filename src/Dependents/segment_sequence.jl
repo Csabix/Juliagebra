@@ -196,7 +196,7 @@ SegmentSequence(dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,
 SegmentSequence(_deps_collect, dependents, break_every, color_style, color=color, style=style, size=size)
 
 # YELLOW Thread
-macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
+macro SegmentSequence(callback::Expr,break_every=2,args...)
     (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size), args...)
     callback = _validate_callback_expr(callback, 0)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence,

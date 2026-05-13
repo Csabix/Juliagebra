@@ -98,10 +98,11 @@ TextBox(callback::Function, dependents::Vector{<:DependentDNA}; label="") =
 Build!(TextBoxDependent(callback,dependents,label))
 
 # YELLOW Thread
-macro TextBox(callback::Expr, kw_args...)
-    parsed_kw_args = _parse_macro_kw_args([:label], kw_args...)
+macro TextBox(callback::Expr, args...)
+    (positional_args, kw_args) = _parse_macro_arguments(tuple(),(:label,), args...)
     callback = _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.TextBox; parsed_kw_args...)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.TextBox,
+                                positional_args, kw_args)
 end
 
 export TextBox

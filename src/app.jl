@@ -216,7 +216,7 @@ function play!(self::App)
             handleCommands!(self)
             # ? Schedule a PointDependent.
             updateGizmo!(self)
-            # ? Schedule SliderDependents and StepperDependents.
+            # ? Schedule SliderDependents, TextBoxDependents and StepperDependents.
             update!(self._imgui,self)
             
             # ? Do sync! and syncAll! calls.

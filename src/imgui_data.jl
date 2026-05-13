@@ -120,10 +120,13 @@ end
 
 function update!(self::ImGuiData, app::AppDNA)
     slr::SliderRenderer = self._pool[2]
+    txt::TextBoxRenderer = self._pool[3]
     str::StepperRenderer = self._pool[4]
     
     update!(slr,app)
+    update!(txt,app)
     update!(str,app)
+
 
     update!(self._dock._windows[5],getModel(app))
 end

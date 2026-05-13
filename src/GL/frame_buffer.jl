@@ -1,9 +1,9 @@
 
 
-mutable struct FrameBuffer
+struct FrameBuffer
     _id::GLuint
 
-    function FrameBuffer(attachements::Dict{GLuint,Texture2D})
+    function FrameBuffer(attachements)
         id = Ref{GLuint}(0)
         glGenFramebuffers(1,id)
         id = id[]
@@ -14,8 +14,6 @@ mutable struct FrameBuffer
         attachmentPoints = Vector{GLenum}(undef,0)
 
         for (attachementPoint,texture) in attachements
-            #println("$(attachementPoint) - $(texture._id)")
-            
             glFramebufferTexture2D(GL_FRAMEBUFFER, attachementPoint, GL_TEXTURE_2D, texture._id, 0)
             if (attachementPoint != GL_DEPTH_ATTACHMENT && attachementPoint != GL_DEPTH_STENCIL_ATTACHMENT) && (attachementPoint != GL_STENCIL_ATTACHMENT)
                 push!(attachmentPoints,attachementPoint)
@@ -33,6 +31,6 @@ mutable struct FrameBuffer
     end
 end
 
-activate(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, self._id)
+activate(self::FrameBuffer)::Nothing = glBindFramebuffer(GL_FRAMEBUFFER, self._id)::Nothing
 disable(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
 destroy!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])

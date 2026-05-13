@@ -133,6 +133,17 @@ function _time_gpu_end(index::UInt)
     glEndQuery(GL_TIME_ELAPSED)
 end
 
+macro get_block(layers...)
+    index = _get_perf_block_index(layers)
+    block::PerfBlock = _perf_blocks[index]
+    if block.cpu === nothing
+        block.cpu = CPU_times()
+    end
+    return quote
+        $block
+    end
+end
+
 macro time_cpu_begin(layers...)
     index = _get_perf_block_index(layers)
     block::PerfBlock = _perf_blocks[index]

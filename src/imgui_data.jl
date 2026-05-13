@@ -4,13 +4,20 @@
 # ? ---------------------------------
 
 # BLUE Thread
-Dependent2Observer(app::AppDNA,::ToggleDependent) = getImGui(app)._pool[1]
-Dependent2Observer(app::AppDNA,::SliderDependent) = getImGui(app)._pool[2]
-Dependent2Observer(app::AppDNA,::TextBoxDependent) = getImGui(app)._pool[3]
+Dependent2Observer(app::AppDNA, ::ToggleDependent) = getImGui(app)._pool[1]
+Dependent2Observer(app::AppDNA, ::SliderDependent) = getImGui(app)._pool[2]
+Dependent2Observer(app::AppDNA, ::TextBoxDependent) = getImGui(app)._pool[3]
+Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 
-mutable struct ImGuiData <: ObserverBuilderDNA
+const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
+
+mutable struct ImGuiData <: ImGuiDNA
     _shrd::SharedData
+    
     _io::Ptr{CImGui.lib.ImGuiIO}
+
+    _textFont::Ptr{CImGui.lib.ImFont}
+    _iconFont::Ptr{CImGui.lib.ImFont}
 
     _width::Int
     _height::Int
@@ -19,6 +26,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
     _pos_y::Int
 
     _pool::Vector{GuiRendererDNA}
+    _dependents::Vector{GuiDependentDNA}
 
     _widgets::Vector{ImGuiWidgetDNA}
     _dock::Dock
@@ -29,7 +37,7 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
         shrd::SharedData = getShrd(app)
-        graph::DependentGraphDNA = getGraph(app)
+        model::ModelDNA = getModel(app)
 
         imgui_context = CImGui.CreateContext()
         
@@ -38,40 +46,52 @@ mutable struct ImGuiData <: ObserverBuilderDNA
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
         
-        pool::Vector{GuiRendererDNA} = [
-            ToggleRenderer(), # ? 1
-            SliderRenderer(), # ? 2
-            TextBoxRenderer() # ? 3
-        ]
-        
-        widgets = Vector{ImGuiWidgetDNA}()
-        dock = Dock(shrd._width,shrd._height)
+        #config = CImGui.ImFontConfig()
+        #config.OversampleH = 3
+        #config.OversampleV = 3
+        #config.RasterizerDensity = 2.0
 
-        add!(dock,GuiDependentsWindow(pool))
-        add!(dock,DataPeeker(shrd))
+        textFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"Roboto.ttf"),16)
+        iconFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"MaterialSymbolsRounded.ttf"),24)
+
+        # ? It's empty because "resetObservers!" initializes it.
+        pool::Vector{GuiRendererDNA} = []
+        dependents::Vector{GuiDependentDNA} = []
+
+        widgets = Vector{ImGuiWidgetDNA}()
+        dock = Dock()
+
+        add!(dock,GuiDependentsWindow())
+        add!(dock,DataPeeker())
         add!(dock,Console())
         add!(dock,PerformanceWindow())
-        add!(dock,GraphViewerWindow(graph))
+        add!(dock,GraphWindow())
+        add!(dock,PointsWindow(model,openglD._renderers.point))
+        add!(dock,CurvesWindow(model,openglD._renderers.line))
+        add!(dock,SurfacesWindow(model,openglD._renderers.triangle))
 
         push!(widgets,dock)
-
-        self = new(shrd,io,0,0,0,0,pool,widgets,dock)
+        push!(widgets,ResetWidget())
         
+        self = new(shrd,io,textFont,iconFont,0,0,0,0,pool,dependents,widgets,dock)
+        
+        resetObservers!(self)
         resize!(self)
-
+        
         return self
     end
 end
 
-function SingleGuiRendererByGuiDependentsWindow(self::ImGuiData,t::Type{T})::T where T<:GuiRendererDNA
-    myVector = get!(self._guiDependentsWindow._guiRenderers,T,Vector{T}())
-
-    if(length(myVector)!=1)
-        push!(myVector,T())
-    end
-
-    return myVector[1]
-
+function resetObservers!(self::ImGuiData)
+    self._dependents = Vector{GuiDependentDNA}()
+    
+    # ? Let the garbage collector handle old Observers.
+    self._pool::Vector{GuiRendererDNA} = [
+        ToggleRenderer(self),   # ? 1
+        SliderRenderer(self),   # ? 2
+        TextBoxRenderer(self),  # ? 3
+        StepperRenderer(self)   # ? 4
+    ]
 end
 
 @inline function captures_mouse(self::ImGuiData)
@@ -84,18 +104,28 @@ end
     return io.WantCaptureKeyboard
 end
 
-function update!(self::ImGuiData)
+function render!(self::ImGuiData,app::AppDNA)
 
     CImGui.ImGui_ImplOpenGL3_NewFrame()
     CImGui.ImGui_ImplGlfw_NewFrame()
     CImGui.NewFrame()
 
     for widget in self._widgets
-        render(widget)
+        render(widget,app)
     end
 
     CImGui.Render()
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
+end
+
+function update!(self::ImGuiData, app::AppDNA)
+    slr::SliderRenderer = self._pool[2]
+    str::StepperRenderer = self._pool[4]
+    
+    update!(slr,app)
+    update!(str,app)
+
+    update!(self._dock._windows[5],getModel(app))
 end
 
 function renderBuildingState(::Any, ::AppDNA)

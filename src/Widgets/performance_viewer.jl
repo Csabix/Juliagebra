@@ -37,6 +37,22 @@ function ui_render_perf_tree(layer::PerfLayer)
     end
 end
 
+function _cputime(block::PerfBlock)::Float64
+    cpu_times = block.cpu.times
+    if cpu_times !== nothing
+        total = zero(eltype(cpu_times))
+        count = 0
+        for time in cpu_times
+            total += time
+            count += 1
+        end
+
+        return Float64(total / 1000000.0 / count)
+    end
+
+    return NaN64
+end
+
 function _display_layer(layer::PerfLayer)
     if layer.index != 0
         collect_data = get_collect_data(layer)

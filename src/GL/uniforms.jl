@@ -1,7 +1,7 @@
 const LocType = Union{GLint,Int};
 
 # generate automatic glUniform functions
-for (jltype,glsuffix) in (Float32=>"f", Float64=>"d", Int32=>"i", UInt32=>"ui")
+for (jltype,glsuffix) in ((Float32,"f"), (Float64,"d"), (Int32,"i"), (UInt32,"ui"))
     glfunc = Symbol("glUniform1"*glsuffix)
     # println(glfunc)
     @eval glUniform(loc::LocType, data::$jltype)::Nothing = $glfunc(loc, data)
@@ -16,17 +16,23 @@ for (jltype,glsuffix) in (Float32=>"f", Float64=>"d", Int32=>"i", UInt32=>"ui")
         @eval glUniform(loc::LocType, data::$gvtype)::Nothing = $glfunc(loc, length(data), data)
     end
     gltype = AbstractVector{jltype}
+    glfunc_v = Symbol("glUniform1", glsuffix, "v")
     @eval function glUniform(loc::LocType, data::$gltype)::Nothing
         N = length(data)
-        if 2<=N<=4
-            glUniform(loc,SVector{N,$jltype}(data...))
+        if N == 2
+            glUniform(loc, SVector{2, $jltype}(data[1], data[2]))
+        elseif N == 3
+            glUniform(loc, SVector{3, $jltype}(data[1], data[2], data[3]))
+        elseif N == 4
+            glUniform(loc, SVector{4, $jltype}(data[1], data[2], data[3], data[4]))
         else
-            glfunc = Symbol("glUniform1"*glsuffix*"v")
-            @eval glUniform(loc::LocType, data::$jltype)::Nothing = $glfunc(loc, length(data), data)
+            # Directly CALL the generated symbol, don't define a new method!
+            $glfunc_v(loc, N, data)
         end
+        return nothing
     end
 end
-for (jltype,glsuffix) in (Float32=>"fv", Float64=>"dv") #no int support
+for (jltype,glsuffix) in ((Float32,"fv"), (Float64,"dv")) #no int support
     for N = 2:4, M = 2:4
         gltype = StaticMatrix{N,M,jltype}
         sizestr= N==M ? string(N) : string(N)*string(M)

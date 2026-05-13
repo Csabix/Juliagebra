@@ -1,17 +1,17 @@
 using LinearAlgebra
 
 @kwdef mutable struct Camera
-    _eye::Vec3F= Vec3F(0.0,-5.0,1.0)
-    _up::Vec3F = Vec3F(0.0,0.0,1.0)
-    _at::Vec3F = Vec3F(0.0,0.0,0.0)
+    _eye::Vec3F= Vec3F(0.0f0,-5.0f0,1.0f0)
+    _up::Vec3F = Vec3F(0.0f0,0.0f0,1.0f0)
+    _at::Vec3F = Vec3F(0.0f0,0.0f0,0.0f0)
 
-    _view::Mat4T{Float32} = mat4(Float32(1.0))
-    _proj::Mat4T{Float32} = mat4(Float32(1.0))
-    _view_proj::Mat4T{Float32} = mat4(Float32(1.0))
+    _view::Mat4T{Float32} = mat4(1.0f0)
+    _proj::Mat4T{Float32} = mat4(1.0f0)
+    _view_proj::Mat4T{Float32} = mat4(1.0f0)
 
-    _fov::Float32 = 50.0
-    _zNear::Float32 = 0.01
-    _zFar::Float32 = 999.0
+    _fov::Float32 = 50.0f0
+    _zNear::Float32 = 0.01f0
+    _zFar::Float32 = 999.0f0
     _aspect::Float32 = 1280.0f0 / 720.0f0
 end
 
@@ -25,30 +25,31 @@ end
 function get_lights(self::Camera, z::Float32 = 45.0f0)
     z = deg2rad(z)
     l_cam = normalize(self._at - self._eye)
-    rot = [ cos(z) -sin(z) 0 ;
-            sin(z) cos(z)  0 ;
-            0      0       1 ]
+    rot = Mat3T{Float32}(
+        cos(z), -sin(z), 0.0f0,
+        sin(z),  cos(z), 0.0f0,
+        0.0f0,  0.0f0,   1.0f0
+    )
     
     return (l_cam, rot * l_cam)
 end
 
 function get_matrices(self::Camera)
-    get_lights(self)
     return self._view_proj, self._view, self._proj
 end
+
 # TODO getting rid of get_matrices(self::Camera,zoom)
 function get_matrices(self::Camera,zoom)
-    eye = -normalize(self._eye - self._at) * Float32(-(exp(zoom)-1.0))
+    eye = -normalize(self._eye - self._at) * Float32(-(exp(zoom)-1.0f0))
     p = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
-    l = lookat(eye,Vec3F(0,0,0),self._up)
+    l = lookat(eye,Vec3F(0.0f0),self._up)
     return p * l,l,p
 end
 
 function set_view!(self::Camera,eye::Vec3F,at::Vec3F,up::Vec3F)
     self._eye = eye
     self._at = at
-    self._up = up
-    self._view = lookat(self._eye,self._at,self._up)
+    self._view = lookat(self._eye,self._at,up)
     return nothing
 end
 function set_proj!(self::Camera,fov,width,height,zn,zf)
@@ -125,18 +126,18 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
 end
 
 function mouse_motion!(self::OrbitalCamera,ev::MouseMotionEvent)::Bool
-    du = ev.xrel / Float32(100.0)
-    dv = ev.yrel / Float32(100.0)
+    du = ev.xrel / 100.0f0
+    dv = ev.yrel / 100.0f0
 
     if self._move_state == _ORBITAL_ORBIT || self._move_state == _ORBITAL_LOOK
         self._u += du
-        self._v = clamp(self._v + dv, Float32(0.1), Float32(3.1))
+        self._v = clamp(self._v + dv, 0.0f0, π)
     elseif self._move_state == _ORBITAL_PAN
         lookat = normalize(self._cam._at - self._cam._eye)
-        right = normalize(cross(lookat, self._cam._up))
+        right = Vec3F(cos(self._u+0.5π),sin(self._u+0.5π),0.0)
         up = normalize(cross(right, lookat));
         delta = up * dv + right * du
-        delta *= (exp(self._zoom)-1) / Float32(15.0) # good enough for now
+        delta *= (exp(self._zoom)-1) / 15.0f0 # good enough for now
 
         self._cam._eye += delta
         self._cam._at += delta
@@ -172,15 +173,27 @@ function keyboard_down!(self::OrbitalCamera,ev::KeyboardEvent)
     if ev.key == GLFW.KEY_W || ev.key == GLFW.KEY_UP
         self._forward = 1
     elseif ev.key == GLFW.KEY_A || ev.key == GLFW.KEY_LEFT
-        self._left = 1
+        self._left = -1
     elseif ev.key == GLFW.KEY_D || ev.key == GLFW.KEY_RIGHT
-        self._right = -1
+        self._right = 1
     elseif ev.key == GLFW.KEY_S || ev.key == GLFW.KEY_DOWN
         self._bacward = -1
     elseif ev.key == GLFW.KEY_Q
         self._down = -1
     elseif ev.key == GLFW.KEY_E
         self._up = 1
+    elseif ev.key == GLFW.KEY_KP_9
+        self._u += π
+        self._v = π - self._v
+    elseif ev.key == GLFW.KEY_KP_7
+        self._u = 3.0 / 2.0 * π
+        self._v = (UInt16(ev.mods) & GLFW.MOD_ALT) == GLFW.MOD_ALT ? 0.0 : pi
+    elseif ev.key == GLFW.KEY_KP_1
+        self._u = (UInt16(ev.mods) & GLFW.MOD_ALT) == GLFW.MOD_ALT ? pi + pi / 2.0 : pi / 2.0
+        self._v = pi / 2.0
+    elseif ev.key == GLFW.KEY_KP_3
+        self._u = (UInt16(ev.mods) & GLFW.MOD_ALT) == GLFW.MOD_ALT ? 2 * pi : pi
+        self._v = pi / 2.0
     end
 end
 
@@ -202,12 +215,12 @@ end
 
 function mouse_wheel!(self::OrbitalCamera,ev::MouseWheelEvent)
     old_distance = exp(self._zoom)-1.0f0
-    self._zoom = max(self._zoom + -ev.yoffset / Float32(10.0), 0.01)
+    self._zoom = max(self._zoom + -ev.yoffset / 10.0f0, 0.01f0)
     new_distance = exp(self._zoom)-1.0f0
     delta_distance = new_distance - old_distance
 
     lookat = normalize(self._cam._at - self._cam._eye)
-    right = normalize(cross(lookat, self._cam._up))
+    right = Vec3F(cos(self._u+0.5π),sin(self._u+0.5π),0.0)
     up = normalize(cross(right, lookat));
 
     tan_half_fov_Y = tan(deg2rad(self._cam._fov / 2.0f0))
@@ -240,10 +253,10 @@ function update!(self::OrbitalCamera,deltaTime,glfw::GLFWData)
     lookDirection = Vec3F(cos(self._u) * sin(self._v),
                           sin(self._u) * sin(self._v),
                           cos(self._v))
-                          
-    up = self._cam._up
-    right = normalize(cross(lookDirection, up))
-    forward = cross(up, right)
+
+    right = Vec3F(cos(self._u+0.5π),sin(self._u+0.5π),0.0)
+    up = normalize(cross(right, -lookDirection));
+    forward = normalize(cross(right, self._cam._up));
 
     distance = exp(self._zoom)-1.0f0
     # WASD movement
@@ -264,8 +277,4 @@ function update!(self::OrbitalCamera,deltaTime,glfw::GLFWData)
     
     set_view!(self._cam,eye + d_position,at + d_position,up)
     self._cam._view_proj = self._cam._proj * self._cam._view
-end
-
-mutable struct FPS_Camera <: CameraManipulator
-    _cam::Camera
 end

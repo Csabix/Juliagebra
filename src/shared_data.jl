@@ -16,9 +16,10 @@ mutable struct SharedData
     _selectedGizmo::UInt32
     _pickedID::UInt32
     _gizmoEnabled::Bool
+    _gizmoConstraints::UInt32
 
     function SharedData(name::String,width::Int,height::Int)
-        new(name,width,height,false,UInt32(0),false,0,0,0,0,0.0,false,0.0,0.0,UInt32(0),0,false)
+        new(name,width,height,false,UInt32(0),false,0,0,0,0,0.0,false,0.0,0.0,UInt32(0),0,false,0x0)
     end
 end
 

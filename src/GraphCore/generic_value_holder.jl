@@ -14,6 +14,10 @@ mutable struct GenericValueHolderDependent{T} <: ValueHolderDNA{T}
     end
 end
 
+function Base.eltype(dependent::GenericValueHolderDependent{T})::DataType where T
+    return T
+end
+
 function _ValueHolderDependent_(self::GenericValueHolderDependent{T})::ValueHolderDependent{T} where T
     return self._dependent
 end
@@ -34,14 +38,14 @@ evalCallbackDpReturn(self::GenericValueHolderDependent{T}, value::Nothing) where
 
 # YELLOW Thread
 GenericValueHolder(callback::Function,T::Type,dependents::Vector{<:DependentDNA}) =
-build!(GenericValueHolderDependent{T}(callback, dependents))
+Build!(GenericValueHolderDependent{T}(callback, dependents))
 
 # YELLOW Thread
 ValueHolder(callback::Function,T::Type,dependents::Vector{<:DependentDNA}) = GenericValueHolder(callback,T,dependents)
 
 macro ValueHolder(callback::Expr, T)
     _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.ValueHolder, (cb, deps) -> (cb,T,deps))
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.ValueHolder, Vector{Any}(), Dict{Symbol,Any}(), (cb, deps) -> (cb,T,deps))
 end
 
 export GenericValueHolder

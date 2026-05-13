@@ -1,7 +1,5 @@
 using Juliagebra
 
-App()
-
 n = 20
 segment_length = 2.0
 vertical_spacing = 0.5
@@ -9,12 +7,12 @@ line_color = (0.2, 0.6, 1.0)
 line_width = 6.0f0
 
 types = [
-    CURVE_SOLID,
-    CURVE_DASHED,
-    CURVE_DOTTED,
-    CURVE_WAVE,
-    CURVE_DASH_DOT,
-    CURVE_ARROW
+    SOLID,
+    DASHED,
+    DOTTED,
+    WAVE,
+    DASH_DOT,
+    ARROW
 ]
 
 for i in 1:n
@@ -26,4 +24,4 @@ for i in 1:n
     end
 end
 
-play!()
+Juliagebra.Wait()

@@ -11,13 +11,15 @@ mutable struct App <: AppDNA
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _windowCreated::Bool
-    _graph::DependentGraph
     _peripherals::Peripherals
     _cam::Camera
     _manipulator::CameraManipulator
     
-    _synchronizer::Synchronizer
     _optimizer::GlobalDependentOptimizer
+    _starter::Starter
+    _commander::Commander
+    
+    _model::Model
 
     function App(
         name::String="Juliagebra",
@@ -30,25 +32,29 @@ mutable struct App <: AppDNA
         opengl = nothing
         imgui = nothing
         windowCreated = false
-        graph = DependentGraph()
+        
         peripherals = Peripherals()
         cam = defaultCamera()
         set_aspect!(cam,width,height)
         manipulator = create_orbital_manipulator(cam)
-        synchronizer = Synchronizer()
         optimizer = GlobalDependentOptimizer()
-        new(shrd,glfw,opengl,imgui,windowCreated,graph,peripherals,cam,manipulator,synchronizer,optimizer)
+        starter = Starter()
+        commander = Commander()
+        
+        model = Model()
+                
+        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model)
     end
 end
 
 getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
+getDependentObservers(self::App) = getOpenGL(self)._observers
 getImGui(self::App) = return self._imgui
 getShrd(self::App) = return self._shrd
-getGraph(self::App) = return self._graph
-getPlanQueue(self::App) = return self._plans
-getSynchronizer(self::App) = return self._synchronizer
-getBuilder(self::App) = return self._builder
+getCommander(self::App)::Commander = return self._commander
+getStarter(self::App)::Starter = return self._starter
+getModel(self::App)::Model = return self._model
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -149,11 +155,15 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
     if event.press
         if event.button == MOUSE_BUTTON_RIGHT
             self._shrd._pickedID = id
-            if id > 3
-                self._shrd._gizmoEnabled = true
-                mouse_capture = true
-                p = self._graph[self._shrd._pickedID]
-                self._opengl._gizmoGL._pos = Vec3F(p._coord)
+            if id > 3 && id <= UInt32(3 + length(getNodes(getModel(self)._graph)))
+                p = getModel(self)._graph[self._shrd._pickedID]
+                if isa(p, PointDependent)
+                    pp::PointDependent = p
+                    self._opengl._gizmoGL._pos = Vec3F(pp._coord)
+                    self._shrd._gizmoEnabled = true
+                    self._shrd._gizmoConstraints = pp._constraints
+                    mouse_capture = true
+                end
             else
                 self._shrd._gizmoEnabled = false
             end
@@ -172,25 +182,21 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p = self._graph[self._shrd._pickedID]
-        @time_cpu_begin Graph_update
-        set(
-            p,
-            Float64(self._opengl._gizmoGL._pos.x),
-            Float64(self._opengl._gizmoGL._pos.y),
-            Float64(self._opengl._gizmoGL._pos.z))
-        @time_cpu_end Graph_update
+        p::PointDependent = getModel(self)._graph[self._shrd._pickedID]::PointDependent
+        p._coord = Vec3D(
+            self._opengl._gizmoGL._pos.x,
+            self._opengl._gizmoGL._pos.y,
+            self._opengl._gizmoGL._pos.z
+            )
+        # ? schedule for evalGraph
+        schedule(getModel(self),p)
     end
 end
 
 # GREEN Thread
 function play!(self::App)
-    
     init!(self)
-    
-    lock(self._synchronizer._initCondition)
-    notify(self._synchronizer._initCondition)
-    unlock(self._synchronizer._initCondition)
+    notify(self._starter)
 
     while(!self._shrd._gameOver)
         yield()
@@ -198,41 +204,72 @@ function play!(self::App)
         updateDeltaTime!(self)
         updateCam!(self)
         
-        state = decideFrameState(self)
+        model::Model = self._model
+        state::ModelState = decideState(model)
+        # ? Begin model operations with decided state.
+        beginState(model,state)
 
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
 
         if state isa ViewingState
-            # ? do graph updates, aka sync! and syncAll! calls.
+            # ? Handle commands in the command queue.
+            handleCommands!(self)
+            # ? Schedule a PointDependent.
             updateGizmo!(self)
-
+            # ? Schedule SliderDependents and StepperDependents.
+            update!(self._imgui,self)
+            
+            # ? Do sync! and syncAll! calls.
+            update!(model,state)
+            
             if !iconified
-                # ? render scence and loading bar.
+                # ? Render scene and dock.
                 update!(self._opengl,self._cam)
-                update!(self._imgui)
+                render!(self._imgui,self)
                 update!(self._shrd)
             end
-
-            unlock(self._synchronizer._lock)
         elseif state isa BuildingState
-            # ? do added! and addedAll! calls.
-            handleAddedCalls(self)
+            # ? Do added! and addedAll! calls.
+            update!(model,state)
 
             if !iconified
-                # ? render scence and loading bar.
+                # ? Render scene and loading bar.
                 update!(self._opengl,self._cam)
                 renderBuildingState(self._imgui,self)
 
                 update!(self._shrd)
             end
+        elseif state isa EvalingState
+            # ? Do sync! and syncAll! calls.
+            update!(model, state)
+
+            if !iconified
+                # ? Render scene and dock.
+                update!(self._opengl,self._cam)
+                render!(self._imgui,self)
+                update!(self._shrd)
+            end
+
         end
 
+        # ? End model state.
+        endState(model,state)
         GLFW.SwapBuffers(self._glfw._window)
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
     end
     destroy!(self)
     
+    global implicitApp
+    if (implicitApp === self)
+        implicitApp = nothing
+    end
+
+    #global EVAL_PATH
+    #open(EVAL_PATH, "a") do io
+    #    println(io, join(_mlines,","))        
+    #end
+
 end
 
 function init!(self::App)
@@ -246,19 +283,23 @@ function init!(self::App)
     self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true
     perf_init_gpu()
+
+    init!(self._model)
+
     # ! Needed for first deltaTime to be accurate!
     updateDeltaTime!(self)
 end
 
 function destroy!(self::App)
     if !self._windowCreated
-        error("No window created, thus, can't destroy!.")
+        error("No window created, thus, can't destroy!")
     end
 
     destroy!(self._imgui)
     destroy!(self._opengl)
     destroy!(self._glfw)
-    destroy!(self._synchronizer)
+    destroy!(self._commander)
+    destroy!(self._model)
 end
 
 export App

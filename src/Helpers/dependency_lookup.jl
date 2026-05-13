@@ -45,6 +45,69 @@ function _parse_macro_kw_args(kw_names::Vector{Symbol}, kw_args...)
     return out
 end
 
+function _parse_macro_arguments(pos_names, kw_names, args...)::Tuple{Vector{Any},Dict{Symbol,Any}}
+    pos_args = Vector{Any}()
+    kw_args  = Dict{Symbol,Any}()
+    flat_args = Any[]
+    l_pos = length(pos_names)
+    l_kw  = length(kw_names)
+    sizehint!(pos_args,  l_pos       )
+    sizehint!(kw_args,   l_kw        )
+    sizehint!(flat_args, l_pos + l_kw)
+
+    if length(args) > l_pos + l_kw
+        error(
+            """
+            Invalid argument count: Too many optional argument provided to macro call $(_get_caller())
+            $(_get_caller()) expects maximum
+            $l_pos optional positional arguments and
+            $l_kw keyword arguments.
+            """
+        )
+    end
+
+    for arg in args
+        if Meta.isexpr(arg, :parameters)
+            append!(flat_args, arg.args)
+        else
+            push!(flat_args, arg)
+        end
+    end
+
+    pos_idx = 1
+    for arg in flat_args
+        if Meta.isexpr(arg, :(=)) && arg.args[1] isa Symbol
+            k::Symbol = arg.args[1]
+            v::Any = arg.args[2]
+
+            if !(k in kw_names)
+                error("Unknown keyword argument to macro call $(_get_caller()): $k")
+            end
+
+            if haskey(kw_args, k)
+                error("Keyword argument '$k' repeated in macro call to $(_get_caller()).")
+            end
+
+            kw_args[k] = v
+        else
+            if pos_idx > l_pos
+                error(
+                    """
+                    Invalid argument count: Too many optional positional argument provided to macro call $(_get_caller())
+                    $(_get_caller()) expects maximum
+                    $l_pos optional positional arguments.
+                    """
+                )
+            end
+
+            push!(pos_args, arg)
+            pos_idx += 1
+        end
+    end
+
+    return pos_args, kw_args
+end
+
 """
 Helper for "fixing" default arguments overriden by macro kw_args.
 For example for the macro m(x=2,kw_args...) in the call @m(k=5) the expr k=5 will override x instead of being put in kw_args
@@ -408,7 +471,7 @@ function _collect_free_vars(def::Expr, mod::Module)
 end
 
 """Helper for generating the code returned by macro ctors"""
-function _create_ctor_wrapper(callback, mod::Module, base_ctor, get_ctor_args = tuple; ctor_kw_args...)
+function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_args::Vector{Any}, ctor_kw_args::Dict{Symbol,Any}, get_ctor_args = tuple)
     free_syms = _collect_free_vars(callback, mod)
 
     body = callback.args[2]
@@ -442,8 +505,9 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, get_ctor_args = 
     end
 
     base_ctor_args = [:($arg) for arg in get_ctor_args(gs_callback_wrapper, gs_captured_deps)]
+    base_ctor_optional_args = [:($(esc(v))) for v in ctor_optional_args]
     base_ctor_kw_args = [:($(esc(k)) = $(esc(v))) for (k, v) in ctor_kw_args]
-    base_ctor_call = :($base_ctor($(base_ctor_args...); $(base_ctor_kw_args...)))
+    base_ctor_call = :($base_ctor($(base_ctor_args...), $(base_ctor_optional_args...); $(base_ctor_kw_args...)))
 
     base_cb_args = [esc(arg_sym) for arg_sym in callback.args[1].args]
 

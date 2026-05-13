@@ -6,24 +6,21 @@
 mutable struct SegmentSequenceDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
-    _colors::Vector{Vec3F}
+    _colors::Vector{UInt32}
     _break_every::Int32
-    _width::Float32
-    _type::UInt8
-    _reversed::UInt8
+    _size::Float32
+    _style::UInt8
 
     _values::Vector{Vec3D}
 
     # YELLOW Thread
     function SegmentSequenceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        colors::Vector{Vec3F},break_every::Real,
-        type::UInt8,reversed::UInt8,width::Real)
-        
+        break_every::Int32,
+        color::Vector{UInt32},style::UInt8,size::Float32)
         dependent = RenderedDependent(callback,dependents)
         values = Vector{Vec3F}()
-
-        new(dependent,colors,break_every,width,type,reversed,values)
+        new(dependent,color,break_every,size,style,values)
     end
 end
 
@@ -32,551 +29,178 @@ _RenderedDependent_(self::SegmentSequenceDependent)::RenderedDependent = return 
 
 # YELLOW Thread
 # RED Thread
-function onNodeEval(self::SegmentSequenceDependent)
-    evalCallbackDp(self)
+onNodeEval(self::SegmentSequenceDependent) = evalCallbackDp(self)
+
+Base.eltype(dependent::SegmentSequenceDependent)::DataType = Vector{Vec3D}
+
+function evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
+    self._values = [Vec3D(coord...) for coord in coords]
 end
-
-function insert_nans(self::SegmentSequenceDependent,data::Vector{Vec3D})
-    N = self._break_every
-    len = length(data)
-    if len < 2
-        return [Vec3DNan,Vec3DNan]
-    end
-
-    add_front = !any(isnan,data[1])
-    add_back = !any(isnan,data[end])
-
-    if N < 2
-        result = Vector{Vec3D}()
-        add_front && push!(result, Vec3DNan)
-        append!(result, data)
-        add_back && push!(result, Vec3DNan)
-        return result
-    end
-
-    num_interior_nans = div(len - 1, N)
-    
-    total_size = len + num_interior_nans + (add_front ? 1 : 0) + (add_back ? 1 : 0)
-    result = Vector{Vec3D}(undef, total_size)
-    
-    curr = 1
-    if add_front
-        result[curr] = Vec3DNan
-        curr += 1
-    end
-
-    for i in 1:len
-        result[curr] = data[i]
-        curr += 1
-        if i % N == 0 && i != len
-            result[curr] = Vec3DNan
-            curr += 1
-        end
-    end
-
-    if add_back
-        result[curr] = Vec3DNan
-    end
-
-    return result
+function evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{T}) where T <: Tuple{Any, Any}
+    self._values = [Vec3D(coord...,0.0) for coord in coords]
 end
-
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3D})  = self._values = insert_nans(self,coords)
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3F})  = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Tuple})  = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = insert_nans(self,[Vec3D(coord...) for coord in coords])
-evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = [Vec3DNan,Vec3DNan]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3D})  = self._values = coords
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec2D})  = self._values = [Vec3D(coord...,0.0) for coord in coords]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3F})  = self._values = [Vec3D(coord...) for coord in coords]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec2F})  = self._values = [Vec3D(coord...,0.0) for coord in coords]
+evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = [length(c) == 3 ? Vec3D(c[1],c[2],c[3]) : Vec3D(c[1],c[2],0.0) for c in coords]
+evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = Vec3D[]
 
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
     _segseq::SegmentSequenceDependent
-end
-PrimitivesOf(self::SegmentSequenceDependent) = return PSegmentsOfSegmentSequence(self)
+    len::Int
 
-function Base.length(self::PSegmentsOfSegmentSequence)
-    len = 0
-    values = self._segseq._values
-    for i in 1:length(values)-1
-        if !(any(isnan,values[i]) || any(isnan,values[i+1]))
-            len += 1
-        end
+    function PSegmentsOfSegmentSequence(segseq::SegmentSequenceDependent)
+        N = length(segseq._values)
+        if N < 2 return new(segseq, 0) end
+        
+        segments = N - 1
+        break_every = segseq._break_every
+        
+        if break_every < 2 return new(segseq, segments) end
+        
+        return new(segseq, segments - div(segments, break_every))
     end
-    return len
 end
 
-# SLOOW O(N)
-function Base.getindex(self::PSegmentsOfSegmentSequence, index::Integer)::Union{Nothing, PSegment}
-    if index < 1 return nothing end
+PrimitivesOf(self::SegmentSequenceDependent) = PSegmentsOfSegmentSequence(self)
 
-    values = self._segseq._values
-    n = length(values)
-    i = 1
+function Base.length(self::PSegmentsOfSegmentSequence)::Int
+    return self.len
+end
 
-    while i < n
-        if !(any(isnan,values[i]) || any(isnan,values[i+1]))
-            index -= 1
-            if index == 0 break end
-        end
-        i += 1
-    end
+function Base.getindex(self::PSegmentsOfSegmentSequence, index::Int)::PSegment
+    @boundscheck 1 <= index <= length(self) || throw(BoundsError(self, index))
 
-    if index == 0
-        return PSegment(values[i], values[i + 1])
+    if self._segseq._break_every < 2
+        i = index
     else
+        i = index + div(index - 1, self._segseq._break_every - 1)
+    end
+    
+    return PSegment(self._segseq._values[i], self._segseq._values[i + 1])
+end
+
+function Base.iterate(self::PSegmentsOfSegmentSequence, index::Int = 1)
+    if index > length(self)
         return nothing
     end
+    return (self[index], index + 1)
 end
 
-function Base.iterate(self::PSegmentsOfSegmentSequence, index::Integer = 1)
-    if index < 1 return nothing end
-
-    values = self._segseq._values
-    n = length(values)
-
-    while index < n && (any(isnan,values[index]) || any(isnan,values[index + 1]))
-        index += 1
-    end
-
-    if index == n return nothing
-    else return (PSegment(values[index], values[index + 1]),index + 1) end
-end
+Base.IteratorSize(::Type{<:PSegmentsOfSegmentSequence}) = Base.HasLength()
+Base.eltype(::Type{PSegmentsOfSegmentSequence}) = PSegment
 
 # ? ---------------------------------
-# ! SegmentSequenceRenderer
+# ! SegmentSequences
 # ? ---------------------------------
 
-mutable struct SegmentSequenceRenderer <: RendererDNA{SegmentSequenceDependent}
+mutable struct SegmentSequences <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
-    _emptyVAO::VertexArray
-
-    _shader_predraw::ShaderProgram
-    _shaders_id::Vector{ShaderProgram}
-    _shaders_opaque::Vector{ShaderProgram}
-    _shaders_behind_opaque::Vector{ShaderProgram}
-    _shaders_transparent::Vector{ShaderProgram}
-
-    _update_me::Vector{Int32}
-    _draw_ranges::Vector{Tuple{Int,Int}}
-
-    _coords::Vector{Vector{Vec3F}}
-    _widths::Vector{Float32}
-    _colors::Vector{Vector{Float32}}
-    _types::Vector{UInt8}
-
-    _distance_buffers_in::Vector{Buffer{Float32}}
-    _color_type_buffers_in::Vector{Buffer{Float32}}
-    _position_width_buffers_in::Vector{Buffer{Vec4F}}
-
-    _position_distance_buffer_out::Buffer{Vec4F}
-    _color_buffer_out::Buffer{UVec2}
-    _light_buffer_out::Buffer{Vec4F}
-    _sdf_buffer_out::Buffer{Vec4F}
-
+    _renderers::PrimitiveRenderers
+    _refs::Vector{UInt32}
     # GREEN Thread
-    function SegmentSequenceRenderer(context::OpenGLData)
+    function SegmentSequences(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
-
-        shader_predraw = ShaderProgram(["curve/segseq_vertex.comp"],["VP","WH","Eye","lightDirCam","lightDirSide","offset"])
-
-        types = ["solid","dashed","dotted","wave","dash_dot","arrow"]
-
-        shaders_id = Vector{ShaderProgram}()
-        for type in types push!(shaders_id,ShaderProgram(["curve/id/curve.vert","curve/id/curve_$type.frag"])) end
-
-        shaders_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_opaque,ShaderProgram(["curve/opaque/curve.vert","curve/opaque/curve_$type.frag"])) end
-
-        shaders_behind_opaque = Vector{ShaderProgram}()
-        for type in types push!(shaders_behind_opaque,ShaderProgram(["curve/behind_opaque/curve.vert","curve/behind_opaque/curve_$type.frag"])) end
-
-        shaders_transparent = Vector{ShaderProgram}()
-        for type in types push!(shaders_transparent,ShaderProgram(["curve/opaque/curve.vert","curve/transparent/curve_$type.frag"])) end
-
-        coords = Vector{Vector{Vec3F}}()
-        widths = Vector{Float32}()
-        colors = Vector{Vector{Float32}}()
-        types = Vector{UInt8}()
-        
-        new(renderer,VertexArray(),
-            shader_predraw,shaders_id,shaders_opaque,shaders_behind_opaque,shaders_transparent,
-            Vector{Int32}(),Vector{Tuple{Int, Int}}(undef, _CURVE_COUNT),
-            coords,widths,colors,types,
-            Vector{Buffer{Float32}}(),Vector{Buffer{Float32}}(),Vector{Buffer{Vec4F}}(),
-            Buffer{Vec4F}(),Buffer{UVec2}(),Buffer{Vec4F}(),Buffer{Vec4F}())
+        refs = Vector{UInt32}()
+        return new(renderer, context._renderers, refs)
     end
 end
 
-_Renderer_(self::SegmentSequenceRenderer) = return self._renderer
-Base.string(self::SegmentSequenceRenderer) = return "SegmentSequenceRenderer[$(length(self._coords))]"
+_Renderer_(self::SegmentSequences) = return self._renderer
+Base.string(self::SegmentSequences) = return "SegmentSequences[$(length(self._coords))]"
 
-# GREEN Thread
-function added!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
-    push!(self._coords,segseq._values)
-    packed_colors = [pack_color(color,segseq._reversed != 0x0) for color in segseq._colors]
-    push!(self._colors,packed_colors)
-    push!(self._widths,segseq._width)
-    push!(self._types,segseq._type)
-end
-
-_preallocated_vec(T, len) = sizehint!(Vector{T}(), len)
-
-# GREEN Thread
-function addedAll!(self::SegmentSequenceRenderer)
-    destroy!.(self._distance_buffers_in)
-    destroy!.(self._color_type_buffers_in)
-    destroy!.(self._position_width_buffers_in)
-    empty!(self._distance_buffers_in)
-    empty!(self._color_type_buffers_in)
-    empty!(self._position_width_buffers_in)
-
-    upload_colors = _preallocated_vec.(Float32, length.(self._coords))
-    upload_position_widths = _preallocated_vec.(Vec4F, length.(self._coords))
-
-    Threads.@threads for i in 1:length(self._coords)
-        len = length(self._coords[i])
-        # Color
-        colors = upload_colors[i]
-        packed_colors = self._colors[i]
-        color_count = length(packed_colors)
-        current_color = 1
-        push!(colors, 0x0000000)
-        for _ in 1:(len-2)
-            push!(colors, packed_colors[current_color])
-            current_color = mod1(current_color + 1, color_count)
-        end
-        push!(colors, 0x0000000)
-        # Position Width
-        position_widths = upload_position_widths[i]
-        width = self._widths[i]
-        coords = self._coords[i]
-        for coord in coords
-            push!(position_widths,Vec4F(coord...,width))
+function custom_interleaver(vec, insert_val::T, n) where T
+    new_len = length(vec) + div(length(vec), n)
+    dest = Vector{T}(undef, new_len)
+    
+    dest_idx = 1
+    for (i,e) in enumerate(vec)
+        dest[dest_idx] = e
+        dest_idx += 1
+        if i % n == 0
+            dest[dest_idx] = insert_val
+            dest_idx += 1
         end
     end
-
-    for i in 1:length(self._coords)
-        # Distance
-        distance_buffer = Buffer{Float32}()
-        reserve!(distance_buffer,length(self._coords[i]),GL_DYNAMIC_STORAGE_BIT)
-        push!(self._distance_buffers_in,distance_buffer)
-        # Color
-        color_buffer = Buffer{Float32}()
-        upload!(color_buffer,upload_colors[i],0)
-        push!(self._color_type_buffers_in,color_buffer)
-        # Position Width
-        position_width_buffer = Buffer{Vec4F}()
-        upload!(position_width_buffer,upload_position_widths[i],GL_DYNAMIC_STORAGE_BIT)
-        push!(self._position_width_buffers_in,position_width_buffer)
-    end
-
-    total_coord = sum(length,self._coords)
-    self._position_distance_buffer_out = Buffer{Vec4F}()
-    reserve!(self._position_distance_buffer_out,5*total_coord,0)
-    self._color_buffer_out = Buffer{Vec2T{UInt32}}()
-    reserve!(self._color_buffer_out,total_coord,0)
-    self._light_buffer_out = Buffer{Vec4F}()
-    reserve!(self._light_buffer_out,total_coord,0)
-    self._sdf_buffer_out = Buffer{Vec4F}()
-    reserve!(self._sdf_buffer_out,5*total_coord,0)
+    return dest
 end
 
 # GREEN Thread
-function sync!(self::SegmentSequenceRenderer,segseq::SegmentSequenceDependent)
-    index = getObserverID(segseq)
-    size_change = length(self._coords[index]) != length(segseq._values)
-    self._coords[index] = segseq._values
-    push!(self._update_me,size_change ? -index : index)
+function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
+    aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
+    ref = if segseq._break_every >= 2
+        add_dynamic!(self._renderers.line,
+            collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
+            segseq._size,
+            segseq._style
+        )
+    else
+        add_dynamic!(self._renderers.line,
+            (Vec3F(coord) for coord in segseq._values),
+            Iterators.cycle(segseq._colors),
+            Iterators.cycle((aID,)),
+            segseq._size,
+            segseq._style
+        )
+    end
+    push!(self._refs, ref)
 end
 
-# Green Thread
-function syncAll!(self::SegmentSequenceRenderer)
-    upload_colors = Vector{Union{Nothing,Vector{Float32}}}(nothing, length(self._update_me))
-    upload_position_widths = Vector{Union{Nothing,Vector{Vec4F}}}(nothing, length(self._update_me))
-
-    Threads.@threads for i in 1:length(self._update_me)
-        index = abs(self._update_me[i])
-        coords = self._coords[index]
-        len = length(coords)
-
-        # Position Width
-        position_widths = _preallocated_vec(Vec4F,len)
-        upload_position_widths[i] = position_widths
-        width = self._widths[index]
-        for coord in coords
-            push!(position_widths,Vec4F(coord...,width))
-        end
-
-        if self._update_me[i] < 0
-            # Color
-            colors = _preallocated_vec(Float32,len)
-            upload_colors[i] = colors
-            packed_colors = self._colors[index]
-            current_color = 1
-            color_count = length(packed_colors)
-            push!(colors, 0x0000000)
-            for _ in 1:(len-2)
-                push!(colors, packed_colors[current_color])
-                current_color = mod1(current_color + 1, color_count)
-            end
-            push!(colors, 0x0000000)
-        end
-    end
-
-    for i in 1:length(self._update_me)
-        index = abs(self._update_me[i])
-        position_widths = upload_position_widths[i]
-        if self._update_me[i] < 0
-            # Distance
-            reserve!(self._distance_buffers_in[index],length(position_widths),GL_DYNAMIC_STORAGE_BIT)
-            # Color
-            upload!(self._color_type_buffers_in[index],upload_colors[i],0)
-            # Position Width
-            upload!(self._position_width_buffers_in[index],position_widths,GL_DYNAMIC_STORAGE_BIT)
-        else
-            upload!(self._position_width_buffers_in[index],position_widths)
-        end
-    end
-
-    if any(x -> x < 0, self._update_me)
-        total_coord = sum(length,self._coords)
-        reserve!(self._position_distance_buffer_out,5*total_coord,0)
-        reserve!(self._color_buffer_out,total_coord,0)
-        reserve!(self._light_buffer_out,total_coord,0)
-        reserve!(self._sdf_buffer_out,5*total_coord,0)
-    end
-
-    empty!(self._update_me)
-end
-
-@inbounds function _calc_distances!(self::SegmentSequenceRenderer,vp::Mat4,wh::Vec2F)
-    @time_cpu_begin Dependent Segmnet_Sequence Distances
-    upload_distances = [Vector{Float32}(undef,length(coords)) for coords in self._coords]
-    Threads.@threads for index in 1:length(self._coords)
-        coords = self._coords[index]
-        distances = upload_distances[index]
-        distance_sum = 0.0f0
-        for i in 2:length(coords)-2
-            a = vp * Vec4F(Vec3F(coords[i]), 1.0f0)
-            b = vp * Vec4F(Vec3F(coords[i+1]), 1.0f0)
-            if a.z + a.w < 0.0 && b.z + b.w < 0.0f0 continue end
-            t0 = a.z + a.w;
-            t1 = b.z + b.w;
-            if t0 < 0.0
-                tt = t0 / (t0 - t1)
-                a = @. a * (1 - tt) + b * tt
-            elseif t1 < 0.0
-                tt = t1 / (t1 - t0)
-                b = @. b * (1 - tt) + a * tt
-            end
-            a2 = Vec2F(a.x,a.y) / a.w
-            a2 = a2 .* 0.5f0 .+ 0.5f0
-            a2 = a2 .* wh
-
-            b2 = Vec2F(b.x,b.y) / b.w
-            b2 = b2 .* 0.5f0 .+ 0.5f0
-            b2 = b2 .* wh
-
-            distances[i] = distance_sum
-            distance_sum = !isnan(norm(a2 - b2)) ? distance_sum + norm(a2 - b2) : 0
-        end
-        distances[length(coords)-1] = distance_sum
-    end
-
-    for (i,dist) in enumerate(upload_distances)
-        upload!(self._distance_buffers_in[i],dist)
-    end
-    @time_cpu_end Dependent Segmnet_Sequence Distances
-end
-
-function pre_draw!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    # Quick fix
-    glClearNamedBufferSubData(
-    self._position_distance_buffer_out._id,
-    GL_R32F,
-    0,
-    self._position_distance_buffer_out._size,
-    GL_RED,
-    GL_FLOAT,
-    [NaN32])
-    # Quick fix end
-    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
-
-    (cam_light, side_light) = get_lights(cam)
-    activate(self._shader_predraw)
-    uniform(self._shader_predraw,"VP",vp)
-    uniform(self._shader_predraw,"WH",Vec2F(shrd._width, shrd._height))
-    uniform(self._shader_predraw,"Eye",cam._eye)
-    uniform(self._shader_predraw,"lightDirCam", cam_light)
-    uniform(self._shader_predraw,"lightDirSide",side_light)
-    bind_ssbo(self._position_distance_buffer_out,3)
-    bind_ssbo(self._color_buffer_out,4)
-    bind_ssbo(self._light_buffer_out,5)
-    bind_ssbo(self._sdf_buffer_out,6)
-
-    offset = UInt32(0)
-    @time_gpu_begin Dependent Segmnet_Sequence PRE_DRAW_PASS
-    for i in 1:_CURVE_COUNT
-        for j in 1:length(self._coords)
-            if self._types[j] != i continue end
-            bind_ssbo(self._distance_buffers_in[j],0)
-            bind_ssbo(self._color_type_buffers_in[j],1)
-            bind_ssbo(self._position_width_buffers_in[j],2)
-            uniform(self._shader_predraw,"offset",offset)
-            glDispatchCompute(cld(length(self._coords[j]),32),1,1);
-            offset += UInt32(length(self._coords[j]))
-        end
-    end
-    @time_gpu_end Dependent Segmnet_Sequence PRE_DRAW_PASS
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
-
-    counts = zeros(Int, _CURVE_COUNT)
-    for i in 1:length(self._coords)
-        counts[self._types[i]] += length(self._coords[i])
-    end
-
-    current_idx = 1
-    for i in 1:_CURVE_COUNT
-        len = counts[i]
-        if len > 0
-            self._draw_ranges[i] = (current_idx, current_idx + len - 1)
-        else
-            self._draw_ranges[i] = (typemax(Int),typemin(Int))
-        end
-        current_idx += len
+# GREEN Thread
+function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
+    aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
+    ref = self._refs[getObserverID(segseq)]
+    if segseq._break_every >= 2
+        update_dynamic!(self._renderers.line,ref,
+            collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
+            segseq._size,
+            segseq._style
+        )
+    else
+        update_dynamic!(self._renderers.line,ref,
+            collect((Vec3F(coord) for coord in segseq._values)),
+            Iterators.cycle(segseq._colors),
+            Iterators.cycle([aID]),
+            segseq._size,
+            segseq._style
+        )
     end
 end
 
-function id_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._emptyVAO)
-    bind_ssbo(self._position_distance_buffer_out,0)
-    bind_ssbo(self._sdf_buffer_out,1)
 
-    baseInstance = 0
-    @time_gpu_begin Dependent Segmnet_Sequence ID_PASS
-    for type in 1:_CURVE_COUNT
-        (first,last) = self._draw_ranges[type]
-        if first == typemax(Int) continue end
-        activate(self._shaders_id[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first+1
-    end
-    @time_gpu_end Dependent Segmnet_Sequence ID_PASS
-end
-
-function opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._emptyVAO)
-    bind_ssbo(self._position_distance_buffer_out,0)
-    bind_ssbo(self._color_buffer_out,1)
-    bind_ssbo(self._light_buffer_out,2)
-    bind_ssbo(self._sdf_buffer_out,3)
-
-    baseInstance = 0
-    glEnable(GL_BLEND)
-    @time_gpu_begin Dependent Segmnet_Sequence OPAQUE_PASS
-    for type in 1:_CURVE_COUNT
-        (first,last) = self._draw_ranges[type]
-        if first == typemax(Int) continue end
-        activate(self._shaders_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first+1
-    end
-    @time_gpu_end Dependent Segmnet_Sequence OPAQUE_PASS
-    glDisable(GL_BLEND)
-end
-
-is_occluder(self::SegmentSequenceRenderer)::Bool = false
-
-function behind_opaque_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._emptyVAO)
-    bind_ssbo(self._position_distance_buffer_out,0)
-    bind_ssbo(self._color_buffer_out,1)
-    bind_ssbo(self._sdf_buffer_out,2)
-
-    baseInstance = 0
-    @time_gpu_begin Dependent Segmnet_Sequence BEHIND_OPAQUE_PASS
-    for type in 1:_CURVE_COUNT
-        (first,last) = self._draw_ranges[type]
-        if first == typemax(Int) continue end
-        activate(self._shaders_behind_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first+1
-    end
-    @time_gpu_end Dependent Segmnet_Sequence BEHIND_OPAQUE_PASS
-end
-
-function transparent_pass!(self::SegmentSequenceRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._emptyVAO)
-    bind_ssbo(self._position_distance_buffer_out,0)
-    bind_ssbo(self._color_buffer_out,1)
-    bind_ssbo(self._light_buffer_out,2)
-    bind_ssbo(self._sdf_buffer_out,3)
-
-    baseInstance = 0
-    glEnable(GL_BLEND)
-    @time_gpu_begin Dependent Segmnet_Sequence TRANSPARENT_PASS
-    for type in 1:_CURVE_COUNT
-        (first,last) = self._draw_ranges[type]
-        if first == typemax(Int) continue end
-        activate(self._shaders_transparent[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, last-first-2, baseInstance)
-        baseInstance += last-first+1
-    end
-    @time_gpu_end Dependent Segmnet_Sequence TRANSPARENT_PASS
-end
-
-function destroy!(self::SegmentSequenceRenderer)
-    destroy!(self._emptyVAO)
-    destroy!(self._shader_predraw)
-    destroy!.(self._shaders_id)
-    destroy!.(self._shaders_opaque)
-    destroy!.(self._shaders_behind_opaque)
-    destroy!.(self._shaders_transparent)
-
-    destroy!.(self._distance_buffers_in)
-    destroy!.(self._color_type_buffers_in)
-    destroy!.(self._position_width_buffers_in)
-
-    destroy!(self._position_distance_buffer_out)
-    destroy!(self._color_buffer_out)
-    destroy!(self._light_buffer_out)
-    destroy!(self._sdf_buffer_out)
+function destroy!(self::SegmentSequences)
 end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequenceRenderer = getOpenGL(app)._renderers[6]
+Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = getDependentObservers(app)[_SEGMENT_SEQUENCES]
 
 # ? ---------------------------------
 # ! SegmentSequence
 # ? ---------------------------------
 
-_Colors(c::Tuple{Real,Real,Real})::Vector{Vec3F} = Vector{Vec3F}([Vec3F(c...)])
-_Colors(c::Vector)::Vector{Vec3F} = Vector{Vec3F}([Vec3F(cc...) for cc in c])
-
-
 # YELLOW Thread
-function SegmentSequence(callback::Function,dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
-    
-    colors::Vector{Vec3F} = _Colors(color)
-    
-    return build!(SegmentSequenceDependent(callback, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
+function SegmentSequence(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
+    color="c",style="-",size=5.0f0)::SegmentSequenceDependent
+    (c,s) = parse_line_colors_style(color_style, color, style)
+    return Build!(SegmentSequenceDependent(callback, dependents, round(Int32,break_every), c, s, Float32(size)))
 end
 
 # YELLOW Thread
-function SegmentSequence(dependents=Vector{DependentDNA}(),break_every=2;
-                color=(0.6,0.6,0.9),width=5.0f0,type=CURVE_SOLID,reversed=false)::SegmentSequenceDependent
-    
-    colors::Vector{Vec3F} = _Colors(color)
-
-    return build!(SegmentSequenceDependent(_deps_collect, dependents, colors, break_every, type, reversed ? 0x1 : 0x0, width))
-end
+SegmentSequence(dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
+    color="c",style="-",size=5.0f0)::SegmentSequenceDependent =
+SegmentSequence(_deps_collect, dependents, break_every, color_style, color=color, style=style, size=size)
 
 # YELLOW Thread
-macro SegmentSequence(callback::Expr,break_every=2,kw_args...)
-    (break_every, kw_args) = _kw_arg_or_default(break_every, 2, kw_args)
-
-    parsed_kw_args = _parse_macro_kw_args([:color, :width, :type, :reversed], kw_args...)
+macro SegmentSequence(callback::Expr,break_every=2,args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size), args...)
     callback = _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence, (cb, deps) -> (cb, deps, break_every); parsed_kw_args...)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.SegmentSequence,
+                                positional_args, kw_args)
 end
 
 

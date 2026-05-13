@@ -27,16 +27,16 @@ JG.@ParametricCurve(range(-2pi,2pi,500)) do t
     @avg(p2, p3) .+ (t,0,cos(t))
 end
 
-color = [(0,1,0),(0,0,1)]
-JG.@ParametricCurve(range(-2pi,2pi,500), color, type=JG.CURVE_ARROW, reversed=true, width=17) do t
+color = [(0.0,1.0,0.0),(0.0,0.0,1.0)]
+JG.@ParametricCurve(range(-2pi,2pi,500), color=color, style=JG.ARROW, size=17) do t
     @avg(p2, p3) .+ (t,0,cos(t)) .- (0,0,1)
 end
 
-pc1 = JG.@PointCloud() do
+pc1 = JG.@PointSet() do
     [p .+ (0,1,0) for p in [p1, p2, p3]]
 end
 
-pc2 = JG.@PointCloud(color=(1,0,0),width=40) do
+pc2 = JG.@PointSet(color=(1,0,0),size=40) do
     [p .+ (0,1,0) for p in pc1]
 end
 
@@ -45,7 +45,7 @@ JG.@SegmentSequence() do
     [i % 2 == 0 ? points[Int(ceil(i/2))] : pc1[Int(ceil(i/2))] for i in 1:6]
 end
 
-JG.@SegmentSequence(color=[(1,0,0),(0,1,0)],width=8,type=JG.CURVE_ARROW,reversed=true) do
+JG.@SegmentSequence(color=[(1.0,0.0,0.0),(0.0,1.0,0.0)],size=8,style="<-") do
     [i % 2 == 0 ? pc1[Int(ceil(i/2))] : pc2[Int(ceil(i/2))] for i in 1:6]
 end
 
@@ -65,7 +65,7 @@ JG.@ParametricSurface(range(0,2pi,50),range(0,1,50)) do u, v
 end
 
 s2_base = JG.Point(-2,2,0)
-JG.@ParametricSurface(range(0,2pi,50),range(0,1,50), color=(0,0,1), transparent=true) do u, v
+JG.@ParametricSurface(range(0,2pi,50),range(0,1,50), color=(0.0,0.0,1.0,0.5)) do u, v
     x = 3v * sign(cos(u)) * abs(cos(u))^1.85
     y = 2v * sign(sin(u)) * abs(sin(u))^1.85
     z = cone_height * v

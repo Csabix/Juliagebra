@@ -1,9 +1,6 @@
 using Juliagebra
 using LinearAlgebra
 
-context = App()
-
-
 a1 = Point(10,0,0)
 b1 = Point(-10,0,0)
 s1 = Segment(a1,b1)
@@ -64,4 +61,4 @@ ip = Point([a1,b1,a2,b2]) do a1,b1,a2,b2
 end
 
 
-play!(context)
+Juliagebra.Wait()

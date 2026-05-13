@@ -19,7 +19,7 @@ end
 mutable struct MappedBuffer{T} <: BufferBase{T}
     _id::GLuint
     _size::Int
-    _mapped::AbstractVector{T}
+    _mapped::Vector{T}
     _sync::GLsync
 
     function MappedBuffer{T}() where {T}
@@ -35,7 +35,9 @@ end
 # ? ---------------------------------
 
 @inline Base.eltype(::BufferBase{T}) where {T} = T
-@inline Base.length(self::BufferBase{T}) where {T} = div(self._size, sizeof(T))
+@inline function Base.length(self::BufferBase{T})::Int where {T}
+    return div(self._size, sizeof(T))
+end
 @inline id(self::BufferBase)::GLuint = self._id
 @inline size(self::BufferBase)::Int = self._size
 
@@ -50,7 +52,7 @@ end
 end
 
 @inline function upload!(self::BufferBase{T}, data::AbstractVector{T})::Bool where {T}
-    if length(data) == 0 return end
+    if length(data) == 0 return false end
     glNamedBufferSubData(self._id, 0, length(data) * sizeof(T), data)
     return false
 end

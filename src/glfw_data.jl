@@ -11,6 +11,7 @@ mutable struct GLFWData
         GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 4)
         GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 6)
         GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE);
+        GLFW.WindowHint(GLFW.OPENGL_DEBUG_CONTEXT, true)
         
         window = GLFW.CreateWindow(shrd._width,shrd._height,shrd._name)
 

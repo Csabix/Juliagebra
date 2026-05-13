@@ -1,7 +1,7 @@
 flip!(b::Bool) = !b
 
 mutable struct Peripherals
-    _keyToFlip::Dict
+    _keyToFlip::Dict{Enum{Int32}, Function}
     _forwardHeld::Bool
     _backwardHeld::Bool
     _leftHeld::Bool

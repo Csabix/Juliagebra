@@ -2,53 +2,53 @@
 # ! BufferArray
 # ? ---------------------------------
 
-struct BufferArray{T} <: OpenGLWrapper where {T <: Tuple{Vararg{Buffer}}}
+struct BufferArray{T <: Tuple{Vararg{BufferBase}}} <: OpenGLWrapper
     _vbos::T
     _vao::VertexArray
 
-    function BufferArray{T}() where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        buffers = BufferBase[]
-        sizehint!(buffers, length(T.parameters))
-        for Type in T.parameters
-            push!(buffers, Buffer{Type}())
-        end
-
+    function BufferArray{T}(attributes::Union{Nothing, AbstractArray} = nothing) where {T <: Tuple{Vararg{BufferBase}}}
+        buffers = map(B -> B(), tuple(T.parameters...))
+        
         vao = VertexArray()
-        bind_buffers!(vao, buffers)
-
-        buffer_tuple = Tuple(buffers)
-        return new{typeof(buffer_tuple)}(buffer_tuple, vao)
-    end
-    function BufferArray{T}(buffer_types...) where {T<:Tuple{Vararg{Union{StaticArray,Real}}}}
-        buffers = BufferBase[]
-        sizehint!(buffers, length(T.parameters))
-        for (index, Type) in enumerate(T.parameters)
-            push!(buffers, buffer_types[index]{Type}())
+        
+        if isnothing(attributes)
+            bind_buffers!(vao, buffers)
+        else
+            bind_buffers!(vao, buffers, attributes)
         end
-
-        vao = VertexArray()
-        bind_buffers!(vao, buffers)
-
-        buffer_tuple = Tuple(buffers)
-        return new{typeof(buffer_tuple)}(buffer_tuple, vao)
+        
+        return new{T}(buffers, vao)
     end
 end
 
 function destroy!(self::BufferArray)
     destroy!(self._vao)
-    destroy!.(self._vbos)
+    foreach(destroy!,self._vbos)
 end
 
 Base.length(self::BufferArray)::Int = return length(self._vbos[1])
 draw(self::BufferArray,mode::GLuint) = (activate(self);glDrawArrays(mode,0,length(self)))
-activate(self::BufferArray) = activate(self._vao)
+draw(self::BufferArray,mode::GLuint,count::GLsizei) = (activate(self);glDrawArrays(mode,0,count))
+activate(self::BufferArray)::Nothing = activate(self._vao)::Nothing
 
 Base.getindex(self::BufferArray, index::Int)::BufferBase = self._vbos[index]
 buffer_resized(self::BufferArray, index::Int) = rebind_buffer!(self._vao,index,self._vbos[index])
 
-reserve!(self::BufferArray, index, count, flags) = vao_buffer_method!(self._vao, self._vbos[index], index, reserve!, count, flags)
-upload!(self::BufferArray, index, data, flags)   = vao_buffer_method!(self._vao, self._vbos[index], index, upload!, data, flags)
-upload!(self::BufferArray, index, data)          = vao_buffer_method!(self._vao, self._vbos[index], index, upload!, data)
+function reserve!(self::BufferArray, index, count, flags)
+    if reserve!(self._vbos[index], count, flags)
+        rebind_buffer!(self._vao, index, self._vbos[index])
+    end
+end
+function upload!(self::BufferArray, index, data, flags)
+    if upload!(self._vbos[index], data, flags)
+        rebind_buffer!(self._vao, index, self._vbos[index])
+    end
+end
+function upload!(self::BufferArray, index, data)
+    if upload!(self._vbos[index], data)
+        rebind_buffer!(self._vao, index, self._vbos[index])
+    end
+end
 
 # ? ---------------------------------
 # ! IndexedBufferArray
@@ -79,7 +79,8 @@ end
 
 Base.length(self::IndexedBufferArray)::Int = return length(self._buffer_array)
 draw(self::IndexedBufferArray,mode::GLuint) = (activate(self);glDrawElements(mode,length(self._ebo),GL_UNSIGNED_INT,C_NULL))
-activate(self::IndexedBufferArray) = activate(self._buffer_array)
+draw(self::IndexedBufferArray,mode::GLuint,count::GLsizei) = (activate(self);glDrawElements(mode,count,GL_UNSIGNED_INT,C_NULL))
+activate(self::IndexedBufferArray)::Nothing = activate(self._buffer_array)::Nothing
 
 Base.getindex(self::IndexedBufferArray, index::Int)::BufferBase = self._buffer_array[index]
 Base.getindex(self::IndexedBufferArray, ::Val{:index})::BufferBase = self._ebo
@@ -93,6 +94,19 @@ reserve!(self::IndexedBufferArray, index, count, flags) = reserve!(self._buffer_
 upload!(self::IndexedBufferArray, index, data, flags)   = upload!(self._buffer_array, index, data, flags)
 upload!(self::IndexedBufferArray, index, data)          = upload!(self._buffer_array, index, data)
 
-reserve_index!(self::IndexedBufferArray, count, flags) = vao_ebo_method!(self._buffer_array._vao, self._ebo, reserve!, count, flags)
-upload_index!(self::IndexedBufferArray, data, flags)   = vao_ebo_method!(self._buffer_array._vao, self._ebo, upload!, data, flags)
-upload_index!(self::IndexedBufferArray, data)          = vao_ebo_method!(self._buffer_array._vao, self._ebo, uplodad!, data)
+function reserve_index!(self::IndexedBufferArray, count, flags)
+    if reserve!(self._ebo, count, flags)
+        rebind_ebo!(self._buffer_array._vao, self._ebo)
+    end
+    vao_ebo_method!(self._buffer_array._vao, self._ebo, reserve!, count, flags)
+end
+function upload_index!(self::IndexedBufferArray, data, flags)
+    if upload!(self._ebo, data, flags)
+        rebind_ebo!(self._buffer_array._vao, self._ebo)
+    end
+end
+function upload_index!(self::IndexedBufferArray, data)
+    if uplodad!(self._ebo, data)
+        rebind_ebo!(self._buffer_array._vao, self._ebo)
+    end
+end

@@ -6,8 +6,19 @@ mutable struct Dependent
     _graphID::Int                       
     _graphParents::Vector{<:DependentDNA} # ? Who do I Depend on?
     _entryNodes::Vector{Any}
-    _dependentChain::DependentChain # ? Who Depends on me (collectively)?
+    _schedule::Schedule # ? Who Depends on me (collectively)?
     _callback::Function
+
+    function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
+        schedule = Schedule()
+        
+        _graphParents = copy(graphParents)
+        @assert allunique(_graphParents) "Dependent parents have duplicates!"
+
+        entryNodes = Vector{Any}(undef,length(_graphParents))
+    
+        new(0,_graphParents,entryNodes,schedule,callback)
+    end
 end
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
@@ -15,43 +26,24 @@ _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for 
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
-getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID - ID_LOWER_BOUND
-getChain(self::DependentDNA) = return _Dependent_(self)._dependentChain
+getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID
+getSchedule(self::DependentDNA) = return _Dependent_(self)._schedule
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 
-function _setEntryNodes(self::Dependent)
-    entryNodes = self._entryNodes
-    parents = self._graphParents
+function _isUnbuilt(self::Dependent)::Bool
+    return (self._graphID == 0)
+end
+isUnbuilt(self::DependentDNA)::Bool = return _isUnbuilt(_Dependent_(self))
+
+function setEntryNodes(self::DependentDNA)
+    d::Dependent = _Dependent_(self)
+    entryNodes = d._entryNodes
+    parents = d._graphParents
 
     for i in eachindex(parents)
         entryNodes[i] = evalCallbackDpEntry(parents[i])
     end
 end
-
-function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
-    dependentChain = DependentChain()
-    entryNodes = Vector{Any}(undef,length(graphParents))
-    
-    self = Dependent(0,graphParents,entryNodes,dependentChain,callback)
-    _setEntryNodes(self)
-
-    return self
-end
-
-function Dependent(plan::PlanDNA)
-    
-    graphParents = Vector{DependentDNA}()
-    callback = _Plan_(plan)._callback
-
-    for parent in _Plan_(plan)._graphParents
-        push!(graphParents,_Plan_(parent)._dependent)
-    end
-    
-    return Dependent(callback,graphParents)
-end
-
-evalGraph(self::DependentDNA) = evalChain(getChain(self))
-setEntryNodes(self::DependentDNA) = _setEntryNodes(_Dependent_(self))
 
 beforeNodeEval(self::DependentDNA) = setEntryNodes(self)
 onNodeEval(self::DependentDNA) = error("Missing \"onNodeEval\" for subclass of DependentDNA")

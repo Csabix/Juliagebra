@@ -3,30 +3,38 @@
 # ! PointDependent
 # ? ---------------------------------
 
+const AXIS_NONE::UInt8 = 0x0
+const AXIS_X::UInt8    = 0x1
+const AXIS_Y::UInt8    = 0x2
+const AXIS_Z::UInt8    = 0x4
+const AXIS_FULL::UInt8 = 0x7
+export AXIS_NONE, AXIS_X, AXIS_Y, AXIS_Z, AXIS_FULL
+
 mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
-    _coord::Vec3D 
+    _coord::Vec3D
+    _color::UInt32
+    _style::UInt8
+    _size::UInt8
+    _constraints::UInt8
 
     # YELLOW Thread
-    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA})
-        renderedDependent = RenderedDependent(callback,dependents)
+    function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},
+                            color::UInt32,style::UInt8,size::UInt8,axis_constraint::UInt8)
+        dependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(renderedDependent,coord)
+        new(dependent,coord,color,style,UInt8(size),axis_constraint)
     end
 end
 
 _RenderedDependent_(self::PointDependent)::RenderedDependent = return self._renderedDependent
 Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(string(length(_Dependent_(self)._graphParents))) - $(string(length(_Dependent_(self)._graphChain)))]($(self._x),$(self._y),$(self._z))"
 
-function set(self::PointDependent,x::Float64,y::Float64,z::Float64)
-    self._coord = Vec3D(x,y,z)
-    evalGraph(self)
-end
-
 # YELLOW Thread
 # RED Thread
 onNodeEval(self::PointDependent) = evalCallbackDp(self)
 
+Base.eltype(dependent::PointDependent)::DataType = Vec3D
 evalCallbackDpEntry(self::PointDependent)::Vec3D = self._coord
 
 evalCallbackDpReturn(self::PointDependent,value) = self._coord = Vec3D(value)
@@ -37,125 +45,70 @@ evalCallbackDpReturn(self::PointDependent,value::Vec3D) = self._coord = value
 evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
 # ? ---------------------------------
-# ! PointRenderer
+# ! Points
 # ? ---------------------------------
 
-mutable struct PointRenderer <:RendererDNA{PointDependent}
+mutable struct Points <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
-
-    _shader_id::ShaderProgram
-    _shader_opaque::ShaderProgram
-    _buffer::BufferArray
-    
-    _coords::Vector{Vec3F}
-    _ids::Vector{Float32}
+    _renderers::PrimitiveRenderers
+    _refs::Vector{UInt32}
 
     # GREEN Thread
-    function PointRenderer(context::OpenGLData) 
-        shader_id = ShaderProgram(["point/point_id.vert","point/point_id.frag"],["VP"])
-        shader_opaque = ShaderProgram(["point/point.vert","point/point.frag"],["VP","selectedID","pickedID","lightDirSideView"])
+    function Points(context::OpenGLData)
         renderer = Renderer{PointDependent}(context)
-
-        buffer = BufferArray{Tuple{Vec3F,Float32}}(MappedBuffer,Buffer)
-        coords = Vector{Vec3F}()
-        ids    = Vector{Float32}()
-
-        new(
-            renderer,
-            shader_id,shader_opaque,
-            buffer,
-            coords,
-            ids)
+        refs = Vector{UInt32}()
+        new(renderer, context._renderers, refs)
     end
 end
 
-_Renderer_(self::PointRenderer) = return self._renderer
-Base.string(self::PointRenderer) = return "PointRenderer($(length(self._ids)))"
+_Renderer_(self::Points) = return self._renderer
+Base.string(self::Points) = return "Points($(length(self._refs)))"
 
 # GREEN Thread
-function added!(self::PointRenderer,point::PointDependent)
-    aID = Float32(getGraphID(point) + ID_LOWER_BOUND)
-    coord = point._coord
-    
-    push!(self._coords,Vec3F(coord))
-    push!(self._ids,Float32(aID))
+function added!(self::Points,point::PointDependent)
+    aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
+    ref = add!(self._renderers.point,Vec3F(point._coord),point._color,point._style,point._size,aID)
+    push!(self._refs, ref)
 end
 
 # GREEN Thread
-function addedAll!(self::PointRenderer)
-    upload!(self._buffer,1,self._coords,0)
-    upload!(self._buffer,2,self._ids,0)
+function sync!(self::Points,point::PointDependent)
+    ref = self._refs[getObserverID(point)]
+    update_coords!(self._renderers.point,ref,Vec3F(point._coord))
 end
 
 # GREEN Thread
-function sync!(self::PointRenderer,point::PointDependent)
-    id = getObserverID(point)
-    coord = point._coord
-
-    self._coords[id] = Vec3F(coord)
-end
-
-# GREEN Thread
-function syncAll!(self::PointRenderer)
-    @time_cpu_begin Dependent Point
-    wait(self._buffer[1])
-    copyto!(self._buffer[1],self._coords)
-    @time_cpu_end Dependent Point
-end
-
-function id_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    activate(self._shader_id)
-    uniform(self._shader_id,"VP",vp)
-    @time_gpu_begin Dependent Point ID_PASS
-    draw(self._buffer,GL_POINTS)
-    @time_gpu_end Dependent Point ID_PASS
-    return nothing
-end
-
-function opaque_pass!(self::PointRenderer,vp::Mat4T{Float32},cam::Camera,shrd::SharedData)::Nothing
-    (_, view, _) = get_matrices(cam)
-    (_, side_light) = get_lights(cam)
-
-    activate(self._shader_opaque)
-    uniform(self._shader_opaque,"VP",vp)
-    uniform(self._shader_opaque,"selectedID",shrd._selectedID)
-    uniform(self._shader_opaque,"pickedID",shrd._pickedID)
-    uniform(self._shader_opaque,"lightDirSideView", view[1:3,1:3] * side_light)
-    @time_gpu_begin Dependent Point OPAQUE_PASS
-    draw(self._buffer,GL_POINTS)
-    @time_gpu_end Dependent Point OPAQUE_PASS
-    lock(self._buffer[1])
-    return nothing
-end
-
-is_occluder(self::PointRenderer)::Bool = false
-
-# GREEN Thread
-function destroy!(self::PointRenderer) 
-    destroy!(self._shader_id)
-    destroy!(self._shader_opaque)
-    destroy!(self._buffer)
-end
+function destroy!(self::Points) end
 
 # YELLOW Thread
-Dependent2Observer(app::AppDNA,::PointDependent) = getOpenGL(app)._renderers[4]
+Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_POINTS]
 
 # ? ---------------------------------
 # ! Point
 # ? ---------------------------------
 
 # YELLOW Thread
-Point(x::Real,y::Real,z::Real)::PointDependent =
-build!(PointDependent(() -> (return Vec3D(x,y,z)),Vector{DependentDNA}()))
+function Point(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25,axis_constraint=AXIS_NONE)
+    (c,s) = parse_point_color_style(color_style,color,style)
+    Build!(PointDependent(callback,dependents,c,s,round(UInt8,size),axis_constraint))
+end
 
 # YELLOW Thread
-Point(callback::Function,dependents::Vector{<:DependentDNA}) = 
-build!(PointDependent(callback,dependents))
+Point(x::Real,y::Real,z::Real,color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y|AXIS_Z)::PointDependent =
+Point(() -> Vec3D(x,y,z),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
+
+Point(x::Real,y::Real,color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y)::PointDependent =
+Point(() -> Vec3D(x,y,0.0),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
 
 # YELLOW Thread
-macro Point(callback::Expr)
+macro Point(callback::Expr, args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size, :axis_constraint), args...)
     callback = _validate_callback_expr(callback, 0)
-    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point)
+    return _create_ctor_wrapper(callback, __module__, Juliagebra.Point,
+                                positional_args, kw_args)
 end
 
 export Point

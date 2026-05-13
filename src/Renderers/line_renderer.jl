@@ -14,8 +14,6 @@ function get_type_reversed(line_type::UInt8)::Tuple{UInt8,Bool}
     return line_type & ~mask, (line_type & mask) == mask
 end
 
-const _LINE_TYPE_BEHIND = UInt8[DASHED, DOTTED, DOTTED, DOTTED, DOTTED, DASHED]
-
 @bitflag LinePropertyUpdate::UInt8 begin
     _LINE_PROP_NONE        = 0x0
     _LINE_PROP_COORD       = 0x1
@@ -33,6 +31,7 @@ mutable struct LineRenderer
 
     shader_predraw::ShaderProgram
     shaders_opaque::Vector{ShaderProgram}
+    shaders_behind_opaque::Vector{ShaderProgram}
     shaders_transparent::Vector{ShaderProgram}
 
     # Static
@@ -85,9 +84,11 @@ mutable struct LineRenderer
 
         shader_predraw = ShaderProgram(["renderers/line/line.comp"],["offset"])
         shaders_opaque = Vector{ShaderProgram}()
+        shaders_behind_opaque = Vector{ShaderProgram}()
         shaders_transparent = Vector{ShaderProgram}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
         for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
+        for type in types push!(shaders_behind_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line_behind_opaque.frag",[type])])) end
         for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])])) end
         
         # Static
@@ -136,7 +137,7 @@ mutable struct LineRenderer
         gpu_gpu_sync_dynamic = C_NULL
 
         return new(updated,emptyVAO,
-            shader_predraw,shaders_opaque,shaders_transparent,
+            shader_predraw,shaders_opaque,shaders_behind_opaque,shaders_transparent,
             ranges,draw_ranges,
             coords_sizes,color_style,
             distances,
@@ -309,6 +310,7 @@ function destroy!(self::LineRenderer)::Nothing
     destroy!(self.emptyVAO)
     destroy!(self.shader_predraw)
     foreach(destroy!,self.shaders_opaque)
+    foreach(destroy!,self.shaders_behind_opaque)
     foreach(destroy!,self.shaders_transparent)
 
     destroy!(self.distance_buffer_in)
@@ -714,8 +716,7 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges[type]
         if count == 0 continue end
-        behind_type = Int(_LINE_TYPE_BEHIND[type])
-        activate(self.shaders_opaque[behind_type])
+        activate(self.shaders_behind_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end
@@ -730,8 +731,7 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     for type in 1:_LINE_TYPE_COUNT
         (first,count) = self.draw_ranges_dynamic[type]
         if count == 0 continue end
-        behind_type = Int(_LINE_TYPE_BEHIND[type])
-        activate(self.shaders_opaque[behind_type])
+        activate(self.shaders_behind_opaque[type])
         glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
     end
     end

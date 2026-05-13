@@ -32,7 +32,7 @@ for stype in segment_types
     for i in 1:2
         pt_a = Point(rand_coord(), rand_coord(), rand_coord())
         pt_b = Point(rand_coord(), rand_coord(), rand_coord())
-        Segment(pt_a, pt_b, type=stype,width=14.0f0)
+        Segment(pt_a, pt_b, style=stype,size=14.0f0)
     end
 end
 

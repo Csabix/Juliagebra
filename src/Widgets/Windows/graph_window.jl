@@ -203,6 +203,7 @@ function _renderWorker(self::GraphWindow, idx::Int, model::ModelDNA)
 
         plotIdx = input1i(self._workerPlotIdx[idxx], "##plotIdx$(idx)" , 1, 10)
         self._workerPlotIdx[idxx] = !isnothing(plotIdx) ? clamp(plotIdx, 0, length(_ids)-1) : clamp(self._workerPlotIdx[idxx], 0, length(_ids)-1)
+        # TODO: Crashes if Graph was Emptied before.
         d::DependentDNA = getDependent(getGraph(model),_ids[self._workerPlotIdx[idxx]+1])
         
         txtStr = replace("$(typeof(d))",r"Juliagebra\.|JuliaGLM\." => "")

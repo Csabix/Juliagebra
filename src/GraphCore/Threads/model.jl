@@ -92,17 +92,40 @@ Decide at the beginning of the frame, which state the model is in.
 """
 function decideState(self::Model)::ModelState
     if !isFinished(self._scheduler)
-        # ? I still have the lock from ViewingState.
+        @assert islocked_by_model(self._builder) "Lock lost by Model in EvalingState!"
+        
+        # ? I still have the lock from ViewingState or EvalingState.
+        
         return EvalingState()
-    elseif !isempty(self._adder)
-        # ? Adder still has elements, should handle thoose.
+    elseif islocked_by_model(self._builder)
+        
+        # ? Scheduler was unifinished at end of frame, but finished at decideState.
+        # ? Should unlock Builder.
+
+        unlock_by_model(self._builder)
+    end
+    
+    if !isempty(self._adder) 
+        @assert !islocked_by_model(self._builder) "Builder can't be locked by Model in BuildingState!"
+
+        # ? Adder still has elements, should handle thoose. 
+        
         return BuildingState()
-    elseif trylock(self._builder)
-        # ? locked succesfully, Builder is stopped for this frame,
-        # ? unlock Builder at the end of the frame.
+    end
+    
+    # ? Should fight for the lock.
+    if trylock_by_model(self._builder)
+        @assert islocked_by_model(self._builder) "Model didn't get Builder's Lock!"
+        
+        # ? Model got Lock from Builder.
+        # ? Unlock Builder at the end of the frame.
+        
         return ViewingState()
     else
-        # ? failed locking, Builder must be building.
+        @assert !islocked_by_model(self._builder) "Lock must be owned by Builder!"
+        
+        # ? Failed locking, Builder must be building.
+        
         return BuildingState()
     end
 end
@@ -224,8 +247,8 @@ function endState(self::Model, state::ViewingState)
             end
         end
 
-        # ? Let Builder process Dependents. Next state for sure will be ViewingState.
-        unlock(self._builder)
+        # ? Let Builder process Dependents.
+        unlock_by_model(self._builder)
     end
 end
 
@@ -254,7 +277,7 @@ function endState(self::Model, state::EvalingState)
             end
         end
 
-        # ? Let Builder process Dependents. Next state for sure will be ViewingState.
-        unlock(self._builder)
+        # ? Let Builder process Dependents.
+        unlock_by_model(self._builder)
     end
 end

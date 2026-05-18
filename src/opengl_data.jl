@@ -32,6 +32,7 @@ end
 
 mutable struct OpenGLData <: ObserverBuilderDNA
     _shrd::SharedData
+    _pipeline_loader::PipelineLoader
     _widgets::Vector{OpenGLWidgetDNA}
 
     _observers::Vector{RendererDNA}
@@ -83,6 +84,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         glStencilMask(0xFF);
         glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
         
+        pipeline_loader = PipelineLoader()
         widgets = Vector{OpenGLWidgetDNA}()
         gizmoGL = GizmoGL()
         orthoGizmoGL = OrthoGizmoGL()
@@ -150,7 +152,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(shrd,widgets,observers,renderers,
+        self = new(shrd,pipeline_loader,widgets,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,final_combiner,highlighter,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
@@ -402,6 +404,7 @@ end
 
 
 function destroy!(self::OpenGLData)
+    destroy!(self._pipeline_loader)
     destroy_dependent_observers(self._observers)
     destroy!(self._renderers)
 

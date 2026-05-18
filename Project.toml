@@ -21,6 +21,9 @@ MacroTools = "0.5.16"
 ThreadPinning = "1.0.2"
 assimp_jll = "5.2.5"
 
+[sources]
+JuliaGLM = {url = "https://github.com/Csabix/JuliaGLM", rev="glsl-functions"}
+
 [extras]
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

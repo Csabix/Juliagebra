@@ -10,7 +10,25 @@ For some examples **DifferentialEquations** package is needed, which may downgra
 
 Juliagebra depends on a package called [JuliaGLM](https://github.com/Csabix/JuliaGLM), which is currently not available in the official Julia package repository.
 
-Because of this, it is recommended, that you clone [JuliaGLM](https://github.com/Csabix/JuliaGLM) from it's official repository, then by ``` develop ```-ing it, you tell Julia, where this package is.
+For 1.11+ versions of Julia, this doesn't require any additional work thanks to the new `[sources]` feature of [Project.toml](Project.toml), you can set up your Juliagebra environment by simply running:
+```bash
+$ julia
+julia> ]
+pkg> activate .
+pkg> instantiate
+```
+
+Or, alternatively, you can do the same directly from the Julia REPL or a script file via the `Pkg` module:
+
+```julia
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+```
+
+If you already have a local `Manifest.toml` file, you might also need to run `resolve` before `instantiate`.
+
+With earlier Julia versions (or if for some reason Julia refuses to download JuliaGLM automatically), it is recommended that you clone [JuliaGLM](https://github.com/Csabix/JuliaGLM) from its official repository, then by ``` develop ```-ing it, you tell Julia, where this package is. See the [Add local packages](#add-local-packages) section for details.
 
 ## Examples
 

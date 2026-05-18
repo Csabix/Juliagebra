@@ -21,6 +21,8 @@ mutable struct App <: AppDNA
     
     _model::Model
 
+    _asset_watcher::Union{Nothing,AssetWatcher}
+
     function App(
         name::String="Juliagebra",
         width::Int=1280,
@@ -42,8 +44,13 @@ mutable struct App <: AppDNA
         commander = Commander()
         
         model = Model()
+
+        asset_watcher::Union{Nothing,AssetWatcher} = nothing
+        if haskey(ENV,"JULIAGEBRA_GLSLANG_PATH") || haskey(ENV,"JULIAGEBRA_SLANG_PATH")
+            asset_watcher = AssetWatcher()
+        end
                 
-        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model)
+        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,asset_watcher)
     end
 end
 
@@ -202,6 +209,7 @@ function play!(self::App)
         yield()
         perf_get_results()
         updateDeltaTime!(self)
+        if self._asset_watcher !== nothing update!(self._asset_watcher,self._shrd._deltaTime) end
         updateCam!(self)
         
         model::Model = self._model

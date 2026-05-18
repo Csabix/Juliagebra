@@ -138,6 +138,7 @@ include("Widgets/Windows/graph_window.jl")
 
 include("App/starter.jl")
 include("App/commander.jl")
+include("asset_watcher.jl")
 include("app.jl")
 
 

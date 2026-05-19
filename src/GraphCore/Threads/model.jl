@@ -141,21 +141,6 @@ function endState(self::Model, state::BuildingState)
     return nothing
 end
 
-
-global _mlines = [
-    NaN64,
-    NaN64,
-    NaN64,
-    NaN64,
-    NaN64
-]
-
-_mline(::SingleFrameSingleThread) = 1
-_mline(::SingleFrameTwoThreads) = 2
-_mline(::SingleFrameMultipleThreads) = 3
-_mline(::MultipleFramesSingleThread) = 4
-_mline(::MultipleFramesMultipleThreads) = 5
-
 # ? ViewingState
 
 function update!(self::Model, ::ViewingState)
@@ -174,7 +159,8 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
-            _mlines[_mline(mode)] = _cputime(block)
+            # TODO: Save and Display theese times for benchmarks.
+            ccputime = _cputime(block)
 
         elseif (mode isa SingleFrameTwoThreads)
             @time_cpu_begin Graph_update
@@ -187,7 +173,8 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
-            _mlines[_mline(mode)] = _cputime(block)
+            # TODO: Save and Display theese times for benchmarks.
+            ccputime = _cputime(block)
 
         elseif (mode isa SingleFrameMultipleThreads)
             @time_cpu_begin Graph_update
@@ -200,7 +187,8 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
-            _mlines[_mline(mode)] = _cputime(block)
+            # TODO: Save and Display theese times for benchmarks.
+            ccputime = _cputime(block)
 
         elseif (mode isa MultipleFramesSingleThread)
             @time_cpu_begin Graph_update
@@ -234,7 +222,8 @@ function endState(self::Model, state::ViewingState)
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update
-                _mlines[_mline(self._scheduler._mode)] = _cputime(block)
+                # TODO: Save and Display theese times for benchmarks.
+                ccputime = _cputime(block)
             end
         end
 
@@ -260,7 +249,8 @@ function endState(self::Model, state::EvalingState)
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update
-                _mlines[_mline(self._scheduler._mode)] = _cputime(block)
+                # TODO: Save and Display theese times for benchmarks.
+                ccputime = _cputime(block)
             end
         end
 

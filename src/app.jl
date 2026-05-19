@@ -226,12 +226,7 @@ function play!(self::App)
     if (implicitApp === self)
         implicitApp = nothing
     end
-
-    #global EVAL_PATH
-    #open(EVAL_PATH, "a") do io
-    #    println(io, join(_mlines,","))        
-    #end
-
+    
 end
 
 function update!(self::App, state::ViewingState, iconified::Bool)

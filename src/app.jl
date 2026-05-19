@@ -205,55 +205,17 @@ function play!(self::App)
         updateCam!(self)
         
         model::Model = self._model
-        state::ModelState = decideState(model)
-        # ? Begin model operations with decided state.
-        beginState(model,state)
-
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
 
-        if state isa ViewingState
-            # ? Handle commands in the command queue.
-            handleCommands!(self)
-            # ? Schedule a PointDependent.
-            updateGizmo!(self)
-            # ? Schedule ToggleDependents, SliderDependents, TextBoxDependents and StepperDependents.
-            update!(self._imgui,self)
-            
-            # ? Do sync! and syncAll! calls.
-            update!(model,state)
-            
-            if !iconified
-                # ? Render scene and dock.
-                update!(self._opengl,self._cam)
-                render!(self._imgui,self)
-                update!(self._shrd)
-            end
-        elseif state isa BuildingState
-            # ? Do added! and addedAll! calls.
-            update!(model,state)
-
-            if !iconified
-                # ? Render scene and loading bar.
-                update!(self._opengl,self._cam)
-                renderBuildingState(self._imgui,self)
-
-                update!(self._shrd)
-            end
-        elseif state isa EvalingState
-            # ? Do sync! and syncAll! calls.
-            update!(model, state)
-
-            if !iconified
-                # ? Render scene and dock.
-                update!(self._opengl,self._cam)
-                render!(self._imgui,self)
-                update!(self._shrd)
-            end
-
-        end
+        # ? Begin model operations with decided state.
+        state::ModelState = decideState(model)
+        
+        # ? Do model operations with state.
+        update!(self,state,iconified)
 
         # ? End model state.
         endState(model,state)
+
         GLFW.SwapBuffers(self._glfw._window)
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
@@ -270,6 +232,55 @@ function play!(self::App)
     #    println(io, join(_mlines,","))        
     #end
 
+end
+
+function update!(self::App, state::ViewingState, iconified::Bool)
+    model::Model = self._model
+    
+    # ? Handle commands in the command queue.
+    handleCommands!(self)
+    # ? Schedule a PointDependent.
+    updateGizmo!(self)
+    # ? Schedule ToggleDependents, SliderDependents, TextBoxDependents and StepperDependents.
+    update!(self._imgui,self)
+            
+    # ? Do sync! and syncAll! calls.
+    update!(model,state)
+            
+    if !iconified
+        # ? Render scene and dock.
+        update!(self._opengl,self._cam)
+        render!(self._imgui,self)
+        update!(self._shrd)
+    end
+end
+
+function update!(self::App, state::BuildingState, iconified::Bool)
+    model::Model = self._model
+    
+    # ? Do added! and addedAll! calls.
+    update!(model,state)
+
+    if !iconified
+        # ? Render scene and loading bar.
+        update!(self._opengl,self._cam)
+        renderBuildingState(self._imgui,self)
+        update!(self._shrd)
+    end
+end
+
+function update!(self::App, state::EvalingState, iconified::Bool)
+    model::Model = self._model
+    
+    # ? Do sync! and syncAll! calls.
+    update!(model, state)
+
+    if !iconified
+        # ? Render scene and dock.
+        update!(self._opengl,self._cam)
+        render!(self._imgui,self)
+        update!(self._shrd)
+    end
 end
 
 function init!(self::App)

@@ -86,9 +86,8 @@ end
 
 """
 Decide at the beginning of the frame, which state the model is in.
-- Call beginState after it.
 - update! of the model is also state dependent.
-- This state is carried until the end of endState.
+- This state is carried until the end of endState call.
 """
 function decideState(self::Model)::ModelState
     if !isFinished(self._scheduler)
@@ -134,10 +133,6 @@ end
 
 # ? BuildingState
 
-function beginState(self::Model, state::BuildingState)
-    return nothing
-end
-
 function update!(self::Model, ::BuildingState)
     processAvailable!(self._adder)
 end
@@ -162,10 +157,6 @@ _mline(::MultipleFramesSingleThread) = 4
 _mline(::MultipleFramesMultipleThreads) = 5
 
 # ? ViewingState
-
-function beginState(self::Model, state::ViewingState)
-    return nothing
-end
 
 function update!(self::Model, ::ViewingState)
     
@@ -253,10 +244,6 @@ function endState(self::Model, state::ViewingState)
 end
 
 # ? EvalingState
-
-function beginState(self::Model, state::EvalingState)
-    return nothing
-end
 
 function update!(self::Model, ::EvalingState)
     # ? Internal was processed in ViewingState, which started EvalingState.

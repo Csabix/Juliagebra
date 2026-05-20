@@ -46,7 +46,7 @@ mutable struct App <: AppDNA
         model = Model()
 
         asset_watcher::Union{Nothing,AssetWatcher} = nothing
-        if haskey(ENV,"JULIAGEBRA_GLSLANG_PATH") || haskey(ENV,"JULIAGEBRA_SLANG_PATH")
+        if haskey(ENV,"JULIAGEBRA_GLSLANG_PATH")
             asset_watcher = AssetWatcher()
         end
                 
@@ -209,7 +209,7 @@ function play!(self::App)
         yield()
         perf_get_results()
         updateDeltaTime!(self)
-        if self._asset_watcher !== nothing update!(self._asset_watcher,self._shrd._deltaTime) end
+        if self._asset_watcher !== nothing update!(self._asset_watcher,Float64(self._shrd._deltaTime)) end
         updateCam!(self)
         
         model::Model = self._model
@@ -286,7 +286,7 @@ function init!(self::App)
     end
     
     self._glfw = GLFWData(self._shrd)
-    self._opengl = OpenGLData(self._glfw,self._shrd)
+    self._opengl = OpenGLData(self._glfw,self._shrd,self._asset_watcher)
     setInputEvents(self._glfw._window,self) # Before call to ImGUI
     self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true

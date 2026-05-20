@@ -72,7 +72,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
     _camPos::Vec3F
 
     # GREEN Thread, runs this inside Init, after this construction can begin
-    function OpenGLData(::GLFWData,shrd::SharedData)
+    function OpenGLData(::GLFWData,shrd::SharedData,asset_watcher::Union{Nothing,AssetWatcher})
         c_debug_callback = @cfunction(debug_callback, Nothing, 
                                  (GLenum, GLenum, GLuint, GLenum, GLsizei, Ptr{GLchar}, Ptr{Cvoid}))
         glEnable(GL_DEBUG_OUTPUT)
@@ -85,6 +85,15 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
         
         pipeline_loader = PipelineLoader()
+        if haskey(ENV,"JULIAGEBRA_GLSLANG_PATH")
+            full_compile(pipeline_loader)
+            if asset_watcher !== nothing
+                set_file_changed_callback(asset_watcher,glsl_shader_extensions,get_glsl_update_callback(pipeline_loader))
+                set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
+                set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,get_glsl_include_update_callback(pipeline_loader))
+            end
+        end
+
         widgets = Vector{OpenGLWidgetDNA}()
         gizmoGL = GizmoGL()
         orthoGizmoGL = OrthoGizmoGL()
@@ -145,7 +154,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
 
         # ? It's empty because of "reset!".
         observers::Vector{RendererDNA} = RendererDNA[]
-        renderers = PrimitiveRenderers()
+        renderers = PrimitiveRenderers(pipeline_loader)
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))

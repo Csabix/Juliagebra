@@ -233,6 +233,15 @@ function create_graphics_pipeline!(loader::PipelineLoader;
     return Pipeline(nothing, nothing, handle, loader)
 end
 
+function create_compute_pipeline!(loader::PipelineLoader, comp::Union{ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}})::Pipeline
+    shader_data::Vector{ShaderData} = ShaderData[_parse_stage_data(GL_COMPUTE_SHADER,comp)]
+
+    handle::PipelineHandle = _insert_shader_data(loader, shader_data)
+    _compile(loader, handle)
+
+    return Pipeline(nothing, nothing, handle, loader)
+end
+
 function update!(loader::PipelineLoader)::Nothing
     for i in loader.needs_reload
         _compile(loader,i)

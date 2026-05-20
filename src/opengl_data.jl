@@ -88,6 +88,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         if haskey(ENV,"JULIAGEBRA_GLSLANG_PATH")
             full_compile(pipeline_loader)
             if asset_watcher !== nothing
+                watch_folder!(asset_watcher,pkgdir(@__MODULE__,"assets","shaders","src"))
                 set_file_changed_callback(asset_watcher,glsl_shader_extensions,get_glsl_update_callback(pipeline_loader))
                 set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
                 set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,get_glsl_include_update_callback(pipeline_loader))
@@ -365,6 +366,7 @@ end
 
 function update!(self::OpenGLData,cam::Camera)
     glCheckErrors(self)
+    update!(self._pipeline_loader)
 
     added_all!(self._renderers)
     sync_all!(self._renderers)

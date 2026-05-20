@@ -87,7 +87,7 @@ end;
 ParametricCurve(range(-pi,pi,30),[Point(0,2,0)],"g->") do t,p
     (t/pi,0,sin(t)) .+ p
 end;
-p = Point(0,3,0)
+p = Point(0,3,0);
 @ParametricCurve(range(-pi,pi,30),"m:") do t
     (t/pi,0,sin(t)) .+ p
 end;

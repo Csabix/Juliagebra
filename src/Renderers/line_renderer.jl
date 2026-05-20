@@ -30,9 +30,9 @@ mutable struct LineRenderer
     emptyVAO::VertexArray
 
     shader_predraw::ShaderProgram
-    shaders_opaque::Vector{ShaderProgram}
-    shaders_behind_opaque::Vector{ShaderProgram}
-    shaders_transparent::Vector{ShaderProgram}
+    shaders_opaque::Vector{Pipeline}
+    shaders_behind_opaque::Vector{Pipeline}
+    shaders_transparent::Vector{Pipeline}
 
     # Static
     ranges::Vector{Tuple{Int,Int,Int}}
@@ -78,18 +78,34 @@ mutable struct LineRenderer
     gpu_gpu_sync_dynamic::GLsync
 
     # GREEN Thread
-    function LineRenderer()
+    function LineRenderer(loader::PipelineLoader)
         updated = _LINE_PROP_NONE
         emptyVAO = VertexArray()
 
         shader_predraw = ShaderProgram(["renderers/line/line.comp"],["offset"])
-        shaders_opaque = Vector{ShaderProgram}()
-        shaders_behind_opaque = Vector{ShaderProgram}()
-        shaders_transparent = Vector{ShaderProgram}()
+        shaders_opaque = Vector{Pipeline}()
+        shaders_behind_opaque = Vector{Pipeline}()
+        shaders_transparent = Vector{Pipeline}()
         types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
-        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
-        for type in types push!(shaders_behind_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line_behind_opaque.frag",[type])])) end
-        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])])) end
+        #for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
+        for i in 0:(length(types) - 1) 
+            push!(shaders_opaque,create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag",Tuple{GLuint,GLuint}[(0,0),(1,GLuint(i))])
+            ))
+        end
+        for i in 0:(length(types) - 1) 
+            push!(shaders_behind_opaque,create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag",Tuple{GLuint,GLuint}[(0,1),(1,GLuint(i))])
+            ))
+        end
+        for i in 0:(length(types) - 1) 
+            push!(shaders_transparent,create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_transparent.frag",Tuple{GLuint,GLuint}[(0,0),(1,GLuint(i))])
+            ))
+        end
         
         # Static
 
@@ -309,9 +325,6 @@ end
 function destroy!(self::LineRenderer)::Nothing
     destroy!(self.emptyVAO)
     destroy!(self.shader_predraw)
-    foreach(destroy!,self.shaders_opaque)
-    foreach(destroy!,self.shaders_behind_opaque)
-    foreach(destroy!,self.shaders_transparent)
 
     destroy!(self.distance_buffer_in)
     destroy!(self.color_style_buffer_in)

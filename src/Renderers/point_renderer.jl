@@ -159,16 +159,28 @@ end
 Base.length(points_data::PointsData)::Int = length(points_data.coords)
 
 mutable struct PointRenderer
-    shader::ShaderProgram
-    shader_behind::ShaderProgram
+    shader::Pipeline
+    shader_behind::Pipeline
     points::Vector{PointsData}
     updates::Vector{PointPropertyUpdate}
 
-    function PointRenderer()
-        uniforms_opaque = String["selected_id","picked_id","light_dir_side_view"]
-        uniforms_behind = String["selected_id","picked_id"]
-        shader = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag")], uniforms_opaque)
-        shader_behind = ShaderProgram(["renderers/point/point.vert",("renderers/point/point.frag",["OPAQUE_BEHIND"])], uniforms_behind)
+    function PointRenderer(loader::PipelineLoader)
+        shader::Pipeline = create_graphics_pipeline!(loader;
+            vert = spv"renderers/point/point.vert",
+            frag = (spv"renderers/point/point.frag",Tuple{GLuint,GLuint}[(0,0)]))
+        shader_behind::Pipeline = create_graphics_pipeline!(loader;
+            vert = spv"renderers/point/point.vert",
+            frag = (spv"renderers/point/point.frag",Tuple{GLuint,GLuint}[(0,1)]))
+
+        shader_behind.set_state = () -> begin
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+        end
+        shader_behind.unset_state = () -> begin
+            glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+            glDisable(GL_BLEND)
+        end
         return new(shader, shader_behind, PointsData[PointsData()], PointPropertyUpdate[_POINT_PROP_NONE])
     end
 end
@@ -181,8 +193,6 @@ function reset!(self::PointRenderer)::Nothing
 end
 
 function destroy!(self::PointRenderer)::Nothing
-    destroy!(self.shader)
-    destroy!(self.shader_behind)
     foreach(destroy!,self.points)
     return nothing
 end
@@ -281,16 +291,7 @@ function sync_all!(self::PointRenderer)::Nothing
 end
 
 function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
-    (vp, v, p) = get_matrices(cam)
-    (_, side_light) = get_lights(cam)
-
-    side_light = v[SOneTo(3), SOneTo(3)] * side_light
-
     activate(self.shader)
-    uniform(self.shader,"selected_id", shrd._selectedID)
-    uniform(self.shader,"picked_id", shrd._pickedID)
-    uniform(self.shader,"light_dir_side_view", side_light)
-
     @time_gpu_begin Renderer Point
     for points_data in self.points
         if length(points_data.coords) != 0
@@ -299,29 +300,17 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     end
     @time_gpu_end Renderer Point
     lock(self.points[1].buffer[1])
+    deactivate(self.shader)
     return nothing
 end
 
 function behind_opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
-    (vp, v, p) = get_matrices(cam)
-    (_, side_light) = get_lights(cam)
-    side_light = v[SOneTo(3), SOneTo(3)] * side_light
-
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
-
     activate(self.shader_behind)
-    uniform(self.shader_behind,"selected_id", shrd._selectedID)
-    uniform(self.shader_behind,"picked_id", shrd._pickedID)
-
     for points_data in self.points
         if length(points_data.coords) != 0
             draw(points_data.buffer,GL_POINTS)
         end
     end
-
-    glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
-    glDisable(GL_BLEND)
+    deactivate(self.shader_behind)
     return nothing
 end

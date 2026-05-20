@@ -26,7 +26,7 @@ struct PrimitiveRenderers
     triangle::TriangleRenderer
 
     function PrimitiveRenderers(loader::PipelineLoader)
-        return new(PointRenderer(),LineRenderer(),SphereRenderer(),TriangleRenderer())
+        return new(PointRenderer(loader),LineRenderer(),SphereRenderer(),TriangleRenderer())
     end
 end
 

@@ -188,10 +188,10 @@ function _link_shaders(shaders::Vector{GLuint})::GLuint
     return prog
 end
 
-function _parse_stage_data(stage::GLuint, stage_data::ShaderSource)::ShaderData
+function _parse_stage_data(stage::GLuint, stage_data::ShaderGLSL)::ShaderData
     return ShaderData(stage,stage_data.spirv_path,nothing,nothing)
 end
-function _parse_stage_data(stage::GLuint, stage_data::Tuple{ShaderSource,Vector{Tuple{GLuint,GLuint}}})::ShaderData
+function _parse_stage_data(stage::GLuint, stage_data::Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}})::ShaderData
     locs = GLuint[]
     vals = GLuint[]
     for (loc,val) in stage_data[2]
@@ -308,7 +308,7 @@ function _to_spirv(loader::PipelineLoader, shader::ShaderGLSL)::Nothing
     
     try
         mktemp() do depfile_path, depfile_io
-            run(`$(ENV["JULIAGEBRA_GLSLANG_PATH"]) -V $path -o $output_path --depfile $depfile_path`)
+            run(`$(ENV["JULIAGEBRA_GLSLANG_PATH"]) -G $path -o $output_path --depfile $depfile_path`)
             
             content = read(depfile_path, String)
             

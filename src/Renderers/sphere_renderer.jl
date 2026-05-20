@@ -1,8 +1,9 @@
 # GREEN Thread
 
 mutable struct SphereRenderer
-    shader_opaque::ShaderProgram
-    shader_transparent::ShaderProgram
+    shader_opaque::Pipeline
+    shader_transparent_front::Pipeline
+    shader_transparent_back::Pipeline
 
     center_radius_opaque::Vector{Vec4F}
     color_id_opaque::Vector{Vec2T{UInt32}}
@@ -17,12 +18,24 @@ mutable struct SphereRenderer
     updated_opaque::Bool
     updated_transparent::Bool
     
-    function SphereRenderer()
-        shader_opaque = ShaderProgram(["renderers/sphere/sphere.vert","renderers/sphere/sphere.frag"])
-        uniforms_transparent = String["near"]
-        shader_transparent = ShaderProgram(["renderers/sphere/sphere.vert",(("renderers/sphere/sphere_transparent.frag",["TRANSPARENT"]))], uniforms_transparent)
+    function SphereRenderer(loader::PipelineLoader)
+        shader_opaque = create_graphics_pipeline!(loader;
+            vert = spv"renderers/sphere/sphere.vert",
+            frag = spv"renderers/sphere/sphere.frag"
+        )
+        
+        shader_transparent_front = create_graphics_pipeline!(loader;
+            vert = spv"renderers/sphere/sphere.vert",
+            frag = (spv"renderers/sphere/sphere_transparent.frag",Tuple{GLuint,GLuint}[(0,reinterpret(GLuint,Float32(1.0)))])
+        )
+
+        shader_transparent_back = create_graphics_pipeline!(loader;
+            vert = spv"renderers/sphere/sphere.vert",
+            frag = (spv"renderers/sphere/sphere_transparent.frag",Tuple{GLuint,GLuint}[(0,reinterpret(GLuint,Float32(-1.0)))])
+        )
+
         return new(
-            shader_opaque, shader_transparent,
+            shader_opaque, shader_transparent_front, shader_transparent_back,
             Vector{Vec4F}(), Vector{Vec2T{UInt32}}(), Vector{Vec4F}(), Vector{Vec2T{UInt32}}(),
             MappedBuffer{Vec4F}(), Buffer{Vec2T{UInt32}}(), MappedBuffer{Vec4F}(), Buffer{Vec2T{UInt32}}(),
             false, false
@@ -52,8 +65,6 @@ function reset!(self::SphereRenderer)::Nothing
 end
 
 function destroy!(self::SphereRenderer)::Nothing
-    destroy!(self.shader_opaque)
-    destroy!(self.shader_transparent)
     destroy!(self.center_radius_buffer_opaque)
     destroy!(self.color_id_buffer_opaque)
     destroy!(self.center_radius_buffer_transparent)
@@ -132,16 +143,14 @@ end
 
 function transparent(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
     if isempty(self.center_radius_transparent) return nothing end
-
-    activate(self.shader_transparent)
-
+    
     bind_ssbo(self.center_radius_buffer_transparent,0)
     bind_ssbo(self.color_id_buffer_transparent,1)
 
     @time_gpu_begin Renderer Sphere Transparent
-    uniform(self.shader_transparent,"near",1.0f0)
+    activate(self.shader_transparent_front)
     glDrawArrays(GL_TRIANGLES,0,length(self.center_radius_transparent) * 6)
-    uniform(self.shader_transparent,"near",-1.0f0)
+    activate(self.shader_transparent_back)
     glDrawArrays(GL_TRIANGLES,0,length(self.center_radius_transparent) * 6)
     @time_gpu_end Renderer Sphere Transparent
     lock(self.center_radius_buffer_transparent)

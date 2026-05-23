@@ -352,12 +352,7 @@ function _widgets(self::OpenGLData,cam::Camera)
     glDisable(GL_BLEND)
 end
 
-function update!(self::OpenGLData,cam::Camera)
-    glCheckErrors(self)
-
-    added_all!(self._renderers)
-    sync_all!(self._renderers)
-
+function render_scene!(self::OpenGLData,cam::Camera)
     (vp, v, p) = get_matrices(cam)
     (cam_light, side_light) = get_lights(cam)
     
@@ -375,6 +370,16 @@ function update!(self::OpenGLData,cam::Camera)
     _behind_opaque(self,cam)
     _transparent(self,cam)
     _widgets(self,cam)
+end
+
+function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
+    glCheckErrors(self)
+
+    added_all!(self._renderers)
+    scene_change |= sync_all!(self._renderers)
+    if scene_change
+        render_scene!(self,cam)
+    end
 
     readID(self)
     glBindFramebuffer(GL_FRAMEBUFFER, 0)

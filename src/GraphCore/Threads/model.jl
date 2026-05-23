@@ -115,8 +115,8 @@ function beginState(self::Model, state::BuildingState)
     return nothing
 end
 
-function update!(self::Model, ::BuildingState)
-    processAvailable!(self._adder)
+function update!(self::Model, ::BuildingState)::Bool
+    return processAvailable!(self._adder)
 end
 
 function endState(self::Model, state::BuildingState)
@@ -144,9 +144,10 @@ function beginState(self::Model, state::ViewingState)
     return nothing
 end
 
-function update!(self::Model, ::ViewingState)
-    
+function update!(self::Model, ::ViewingState)::Bool
+    scene_change = false
     if !isempty(self._scheduler)
+        scene_change = true
         mode = self._scheduler._mode
 
         if (mode isa SingleFrameSingleThread)
@@ -208,6 +209,7 @@ function update!(self::Model, ::ViewingState)
             # ? Let Model step into next state, BuildingState.
         end
     end
+    return scene_change
 end
 
 function endState(self::Model, state::ViewingState)
@@ -235,9 +237,9 @@ function beginState(self::Model, state::EvalingState)
     return nothing
 end
 
-function update!(self::Model, ::EvalingState)
+function update!(self::Model, ::EvalingState)::Bool
     # ? Internal was processed in ViewingState, which started EvalingState.
-    processAvailableExternal!(self._synchronizer, self)
+    return processAvailableExternal!(self._synchronizer, self)
 end
 
 function endState(self::Model, state::EvalingState)

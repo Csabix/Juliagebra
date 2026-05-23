@@ -20,6 +20,7 @@ mutable struct App <: AppDNA
     _commander::Commander
     
     _model::Model
+    _scene_change::Bool
 
     function App(
         name::String="Juliagebra",
@@ -43,7 +44,7 @@ mutable struct App <: AppDNA
         
         model = Model()
                 
-        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model)
+        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
     end
 end
 
@@ -55,6 +56,10 @@ getShrd(self::App) = return self._shrd
 getCommander(self::App)::Commander = return self._commander
 getStarter(self::App)::Starter = return self._starter
 getModel(self::App)::Model = return self._model
+function sceneChanged(self::App)::Nothing
+    self._scene_change = true
+    return nothing
+end
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -140,17 +145,21 @@ function updateDeltaTime!(self::App)
     
 end
 
-function updateCam!(self::App)
+function updateCam!(self::App)::Bool
     update!(self._manipulator, self._shrd._deltaTime, self._glfw)
     self._opengl._camPos = self._cam._eye
     vp,v,p = get_matrices(self._cam)
-    
+    change = vp != self._opengl._vp
     self._opengl._vp = vp
     self._opengl._v  = v
     self._opengl._p  = p
+    return change
 end
 
 function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
+    old_selected = self._shrd._selectedGizmo
+    old_gizmo_enabled = self._shrd._gizmoEnabled
+    old_selected = self._shrd._selectedID
     mouse_capture = false
     if event.press
         if event.button == MOUSE_BUTTON_RIGHT
@@ -174,6 +183,9 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
     elseif event.button == MOUSE_BUTTON_LEFT
         self._shrd._selectedGizmo = 0
     end
+    self._scene_change |=   old_selected != self._shrd._selectedGizmo ||
+                            old_gizmo_enabled != self._shrd._gizmoEnabled
+                            old_selected != self._shrd._selectedID
     return mouse_capture
 end
 
@@ -202,7 +214,7 @@ function play!(self::App)
         yield()
         perf_get_results()
         updateDeltaTime!(self)
-        updateCam!(self)
+        self._scene_change |= updateCam!(self)
         
         model::Model = self._model
         state::ModelState = decideState(model)
@@ -220,32 +232,32 @@ function play!(self::App)
             update!(self._imgui,self)
             
             # ? Do sync! and syncAll! calls.
-            update!(model,state)
+            self._scene_change |= update!(model,state)
             
             if !iconified
                 # ? Render scene and dock.
-                update!(self._opengl,self._cam)
+                update!(self._opengl,self._cam,self._scene_change)
                 render!(self._imgui,self)
                 update!(self._shrd)
             end
         elseif state isa BuildingState
             # ? Do added! and addedAll! calls.
-            update!(model,state)
+            self._scene_change |= update!(model,state)
 
             if !iconified
                 # ? Render scene and loading bar.
-                update!(self._opengl,self._cam)
+                update!(self._opengl,self._cam,self._scene_change)
                 renderBuildingState(self._imgui,self)
 
                 update!(self._shrd)
             end
         elseif state isa EvalingState
             # ? Do sync! and syncAll! calls.
-            update!(model, state)
+            self._scene_change |= update!(model, state)
 
             if !iconified
                 # ? Render scene and dock.
-                update!(self._opengl,self._cam)
+                update!(self._opengl,self._cam,self._scene_change)
                 render!(self._imgui,self)
                 update!(self._shrd)
             end
@@ -254,6 +266,7 @@ function play!(self::App)
 
         # ? End model state.
         endState(model,state)
+        self._scene_change = false
         GLFW.SwapBuffers(self._glfw._window)
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)

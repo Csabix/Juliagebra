@@ -44,6 +44,7 @@ function handleCommand!(app::AppDNA, ::EmptySceneCommand)
     m::Model = getModel(app)
     g::DependentGraph = m._graph
     
+    sceneChanged(app)
     empty!(g)
     resetObservers!(o)
     resetObservers!(i)

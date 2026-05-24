@@ -47,13 +47,31 @@ struct ShaderData
     spirv_path::String
     spec_index::Union{Vector{GLuint},Nothing}
     spec_value::Union{Vector{GLuint},Nothing}
+    glsl_path::String
 end
 
-@kwdef struct PipelineLoader
-    pipelines::Vector{GLuint} = Vector{GLuint}()
-    pipeline_sources::Vector{Vector{ShaderData}} = Vector{Vector{ShaderData}}()
-    needs_reload::Set{Int} = Set{Int}()
-    dependencies::Dict{String,Dict{String,Int}} = Dict{String,Dict{String,Int}}()
+struct PipelineLoader
+    pipelines::Vector{GLuint}
+    pipeline_sources::Vector{Vector{ShaderData}}
+    needs_reload::Set{Int}
+    dependencies::Dict{String,Dict{String,Int}}
+    spirv_extensions::Set{String}
+
+    function PipelineLoader()
+        pipelines::Vector{GLuint} = Vector{GLuint}()
+        pipeline_sources::Vector{Vector{ShaderData}} = Vector{Vector{ShaderData}}()
+        needs_reload::Set{Int} = Set{Int}()
+        dependencies::Dict{String,Dict{String,Int}} = Dict{String,Dict{String,Int}}()
+        spirv_extensions = Set{String}()
+        
+        num_spirv_extensions = GLint[0]
+        glGetIntegerv(GL_NUM_SPIR_V_EXTENSIONS, num_spirv_extensions)
+        for i in 1:num_spirv_extensions[1]
+            push!(spirv_extensions, unsafe_string(glGetStringi(GL_SPIR_V_EXTENSIONS, i-1)))
+        end
+
+        return new(pipelines,pipeline_sources,needs_reload,dependencies,spirv_extensions)
+    end
 end
 
 const PipelineHandle::DataType = UInt32
@@ -98,15 +116,123 @@ function destroy!(loader::PipelineLoader)::Nothing
     return nothing
 end
 
-function _shader(source::ShaderData)::GLuint
+function can_use_spirv(binary::Vector{UInt8},available_extensions::Set{String})::Bool
+    words = reinterpret(UInt32, binary)
+    is_little_edian = words[1] == 0x07230203
+    index = 6
+    while index < length(words)
+        word = is_little_edian ? words[index] : bswap(words[index])
+        word_count = word >> 16
+        opcode = word & 0xFFFF
+        if opcode == UInt32(17)
+            index += word_count
+            continue
+        end
+        if opcode == UInt32(10)
+            extension_name = if is_little_edian
+                ptr = pointer(words, index + 1)
+                unsafe_string(convert(Ptr{UInt8}, ptr))
+            else
+                string_words = [bswap(words[i]) for i in (index + 1):(index + word_count - 1)]
+                GC.@preserve string_words begin
+                    unsafe_string(convert(Ptr{UInt8}, pointer(string_words)))
+                end
+            end
+            index += word_count
+            if !(extension_name in available_extensions) return false end
+            continue
+        end
+        break
+    end
+    return true
+end
+
+function _resolve_includes(path::String, visited=String[])::String
+    path = abspath(path)
+    
+    if path in visited
+        cycle_path = join(visited_stack, "\n\t") * "\n\t" * path
+        println("Circular dependency detected:\n$cycle_path")
+        return ""
+    end
+
+    source::String = try
+        read(path, String)
+    catch _
+        println("Failed to read file: $path")
+        return ""
+    end
+
+    push!(visited, path)
+    
+    include_directive_pattern = r"#extension\s+GL_GOOGLE_include_directive\s*:\s*require"
+    source = replace(source, include_directive_pattern => "")
+
+    include_regex = r"#include\s+\"([^\"]+)\""
+    source = replace(source, include_regex => function (m)
+        inside_include = match(include_regex, m).captures[1]
+        include_path = joinpath(dirname(path), inside_include)
+        return _resolve_includes(include_path, visited)
+    end)
+
+    pop!(visited)
+
+    return source
+end
+
+function _process_spec_constants(glsl_source::String, spec_constants::Dict{GLuint, GLuint})
+    pattern = r"layout\s*\(\s*constant_id\s*=\s*(\d+)\s*\)\s*const\s+(\w+)\s+(\w+)\s*=\s*([^;]+);"
+    
+    out = IOBuffer()
+    last_idx = 1
+
+    for m in eachmatch(pattern, glsl_source)
+        write(out, SubString(glsl_source, last_idx, prevind(glsl_source, m.offset)))
+
+        id = parse(GLuint, m.captures[1])
+        type_str = m.captures[2]
+        var_name = m.captures[3]
+        default_val = strip(m.captures[4])
+        
+        if haskey(spec_constants, id)
+            val = spec_constants[id]
+            if type_str == "float"
+                hex_str = "0x" * string(val, base=16) * "u"
+                write(out, "const float $var_name = uintBitsToFloat($hex_str);")
+            else
+                write(out, "const $type_str $var_name = $val;")
+            end
+        else
+            write(out, "const $type_str $var_name = $default_val;")
+        end
+        last_idx = m.offset + length(m.match)
+    end
+    write(out, SubString(glsl_source, last_idx))
+    return String(take!(out))
+end
+
+function _shader(source::ShaderData,binary::Vector{UInt8},as_spirv::Bool)::GLuint
     shader::GLuint = GLuint(0)
     shader = glCreateShader(source.stage)
-    binary = read(source.spirv_path)
-    glShaderBinary(1, [shader], 0x9551, binary, length(binary))
-    if isnothing(source.spec_index) || isnothing(source.spec_value)
-        glSpecializeShader(shader, "main", 0, C_NULL, C_NULL);
+    if as_spirv
+        glShaderBinary(1, [shader], 0x9551, binary, length(binary))
+        if isnothing(source.spec_index) || isnothing(source.spec_value)
+            glSpecializeShader(shader, "main", 0, C_NULL, C_NULL);
+        else
+            glSpecializeShader(shader, "main", length(source.spec_index), source.spec_index, source.spec_value);
+        end
     else
-        glSpecializeShader(shader, "main", length(source.spec_index), source.spec_index, source.spec_value);
+        spec_mapping = Dict{GLuint,GLuint}()
+        if !isnothing(source.spec_index) && !isnothing(source.spec_value)
+            for (index, value) in zip(source.spec_index, source.spec_value)
+                spec_mapping[index] = value
+            end
+        end
+        glsl_source::String = _process_spec_constants(_resolve_includes(source.glsl_path), spec_mapping)
+        GC.@preserve glsl_source begin
+            glShaderSource(shader,1,Ref(pointer(glsl_source)), C_NULL)
+        end
+        glCompileShader(shader)
     end
 
     status = Ref{GLint}(0)
@@ -140,11 +266,24 @@ function _compile(loader::PipelineLoader, index)::Nothing
         return nothing
     end
 
+    binaries = Vector{Vector{UInt8}}()
+    sizehint!(binaries, 6)
+    for source in sources
+        push!(binaries,read(source.spirv_path))
+    end
+    as_spirv::Bool = all(binary -> can_use_spirv(binary,loader.spirv_extensions), binaries)
+    
     shaders = Vector{GLuint}()
     sizehint!(shaders, 6)
 
-    for source in sources
-        push!(shaders, _shader(source))
+    if as_spirv
+        for (source,binary) in zip(sources,binaries)
+            push!(shaders, _shader(source,binary,true))
+        end
+    else
+        for (source,binary) in zip(sources,binaries)
+            push!(shaders, _shader(source,binary,false))
+        end
     end
 
     loader.pipelines[index] = _link_shaders(shaders)
@@ -189,7 +328,7 @@ function _link_shaders(shaders::Vector{GLuint})::GLuint
 end
 
 function _parse_stage_data(stage::GLuint, stage_data::ShaderGLSL)::ShaderData
-    return ShaderData(stage,stage_data.spirv_path,nothing,nothing)
+    return ShaderData(stage,stage_data.spirv_path,nothing,nothing,stage_data.path)
 end
 function _parse_stage_data(stage::GLuint, stage_data::Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}})::ShaderData
     locs = GLuint[]
@@ -198,7 +337,7 @@ function _parse_stage_data(stage::GLuint, stage_data::Tuple{ShaderGLSL,Vector{Tu
         push!(locs,loc)
         push!(vals,val)
     end
-    return ShaderData(stage,stage_data[1].spirv_path,locs,vals)
+    return ShaderData(stage,stage_data[1].spirv_path,locs,vals,stage_data[1].path)
 end
 
 function _insert_shader_data(loader::PipelineLoader, shader_data::Vector{ShaderData})::PipelineHandle

@@ -246,11 +246,6 @@ function readID(self::OpenGLData,x,y)::UInt32
 end
 
 function _opaque(self::OpenGLData,cam::Camera)::Nothing
-    activate(self._opaqueFBO)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-    clear_value = SVector{4, UInt32}(0, 0, 0, 0)
-    glClearBufferuiv(GL_COLOR, 1, clear_value)
-    
     glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
     glEnable(GL_STENCIL_TEST)
@@ -338,6 +333,10 @@ end
 
 function _widgets(self::OpenGLData,cam::Camera)
     activate(self._opaqueFBO)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+    clear_value = SVector{4, UInt32}(0, 0, 0, 0)
+    glClearBufferuiv(GL_COLOR, 1, clear_value)
+
     glDepthFunc(GL_ALWAYS)
 
     wh = Vec2F(self._shrd._width,self._shrd._height)
@@ -366,10 +365,10 @@ function render_scene!(self::OpenGLData,cam::Camera)
     )
 
     pre_draw(self._renderers,cam,self._shrd)
+    _widgets(self,cam)
     _opaque(self,cam)
     _behind_opaque(self,cam)
     _transparent(self,cam)
-    _widgets(self,cam)
 end
 
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool)

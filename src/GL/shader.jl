@@ -14,6 +14,9 @@ struct ShaderProgram
             (path,defines,replacements) = parse_stage(stage)
             source = read_shader_stage(path, defines, replacements)
             stages[i] = create_shader_stage(path, source)
+            if stages[i] == GLuint(0)
+                return new(GLuint(0), Dict{String,GLint}())
+            end
         end
 
         prog = link_shaders(stages)

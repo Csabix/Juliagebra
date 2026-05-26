@@ -1,8 +1,15 @@
-mutable struct TriangleRenderer
-    shader_calc_normals::ShaderProgram
-    shader_opaque::ShaderProgram
-    shader_transparent::ShaderProgram
+struct _TriangleTransform
+    M::Mat4T{Float32}
+    MIT::Mat4T{Float32}
+    _TriangleTransform(M::Mat4T{Float32}) = new(M,inv(transpose(M)))
+end
 
+mutable struct TriangleRenderer
+    shader_calc_normals::Pipeline
+    shader_opaque::Pipeline
+    shader_transparent::Pipeline
+
+    UBO::RepeatBufferUBO{_TriangleTransform}
     buffers::Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}} # position normal color id
 
     matrices::Vector{Mat4T{Float32}}
@@ -12,12 +19,17 @@ mutable struct TriangleRenderer
     update_normals::Vector{UInt32}
     color_updates::Vector{UInt32}
 
-    function TriangleRenderer()
-        calc_normals = ShaderProgram(["renderers/triangle/triangle_normal.comp"])
-        opaque = ShaderProgram(["renderers/triangle/triangle.vert","renderers/triangle/triangle.frag"],["M","MIT"])
-        transparent = ShaderProgram(["renderers/triangle/triangle.vert",("renderers/triangle/triangle.frag",["TRANSPARENT"])],["M","MIT"])
+    function TriangleRenderer(loader::PipelineLoader)
+        calc_normals = create_compute_pipeline!(loader,spv"renderers/triangle/triangle_normal.comp")
+        opaque = create_graphics_pipeline!(loader;
+            vert = spv"renderers/triangle/triangle.vert",
+            frag = spv"renderers/triangle/triangle_opaque.frag")
+        transparent = create_graphics_pipeline!(loader,
+            vert = spv"renderers/triangle/triangle.vert",
+            frag = spv"renderers/triangle/triangle_transparent.frag")
 
         new(calc_normals,opaque,transparent,
+            RepeatBufferUBO{_TriangleTransform}(),
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
             Vector{Mat4T{Float32}}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),
             Vector{UInt32}(),
@@ -39,9 +51,6 @@ function reset!(self::TriangleRenderer)::Nothing
 end
 
 function destroy!(self::TriangleRenderer)::Nothing
-    destroy!(self.shader_calc_normals)
-    destroy!(self.shader_opaque)
-    destroy!(self.shader_transparent)
     foreach(destroy!, self.buffers)
 end
 
@@ -128,6 +137,14 @@ function pre_draw(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
         bind_ssbo(self.buffers[i][2],1)
         glDispatchCompute(cld(length(self.coords[i]),64),1,1);
     end
+
+    transforms = _TriangleTransform[_TriangleTransform(M) for M in self.matrices]
+    if length(self.UBO) != length(transforms)
+        upload!(self.UBO,transforms,GL_DYNAMIC_STORAGE_BIT)
+    else
+        upload!(self.UBO,transforms)
+    end
+
     return nothing
 end
 
@@ -144,8 +161,7 @@ function opaque(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
     activate(self.shader_opaque)
     for i in 1:length(self.buffers)
         if !is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
-        uniform(self.shader_opaque,"M",self.matrices[i])
-        uniform(self.shader_opaque,"MIT",inv(transpose(self.matrices[i])))
+        bind_ubo(self.UBO, i, 0)
         draw(self.buffers[i],GL_TRIANGLES)
     end
 
@@ -160,8 +176,7 @@ function transparent(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothi
     activate(self.shader_transparent)
     for i in 1:length(self.buffers)
         if is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
-        uniform(self.shader_transparent,"M",self.matrices[i])
-        uniform(self.shader_transparent,"MIT",inv(transpose(self.matrices[i])))
+        bind_ubo(self.UBO, i, 0)
         draw(self.buffers[i],GL_TRIANGLES)
     end
 

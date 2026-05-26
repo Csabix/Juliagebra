@@ -10,6 +10,7 @@ mutable struct App <: AppDNA
     _glfw::Union{GLFWData,Nothing}
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
+    _frame_limiter::Union{Nothing,FrameLimiter}
     _windowCreated::Bool
     _peripherals::Peripherals
     _cam::Camera
@@ -44,7 +45,7 @@ mutable struct App <: AppDNA
         
         model = Model()
                 
-        new(shrd,glfw,opengl,imgui,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
+        new(shrd,glfw,opengl,imgui,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
     end
 end
 
@@ -267,7 +268,9 @@ function play!(self::App)
         # ? End model state.
         endState(model,state)
         self._scene_change = false
+        if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         GLFW.SwapBuffers(self._glfw._window)
+        if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
         poll_events()
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
     end

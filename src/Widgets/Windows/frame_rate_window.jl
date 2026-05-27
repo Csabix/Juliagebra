@@ -103,6 +103,14 @@ function renderContent(self::FrameTime, app::AppDNA)
     
     CImGui.Separator()
 
+    limit_ref = Ref{Bool}(app._frame_limiter !== nothing)
+    if CImGui.Checkbox("Framerate Limit",limit_ref)
+        if limit_ref[]
+            app._frame_limiter = FrameLimiter(Float64(self._target_fps[]))
+        else
+            app._frame_limiter = nothing
+        end
+    end
     if CImGui.SliderFloat("Target Framerate", self._target_fps, 10.0, 120.0)
         set_limit(app._frame_limiter, Float64(self._target_fps[]))
     end
@@ -123,23 +131,5 @@ function renderContent(self::FrameTime, app::AppDNA)
             end
         end
         CImGui.EndCombo()
-    end
-
-    CImGui.Text("Frame Limiter:")
-    CImGui.SameLine()
-    if CImGui.Button("None")
-        app._frame_limiter = nothing
-    end
-    CImGui.SameLine()
-    if CImGui.Button("Limiter A")
-        app._frame_limiter = FrameLimiterA(Float64(self._target_fps[]))
-    end
-    CImGui.SameLine()
-    if CImGui.Button("Limiter B")
-        app._frame_limiter = FrameLimiterB(Float64(self._target_fps[]))
-    end
-    CImGui.SameLine()
-    if CImGui.Button("Limiter C")
-        app._frame_limiter = FrameLimiterC(Float64(self._target_fps[]))
     end
 end

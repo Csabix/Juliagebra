@@ -357,6 +357,7 @@ function render_scene!(self::OpenGLData,cam::Camera)
     
     width::Float32 = Float32(self._shrd._width)
     height::Float32 = Float32(self._shrd._height)
+    wait(self._ubo)
     self._ubo[1] = UBO_Data(
         vp,v,p,
         Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
@@ -401,6 +402,7 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
         glDrawArrays(GL_TRIANGLES,0,6)
         glDisable(GL_BLEND)
     end
+    lock(self._ubo)
 end
 
 

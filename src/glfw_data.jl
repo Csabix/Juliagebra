@@ -42,9 +42,14 @@ mutable struct FrameLimiter
     end
 end
 
-set_limit(::Nothing, limit::Float64) = nothing
-function set_limit(frame_limiter::FrameLimiter, limit::Float64)
+set_limit!(::Nothing, limit::Float64) = nothing
+function set_limit!(frame_limiter::FrameLimiter, limit::Float64)
     frame_limiter.ns_per_frame = round(UInt64, 1_000_000_000 / limit)
+end
+
+get_limit(::Nothing)::Float64 = 64.0
+function get_limit(frame_limiter::FrameLimiter)::Float64
+    return Float64(1_000_000_000) / Float64(frame_limiter.ns_per_frame)
 end
 
 function before_buffer_swap!(fl::FrameLimiter)::Nothing

@@ -11,6 +11,7 @@ mutable struct App <: AppDNA
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _frame_limiter::Union{Nothing,FrameLimiter}
+    _old_limiter::Union{Nothing,FrameLimiter}
     _windowCreated::Bool
     _peripherals::Peripherals
     _cam::Camera
@@ -45,7 +46,7 @@ mutable struct App <: AppDNA
         
         model = Model()
                 
-        new(shrd,glfw,opengl,imgui,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
+        new(shrd,glfw,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
     end
 end
 
@@ -130,6 +131,16 @@ function window_resize_event(width::Cint,height::Cint,self::App)::Nothing
 end
 function framebuffer_resize_event(width::Cint,height::Cint,self::App)::Nothing
     
+end
+function window_focus_event(focused::Bool,self::App)::Nothing
+    if focused
+        self._frame_limiter = self._old_limiter
+        self._old_limiter = nothing
+    else
+        self._old_limiter = self._frame_limiter
+        self._frame_limiter = FrameLimiter(get_limit(self._old_limiter) / 2.0)
+    end
+    return nothing
 end
 
 function can_capture_keys(self::App)::Bool

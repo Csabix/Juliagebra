@@ -3,9 +3,10 @@ mutable struct FrameTime <: WindowDNA
     _frame_times_s::Vector{Float64}
     _frame_times_smoothed_s::Vector{Float64}
     _target_fps::Ref{Float32}
+    _limit_framerate::Ref{Bool}
 
     function FrameTime()
-        new(Window(), [0.0 for i in 1:500], [0.0 for i in 1:500], Ref{Float32}(60.0))
+        new(Window(), [0.0 for i in 1:500], [0.0 for i in 1:500], Ref{Float32}(60.0),Ref(false))
     end
 end
 
@@ -103,16 +104,15 @@ function renderContent(self::FrameTime, app::AppDNA)
     
     CImGui.Separator()
 
-    limit_ref = Ref{Bool}(app._frame_limiter !== nothing)
-    if CImGui.Checkbox("Framerate Limit",limit_ref)
-        if limit_ref[]
+    if CImGui.Checkbox("Framerate Limit",self._limit_framerate)
+        if self._limit_framerate[]
             app._frame_limiter = FrameLimiter(Float64(self._target_fps[]))
         else
             app._frame_limiter = nothing
         end
     end
     if CImGui.SliderFloat("Target Framerate", self._target_fps, 10.0, 120.0)
-        set_limit(app._frame_limiter, Float64(self._target_fps[]))
+        set_limit!(app._frame_limiter, Float64(self._target_fps[]))
     end
 
     items = ["Adaptive (-1)", "Off (0)", "On (1)"]

@@ -36,7 +36,7 @@ function DrawMultiLineGraph(window::FrameTime)
     step_x = canvas_size.x / (history_len - 1)
     
     max_time = max(
-        maximum(window._frame_times_s), 
+        maximum(window._frame_times_smoothed_s)*1.25, 
         1.0 / window._target_fps[] * 1.5, 
         0.001
     )
@@ -111,7 +111,7 @@ function renderContent(self::FrameTime, app::AppDNA)
             app._frame_limiter = nothing
         end
     end
-    if CImGui.SliderFloat("Target Framerate", self._target_fps, 10.0, 120.0)
+    if CImGui.SliderFloat("Target Framerate", self._target_fps, 10.0, 144.0)
         set_limit!(app._frame_limiter, Float64(self._target_fps[]))
     end
 

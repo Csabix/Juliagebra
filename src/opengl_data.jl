@@ -246,11 +246,6 @@ function readID(self::OpenGLData,x,y)::UInt32
 end
 
 function _opaque(self::OpenGLData,cam::Camera)::Nothing
-    activate(self._opaqueFBO)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-    clear_value = SVector{4, UInt32}(0, 0, 0, 0)
-    glClearBufferuiv(GL_COLOR, 1, clear_value)
-    
     glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
     glEnable(GL_STENCIL_TEST)
@@ -338,6 +333,10 @@ end
 
 function _widgets(self::OpenGLData,cam::Camera)
     activate(self._opaqueFBO)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+    clear_value = SVector{4, UInt32}(0, 0, 0, 0)
+    glClearBufferuiv(GL_COLOR, 1, clear_value)
+
     glDepthFunc(GL_ALWAYS)
 
     wh = Vec2F(self._shrd._width,self._shrd._height)
@@ -352,17 +351,13 @@ function _widgets(self::OpenGLData,cam::Camera)
     glDisable(GL_BLEND)
 end
 
-function update!(self::OpenGLData,cam::Camera)
-    glCheckErrors(self)
-
-    added_all!(self._renderers)
-    sync_all!(self._renderers)
-
+function render_scene!(self::OpenGLData,cam::Camera)
     (vp, v, p) = get_matrices(cam)
     (cam_light, side_light) = get_lights(cam)
     
     width::Float32 = Float32(self._shrd._width)
     height::Float32 = Float32(self._shrd._height)
+    wait(self._ubo)
     self._ubo[1] = UBO_Data(
         vp,v,p,
         Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
@@ -371,10 +366,20 @@ function update!(self::OpenGLData,cam::Camera)
     )
 
     pre_draw(self._renderers,cam,self._shrd)
+    _widgets(self,cam)
     _opaque(self,cam)
     _behind_opaque(self,cam)
     _transparent(self,cam)
-    _widgets(self,cam)
+end
+
+function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
+    glCheckErrors(self)
+
+    added_all!(self._renderers)
+    scene_change |= sync_all!(self._renderers)
+    if scene_change
+        render_scene!(self,cam)
+    end
 
     readID(self)
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
@@ -397,6 +402,7 @@ function update!(self::OpenGLData,cam::Camera)
         glDrawArrays(GL_TRIANGLES,0,6)
         glDisable(GL_BLEND)
     end
+    lock(self._ubo)
 end
 
 

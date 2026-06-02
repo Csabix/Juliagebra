@@ -267,8 +267,8 @@ function update_styles_dynamic!(self::PointRenderer,ref::UInt32,styles)
     self.updates[ref] |= _POINT_PROP_STYLE_ID
 end
 
-function sync_all!(self::PointRenderer)::Nothing
-    all(u -> u == _POINT_PROP_NONE, self.updates) && return nothing
+function sync_all!(self::PointRenderer)::Bool
+    all(u -> u == _POINT_PROP_NONE, self.updates) && return false
     
     wait(self.points[1].buffer[1])
     for i in 1:length(self.points)
@@ -277,7 +277,7 @@ function sync_all!(self::PointRenderer)::Nothing
         end
         self.updates[i] = _POINT_PROP_NONE
     end
-    return nothing
+    return true
 end
 
 function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing

@@ -87,7 +87,7 @@ end;
 ParametricCurve(range(-pi,pi,30),[Point(0,2,0)],"g->") do t,p
     (t/pi,0,sin(t)) .+ p
 end;
-p = Point(0,3,0)
+p = Point(0,3,0);
 @ParametricCurve(range(-pi,pi,30),"m:") do t
     (t/pi,0,sin(t)) .+ p
 end;
@@ -142,8 +142,8 @@ Sphere(Point(0,1,-6 ),Point(1,0,-6 ),Point(0,0,-6 ),     (0.1,0,-5 ));
 Sphere(Point(0,1,-9 ),Point(1,0,-9 ),     (0,0,-9 ),     (0.1,0,-8 ));
 Sphere(Point(0,1,-12),     (1,0,-12),     (0,0,-12),     (0.1,0,-11));
 
-p = Point(0,0,4)
-s = Slider()
+p = Point(0,0,4);
+s = Slider();
 @Sphere () -> (p,s) "r";
 
 ##
@@ -195,7 +195,7 @@ TriangleCluster(scene[3], [Point(3, 3, 3)]; color=(0.5, 0.5, 0.5, 0.5)) do p
     ]
 end;
 
-scale = Slider(0.0,0.1,5.0)
+scale = Slider(0.0,0.1,5.0);
 @TriangleCluster(scene[2];color="k") do
     return [
         scale  0.0    0.0    0.0
@@ -205,7 +205,7 @@ scale = Slider(0.0,0.1,5.0)
     ]
 end;
 
-count = Slider(0.0,0.0,100.0)
+count = Slider(0.0,0.0,100.0);
 @TriangleCluster("c") do
     n_segments = Int(floor(count[]))
     vertices = Vector{Tuple{Float64, Float64, Float64}}()
@@ -298,10 +298,10 @@ aaa = Vec3D(-1,0,0)
 ccc = Vec3D(0,-1,0)
 Tetrahedra(aaa,b,d,ccc; color=(0.8,0.1,0.2), border_style=":");
 
-a4 = Point(0,3,0)
-b4 = Point(1,3,0)
-c4 = Point(0,2,0)
-d4 = Point(0,3,1)
+a4 = Point(0,3,0);
+b4 = Point(1,3,0);
+c4 = Point(0,2,0);
+d4 = Point(0,3,1);
 Tetrahedra(a4,b4,d4,c4,"b"; border_color="r", border_style ="->", border_size=6.0);
 
 a5 = Vec3D(0,4,0)

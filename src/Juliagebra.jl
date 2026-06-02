@@ -95,18 +95,14 @@ include("Renderers/renderers.jl")
 include("opengl_data.jl")
 
 # ? ---------------------------------
-# ! Dependents
+# ! Model
 # ? ---------------------------------
 
-include("Model/schedule.jl")
-include("Model/dependent_graph.jl")
-include("Model/dependent.jl")
-include("Model/dependent_observer.jl")
-include("Model/value_holder.jl")
-include("Model/generic_value_holder.jl")
-include("Model/source_value_holder.jl")
-#include("Model/unary_value_holder.jl")
-include("Model/subject_dependent.jl")
+include("Model/model.jl")
+
+# ? ---------------------------------
+# ! Dependents
+# ? ---------------------------------
 
 
 include("Dependents/dependents.jl")
@@ -117,25 +113,10 @@ include("Widgets/surfaces_window.jl")
 
 include("global_dependent_optimizer.jl")
 
-#include("Dependents/Gui/gui_renderer.jl")
-#include("Dependents/Gui/gui_dependent.jl")
-#include("Dependents/Gui/toggle.jl")
-#include("Dependents/Gui/slider.jl")
-#include("Dependents/Gui/textbox.jl")
-#include("Dependents/Gui/stepper.jl")
 include("Widgets/Windows/gui_dependents_window.jl")
-include("imgui_data.jl")
-
-include("Model/Threads/completed_condition.jl")
-include("Model/Threads/goal.jl")
-include("Model/Threads/builder.jl")
-include("Model/Threads/adder.jl")
-include("Model/Threads/synchronizer.jl")
-include("Model/Threads/eval_worker.jl")
-include("Model/Threads/scheduler.jl")
-include("Model/Threads/model.jl")
-
 include("Widgets/Windows/graph_window.jl")
+
+include("imgui_data.jl")
 
 include("App/starter.jl")
 include("App/commander.jl")

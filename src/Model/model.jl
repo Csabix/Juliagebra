@@ -4,6 +4,24 @@ struct BuildingState <: ModelState end
 struct ViewingState <: ModelState end
 struct EvalingState <: ModelState end
 
+include("schedule.jl")
+include("dependent_graph.jl")
+include("dependent.jl")
+include("dependent_observer.jl")
+include("value_holder.jl")
+include("generic_value_holder.jl")
+include("source_value_holder.jl")
+#include("unary_value_holder.jl")
+include("subject_dependent.jl")
+
+include("Threads/completed_condition.jl")
+include("Threads/goal.jl")
+include("Threads/builder.jl")
+include("Threads/adder.jl")
+include("Threads/synchronizer.jl")
+include("Threads/eval_worker.jl")
+include("Threads/scheduler.jl")
+
 # ? ---------------------------------
 # ! Model
 # ? ---------------------------------

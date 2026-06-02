@@ -99,6 +99,7 @@ function mouse_button_event(event::MouseButtonEvent, data::T)::Nothing where {T}
 function mouse_wheel_event(event::MouseWheelEvent, data::T)::Nothing where {T} end
 function window_resize_event(width::Cint, height::Cint, data::T)::Nothing where {T} end
 function framebuffer_resize_event(width::Cint, height::Cint, data::T)::Nothing where {T} end
+function window_focus_event(focused::Bool, data::T)::Nothing where {T} end
 
 function can_capture_keys(data::T)::Bool where {T} end
 function can_capture_mouse(data::T)::Bool where {T} end
@@ -160,6 +161,10 @@ function _framebuffer_size_callback(width::Cint, height::Cint, data::T)::Nothing
     framebuffer_resize_event(width,height,data)
 end
 
+function _window_focus_callback(focused::Bool, data::T)::Nothing where {T}
+    window_focus_event(focused,data)
+end
+
 function setInputEvents(window::GLFW.Window, data::T)::Nothing where {T}
     global _window_size = values(GLFW.GetWindowSize(window))
 
@@ -169,6 +174,7 @@ function setInputEvents(window::GLFW.Window, data::T)::Nothing where {T}
     GLFW.SetScrollCallback(window,(_,xoffset,yoffset) -> _scroll_callback(xoffset,yoffset,data))
     GLFW.SetWindowSizeCallback(window,(_,width,height) -> _window_size_callback(width,height,data))
     GLFW.SetFramebufferSizeCallback(window,(_,width,height) -> _framebuffer_size_callback(width,height,data))
+    GLFW.SetWindowFocusCallback(window,(_,focused) -> _window_focus_callback(focused,data))
     return nothing
 end
 

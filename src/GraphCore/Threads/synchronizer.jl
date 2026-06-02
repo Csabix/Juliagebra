@@ -41,7 +41,7 @@ function processInternal!(self::Synchronizer)
     end
 end
 
-function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
+function processAvailableExternal!(self::Synchronizer, model::ModelDNA)::Bool
     taken = Base.n_avail(self._external)
     self._taken += taken
     observers = Set{ObserverDNA}()
@@ -53,6 +53,7 @@ function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
     for o in observers in 
         syncAll!(o)
     end
+    return taken > 0
 end
 
 function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)

@@ -544,11 +544,12 @@ function update_size_dynamic!(self::LineRenderer,ref::UInt32,size::Float32)::Not
     return nothing
 end
 
-function sync_all!(self::LineRenderer)::Nothing
+function sync_all!(self::LineRenderer)::Bool
     if (self.updated & _LINE_PROP_STYLE) == _LINE_PROP_STYLE
         _sort_lines!(self)
         self.updated |= _LINE_PROP_COORD_SIZE | _LINE_PROP_COLOR_STYLE
     end
+    scene_change::Bool = false
     if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE || (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
         wait(self.distance_buffer_in)
         if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE
@@ -557,6 +558,7 @@ function sync_all!(self::LineRenderer)::Nothing
         if (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
             upload!(self.color_style_buffer_in, self.color_style, 0)
         end
+        scene_change = true
     end
     if length(self.update_list) != 0
         wait(last(self.distance_buffer_in_dynamic))
@@ -580,9 +582,10 @@ function sync_all!(self::LineRenderer)::Nothing
             reserve!(self.sdf_buffer_out_dynamic,5*N,0)
             reserve!(self.end_pos_rad_dynamic,5*N,0)
         end
+        scene_change = true
     end
     self.updated = _LINE_PROP_NONE
-    return nothing
+    return scene_change
 end
 
 function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing

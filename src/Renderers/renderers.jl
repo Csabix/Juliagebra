@@ -46,12 +46,13 @@ function added_all!(renderers::PrimitiveRenderers)::Nothing
     return nothing
 end
 
-function sync_all!(renderers::PrimitiveRenderers)::Nothing
-    sync_all!(renderers.point)
-    sync_all!(renderers.line)
-    sync_all!(renderers.sphere)
-    sync_all!(renderers.triangle)
-    return nothing
+function sync_all!(renderers::PrimitiveRenderers)::Bool
+    redraw_scene::Bool = false
+    redraw_scene |= sync_all!(renderers.point)
+    redraw_scene |= sync_all!(renderers.line)
+    redraw_scene |= sync_all!(renderers.sphere)
+    redraw_scene |= sync_all!(renderers.triangle)
+    return redraw_scene
 end
 
 function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing

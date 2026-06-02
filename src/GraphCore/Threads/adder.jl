@@ -17,7 +17,7 @@ Base.put!(self::Adder,o::SubjectDNA) = put!(self._in,o)
 Base.isempty(self::Adder)::Bool = return isempty(self._in)
 
 # Green Thread
-function processAvailable!(self::Adder)
+function processAvailable!(self::Adder)::Bool
     takeNum = Base.n_avail(self._in)
     addedAllSet = Set{ObserverDNA}()
 
@@ -39,5 +39,6 @@ function processAvailable!(self::Adder)
     if takeNum > 1
         @log "Built $(takeNum)!"
     end
+    return takeNum > 0
 end
 

@@ -96,7 +96,7 @@ function update_matrix!(self::TriangleRenderer,ref::UInt32,matrix::Mat4T{Float32
     return nothing
 end
 
-function sync_all!(self::TriangleRenderer)::Nothing
+function sync_all!(self::TriangleRenderer)::Bool
     for i in self.update_normals
         buffer = self.buffers[i]
         if length(self.coords[i]) != length(buffer)
@@ -116,7 +116,7 @@ function sync_all!(self::TriangleRenderer)::Nothing
             glClearNamedBufferSubData(id(buffer[3]),GL_RG32UI,0,N * sizeof(Vec2T{UInt32}), GL_RG_INTEGER, GL_UNSIGNED_INT, self.color_ids[i])
         end
     end
-    return nothing
+    return !isempty(self.update_normals) || !isempty(self.color_updates)
 end
 
 function pre_draw(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing

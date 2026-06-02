@@ -179,23 +179,23 @@ function _renderWorker(self::GraphWindow, idx::Int, model::ModelDNA)
     !isempty(_times) ? maxVal = maximum(_times) : nothing
     CImGui.PlotHistogram("##$(idx)", _times, length(_times), 0, "Worker$(idx)", 0.0, maxVal, (-1.0,50.0), sizeof(Float32))
         
-    if !isempty(_ids)
-        CImGui.Text("Plot id to graphID:")
-        CImGui.SameLine()
-        idxx = idx+1
-
-        plotIdx = input1i(self._workerPlotIdx[idxx], "##plotIdx$(idx)" , 1, 10)
-        self._workerPlotIdx[idxx] = !isnothing(plotIdx) ? clamp(plotIdx, 0, length(_ids)-1) : clamp(self._workerPlotIdx[idxx], 0, length(_ids)-1)
-        # TODO: Crashes if Graph was Emptied before.
-        d::DependentDNA = getDependent(getGraph(model),_ids[self._workerPlotIdx[idxx]+1])
-        
-        txtStr = replace("$(typeof(d))",r"Juliagebra\.|JuliaGLM\." => "")
-        CImGui.Text("Node: $(txtStr)")
-        
-        CImGui.Text("graphID: $(getGraphID(d))")
-    else
-        CImGui.Text("Empty schedule!")
-    end
+    #if !isempty(_ids)
+    #    CImGui.Text("Plot id to graphID:")
+    #    CImGui.SameLine()
+    #    idxx = idx+1
+    #
+    #    plotIdx = input1i(self._workerPlotIdx[idxx], "##plotIdx$(idx)" , 1, 10)
+    #    self._workerPlotIdx[idxx] = !isnothing(plotIdx) ? clamp(plotIdx, 0, length(_ids)-1) : clamp(self._workerPlotIdx[idxx], 0, length(_ids)-1)
+    #    # TODO: Crashes if Graph was Emptied before.
+    #    d::DependentDNA = getDependent(getGraph(model),_ids[self._workerPlotIdx[idxx]+1])
+    #   
+    #    txtStr = replace("$(typeof(d))",r"Juliagebra\.|JuliaGLM\." => "")
+    #    CImGui.Text("Node: $(txtStr)")
+    #    
+    #    CImGui.Text("graphID: $(getGraphID(d))")
+    #else
+    #    CImGui.Text("Empty schedule!")
+    #end
 
     CImGui.Text("Processed: $(length(_ids))")
     CImGui.Text("Slowest time: $(maxVal)")

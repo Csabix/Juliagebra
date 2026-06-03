@@ -13,8 +13,8 @@ include("Nodes/ValueHolders/generic_value_holder.jl")
 include("Nodes/ValueHolders/source_value_holder.jl")
 #include("Nodes/ValueHolders/unary_value_holder.jl")
 
-include("Nodes/dependent_observer.jl")
-include("Nodes/subject_dependent.jl")
+include("Nodes/observer.jl")
+include("Nodes/subject.jl")
 
 include("Threads/completed_condition.jl")
 include("Threads/goal.jl")

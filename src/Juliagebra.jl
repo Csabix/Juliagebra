@@ -52,6 +52,12 @@ include("Primitives/primitive_intersections.jl")
 include("Primitives/primitive_constructors.jl")
 
 # ? ---------------------------------
+# ! Model
+# ? ---------------------------------
+
+include("Model/model.jl")
+
+# ? ---------------------------------
 # ! LBVH
 # ? ---------------------------------
 
@@ -93,12 +99,6 @@ include("Widgets/ortho_gizmo.jl")
 
 include("Renderers/renderers.jl")
 include("opengl_data.jl")
-
-# ? ---------------------------------
-# ! Model
-# ? ---------------------------------
-
-include("Model/model.jl")
 
 # ? ---------------------------------
 # ! Dependents

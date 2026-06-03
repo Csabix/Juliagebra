@@ -22,7 +22,7 @@ include("Construction/adder.jl")
 include("Evaluation/completed_condition.jl")
 include("Evaluation/goal.jl")
 include("Evaluation/synchronizer.jl")
-include("Evaluation/eval_worker.jl")
+include("Evaluation/evalworker.jl")
 include("Evaluation/scheduler.jl")
 
 # ? ---------------------------------
@@ -47,11 +47,15 @@ getScheduler(self::Model)::Scheduler = self._scheduler
 getWorkers(self::Model)::Workers = self._workers
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
-include("Construction/build_funcs.jl")
-include("Evaluation/sync_funcs.jl")
-include("Evaluation/work_funcs.jl")
-include("Evaluation/schedule_funcs.jl")
+include("Construction/builder_funcs.jl")
+include("Evaluation/synchronizer_funcs.jl")
+include("Evaluation/evalworker_funcs.jl")
+include("Evaluation/scheduler_funcs.jl")
 
+"""
+Must init the Model before use.
+- Starts builder and worker tasks with errormonitors.
+"""
 function init!(self::Model)
     # YELLOW Thread start
     builderTask = Threads.@spawn begin
@@ -72,6 +76,11 @@ function init!(self::Model)
     end
 end
 
+"""
+Must destroy the Model after use.
+- Do not re-init this object after destroy. Construct a new one instead.
+- Also waits for builder and worker tasks to close.
+"""
 function destroy!(self::Model)
     destroy!(self._adder)
     destroy!(self._builder)
@@ -88,6 +97,7 @@ end
 
 """
 Send a newly constructed Dependent to the build system of a Model.
+- Adds node to the graph.
 """
 function build!(self::Model, dependent::T)::T where {T<:DependentDNA}
     put!(self._builder, dependent)
@@ -96,6 +106,7 @@ end
 
 """
 Send a newly constructed Subject to the build system of a Model.
+- Adds node to the graph.
 - An Observer for this Subject is required.
 """
 function build!(self::Model, subject::U, observer::ObserverDNA{V})::U where {V<:SubjectDNA, U<:V}
@@ -105,6 +116,7 @@ end
 
 """
 Schedule the subgraph of a Dependent to be evaluated.
+- All nodes reachable from this one will be evaluated.
 """
 function Base.schedule(self::Model, d::DependentDNA)
     schedule(self._scheduler, d)

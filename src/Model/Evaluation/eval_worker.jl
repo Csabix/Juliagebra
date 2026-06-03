@@ -20,6 +20,8 @@ getDependent(self::WorkerFood{SyncFood})::SubjectDNA = return self.data.subject
 # ! EvalWorker
 # ? ---------------------------------
 
+abstract type EvalWorker end
+
 function pushEndTime!(self::EvalWorker, id::Int, startTime::UInt64)
     ids::Vector{Int} = getProcessedIDs(self)
     ts::Vector{Float64} = getProcessedTimes(self)
@@ -48,36 +50,6 @@ getProcessedIDs(self::EvalWorker0)::Vector{Int} = return self._processedIDs
 getProcessedTimes(self::EvalWorker0)::Vector{Float64} = return self._processedTimes
 
 
-function processUntilClosed!(self::EvalWorker0, model::ModelDNA)
-    Base.resize!(self._processedIDs,0)
-    Base.resize!(self._processedTimes,0)
-    taken = length(self)
-
-    for _ in 1:taken
-        startTime = time_ns()
-        
-        d::DependentDNA = take!(self)
-        _process1(self, model, d)
-
-        pushEndTime!(self, getGraphID(d), startTime)
-    end
-end
-
-function _process1(self::EvalWorker0, ::ModelDNA, d::DependentDNA)    
-    @invokelatest _process2(d)
-end
-
-function _process1(self::EvalWorker0, model::ModelDNA, o::SubjectDNA)
-    @invokelatest _process2(o)
-    put!(getSynchronizer(model),o)
-end
-
-function _process2(dependent::DependentDNA)
-    beforeNodeEval(dependent)
-    onNodeEval(dependent)
-    afterNodeEval(dependent)
-end
-
 # ? ---------------------------------
 # ! EvalWorkeri
 # ? ---------------------------------
@@ -96,46 +68,7 @@ Base.take!(self::EvalWorkeri)::DependentDNA = return take!(self._in)
 destroy!(self::EvalWorkeri) = close(self._in)
 getProcessedIDs(self::EvalWorkeri)::Vector{Int} = return self._processedIDs
 getProcessedTimes(self::EvalWorkeri)::Vector{Float64} = return self._processedTimes
-    
-function processUntilClosed!(self::EvalWorkeri, model::ModelDNA)
-    for foods in self._in
-        Base.resize!(self._processedIDs,0)
-        Base.resize!(self._processedTimes,0)
-        
-        for food in foods 
-            conditions::Vector{CompletedCondition} = food.conditions
 
-            # ? Wait for parents to be completed. 
-            for c in conditions
-                wait(c)
-            end
-            
-            startTime = time_ns()
-            
-            _process1(self, model, food.evaled, food.data)
-            
-            pushEndTime!(self, getGraphID(getDependent(food)), startTime)
-        end
-    end
-
-    println("ThreadID($(Threads.threadid())): EvalWorkeri Ended!")
-end
-
-function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, d::DependentDNA)
-    @invokelatest _process2(d)
-    notify(evaled)
-    increment(getScheduler(model)._evaledGoal)
-end
-
-function _process1(self::EvalWorkeri, model::ModelDNA, evaled::CompletedCondition, data::SyncFood)
-    o::SubjectDNA = data.subject
-
-    @invokelatest _process2(o)
-    notify(evaled)
-    increment(getScheduler(model)._evaledGoal)
-
-    put!(getSynchronizer(model),data)
-end
 
 # ? ---------------------------------
 # ! Workers

@@ -25,13 +25,11 @@ include("Evaluation/synchronizer.jl")
 include("Evaluation/eval_worker.jl")
 include("Evaluation/scheduler.jl")
 
-
-
 # ? ---------------------------------
 # ! Model
 # ? ---------------------------------
 
-@kwdef mutable struct Model <: ModelDNA
+@kwdef mutable struct Model
     _graph::DependentGraph = DependentGraph()
     _adder::Adder = Adder()
     _builder::Builder = Builder()
@@ -48,6 +46,11 @@ getBuilder(self::Model)::Builder = self._builder
 getScheduler(self::Model)::Scheduler = self._scheduler
 getWorkers(self::Model)::Workers = self._workers
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
+
+include("Construction/build_funcs.jl")
+include("Evaluation/sync_funcs.jl")
+include("Evaluation/work_funcs.jl")
+include("Evaluation/schedule_funcs.jl")
 
 function init!(self::Model)
     # YELLOW Thread start

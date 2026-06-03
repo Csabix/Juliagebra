@@ -61,7 +61,7 @@ function sync!(self::ToggleRenderer,toggle::ToggleDependent)
 end
 
 function update!(self::ToggleRenderer, app::AppDNA)
-    m::ModelDNA = getModel(app)
+    m::Model = getModel(app)
     s::Scheduler = getScheduler(m)
 
     for idx in self._clicked  

@@ -16,7 +16,7 @@ end
 _Window_(self::GraphWindow)::Window = return self._window
 getWindowName(::GraphWindow) = return "Graph"
 
-function update!(self::GraphWindow, model::ModelDNA)
+function update!(self::GraphWindow, model::Model)
     s::Scheduler = getScheduler(model)
     self._updateState = self._renderState
     setMode(s, self._updateState)
@@ -26,21 +26,21 @@ function update!(self::GraphWindow, model::ModelDNA)
     end
 end
 
-function _update1(self::GraphWindow, ::SingleFrameSingleThread, model::ModelDNA)
+function _update1(self::GraphWindow, ::SingleFrameSingleThread, model::Model)
     _update2(self, 0, model)
 end
 
-function _update1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::ModelDNA)
+function _update1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::Model)
     _update2(self, 1, model)
 end
 
-function _update1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::ModelDNA)
+function _update1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::Model)
     for idx in 1:length(getWorkers(model)) 
         _update2(self, idx, model)
     end
 end
 
-function _update2(self::GraphWindow, idx::Int, model::ModelDNA)
+function _update2(self::GraphWindow, idx::Int, model::Model)
     _ids::Vector{Int} = self._workerIDs[idx+1]
     _times::Vector{Float32} = self._workerTimes[idx+1]
     
@@ -155,21 +155,21 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
     _renderEvaluationTab1(self, getMode(sc, self._updateState), m)
 end
 
-function _renderEvaluationTab1(self::GraphWindow, ::SingleFrameSingleThread, model::ModelDNA)
+function _renderEvaluationTab1(self::GraphWindow, ::SingleFrameSingleThread, model::Model)
     _renderWorker(self, 0, model)
 end
 
-function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::ModelDNA)
+function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread}, model::Model)
     _renderWorker(self, 1, model)
 end
 
-function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::ModelDNA)
+function _renderEvaluationTab1(self::GraphWindow, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads}, model::Model)
     for idx in 1:length(getWorkers(model))
         _renderWorker(self, idx, model)
     end
 end
 
-function _renderWorker(self::GraphWindow, idx::Int, model::ModelDNA)
+function _renderWorker(self::GraphWindow, idx::Int, model::Model)
     CImGui.Separator()
 
     _ids::Vector{Int} = self._workerIDs[idx+1]

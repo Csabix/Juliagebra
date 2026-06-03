@@ -56,7 +56,7 @@ function sync!(self::TextBoxRenderer,item::TextBoxDependent)
 end
 
 function update!(self::TextBoxRenderer, app::AppDNA)
-    m::ModelDNA = getModel(app)
+    m::Model = getModel(app)
     s::Scheduler = getScheduler(m)
 
     for idx in self._applied 

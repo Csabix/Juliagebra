@@ -2,27 +2,18 @@
 # ! DependentGraph
 # ? ---------------------------------
 
-@kwdef mutable struct DependentGraph <: DependentGraphDNA
+@kwdef mutable struct DependentGraph
     _dependentObjects::Vector{DependentDNA} = Vector{DependentDNA}()
 end
 
-_DependentGraph_(self::DependentGraphDNA)::DependentGraph = error("Missing \"_DependentGraph_\" func for type of \"$(typeof(self))\"!")
-_DependentGraph_(self::DependentGraph)::DependentGraph = return self
+getNodes(self::DependentGraph) = return self._dependentObjects
+Base.empty!(self::DependentGraph) = empty!(self._dependentObjects)
 
-getNodes(self::DependentGraphDNA) = return _DependentGraph_(self)._dependentObjects
-
-function Base.empty!(self::DependentGraphDNA)
-    g::DependentGraph =_DependentGraph_(self)
-    empty!(g._dependentObjects)
-end
-
-function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
-    
-    graph = _DependentGraph_(self)
+function add!!(self::DependentGraph,asset::T) where T<:DependentDNA
     assetDependent = _Dependent_(asset)
-    assetDependent._graphID = length(graph._dependentObjects) + 1
+    assetDependent._graphID = length(self._dependentObjects) + 1
     
-    for graphItem in graph._dependentObjects
+    for graphItem in self._dependentObjects
         graphItemChain = getSchedule(graphItem)
         for assetParent in assetDependent._graphParents
             if (assetParent === graphItem) || (assetParent in dependentsOf(graphItemChain))
@@ -32,23 +23,21 @@ function add!!(self::DependentGraphDNA,asset::T) where T<:DependentDNA
         end
     end
     
-    push!(graph._dependentObjects,asset)
+    push!(self._dependentObjects,asset)
 end
 
-function Base.getindex(self::DependentGraphDNA, _pickedID::Integer)::DependentDNA
-    graph = _DependentGraph_(self)
-    return graph._dependentObjects[_pickedID - ID_LOWER_BOUND]
+function Base.getindex(self::DependentGraph, _pickedID::Integer)::DependentDNA
+    return self._dependentObjects[_pickedID - ID_LOWER_BOUND]
 end
 
-function getDependent(self::DependentGraphDNA, graphID::Int)::DependentDNA
-    return _DependentGraph_(self)._dependentObjects[graphID]
+function getDependent(self::DependentGraph, graphID::Int)::DependentDNA
+    return self._dependentObjects[graphID]
 end
 
-function to_string(self::DependentGraphDNA)
-    graph = _DependentGraph_(self)
+function to_string(self::DependentGraph)
     outStr = ""
 
-    for dependent in graph._dependentObjects
+    for dependent in self._dependentObjects
         outStr *= "$(to_string(dependent))\n"
     end
 

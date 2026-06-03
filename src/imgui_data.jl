@@ -37,7 +37,7 @@ mutable struct ImGuiData <: ImGuiDNA
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
         shrd::SharedData = getShrd(app)
-        model::ModelDNA = getModel(app)
+        model::Model = getModel(app)
 
         imgui_context = CImGui.CreateContext()
         
@@ -163,10 +163,10 @@ function _display!(self::ImGuiData,cam::Camera)
     cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
 end
 
-function _display!(self::ImGuiData,dependentL::DependentGraphDNA)
+function _display!(self::ImGuiData,graph::DependentGraph)
     CImGui.Text("Stored RenderedDependent Objects:")
     i = 1
-    for (dependentObject) in _DependentGraph(dependentL)._dependentObjects
+    for (dependentObject) in graph._dependentObjects
         CImGui.Text("$(i) - $(string(dependentObject))")
         #if CImGui.TreeNode()        
         #    CImGui.TreePop()

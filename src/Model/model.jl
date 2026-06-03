@@ -16,13 +16,16 @@ include("Nodes/ValueHolders/source_value_holder.jl")
 include("Nodes/observer.jl")
 include("Nodes/subject.jl")
 
-include("Threads/completed_condition.jl")
-include("Threads/goal.jl")
-include("Threads/builder.jl")
-include("Threads/adder.jl")
-include("Threads/synchronizer.jl")
-include("Threads/eval_worker.jl")
-include("Threads/scheduler.jl")
+include("Construction/builder.jl")
+include("Construction/adder.jl")
+
+include("Evaluation/completed_condition.jl")
+include("Evaluation/goal.jl")
+include("Evaluation/synchronizer.jl")
+include("Evaluation/eval_worker.jl")
+include("Evaluation/scheduler.jl")
+
+
 
 # ? ---------------------------------
 # ! Model

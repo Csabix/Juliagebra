@@ -193,6 +193,18 @@ function perf_init_gpu()
     end
     global _perf_gpu_inited[] = true
 end
+function perf_destroy_gpu()
+    for perfblock::PerfBlock in _perf_blocks
+        if perfblock.gpu !== nothing
+            glDeleteQueries(length(perfblock.gpu.querry_objects), perfblock.gpu.querry_objects)
+            perfblock.gpu = GPU_times()
+        end
+        if perfblock.cpu !== nothing
+            perfblock.cpu = CPU_times()
+        end
+    end
+    global _perf_gpu_inited[] = true
+end
 function perf_get_results()
     for perfblock::PerfBlock in _perf_blocks
         if perfblock.gpu !== nothing

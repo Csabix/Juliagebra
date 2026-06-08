@@ -26,11 +26,7 @@ function add!!(self::DependentGraph,asset::T) where T<:DependentDNA
     push!(self._dependentObjects,asset)
 end
 
-function Base.getindex(self::DependentGraph, _pickedID::Integer)::DependentDNA
-    return self._dependentObjects[_pickedID - ID_LOWER_BOUND]
-end
-
-function getDependent(self::DependentGraph, graphID::Int)::DependentDNA
+function getDependent(self::DependentGraph, graphID::Integer)::DependentDNA
     return self._dependentObjects[graphID]
 end
 

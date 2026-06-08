@@ -174,7 +174,10 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
         if event.button == MOUSE_BUTTON_RIGHT
             self._shrd._pickedID = id
             if id > 3 && id <= UInt32(3 + length(getNodes(getModel(self)._graph)))
-                p = getModel(self)._graph[self._shrd._pickedID]
+                
+                # ? picked id - id lower bound = graph id
+                p = getDependent(getModel(self)._graph, self._shrd._pickedID - ID_LOWER_BOUND)
+                
                 if isa(p, PointDependent)
                     pp::PointDependent = p
                     self._opengl._gizmoGL._pos = Vec3F(pp._coord)
@@ -204,7 +207,10 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p::PointDependent = getModel(self)._graph[self._shrd._pickedID]::PointDependent
+        
+        # ? picked id - id lower bound = graph id
+        p::PointDependent = getDependent(getModel(self)._graph, self._shrd._pickedID - ID_LOWER_BOUND)::PointDependent
+        
         p._coord = Vec3D(
             self._opengl._gizmoGL._pos.x,
             self._opengl._gizmoGL._pos.y,

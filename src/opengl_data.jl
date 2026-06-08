@@ -31,6 +31,8 @@ struct UBO_Data
 end
 
 mutable struct OpenGLData <: ObserverBuilderDNA
+    _profiler::Profiler
+    _passes::@NamedTuple{pre_draw::UInt32, widgets::UInt32, opaque::UInt32, behind_opaque::UInt32, transparent::UInt32, post_process::UInt32}
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
@@ -82,6 +84,17 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         glClearStencil(0)
         glStencilMask(0xFF);
         glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
+
+        profiler = Profiler()
+        passes = (
+            pre_draw      = add_gpu_stopwatch(profiler),
+            widgets       = add_gpu_stopwatch(profiler),
+            opaque        = add_gpu_stopwatch(profiler),
+            behind_opaque = add_gpu_stopwatch(profiler),
+            transparent   = add_gpu_stopwatch(profiler),
+            post_process  = add_gpu_stopwatch(profiler)
+        )
+        init!(profiler)
         
         widgets = Vector{OpenGLWidgetDNA}()
         gizmoGL = GizmoGL()
@@ -150,7 +163,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(shrd,widgets,observers,renderers,
+        self = new(profiler,passes,shrd,widgets,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,final_combiner,highlighter,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
@@ -365,11 +378,25 @@ function render_scene!(self::OpenGLData,cam::Camera)
         Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),0.0f0)
     )
 
+    begin_gpu(self._profiler,self._passes.pre_draw)
     pre_draw(self._renderers,cam,self._shrd)
+    end_gpu(self._profiler,self._passes.pre_draw)
+
+    begin_gpu(self._profiler,self._passes.widgets)
     _widgets(self,cam)
+    end_gpu(self._profiler,self._passes.widgets)
+
+    begin_gpu(self._profiler,self._passes.opaque)
     _opaque(self,cam)
+    end_gpu(self._profiler,self._passes.opaque)
+
+    begin_gpu(self._profiler,self._passes.behind_opaque)
     _behind_opaque(self,cam)
+    end_gpu(self._profiler,self._passes.behind_opaque)
+
+    begin_gpu(self._profiler,self._passes.transparent)
     _transparent(self,cam)
+    end_gpu(self._profiler,self._passes.transparent)
 end
 
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
@@ -381,7 +408,8 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
         render_scene!(self,cam)
     end
 
-    readID(self)
+    begin_gpu(self._profiler,self._passes.post_process)
+    readID(self) # TODO remove
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     activate(self._empty_VAO)
     activate(self._final_combiner)
@@ -402,7 +430,9 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
         glDrawArrays(GL_TRIANGLES,0,6)
         glDisable(GL_BLEND)
     end
+    end_gpu(self._profiler,self._passes.post_process)
     lock(self._ubo)
+    frame_end(self._profiler)
 end
 
 

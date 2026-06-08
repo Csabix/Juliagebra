@@ -19,6 +19,7 @@ using ThreadPinning
 #pinthreads(:cores)
 import MacroTools
 
+include("profiling.jl")
 include("performance_metrics.jl")
 
 include("commons.jl")

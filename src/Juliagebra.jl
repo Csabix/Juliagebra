@@ -56,6 +56,7 @@ include("Primitives/primitive_constructors.jl")
 # ? ---------------------------------
 
 include("Model/model.jl")
+include("Dependents/extra_model_abstracts.jl")
 
 # ? ---------------------------------
 # ! LBVH
@@ -103,7 +104,6 @@ include("opengl_data.jl")
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
-
 
 include("Dependents/dependents.jl")
 

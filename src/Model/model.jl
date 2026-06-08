@@ -1,4 +1,12 @@
 
+abstract type DependentDNA end
+
+abstract type ValueHolderDNA{T} <: DependentDNA end
+abstract type SourceValueHolderDNA{T} <: ValueHolderDNA{T} end
+
+abstract type SubjectDNA <: DependentDNA end
+abstract type ObserverDNA{T<:SubjectDNA} end
+
 abstract type ModelState end
 struct BuildingState <: ModelState end
 struct ViewingState <: ModelState end

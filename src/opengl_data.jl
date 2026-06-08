@@ -30,7 +30,7 @@ struct UBO_Data
     _near_far_fov_unused::Vec4F
 end
 
-mutable struct OpenGLData <: ObserverBuilderDNA
+mutable struct OpenGLData
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 

@@ -58,10 +58,7 @@ getShrd(self::App) = return self._shrd
 getCommander(self::App)::Commander = return self._commander
 getStarter(self::App)::Starter = return self._starter
 getModel(self::App)::Model = return self._model
-function sceneChanged(self::App)::Nothing
-    self._scene_change = true
-    return nothing
-end
+sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
@@ -193,6 +190,7 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
             mouse_capture = true
         end
     elseif event.button == MOUSE_BUTTON_LEFT
+        if self._shrd._selectedGizmo != 0 sceneChanged(self) end
         self._shrd._selectedGizmo = 0
     end
     self._scene_change |=   old_selected != self._shrd._selectedGizmo ||
@@ -328,6 +326,7 @@ function destroy!(self::App)
         error("No window created, thus, can't destroy!")
     end
 
+    perf_destroy_gpu()
     destroy!(self._imgui)
     destroy!(self._opengl)
     destroy!(self._glfw)

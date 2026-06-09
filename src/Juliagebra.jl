@@ -14,6 +14,7 @@ using LinearAlgebra
 using GLFW
 using ModernGL
 using CImGui
+using ImPlot
 using DataStructures
 using ThreadPinning
 #pinthreads(:cores)
@@ -86,7 +87,7 @@ include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
-include("Widgets/Windows/frame_rate_window.jl")
+include("Widgets/Windows/frame_time_window.jl")
 
 include("Widgets/gizmo.jl")
 include("Widgets/ortho_gizmo.jl")

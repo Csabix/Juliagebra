@@ -33,6 +33,7 @@ end
 mutable struct OpenGLData <: ObserverBuilderDNA
     _profiler::Profiler
     _passes::@NamedTuple{pre_draw::UInt32, widgets::UInt32, opaque::UInt32, behind_opaque::UInt32, transparent::UInt32, post_process::UInt32}
+    _cpu_stopwatch::UInt32
     _shrd::SharedData
     _widgets::Vector{OpenGLWidgetDNA}
 
@@ -94,6 +95,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
             transparent   = add_gpu_stopwatch(profiler),
             post_process  = add_gpu_stopwatch(profiler)
         )
+        cpu_stopwatch = add_cpu_stopwatch(profiler)
         init!(profiler)
         
         widgets = Vector{OpenGLWidgetDNA}()
@@ -163,7 +165,7 @@ mutable struct OpenGLData <: ObserverBuilderDNA
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(profiler,passes,shrd,widgets,observers,renderers,
+        self = new(profiler,passes,cpu_stopwatch,shrd,widgets,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,final_combiner,highlighter,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
@@ -401,6 +403,7 @@ end
 
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     glCheckErrors(self)
+    begin_cpu(self._profiler, self._cpu_stopwatch)
 
     added_all!(self._renderers)
     scene_change |= sync_all!(self._renderers)
@@ -432,6 +435,7 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     end
     end_gpu(self._profiler,self._passes.post_process)
     lock(self._ubo)
+    end_cpu(self._profiler, self._cpu_stopwatch)
     frame_end(self._profiler)
 end
 

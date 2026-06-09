@@ -176,7 +176,7 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
             if id > 3 && id <= UInt32(3 + length(getNodes(getModel(self)._graph)))
                 
                 # ? picked id - id lower bound = graph id
-                p = getDependent(getModel(self)._graph, self._shrd._pickedID - ID_LOWER_BOUND)
+                p = getDependentNode(getModel(self), self._shrd._pickedID - ID_LOWER_BOUND)
                 
                 if isa(p, PointDependent)
                     pp::PointDependent = p
@@ -209,7 +209,7 @@ function updateGizmo!(self::App)
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
         
         # ? picked id - id lower bound = graph id
-        p::PointDependent = getDependent(getModel(self)._graph, self._shrd._pickedID - ID_LOWER_BOUND)::PointDependent
+        p::PointDependent = getDependentNode(getModel(self), self._shrd._pickedID - ID_LOWER_BOUND)::PointDependent
         
         p._coord = Vec3D(
             self._opengl._gizmoGL._pos.x,

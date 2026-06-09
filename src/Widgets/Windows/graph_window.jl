@@ -34,10 +34,9 @@ function update!(self::GraphWindow, model::Model)
     s::Scheduler = getScheduler(model)
     self._updateState = self._renderState
     setMode(s, self._updateState)
-    
-    empty!(self._graphID2workerIDX)
 
     if isVisible(self)
+        empty!(self._graphID2workerIDX)
         _update1(self, getMode(s, self._updateState), model)
     end
 end

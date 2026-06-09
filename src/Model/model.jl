@@ -175,6 +175,13 @@ function decideState(self::Model)::ModelState
     end
 end
 
+"""
+Get a reference to the Dependent with the given graphID.
+- Query time is just indexing into a list, so fast.
+"""
+function getDependentNode(self::Model, graphID::Int)::DependentDNA
+    return _getDependentNode(self._graph, graphID)
+end
 
 
 # ? BuildingState

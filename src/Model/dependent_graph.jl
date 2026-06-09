@@ -26,18 +26,6 @@ function add!!(self::DependentGraph,asset::T) where T<:DependentDNA
     push!(self._dependentObjects,asset)
 end
 
-function getDependent(self::DependentGraph, graphID::Integer)::DependentDNA
+function _getDependentNode(self::DependentGraph, graphID::Integer)::DependentDNA
     return self._dependentObjects[graphID]
-end
-
-function to_string(self::DependentGraph)
-    outStr = ""
-
-    for dependent in self._dependentObjects
-        outStr *= "$(to_string(dependent))\n"
-    end
-
-    outStr = outStr[1:end-1]
-
-    return outStr
 end

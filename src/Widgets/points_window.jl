@@ -1,10 +1,10 @@
 
 mutable struct PointsWindow <: WindowDNA
     _window::Window
-    _model::ModelDNA
+    _model::Model
     _renderer::PointRenderer
 
-    PointsWindow(model::ModelDNA, renderer::PointRenderer) = new(Window(), model, renderer)
+    PointsWindow(model::Model, renderer::PointRenderer) = new(Window(), model, renderer)
 end
 
 _Window_(self::PointsWindow)::Window = self._window

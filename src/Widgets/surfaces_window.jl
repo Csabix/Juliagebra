@@ -1,10 +1,10 @@
 
 mutable struct SurfacesWindow <: WindowDNA
     _window::Window
-    _model::ModelDNA
+    _model::Model
     _renderer::TriangleRenderer
 
-    SurfacesWindow(model::ModelDNA, renderer::TriangleRenderer) = new(Window(), model, renderer)
+    SurfacesWindow(model::Model, renderer::TriangleRenderer) = new(Window(), model, renderer)
 end
 
 _Window_(self::SurfacesWindow)::Window = self._window

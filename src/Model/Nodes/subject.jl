@@ -1,5 +1,6 @@
+
 # ? ---------------------------------
-# ! SubjectDNA
+# ! Subject
 # ? ---------------------------------
 
 mutable struct Subject <: DependentDNA

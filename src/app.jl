@@ -174,13 +174,18 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
         if event.button == MOUSE_BUTTON_RIGHT
             self._shrd._pickedID = id
             if id > 3 && id <= UInt32(3 + length(getNodes(getModel(self)._graph)))
-                p = getModel(self)._graph[self._shrd._pickedID]
+                
+                # ? picked id - id lower bound = graph id
+                p = getDependentNode(getModel(self), self._shrd._pickedID - ID_LOWER_BOUND)
+                
                 if isa(p, PointDependent)
                     pp::PointDependent = p
                     self._opengl._gizmoGL._pos = Vec3F(pp._coord)
                     self._shrd._gizmoEnabled = true
                     self._shrd._gizmoConstraints = pp._constraints
                     mouse_capture = true
+                else
+                    self._shrd._gizmoEnabled = false
                 end
             else
                 self._shrd._gizmoEnabled = false
@@ -204,7 +209,10 @@ function updateGizmo!(self::App)
         setAxisClampedT!(self._opengl._gizmoGL,self._shrd._selectedGizmo,
                     self._shrd,
                     self._opengl._vp,self._cam,self._opengl._v,self._opengl._p)
-        p::PointDependent = getModel(self)._graph[self._shrd._pickedID]::PointDependent
+        
+        # ? picked id - id lower bound = graph id
+        p::PointDependent = getDependentNode(getModel(self), self._shrd._pickedID - ID_LOWER_BOUND)::PointDependent
+        
         p._coord = Vec3D(
             self._opengl._gizmoGL._pos.x,
             self._opengl._gizmoGL._pos.y,
@@ -227,55 +235,17 @@ function play!(self::App)
         self._scene_change |= updateCam!(self)
         
         model::Model = self._model
-        state::ModelState = decideState(model)
-        # ? Begin model operations with decided state.
-        beginState(model,state)
-
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
 
-        if state isa ViewingState
-            # ? Handle commands in the command queue.
-            handleCommands!(self)
-            # ? Schedule a PointDependent.
-            updateGizmo!(self)
-            # ? Schedule SliderDependents and StepperDependents.
-            update!(self._imgui,self)
-            
-            # ? Do sync! and syncAll! calls.
-            self._scene_change |= update!(model,state)
-            
-            if !iconified
-                # ? Render scene and dock.
-                update!(self._opengl,self._cam,self._scene_change)
-                render!(self._imgui,self)
-                update!(self._shrd)
-            end
-        elseif state isa BuildingState
-            # ? Do added! and addedAll! calls.
-            self._scene_change |= update!(model,state)
-
-            if !iconified
-                # ? Render scene and loading bar.
-                update!(self._opengl,self._cam,self._scene_change)
-                renderBuildingState(self._imgui,self)
-
-                update!(self._shrd)
-            end
-        elseif state isa EvalingState
-            # ? Do sync! and syncAll! calls.
-            self._scene_change |= update!(model, state)
-
-            if !iconified
-                # ? Render scene and dock.
-                update!(self._opengl,self._cam,self._scene_change)
-                render!(self._imgui,self)
-                update!(self._shrd)
-            end
-
-        end
+        # ? Begin model operations with decided state.
+        state::ModelState = decideState(model)
+        
+        # ? Do model operations with state.
+        update!(self,state,iconified)
 
         # ? End model state.
         endState(model,state)
+        
         self._scene_change = false
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         GLFW.SwapBuffers(self._glfw._window)
@@ -289,12 +259,56 @@ function play!(self::App)
     if (implicitApp === self)
         implicitApp = nothing
     end
+    
+end
 
-    #global EVAL_PATH
-    #open(EVAL_PATH, "a") do io
-    #    println(io, join(_mlines,","))        
-    #end
+function update!(self::App, state::ViewingState, iconified::Bool)
+    model::Model = self._model
+    
+    # ? Handle commands in the command queue.
+    handleCommands!(self)
+    # ? Schedule a PointDependent.
+    updateGizmo!(self)
+    # ? Schedule ToggleDependents, SliderDependents, TextBoxDependents and StepperDependents.
+    update!(self._imgui,self)
+            
+    # ? Do sync! and syncAll! calls.
+    self._scene_change |= update!(model,state)
+            
+    if !iconified
+        # ? Render scene and dock.
+        update!(self._opengl,self._cam,self._scene_change)
+        render!(self._imgui,self)
+        update!(self._shrd)
+    end
+end
 
+function update!(self::App, state::BuildingState, iconified::Bool)
+    model::Model = self._model
+    
+    # ? Do added! and addedAll! calls.
+    self._scene_change |= update!(model,state)
+
+    if !iconified
+        # ? Render scene and loading bar.
+        update!(self._opengl,self._cam,self._scene_change)
+        renderBuildingState(self._imgui,self)
+        update!(self._shrd)
+    end
+end
+
+function update!(self::App, state::EvalingState, iconified::Bool)
+    model::Model = self._model
+    
+    # ? Do sync! and syncAll! calls.
+    self._scene_change |= update!(model, state)
+
+    if !iconified
+        # ? Render scene and dock.
+        update!(self._opengl,self._cam,self._scene_change)
+        render!(self._imgui,self)
+        update!(self._shrd)
+    end
 end
 
 function init!(self::App)

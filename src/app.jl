@@ -184,6 +184,8 @@ function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
                     self._shrd._gizmoEnabled = true
                     self._shrd._gizmoConstraints = pp._constraints
                     mouse_capture = true
+                else
+                    self._shrd._gizmoEnabled = false
                 end
             else
                 self._shrd._gizmoEnabled = false

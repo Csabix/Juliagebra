@@ -37,42 +37,50 @@ evalCallbackDpReturn(self::ToggleDependent, ::Nothing) = return nothing
 # ! ToggleRenderer
 # ? ---------------------------------
 
-# TODO: copy Bools, instead of views!
 mutable struct ToggleRenderer <: GuiRendererDNA{ToggleDependent}
-    _guiRenderer::GuiRenderer{ToggleDependent}
-
-    # GREEN Thread
-    ToggleRenderer(imgui::ImGuiDNA) = new(GuiRenderer{ToggleDependent}(imgui))
+    _renderer::GuiRenderer{ToggleDependent}
+    _values::Vector{Bool}
+    _clicked::Set{Int}
+    ToggleRenderer(imgui::ImGuiDNA) = new(GuiRenderer{ToggleDependent}(imgui),Vector{Bool}(),Set{Int}())
 end
 
-_GuiRenderer_(self::ToggleRenderer) = return self._guiRenderer
-
-# GREEN Thread
-_added!(::ToggleRenderer,::ToggleDependent) = return nothing
-
-# GREEN Thread
-addedAll!(::ToggleRenderer) = return nothing
-
-# GREEN Thread
-sync!(::ToggleRenderer,::ToggleDependent) = return nothing
-
-# GREEN Thread
-syncAll!(::ToggleRenderer) = return nothing
+_GuiRenderer_(self::ToggleRenderer) = return self._renderer
 
 title(::ToggleRenderer)::String = return "Toggle"
+addedAll!(::ToggleRenderer) = return nothing
+syncAll!(::ToggleRenderer) = return nothing
 
-function render!(self::ToggleRenderer, toggle::ToggleDependent, app::AppDNA)
-    m::ModelDNA = getModel(app)
+# GREEN Thread
+function _added!(self::ToggleRenderer,toggle::ToggleDependent)
+    push!(self._values,toggle._state)
+end
+
+# GREEN Thread
+function sync!(self::ToggleRenderer,toggle::ToggleDependent)
+    self._values[getObserverID(toggle)] = toggle._state
+end
+
+function update!(self::ToggleRenderer, app::AppDNA)
+    m::Model = getModel(app)
     s::Scheduler = getScheduler(m)
-    label::String = getLabel(toggle)
-    toggleIdx::Int = getObserverID(toggle)
 
-    toggleState = toggle._state
-    toggleStateRef = Ref(toggleState)
-
-    if (CImGui.Checkbox("$(label)##$(toggleIdx)",toggleStateRef))
+    for idx in self._clicked  
+        toggle::ToggleDependent = getSubjectItems(self)[idx]
         _flip!(toggle)
         schedule(s,toggle)
+    end
+
+    empty!(self._clicked)
+end
+
+function render!(self::ToggleRenderer, toggle::ToggleDependent, app::AppDNA)
+    label::String = getLabel(toggle)
+    toggleIdx::Int = getObserverID(toggle)
+    value = self._values[toggleIdx]
+
+    valueRef = Ref(value)
+    if (CImGui.Checkbox("$(label)##$(toggleIdx)",valueRef))
+        push!(self._clicked,toggleIdx)
     end
 end
 

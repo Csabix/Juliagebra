@@ -54,6 +54,13 @@ include("Primitives/primitive_intersections.jl")
 include("Primitives/primitive_constructors.jl")
 
 # ? ---------------------------------
+# ! Model
+# ? ---------------------------------
+
+include("Model/model.jl")
+include("Dependents/extra_model_abstracts.jl")
+
+# ? ---------------------------------
 # ! LBVH
 # ? ---------------------------------
 
@@ -100,17 +107,6 @@ include("opengl_data.jl")
 # ! Dependents
 # ? ---------------------------------
 
-include("GraphCore/schedule.jl")
-include("GraphCore/dependent_graph.jl")
-include("GraphCore/dependent.jl")
-include("GraphCore/dependent_observer.jl")
-include("GraphCore/value_holder.jl")
-include("GraphCore/generic_value_holder.jl")
-include("GraphCore/source_value_holder.jl")
-#include("GraphCore/unary_value_holder.jl")
-include("GraphCore/subject_dependent.jl")
-
-
 include("Dependents/dependents.jl")
 
 include("Widgets/points_window.jl")
@@ -119,25 +115,10 @@ include("Widgets/surfaces_window.jl")
 
 include("global_dependent_optimizer.jl")
 
-#include("Dependents/Gui/gui_renderer.jl")
-#include("Dependents/Gui/gui_dependent.jl")
-#include("Dependents/Gui/toggle.jl")
-#include("Dependents/Gui/slider.jl")
-#include("Dependents/Gui/textbox.jl")
-#include("Dependents/Gui/stepper.jl")
 include("Widgets/Windows/gui_dependents_window.jl")
-include("imgui_data.jl")
-
-include("GraphCore/Threads/completed_condition.jl")
-include("GraphCore/Threads/goal.jl")
-include("GraphCore/Threads/builder.jl")
-include("GraphCore/Threads/adder.jl")
-include("GraphCore/Threads/synchronizer.jl")
-include("GraphCore/Threads/eval_worker.jl")
-include("GraphCore/Threads/scheduler.jl")
-include("GraphCore/Threads/model.jl")
-
 include("Widgets/Windows/graph_window.jl")
+
+include("imgui_data.jl")
 
 include("App/starter.jl")
 include("App/commander.jl")

@@ -8,7 +8,7 @@ Juliagebra.Window() do
                    label="txt2"
     )
 
-    p2 = Point([txt2]) do txt2
+    p2 = Point([txt2]; axis_constraint=AXIS_FULL) do txt2
         if (txt2 == "corner")
             return (5,5,5)
         end

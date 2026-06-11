@@ -30,7 +30,7 @@ struct UBO_Data
     _near_far_fov_unused::Vec4F
 end
 
-mutable struct OpenGLData <: ObserverBuilderDNA
+mutable struct OpenGLData
     _profiler::Profiler
     _passes::@NamedTuple{pre_draw::UInt32, widgets::UInt32, opaque::UInt32, behind_opaque::UInt32, transparent::UInt32, post_process::UInt32}
     _cpu_stopwatch::UInt32

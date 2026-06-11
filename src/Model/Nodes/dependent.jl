@@ -1,5 +1,6 @@
+
 # ? ---------------------------------
-# ! DependentDNA
+# ! Dependent
 # ? ---------------------------------
 
 mutable struct Dependent

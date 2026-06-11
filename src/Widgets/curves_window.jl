@@ -1,10 +1,10 @@
 
 mutable struct CurvesWindow <: WindowDNA
     _window::Window
-    _model::ModelDNA
+    _model::Model
     _renderer::LineRenderer
 
-    CurvesWindow(model::ModelDNA, renderer::LineRenderer) = new(Window(), model, renderer)
+    CurvesWindow(model::Model, renderer::LineRenderer) = new(Window(), model, renderer)
 end
 
 _Window_(self::CurvesWindow)::Window = self._window

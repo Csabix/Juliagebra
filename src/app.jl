@@ -88,8 +88,7 @@ function mouse_motion_event(event::MouseMotionEvent,self::App)::Nothing
     return nothing
 end
 function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing 
-    id = readID(self._opengl, event.x, event.y)
-    if gizmoSelect!(self,event,id) return nothing end
+    if gizmoSelect!(self,event,self._shrd._selectedID) return nothing end
     if mouse_button!(self._manipulator,event) return nothing end
 
     if event.press

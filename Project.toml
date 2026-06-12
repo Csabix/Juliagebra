@@ -15,6 +15,7 @@ ModernGL = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 assimp_jll = "54ae6823-98c6-5a7c-8365-5a43b909f91f"
+glslang_jll = "6fd5517d-459c-5c5a-9b1a-c968b4e37a81"
 
 [sources]
 JuliaGLM = {rev = "glsl-functions", url = "https://github.com/Csabix/JuliaGLM"}
@@ -25,6 +26,7 @@ ImPlot = "0.7.5"
 MacroTools = "0.5.16"
 ThreadPinning = "1.0.2"
 assimp_jll = "5.2.5"
+glslang_jll = "11.7.0"
 
 [extras]
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"

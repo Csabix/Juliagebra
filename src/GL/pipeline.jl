@@ -1,4 +1,5 @@
 using StaticArrays, ModernGL
+using glslang_jll: glslangValidator
 
 const _shader_src_folder::String  = pkgdir(@__MODULE__,"assets","shaders","src")
 const _shader_spirv_folder::String = pkgdir(@__MODULE__,"assets","shaders","spirv")
@@ -438,6 +439,7 @@ end
 
 function _to_spirv(loader::PipelineLoader, shader::ShaderGLSL)::Nothing
     println("glsl $(shader.spirv_path)")
+    glslang = glslangValidator(identity)
     path = normpath(shader.path)
     output_path = shader.spirv_path
 
@@ -456,7 +458,7 @@ function _to_spirv(loader::PipelineLoader, shader::ShaderGLSL)::Nothing
     
     try
         mktemp() do depfile_path, depfile_io
-            run(`$(ENV["JULIAGEBRA_GLSLANG_PATH"]) -G $path -o $output_path --depfile $depfile_path`)
+            run(`$glslang -G $path -o $output_path --depfile $depfile_path`)
             
             content = read(depfile_path, String)
             

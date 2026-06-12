@@ -48,7 +48,7 @@ mutable struct App <: AppDNA
         model = Model()
 
         asset_watcher::Union{Nothing,AssetWatcher} = nothing
-        if haskey(ENV,"JULIAGEBRA_GLSLANG_PATH")
+        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
             asset_watcher = AssetWatcher()
         end
         

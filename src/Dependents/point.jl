@@ -17,13 +17,15 @@ mutable struct PointDependent <: RenderedDependentDNA
     _style::UInt8
     _size::UInt8
     _constraints::UInt8
+    _selfFeed::Bool          # if true, the callback is fed this point's own _coord (constrained points)
 
     # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},
-                            color::UInt32,style::UInt8,size::UInt8,axis_constraint::UInt8)
+                            color::UInt32,style::UInt8,size::UInt8,axis_constraint::UInt8,
+                            selfFeed::Bool=false)
         dependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(dependent,coord,color,style,UInt8(size),axis_constraint)
+        new(dependent,coord,color,style,UInt8(size),axis_constraint,selfFeed)
     end
 end
 
@@ -32,7 +34,11 @@ Base.string(self::PointDependent) = "Point[$(_Dependent_(self)._graphID) - $(str
 
 # YELLOW Thread
 # RED Thread
-onNodeEval(self::PointDependent) = evalCallbackDp(self)
+# Constrained points (selfFeed) get their own current coordinate as the first callback
+# argument, so the callback can project / clamp it (e.g. onto a plane) before it propagates.
+onNodeEval(self::PointDependent) = self._selfFeed ?
+    evalCallbackDp(self; callbackParams = (self._coord,)) :
+    evalCallbackDp(self)
 
 Base.eltype(dependent::PointDependent)::DataType = Vec3D
 evalCallbackDpEntry(self::PointDependent)::Vec3D = self._coord
@@ -102,6 +108,20 @@ Point(() -> Vec3D(x,y,z),DependentDNA[],color_style,color=color,style=style,size
 Point(x::Real,y::Real,color_style::Union{Nothing,String}=nothing;
     color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y)::PointDependent =
 Point(() -> Vec3D(x,y,0.0),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
+
+# YELLOW Thread
+# Draggable point constrained by `constrain(coord, dep_values...)`.
+# The constraint is re-applied (1) when any `deps` change — so the point follows e.g. a
+# plane defined by other draggable points — and (2) when the point itself is dragged
+# (see updateGizmo! in app.jl). `init` seeds the position before the first eval.
+function Point(constrain::Function, init::Vec3D, deps::Vector{<:DependentDNA}=DependentDNA[],
+               color_style::Union{Nothing,String}=nothing;
+               color="m",style=".",size=25,axis_constraint=AXIS_FULL)::PointDependent
+    (c,s) = parse_point_color_style(color_style,color,style)
+    pd = PointDependent(constrain,deps,c,s,round(UInt8,size),axis_constraint,true)
+    pd._coord = init
+    Build!(pd)
+end
 
 # YELLOW Thread
 macro Point(callback::Expr, args...)

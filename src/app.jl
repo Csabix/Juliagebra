@@ -211,6 +211,13 @@ function updateGizmo!(self::App)
             self._opengl._gizmoGL._pos.y,
             self._opengl._gizmoGL._pos.z
             )
+        # ? constrained points: project the dragged coord (e.g. onto a plane) via the same
+        # ? callback used on dependency-change, then keep the gizmo on the projected point.
+        if p._selfFeed
+            setEntryNodes(p)
+            p._coord = Vec3D(getCallback(p)(p._coord, getEntryNodes(p)...))
+            self._opengl._gizmoGL._pos = Vec3F(p._coord)
+        end
         # ? schedule for evalGraph
         schedule(getModel(self),p)
     end

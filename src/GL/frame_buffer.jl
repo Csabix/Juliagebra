@@ -34,3 +34,14 @@ end
 activate(self::FrameBuffer)::Nothing = glBindFramebuffer(GL_FRAMEBUFFER, self._id)::Nothing
 disable(self::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
 destroy!(self::FrameBuffer) =  glDeleteRenderbuffers(1,[self._id])
+
+function blit_to_screen(framebuffer::FrameBuffer, attachment::GLuint, mask::GLuint, width::GLint, height::GLint)::Nothing
+    glNamedFramebufferReadBuffer(framebuffer._id, attachment)
+    glBlitNamedFramebuffer(
+        framebuffer._id, 0,
+        0, 0, width, height,
+        0, 0, width, height,
+        mask, GL_NEAREST
+    )
+    return nothing
+end

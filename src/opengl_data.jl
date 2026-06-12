@@ -43,9 +43,9 @@ mutable struct OpenGLData
     # ! Shaders
     _transparent_color_combiner::ShaderProgram
     _transparent_id_combiner::ShaderProgram
-    _final_combiner::ShaderProgram
     _highlighter::ShaderProgram
     _buffer_clear::ShaderProgram
+    _grid::ShaderProgram
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -109,9 +109,9 @@ mutable struct OpenGLData
 
         transparent_color_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_color.frag"],["width"])
         transparent_id_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_id.frag"],["width"])
-        final_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/final.frag"],["frameTex","depthTex","distance_distance_power"])
-        highlighter = ShaderProgram(["combiners/fullscreen.vert","combiners/highlighter.frag"],["idTex","highlighted_id"])
+        highlighter = ShaderProgram(["postprocess/highlight.vert","postprocess/highlight.frag"])
         buffer_clear = ShaderProgram(["./buffer_clear.comp"])
+        grid = ShaderProgram(["postprocess/grid.vert","postprocess/grid.frag"])
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -169,7 +169,7 @@ mutable struct OpenGLData
         camPos = Vec3F(0.0,0.0,0.0)
 
         self = new(profiler,passes,cpu_stopwatch,shrd,widgets,observers,renderers,
-            transparent_color_combiner,transparent_id_combiner,final_combiner,highlighter,buffer_clear,
+            transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,pixel_buffer,empty_vao,
@@ -251,21 +251,6 @@ function _predraw(self::OpenGLData,cam::Camera)::Nothing
     glDispatchCompute(cld(length(self._pixel_buffer),128*5),1,1)
     unbind_ssbo(11)
 
-    # Ubo update
-    glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
-    (vp, v, p) = get_matrices(cam)
-    (cam_light, side_light) = get_lights(cam)
-    glBindBufferBase(GL_UNIFORM_BUFFER, 10, 0)
-    
-    width::Float32 = Float32(self._shrd._width)
-    height::Float32 = Float32(self._shrd._height)
-    wait(self._ubo)
-    self._ubo[1] = UBO_Data(
-        vp,v,p,
-        Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
-        Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._shrd._width))),
-        Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),0.0f0)
-    )
     # Clear opaque
     activate(self._opaqueFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
@@ -277,7 +262,6 @@ function _predraw(self::OpenGLData,cam::Camera)::Nothing
     glClearBufferfv(GL_COLOR, 1, Float32[1.0f0, 1.0f0, 1.0f0, 1.0f0])
 
     # Pre draw call
-    glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT)
     pre_draw(self._renderers,cam,self._shrd)
 end
@@ -401,11 +385,56 @@ function render_scene!(self::OpenGLData,cam::Camera)
     end_gpu(self._profiler,self._passes.transparent)
 end
 
+function blit_scene!(self::OpenGLData,cam::Camera)
+    glDisable(GL_DEPTH_TEST)
+    glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+    w = GLint(self._shrd._width)
+    h = GLint(self._shrd._height)
+    blit_to_screen(self._opaqueFBO, GL_COLOR_ATTACHMENT0, GL_COLOR_BUFFER_BIT, w, h)
+
+    activate(self._empty_VAO)
+
+    activate(self._grid)
+    activate(self._depthstencilTexture,GL_TEXTURE0)
+    glDrawArrays(GL_TRIANGLES,0,3)
+
+    if (self._shrd._selectedID > 3)
+        activate(self._highlighter)
+        activate(self._idTexture,GL_TEXTURE0)
+        glDrawArrays(GL_TRIANGLES,0,3)
+    end
+
+    glEnable(GL_DEPTH_TEST)
+end
+
+function _ubo_update!(self::OpenGLData,cam::Camera)
+    # Ubo update
+    (vp, v, p) = get_matrices(cam)
+    (cam_light, side_light) = get_lights(cam)
+    glBindBufferBase(GL_UNIFORM_BUFFER, 10, 0)
+    
+    width::Float32 = Float32(self._shrd._width)
+    height::Float32 = Float32(self._shrd._height)
+    wait(self._ubo)
+    self._ubo[1] = UBO_Data(
+        vp,v,p,
+        Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
+        Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._shrd._width))),
+        Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),reinterpret(Float32,self._shrd._selectedID))
+    )
+    glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
+end
+
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     glCheckErrors(self)
     begin_cpu(self._profiler, self._cpu_stopwatch)
     readID(self)
 
+    _ubo_update!(self,cam)
     added_all!(self._renderers)
     scene_change |= sync_all!(self._renderers)
     if scene_change
@@ -413,33 +442,13 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     end
 
     begin_gpu(self._profiler,self._passes.post_process)
-    glBindFramebuffer(GL_FRAMEBUFFER, 0)
-    activate(self._empty_VAO)
-    activate(self._final_combiner)
-    uniform(self._final_combiner,"frameTex",Int32(0))
-    uniform(self._final_combiner,"depthTex",Int32(1))
-    uniform(self._final_combiner,"distance_distance_power",Vec2F(norm(cam._at - cam._eye),10 ^ floor(log10(norm(cam._at - cam._eye)))))
-    activate(self._rgbaTexture,GL_TEXTURE0)
-    activate(self._depthstencilTexture,GL_TEXTURE1)
-    glDrawArrays(GL_TRIANGLES,0,6)
-
-    if (self._shrd._selectedID > 3)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        activate(self._highlighter)
-        uniform(self._highlighter,"idTex",Int32(0))
-        uniform(self._highlighter,"highlighted_id",self._shrd._selectedID)
-        activate(self._idTexture,GL_TEXTURE0)
-        glDrawArrays(GL_TRIANGLES,0,6)
-        glDisable(GL_BLEND)
-    end
+    blit_scene!(self,cam)
     end_gpu(self._profiler,self._passes.post_process)
+
     lock(self._ubo)
     end_cpu(self._profiler, self._cpu_stopwatch)
     frame_end(self._profiler)
 end
-
-
 
 function destroy!(self::OpenGLData)
     destroy_dependent_observers(self._observers)
@@ -447,8 +456,8 @@ function destroy!(self::OpenGLData)
 
     destroy!(self._transparent_color_combiner)
     destroy!(self._transparent_id_combiner)
-    destroy!(self._final_combiner)
     destroy!(self._buffer_clear)
+    destroy!(self._grid)
 
     destroy!(self._opaqueFBO)
     destroy!(self._behindOpaqueFBO)

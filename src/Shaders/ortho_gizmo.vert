@@ -35,6 +35,7 @@ void main(){
     vec3 position = gl_VertexID % 2 == 0 ? vertices[current_index] : vec3(0);
 
     vec4 out_position = VP * vec4(position,1.0);
+    out_position.z = -1.0;
     out_position.xy += translation * out_position.w;
     gl_Position = out_position; 
 }

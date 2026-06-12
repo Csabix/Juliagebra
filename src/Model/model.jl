@@ -1,14 +1,43 @@
 
+abstract type DependentDNA end
+
+abstract type ValueHolderDNA{T} <: DependentDNA end
+abstract type SourceValueHolderDNA{T} <: ValueHolderDNA{T} end
+
+abstract type SubjectDNA <: DependentDNA end
+abstract type ObserverDNA{T<:SubjectDNA} end
+
 abstract type ModelState end
 struct BuildingState <: ModelState end
 struct ViewingState <: ModelState end
 struct EvalingState <: ModelState end
 
+include("Nodes/schedule.jl")
+include("dependent_graph.jl")
+include("Nodes/dependent.jl")
+
+include("Nodes/ValueHolders/value_holder.jl")
+include("Nodes/ValueHolders/generic_value_holder.jl")
+include("Nodes/ValueHolders/source_value_holder.jl")
+#include("Nodes/ValueHolders/unary_value_holder.jl")
+
+include("Nodes/observer.jl")
+include("Nodes/subject.jl")
+
+include("Construction/builder.jl")
+include("Construction/adder.jl")
+
+include("Evaluation/completed_condition.jl")
+include("Evaluation/goal.jl")
+include("Evaluation/synchronizer.jl")
+include("Evaluation/evalworker.jl")
+include("Evaluation/scheduler.jl")
+
 # ? ---------------------------------
 # ! Model
 # ? ---------------------------------
 
-@kwdef mutable struct Model <: ModelDNA
+@kwdef mutable struct Model
     _graph::DependentGraph = DependentGraph()
     _adder::Adder = Adder()
     _builder::Builder = Builder()
@@ -26,6 +55,15 @@ getScheduler(self::Model)::Scheduler = self._scheduler
 getWorkers(self::Model)::Workers = self._workers
 getSynchronizer(self::Model)::Synchronizer = self._synchronizer
 
+include("Construction/builder_funcs.jl")
+include("Evaluation/synchronizer_funcs.jl")
+include("Evaluation/evalworker_funcs.jl")
+include("Evaluation/scheduler_funcs.jl")
+
+"""
+Must init the Model before use.
+- Starts builder and worker tasks with errormonitors.
+"""
 function init!(self::Model)
     # YELLOW Thread start
     builderTask = Threads.@spawn begin
@@ -46,6 +84,11 @@ function init!(self::Model)
     end
 end
 
+"""
+Must destroy the Model after use.
+- Do not re-init this object after destroy. Construct a new one instead.
+- Also waits for builder and worker tasks to close.
+"""
 function destroy!(self::Model)
     destroy!(self._adder)
     destroy!(self._builder)
@@ -62,6 +105,7 @@ end
 
 """
 Send a newly constructed Dependent to the build system of a Model.
+- Adds node to the graph.
 """
 function build!(self::Model, dependent::T)::T where {T<:DependentDNA}
     put!(self._builder, dependent)
@@ -70,6 +114,7 @@ end
 
 """
 Send a newly constructed Subject to the build system of a Model.
+- Adds node to the graph.
 - An Observer for this Subject is required.
 """
 function build!(self::Model, subject::U, observer::ObserverDNA{V})::U where {V<:SubjectDNA, U<:V}
@@ -79,6 +124,7 @@ end
 
 """
 Schedule the subgraph of a Dependent to be evaluated.
+- All nodes reachable from this one will be evaluated.
 """
 function Base.schedule(self::Model, d::DependentDNA)
     schedule(self._scheduler, d)
@@ -86,67 +132,74 @@ end
 
 """
 Decide at the beginning of the frame, which state the model is in.
-- Call beginState after it.
 - update! of the model is also state dependent.
-- This state is carried until the end of endState.
+- This state is carried until the end of endState call.
 """
 function decideState(self::Model)::ModelState
     if !isFinished(self._scheduler)
-        # ? I still have the lock from ViewingState.
+        @assert islocked_by_model(self._builder) "Lock lost by Model in EvalingState!"
+        
+        # ? I still have the lock from ViewingState or EvalingState.
+        
         return EvalingState()
-    elseif !isempty(self._adder)
-        # ? Adder still has elements, should handle thoose.
+    elseif islocked_by_model(self._builder)
+        
+        # ? Scheduler was unifinished at end of frame, but finished at decideState.
+        # ? Should unlock Builder.
+
+        unlock_by_model(self._builder)
+    end
+    
+    if !isempty(self._adder) 
+        @assert !islocked_by_model(self._builder) "Builder can't be locked by Model in BuildingState!"
+
+        # ? Adder still has elements, should handle thoose. 
+        
         return BuildingState()
-    elseif trylock(self._builder)
-        # ? locked succesfully, Builder is stopped for this frame,
-        # ? unlock Builder at the end of the frame.
+    end
+    
+    # ? Should fight for the lock.
+    if trylock_by_model(self._builder)
+        @assert islocked_by_model(self._builder) "Model didn't get Builder's Lock!"
+        
+        # ? Model got Lock from Builder.
+        # ? Unlock Builder at the end of the frame.
+        
         return ViewingState()
     else
-        # ? failed locking, Builder must be building.
+        @assert !islocked_by_model(self._builder) "Lock must be owned by Builder!"
+        
+        # ? Failed locking, Builder must be building.
+        
         return BuildingState()
     end
 end
 
+"""
+Get a reference to the Dependent with the given graphID.
+- Query time is just indexing into a list, so fast.
+"""
+function getDependentNode(self::Model, graphID::Int)::DependentDNA
+    return _getDependentNode(self._graph, graphID)
+end
 
 
 # ? BuildingState
 
-function beginState(self::Model, state::BuildingState)
-    return nothing
-end
-
-function update!(self::Model, ::BuildingState)
-    processAvailable!(self._adder)
+function update!(self::Model, ::BuildingState)::Bool
+    return processAvailable!(self._adder)
 end
 
 function endState(self::Model, state::BuildingState)
     return nothing
 end
 
-
-global _mlines = [
-    NaN64,
-    NaN64,
-    NaN64,
-    NaN64,
-    NaN64
-]
-
-_mline(::SingleFrameSingleThread) = 1
-_mline(::SingleFrameTwoThreads) = 2
-_mline(::SingleFrameMultipleThreads) = 3
-_mline(::MultipleFramesSingleThread) = 4
-_mline(::MultipleFramesMultipleThreads) = 5
-
 # ? ViewingState
 
-function beginState(self::Model, state::ViewingState)
-    return nothing
-end
-
-function update!(self::Model, ::ViewingState)
-    
+function update!(self::Model, ::ViewingState)::Bool
+    scene_change = false
     if !isempty(self._scheduler)
+        scene_change = true
         mode = self._scheduler._mode
 
         if (mode isa SingleFrameSingleThread)
@@ -160,7 +213,8 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
-            _mlines[_mline(mode)] = _cputime(block)
+            # TODO: Save and Display theese times for benchmarks.
+            ccputime = _cputime(block)
 
         elseif (mode isa SingleFrameTwoThreads)
             @time_cpu_begin Graph_update
@@ -173,7 +227,8 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
-            _mlines[_mline(mode)] = _cputime(block)
+            # TODO: Save and Display theese times for benchmarks.
+            ccputime = _cputime(block)
 
         elseif (mode isa SingleFrameMultipleThreads)
             @time_cpu_begin Graph_update
@@ -186,7 +241,8 @@ function update!(self::Model, ::ViewingState)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
-            _mlines[_mline(mode)] = _cputime(block)
+            # TODO: Save and Display theese times for benchmarks.
+            ccputime = _cputime(block)
 
         elseif (mode isa MultipleFramesSingleThread)
             @time_cpu_begin Graph_update
@@ -208,6 +264,7 @@ function update!(self::Model, ::ViewingState)
             # ? Let Model step into next state, BuildingState.
         end
     end
+    return scene_change
 end
 
 function endState(self::Model, state::ViewingState)
@@ -220,24 +277,21 @@ function endState(self::Model, state::ViewingState)
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update
-                _mlines[_mline(self._scheduler._mode)] = _cputime(block)
+                # TODO: Save and Display theese times for benchmarks.
+                ccputime = _cputime(block)
             end
         end
 
-        # ? Let Builder process Dependents. Next state for sure will be ViewingState.
-        unlock(self._builder)
+        # ? Let Builder process Dependents.
+        unlock_by_model(self._builder)
     end
 end
 
 # ? EvalingState
 
-function beginState(self::Model, state::EvalingState)
-    return nothing
-end
-
-function update!(self::Model, ::EvalingState)
+function update!(self::Model, ::EvalingState)::Bool
     # ? Internal was processed in ViewingState, which started EvalingState.
-    processAvailableExternal!(self._synchronizer, self)
+    return processAvailableExternal!(self._synchronizer, self)
 end
 
 function endState(self::Model, state::EvalingState)
@@ -250,11 +304,12 @@ function endState(self::Model, state::EvalingState)
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update
-                _mlines[_mline(self._scheduler._mode)] = _cputime(block)
+                # TODO: Save and Display theese times for benchmarks.
+                ccputime = _cputime(block)
             end
         end
 
-        # ? Let Builder process Dependents. Next state for sure will be ViewingState.
-        unlock(self._builder)
+        # ? Let Builder process Dependents.
+        unlock_by_model(self._builder)
     end
 end

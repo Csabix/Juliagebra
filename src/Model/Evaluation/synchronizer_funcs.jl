@@ -1,29 +1,4 @@
 
-# ? ---------------------------------
-# ! SyncFood
-# ? ---------------------------------
-
-struct SyncFood
-    subject::SubjectDNA
-    syncedIdx::Int
-end
-
-# ? ---------------------------------
-# ! Synchronizer
-# ? ---------------------------------
-
-"""
-Calls sync!() and syncAll!() on arrived Dependents.
-"""
-@kwdef mutable struct Synchronizer
-    _internal::Queue{SubjectDNA} = Queue{SubjectDNA}()
-    _external::Channel{SyncFood} = Channel{SyncFood}(8192)
-    _taken::Int = 0
-end
-
-Base.put!(self::Synchronizer, subject::SubjectDNA) = push!(self._internal, subject)
-Base.put!(self::Synchronizer, f::SyncFood) = put!(self._external, f)
-
 function processInternal!(self::Synchronizer)
     self._taken = length(self._internal)
     observers = Set{ObserverDNA}()
@@ -41,7 +16,7 @@ function processInternal!(self::Synchronizer)
     end
 end
 
-function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
+function processAvailableExternal!(self::Synchronizer, model::Model)::Bool
     taken = Base.n_avail(self._external)
     self._taken += taken
     observers = Set{ObserverDNA}()
@@ -53,9 +28,10 @@ function processAvailableExternal!(self::Synchronizer, model::ModelDNA)
     for o in observers in 
         syncAll!(o)
     end
+    return taken > 0
 end
 
-function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)
+function processUntilFinishedExternal!(self::Synchronizer, model::Model)
     observers = Set{ObserverDNA}()
     s::Scheduler = getScheduler(model)
 
@@ -73,7 +49,7 @@ function processUntilFinishedExternal!(self::Synchronizer, model::ModelDNA)
     end
 end
 
-function _processExternal!(self::Synchronizer, model::ModelDNA, observers::Set{ObserverDNA})
+function _processExternal!(self::Synchronizer, model::Model, observers::Set{ObserverDNA})
     data::SyncFood = take!(self._external)
     o::ObserverDNA = getObserver(data.subject)
     sync!(o,data.subject)

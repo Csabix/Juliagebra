@@ -9,7 +9,7 @@ layout(std140, binding = 10) uniform UBO_Buffer {
     vec4 _light_cam_heigth;
     vec4 _eye_aspect;
     vec4 _at_width_u;
-    vec4 _near_far_fov_unused;
+    vec4 _near_far_fov_hovered;
 };
 
 float width()  { return _light_side_width.w; }
@@ -24,8 +24,9 @@ vec3 at() { return _at_width_u.xyz; }
 
 vec2 resolution() { return vec2(_light_side_width.w, _light_cam_heigth.w); }
 
-float znear() { return _near_far_fov_unused.x; }
-float zfar() { return _near_far_fov_unused.y; }
-float fov() { return _near_far_fov_unused.z; }
+float znear() { return _near_far_fov_hovered.x; }
+float zfar() { return _near_far_fov_hovered.y; }
+float fov() { return _near_far_fov_hovered.z; }
+uint hovered_id() { return floatBitsToUint(_near_far_fov_hovered.w); }
 
 #endif

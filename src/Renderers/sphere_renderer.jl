@@ -108,18 +108,21 @@ function update_coord_radius!(self::SphereRenderer,ref::UInt32,coord::Vec3F,radi
     end
 end
 
-function sync_all!(self::SphereRenderer)::Nothing
+function sync_all!(self::SphereRenderer)::Bool
+    scene_change::Bool = false
     if self.updated_opaque
         wait(self.center_radius_buffer_opaque)
         copyto!(self.center_radius_buffer_opaque,self.center_radius_opaque)
         self.updated_opaque = false
+        scene_change = true
     end
     if self.updated_transparent
         wait(self.center_radius_buffer_transparent)
         copyto!(self.center_radius_buffer_transparent,self.center_radius_transparent)
         self.updated_transparent = false
+        scene_change = true
     end
-    return nothing
+    return scene_change
 end
 
 function opaque(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing

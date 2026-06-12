@@ -32,48 +32,56 @@ evalCallbackDpReturn(self::TextBoxDependent, text::String) = self._text = text
 # ! TextBoxRenderer
 # ? ---------------------------------
 
-# TODO: copy Strings, instead of views!
 mutable struct TextBoxRenderer <: GuiRendererDNA{TextBoxDependent}
-    _guiRenderer::GuiRenderer{TextBoxDependent}
-
-    # GREEN Thread
-    TextBoxRenderer(imgui::ImGuiDNA) = new(GuiRenderer{TextBoxDependent}(imgui))
+    _renderer::GuiRenderer{TextBoxDependent}
+    _data::Vector{String}
+    _applied::Set{Int}
+    TextBoxRenderer(imgui::ImGuiDNA) = new(GuiRenderer{TextBoxDependent}(imgui),Vector{String}(),Set{Int}())
 end
 
-_GuiRenderer_(self::TextBoxRenderer) = return self._guiRenderer
+_GuiRenderer_(self::TextBoxRenderer) = return self._renderer
 
-# GREEN Thread
-_added!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
-
-# GREEN Thread
-sync!(self::TextBoxRenderer,item::TextBoxDependent) = return nothing
-
-# GREEN Thread
 syncAll!(self::TextBoxRenderer) = return nothing
-
-# GREEN Thread
 addedAll!(self::TextBoxRenderer) = return nothing
-
 title(::TextBoxRenderer)::String = return "TextBox"
 
-function render!(self::TextBoxRenderer, textBox::TextBoxDependent, app::AppDNA)
-    m::ModelDNA = getModel(app)
+# GREEN Thread
+function _added!(self::TextBoxRenderer,item::TextBoxDependent)
+    push!(self._data, item._text)
+end
+
+# GREEN Thread
+function sync!(self::TextBoxRenderer,item::TextBoxDependent)
+    self._data[getObserverID(item)] = item._text
+end
+
+function update!(self::TextBoxRenderer, app::AppDNA)
+    m::Model = getModel(app)
     s::Scheduler = getScheduler(m)
+
+    for idx in self._applied 
+        textBox::TextBoxDependent = getSubjectItems(self)[idx]
+        textBox._text = self._data[idx]
+        schedule(s,textBox)
+    end
+
+    empty!(self._applied)
+end
+
+function render!(self::TextBoxRenderer, textBox::TextBoxDependent, app::AppDNA)
     label::String = getLabel(textBox)
     textBoxIdx::Int = getObserverID(textBox)
+    data = self._data[textBoxIdx]
 
     if !(label == "")
         CImGui.Text("$(label)")
     end
 
-    proposedText = txtbox("##$(textBoxIdx)",textBox._text)
-
-    if (!isnothing(proposedText))
-        textBox._text = proposedText
-    end
+    proposedText = txtbox("##$(textBoxIdx)",data)
+    self._data[textBoxIdx] = isnothing(proposedText) ? data : proposedText 
 
     if (CImGui.Button("Apply $(label)##$(textBoxIdx)"))
-        schedule(s,textBox)
+        push!(self._applied,textBoxIdx)
     end
 end
 

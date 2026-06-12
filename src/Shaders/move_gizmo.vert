@@ -42,5 +42,7 @@ void main(){
     if (((axes[current_index >> 1] & gizmo_axis) == uint(0)) || (selectedID != uint(0) && selectedID != id_v_out)) {
         position = vec3(nanVal);
     }
-    gl_Position = VP * vec4(position*gizmoScale + gizmoCenter, 1.0);
+    vec4 out_position = VP * vec4(position*gizmoScale + gizmoCenter, 1.0);
+    out_position.z = -1.0;
+    gl_Position = out_position;
 }

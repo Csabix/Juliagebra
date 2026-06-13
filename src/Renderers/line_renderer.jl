@@ -654,11 +654,6 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 end
 
 function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
-    (_, _, p) = get_matrices(cam)
-    near_far = Vec2F(cam._zNear,cam._zFar)
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
     if (any(x -> x[2] != 0, self.draw_ranges))
     glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
     glDeleteSync(self.gpu_gpu_sync);
@@ -698,7 +693,6 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     end
     @time_gpu_end Renderer Line Opaque Dynamic
     end
-    glDisable(GL_BLEND)
     return nothing
 end
 
@@ -746,8 +740,6 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 end
 
 function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
-    (_, _, p) = get_matrices(cam)
-
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)

@@ -5,7 +5,7 @@ struct Data {
     uvec2 dist_id;
 };
 
-layout(std430, binding = 11) buffer DatBuff {
+restrict readonly layout(std430, binding = 11) buffer DatBuff {
     Data data[];
 };
 

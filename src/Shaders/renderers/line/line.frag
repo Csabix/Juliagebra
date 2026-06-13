@@ -181,7 +181,6 @@ float iUnevenCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float ra, float rb, out
 void main() {
     float d = pattern();
     float alpha = 1.0 - smoothstep(max(-0.4*segment_SDF_field_in.z,-4.0), 0.0, d);
-    alpha = alpha >= 0.9 ? 1.0 : alpha;
     d = max(d, rounding());
 
     if (d > 0.0 || DISCARD) discard;

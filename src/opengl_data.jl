@@ -447,7 +447,6 @@ end
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     glCheckErrors(self)
     begin_cpu(self._profiler, self._cpu_stopwatch)
-    readID(self)
 
     _ubo_update!(self,cam)
     added_all!(self._renderers)
@@ -460,6 +459,7 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     begin_gpu(self._profiler,self._passes.post_process)
     blit_scene!(self,cam)
     end_gpu(self._profiler,self._passes.post_process)
+    readID(self)
 
     lock(self._ubo)
     end_cpu(self._profiler, self._cpu_stopwatch)

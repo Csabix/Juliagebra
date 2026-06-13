@@ -22,6 +22,8 @@ mutable struct Dependent
     end
 end
 
+Base.Show = nothing
+
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
 getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents

@@ -379,7 +379,6 @@ function _widgets(self::OpenGLData,cam::Camera)
 end
 
 function render_scene!(self::OpenGLData,cam::Camera)
-    update!(self._pipeline_loader)
     begin_gpu(self._profiler,self._passes.pre_draw)
     _predraw(self,cam)
     end_gpu(self._profiler,self._passes.pre_draw)
@@ -452,6 +451,7 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
 
     _ubo_update!(self,cam)
     added_all!(self._renderers)
+    scene_change |= update!(self._pipeline_loader)
     scene_change |= sync_all!(self._renderers)
     if scene_change
         render_scene!(self,cam)

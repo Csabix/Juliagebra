@@ -382,12 +382,13 @@ function create_compute_pipeline!(loader::PipelineLoader, comp::Union{ShaderGLSL
     return Pipeline(nothing, nothing, handle, loader)
 end
 
-function update!(loader::PipelineLoader)::Nothing
+function update!(loader::PipelineLoader)::Bool
+    shader_reload = !isempty(loader.needs_reload)
     for i in loader.needs_reload
         _compile(loader,i)
     end
     empty!(loader.needs_reload)
-    return nothing
+    return shader_reload
 end
 
 function get_glsl_delete_callback(loader::PipelineLoader)::Function

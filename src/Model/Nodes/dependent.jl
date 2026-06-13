@@ -22,7 +22,7 @@ mutable struct Dependent
     end
 end
 
-Base.Show = nothing
+Base.show(::Any, ::Any, ::DependentDNA) = return nothing
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 

@@ -51,12 +51,14 @@ function handleCommand!(app::AppDNA, ::EmptySceneCommand)
 end
 
 # YELLOW Thread
-function Empty()
+function Empty()::Nothing
     global implicitApp
     
     if !isnothing(implicitApp)
         putExternal!(getCommander(implicitApp),EmptySceneCommand())
     end
+
+    return nothing
 end
 
 function Wait()

@@ -1,5 +1,6 @@
 #version 460 core
-#include "../ubo.glsl"
+#extension GL_GOOGLE_include_directive : require
+#include "../common_data.glsl"
 
 layout(location = 0) out vec4 color_out;
 

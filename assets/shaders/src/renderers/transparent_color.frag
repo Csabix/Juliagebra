@@ -1,4 +1,6 @@
 #version 460 core
+#extension GL_GOOGLE_include_directive : require
+#include "../common_data.glsl"
 
 struct Data {
     uvec2 dist_col[4];
@@ -10,7 +12,6 @@ restrict readonly layout(std430, binding = 11) buffer DatBuff {
 };
 
 layout (location = 0) out vec4 frag;
-layout (location = 0) uniform uint width;
 
 
 layout (binding = 0) uniform sampler2D accum;
@@ -51,7 +52,7 @@ void sort4(inout uvec2 dist_col[4]) {
 }
 
 void main() {
-    const uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
+    const uint pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width_u();
     uvec2 dist_col[4] = data[pixelIdx].dist_col;
     sort4(dist_col);
 

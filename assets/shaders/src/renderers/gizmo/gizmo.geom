@@ -1,19 +1,21 @@
-#version 330 core
+#version 460 core
+#extension GL_GOOGLE_include_directive : require
+#include "../../common_data.glsl"
 
 layout (lines) in;
 layout (triangle_strip, max_vertices = 4) out;
 
-flat in vec3 color_v_out[];
-flat in uint id_v_out[];
+layout(location = 0) flat in vec3 color_v_out[];
+layout(location = 1) flat in uint id_v_out[];
 
-noperspective out vec4 segment_SDF_field_g_out; // x,y,lenX,lenY; x in [-lenX,lenX] y in [0,lenY]
-flat          out vec3 color_g_out;
-flat          out uint id_g_out;
+layout(location = 0) noperspective out vec4 segment_SDF_field_g_out; // x,y,lenX,lenY; x in [-lenX,lenX] y in [0,lenY]
+layout(location = 1) flat          out vec3 color_g_out;
+layout(location = 2) flat          out uint id_g_out;
 
-uniform vec2 WH;
-uniform float WIDTH = 5.5;
+layout(constant_id = 1) const float CONTENT_SCALE = 1.0;
 
 void main() {
+    const float WIDTH = 5.5 * CONTENT_SCALE;
     color_g_out = color_v_out[0];
     id_g_out    = id_v_out[0];
 
@@ -32,6 +34,7 @@ void main() {
     A4 /= A4.w;
     B4 /= B4.w;
 
+    vec2 WH = resolution();
     vec2 A = (A4.xy * 0.5 + 0.5) * WH;
     vec2 B = (B4.xy * 0.5 + 0.5) * WH;
 
@@ -50,19 +53,19 @@ void main() {
     AB_N *= length_conversion;
 
     segment_SDF_field_g_out = vec4(len_X,len_Y,len_X,segment_len);
-    gl_Position = vec4(A4.xy - AB_dir + AB_N, 0.0, 1.0);
+    gl_Position = vec4(A4.xy - AB_dir + AB_N, -1.0, 1.0);
     EmitVertex();
 
     segment_SDF_field_g_out.x = -len_X;
-    gl_Position = vec4(A4.xy - AB_dir - AB_N, 0.0, 1.0);
+    gl_Position = vec4(A4.xy - AB_dir - AB_N, -1.0, 1.0);
     EmitVertex();
 
     segment_SDF_field_g_out.xy = vec2(len_X,0);
-    gl_Position = vec4(B4.xy + AB_N, 0.0, 1.0);
+    gl_Position = vec4(B4.xy + AB_N, -1.0, 1.0);
     EmitVertex();
 
     segment_SDF_field_g_out.x = -len_X;
-    gl_Position = vec4(B4.xy - AB_N, 0.0, 1.0);
+    gl_Position = vec4(B4.xy - AB_N, -1.0, 1.0);
     EmitVertex();
 
     EndPrimitive();

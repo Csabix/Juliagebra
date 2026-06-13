@@ -1,5 +1,6 @@
 #version 460 core
-#include "../ubo.glsl"
+#extension GL_GOOGLE_include_directive : require
+#include "../common_data.glsl"
 
 const vec4 positions[3] = vec4[3](
     vec4(-1.0, -1.0, 0.0, 1.0),

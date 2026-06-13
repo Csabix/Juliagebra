@@ -97,6 +97,8 @@ julia
 activate .
 rm PackageName
 ```
+## Enviroment variables
+Set ```JULIAGEBRA_COMPILE_SPIRV``` env variable to ```"true"``` to recompile spirv files and enable hot reloading shaders when the source code changes
 
 ## Tests
 

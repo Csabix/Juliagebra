@@ -438,7 +438,6 @@ function _glsl_update_callback(loader::PipelineLoader,path::String)::Nothing
 end
 
 function _to_spirv(loader::PipelineLoader, shader::ShaderGLSL)::Nothing
-    println("glsl $(shader.spirv_path)")
     glslang = glslangValidator(identity)
     path = normpath(shader.path)
     output_path = shader.spirv_path
@@ -488,6 +487,13 @@ function _to_spirv(loader::PipelineLoader, shader::ShaderGLSL)::Nothing
 end
 
 function full_compile(loader::PipelineLoader)::Nothing
+    # Compile if JULIAGEBRA_COMPILE_SPIRV is true or spirv folder doesnt exists or empty
+    if !(haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") &&
+        ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true" ||
+        !(isdir(_shader_spirv_folder) && !isempty(_shader_spirv_folder)))
+        return nothing
+    end
+
     delete_spv = Set{String}()
     if isdir(_shader_spirv_folder)
         for (root, _, files) in walkdir(_shader_spirv_folder)

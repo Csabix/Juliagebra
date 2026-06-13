@@ -45,6 +45,7 @@ mutable struct ImGuiData <: ImGuiDNA
         io = CImGui.GetIO()
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
+        ImPlot.SetCurrentContext(ImPlot.CreateContext())
         
         #config = CImGui.ImFontConfig()
         #config.OversampleH = 3
@@ -208,7 +209,7 @@ function resize!(self::ImGuiData)
 end
 
 function destroy!(self::ImGuiData)
-
+    ImPlot.DestroyContext(ImPlot.GetCurrentContext())
     CImGui.ImGui_ImplOpenGL3_Shutdown()
     CImGui.ImGui_ImplGlfw_Shutdown()
     CImGui.DestroyContext()

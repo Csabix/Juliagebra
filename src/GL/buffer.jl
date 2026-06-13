@@ -73,6 +73,7 @@ end
 end
 
 @inline bind_ssbo(self::BufferBase, index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, self._id)
+@inline unbind_ssbo(index) = glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, 0)
 
 # ? ---------------------------------
 # ! Methods MappedBuffer

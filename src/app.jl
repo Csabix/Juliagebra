@@ -5,7 +5,6 @@
 # ? ---------------------------------
 
 mutable struct App <: AppDNA
-
     _shrd::SharedData
     _glfw::Union{GLFWData,Nothing}
     _opengl::Union{OpenGLData,Nothing}
@@ -23,6 +22,8 @@ mutable struct App <: AppDNA
     
     _model::Model
     _scene_change::Bool
+
+    _asset_watcher::Union{Nothing,AssetWatcher}
 
     function App(
         name::String="Juliagebra",
@@ -45,8 +46,13 @@ mutable struct App <: AppDNA
         commander = Commander()
         
         model = Model()
-                
-        new(shrd,glfw,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
+
+        asset_watcher::Union{Nothing,AssetWatcher} = nothing
+        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
+            asset_watcher = AssetWatcher()
+        end
+        
+        new(shrd,glfw,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false,asset_watcher)
     end
 end
 
@@ -231,6 +237,7 @@ function play!(self::App)
         yield()
         perf_get_results()
         updateDeltaTime!(self)
+        if self._asset_watcher !== nothing update!(self._asset_watcher,Float64(self._shrd._deltaTime)) end
         self._scene_change |= updateCam!(self)
         
         model::Model = self._model
@@ -316,7 +323,7 @@ function init!(self::App)
     end
     
     self._glfw = GLFWData(self._shrd)
-    self._opengl = OpenGLData(self._glfw,self._shrd)
+    self._opengl = OpenGLData(self._glfw,self._shrd,self._asset_watcher)
     setInputEvents(self._glfw._window,self) # Before call to ImGUI
     self._imgui = ImGuiData(self) # After setInputEvents call
     self._windowCreated = true

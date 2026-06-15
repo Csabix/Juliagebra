@@ -30,6 +30,21 @@ mutable struct MappedBuffer{T} <: BufferBase{T}
     end
 end
 
+mutable struct RepeatBufferUBO{T} <: BufferBase{T}
+    _id::GLuint
+    _size::Int
+    _count::Int32
+    _min_alignment::GLint
+    function RepeatBufferUBO{T}() where {T}
+        @assert isbitstype(T) "OpenGL requires bitstypes."
+        id = Ref{GLuint}(0)
+        glCreateBuffers(1, id)
+        min_alignment = Ref{GLint}()
+        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT,min_alignment)
+        return new{T}(id[], 0, 0, min_alignment[])
+    end
+end
+
 # ? ---------------------------------
 # ! Methods
 # ? ---------------------------------
@@ -133,6 +148,76 @@ end
 function Base.copyto!(dest::MappedBuffer, src)
     copyto!(dest._mapped, src)
     return dest
+end
+
+# ? ---------------------------------
+# ! Methods RepeatBufferUBO
+# ? ---------------------------------
+
+@inline function alignment_stride(self::RepeatBufferUBO{T}) where {T}
+    return div(sizeof(T) + self._min_alignment - 1, self._min_alignment) * self._min_alignment
+end
+
+@inline Base.length(self::RepeatBufferUBO) = Int(self._count)
+
+function reserve!(self::RepeatBufferUBO{T}, count::Int, flags)::Bool where {T}
+    if count == 0 return false end
+    self._size != 0 && _recreate!(self)
+    
+    stride = alignment_stride(self)
+    bytes = count * stride
+    
+    glNamedBufferStorage(self._id, bytes, C_NULL, GLbitfield(flags))
+    self._size = bytes
+    self._count = count
+    return true
+end
+
+function upload!(self::RepeatBufferUBO{T}, data::AbstractVector{T}, flags)::Bool where {T}
+    if length(data) == 0 return false end
+    self._size != 0 && _recreate!(self)
+    
+    stride = alignment_stride(self)
+    total_bytes = length(data) * stride
+    
+    staging = zeros(UInt8, total_bytes)
+    for i in 1:length(data)
+        offset = (i - 1) * stride
+        GC.@preserve staging data begin
+            ptr = pointer(staging) + offset
+            unsafe_store!(Ptr{T}(ptr), data[i])
+        end
+    end
+    
+    glNamedBufferStorage(self._id, total_bytes, staging, GLbitfield(flags))
+    self._size = total_bytes
+    self._count = length(data)
+    return true
+end
+
+function upload!(self::RepeatBufferUBO{T}, data::AbstractVector{T})::Bool where {T}
+    if length(data) == 0 return false end
+    stride = alignment_stride(self)
+    @assert length(data) <= self._count "Data length exceeds pre-allocated buffer capacity"
+
+    staging = zeros(UInt8, self._size)
+    for i in 1:length(data)
+        offset = (i - 1) * stride
+        GC.@preserve staging data begin
+            ptr = pointer(staging) + offset
+            unsafe_store!(Ptr{T}(ptr), data[i])
+        end
+    end
+
+    glNamedBufferSubData(self._id, 0, self._size, staging)
+    return false
+end
+
+@inline function bind_ubo(self::RepeatBufferUBO{T}, index::Integer, binding_point::Integer) where {T}
+    @assert 1 <= index <= self._count "Index out of range"
+    stride = alignment_stride(self)
+    offset = (index - 1) * stride
+    glBindBufferRange(GL_UNIFORM_BUFFER, binding_point, self._id, offset, sizeof(T))
 end
 
 # ? ---------------------------------

@@ -8,6 +8,7 @@ mutable struct App <: AppDNA
 
     _shrd::SharedData
     _glfw::Union{GLFWData,Nothing}
+    _inputs::Union{Inputs,Nothing}
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _frame_limiter::Union{Nothing,FrameLimiter}
@@ -32,6 +33,7 @@ mutable struct App <: AppDNA
 
         shrd = SharedData(name,width,height)
         glfw = nothing
+        inputs = nothing
         opengl = nothing
         imgui = nothing
         windowCreated = false
@@ -46,7 +48,7 @@ mutable struct App <: AppDNA
         
         model = Model()
                 
-        new(shrd,glfw,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
+        new(shrd,glfw,inputs,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
     end
 end
 
@@ -60,6 +62,7 @@ getStarter(self::App)::Starter = return self._starter
 getModel(self::App)::Model = return self._model
 sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 
+#=
 function keyboard_event(event::KeyboardEvent,self::App)::Nothing
     flip!(self._peripherals, event.key)
     if event.key == GLFW.KEY_ESCAPE && self._shrd._gizmoEnabled
@@ -69,11 +72,11 @@ function keyboard_event(event::KeyboardEvent,self::App)::Nothing
         return nothing
     end
 
-    if event.action == GLFW.PRESS
-        keyboard_down!(self._manipulator,event)
-    elseif event.action == GLFW.RELEASE
-        keyboard_up!(self._manipulator,event)
-    end
+    #if event.action == GLFW.PRESS
+    #    keyboard_down!(self._manipulator,event)
+    #elseif event.action == GLFW.RELEASE
+    #    keyboard_up!(self._manipulator,event)
+    #end
 
     return nothing
 end
@@ -89,7 +92,7 @@ function mouse_motion_event(event::MouseMotionEvent,self::App)::Nothing
 end
 function mouse_button_event(event::MouseButtonEvent, self::App)::Nothing 
     if gizmoSelect!(self,event,self._shrd._selectedID) return nothing end
-    if mouse_button!(self._manipulator,event) return nothing end
+    #if mouse_button!(self._manipulator,event) return nothing end
 
     if event.press
         if event.button == MOUSE_BUTTON_LEFT
@@ -115,7 +118,7 @@ function mouse_wheel_event(event::MouseWheelEvent,self::App)::Nothing
     self._shrd._wheelUpDown = -event.yoffset
     self._shrd._wheelMoved = true
 
-    mouse_wheel!(self._manipulator,event)
+    #mouse_wheel!(self._manipulator,event)
     return nothing
 end
 function window_resize_event(width::Cint,height::Cint,self::App)::Nothing
@@ -128,6 +131,8 @@ end
 function framebuffer_resize_event(width::Cint,height::Cint,self::App)::Nothing
     
 end
+=#
+#=
 function window_focus_event(focused::Bool,self::App)::Nothing
     if focused
         self._frame_limiter = self._old_limiter
@@ -136,6 +141,28 @@ function window_focus_event(focused::Bool,self::App)::Nothing
         self._old_limiter = self._frame_limiter
         self._frame_limiter = FrameLimiter(get_limit(self._old_limiter) / 2.0)
     end
+    return nothing
+end
+=#
+
+function resize!(self::App, event::Event)::Bool
+    resize!(self._glfw, event.width, event.height)
+    resize!(self._opengl, self._glfw)
+    set_aspect!(app.camera, app.window.width, app.window.height)
+    return false
+end
+
+function window_resize!(self::App, event::Event)::Bool
+    screen_resize!(self._glfw, event.width, event.height)
+    resize!(self._imgui, self._glfw)
+    return false
+end
+
+function setup_callbacks(self::App)::Nothing
+    register_callback!(event -> resize!(self, event), self._inputs, FRAME_RESIZE)
+    register_callback!(event -> resize!(self, event), self._inputs, WINDOW_RESIZE)
+
+    register_callbacks!(self._inputs, self._manipulator)
     return nothing
 end
 
@@ -154,54 +181,56 @@ function updateDeltaTime!(self::App)
 end
 
 function updateCam!(self::App)::Bool
-    update!(self._manipulator, self._shrd._deltaTime, self._glfw)
+    update!(self._manipulator, self._shrd._deltaTime, self._inputs)
     self._opengl._camPos = self._cam._eye
     vp,v,p = get_matrices(self._cam)
     change = vp != self._opengl._vp
     self._opengl._vp = vp
     self._opengl._v  = v
     self._opengl._p  = p
+    println((change, self._cam._eye))
     return change
 end
 
-function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
-    old_selected = self._shrd._selectedGizmo
-    old_gizmo_enabled = self._shrd._gizmoEnabled
-    old_selected = self._shrd._selectedID
-    mouse_capture = false
-    if event.press
-        if event.button == MOUSE_BUTTON_RIGHT
-            self._shrd._pickedID = id
-            if id > 3 && id <= UInt32(3 + length(getNodes(getModel(self)._graph)))
+
+# function gizmoSelect!(self::App, event::MouseButtonEvent, id)::Bool
+#     old_selected = self._shrd._selectedGizmo
+#     old_gizmo_enabled = self._shrd._gizmoEnabled
+#     old_selected = self._shrd._selectedID
+#     mouse_capture = false
+#     if event.press
+#         if event.button == MOUSE_BUTTON_RIGHT
+#             self._shrd._pickedID = id
+#             if id > 3 && id <= UInt32(3 + length(getNodes(getModel(self)._graph)))
                 
-                # ? picked id - id lower bound = graph id
-                p = getDependentNode(getModel(self), self._shrd._pickedID - ID_LOWER_BOUND)
+#                 # ? picked id - id lower bound = graph id
+#                 p = getDependentNode(getModel(self), self._shrd._pickedID - ID_LOWER_BOUND)
                 
-                if isa(p, PointDependent)
-                    pp::PointDependent = p
-                    self._opengl._gizmoGL._pos = Vec3F(pp._coord)
-                    self._shrd._gizmoEnabled = true
-                    self._shrd._gizmoConstraints = pp._constraints
-                    mouse_capture = true
-                else
-                    self._shrd._gizmoEnabled = false
-                end
-            else
-                self._shrd._gizmoEnabled = false
-            end
-        elseif event.button == MOUSE_BUTTON_LEFT && self._shrd._gizmoEnabled && self._shrd._selectedGizmo == 0 && id > 0 && id<=3
-            self._shrd._selectedGizmo = id
-            mouse_capture = true
-        end
-    elseif event.button == MOUSE_BUTTON_LEFT
-        if self._shrd._selectedGizmo != 0 sceneChanged(self) end
-        self._shrd._selectedGizmo = 0
-    end
-    self._scene_change |=   old_selected != self._shrd._selectedGizmo ||
-                            old_gizmo_enabled != self._shrd._gizmoEnabled
-                            old_selected != self._shrd._selectedID
-    return mouse_capture
-end
+#                 if isa(p, PointDependent)
+#                     pp::PointDependent = p
+#                     self._opengl._gizmoGL._pos = Vec3F(pp._coord)
+#                     self._shrd._gizmoEnabled = true
+#                     self._shrd._gizmoConstraints = pp._constraints
+#                     mouse_capture = true
+#                 else
+#                     self._shrd._gizmoEnabled = false
+#                 end
+#             else
+#                 self._shrd._gizmoEnabled = false
+#             end
+#         elseif event.button == MOUSE_BUTTON_LEFT && self._shrd._gizmoEnabled && self._shrd._selectedGizmo == 0 && id > 0 && id<=3
+#             self._shrd._selectedGizmo = id
+#             mouse_capture = true
+#         end
+#     elseif event.button == MOUSE_BUTTON_LEFT
+#         if self._shrd._selectedGizmo != 0 sceneChanged(self) end
+#         self._shrd._selectedGizmo = 0
+#     end
+#     self._scene_change |=   old_selected != self._shrd._selectedGizmo ||
+#                             old_gizmo_enabled != self._shrd._gizmoEnabled
+#                             old_selected != self._shrd._selectedID
+#     return mouse_capture
+# end
 
 function updateGizmo!(self::App)
     if self._shrd._selectedGizmo != 0
@@ -249,7 +278,7 @@ function play!(self::App)
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         GLFW.SwapBuffers(self._glfw._window)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
-        poll_events()
+        poll_events(self._glfw)
         self._shrd._gameOver = GLFW.WindowShouldClose(self._glfw._window)
     end
     destroy!(self)
@@ -315,10 +344,14 @@ function init!(self::App)
         error("Window is already created, can't init! again.")
     end
     
-    self._glfw = GLFWData(self._shrd)
+    self._glfw = GLFWData()
+    init!(self._glfw, "Juliagebra", Int32(1280), Int32(720), true)
+    self._inputs = Inputs(self._glfw)
     self._opengl = OpenGLData(self._glfw,self._shrd)
-    setInputEvents(self._glfw._window,self) # Before call to ImGUI
-    self._imgui = ImGuiData(self) # After setInputEvents call
+    #setInputEvents(self._glfw._window,self) # Before call to ImGUI
+    setup_callbacks(self)
+    setup_event_handles(self._glfw,self._inputs)
+    self._imgui = ImGuiData(self) # setup_callbacks
     self._windowCreated = true
     perf_init_gpu()
 
@@ -336,7 +369,7 @@ function destroy!(self::App)
     perf_destroy_gpu()
     destroy!(self._imgui)
     destroy!(self._opengl)
-    destroy!(self._glfw)
+    deinit!(self._glfw)
     destroy!(self._commander)
     destroy!(self._model)
 end

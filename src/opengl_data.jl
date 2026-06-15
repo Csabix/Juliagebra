@@ -216,9 +216,9 @@ function glCheckErrors(::OpenGLData)
     end
 end
 
-function resize!(self::OpenGLData)
-    width = self._shrd._width
-    height = self._shrd._height
+function resize!(self::OpenGLData,window::GLFWData)
+    width = window.width
+    height = window.height
     glViewport(0,0,width,height)
     resize!(self._rgbaTexture,width,height)
     resize!(self._idTexture,width,height)

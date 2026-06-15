@@ -8,8 +8,6 @@ include("GL/gl.jl")
 
 using JuliaGLM
 
-include("events.jl")
-
 using LinearAlgebra
 using GLFW
 using ModernGL
@@ -17,6 +15,7 @@ using CImGui
 using ImPlot
 using DataStructures
 using ThreadPinning
+using BitFlags
 #pinthreads(:cores)
 import MacroTools
 
@@ -78,6 +77,7 @@ include("glfw_data.jl")
 include("peripherals.jl")
 
 include("camera.jl")
+include("camera_manipulator.jl")
 
 # ? ---------------------------------
 # ! Widgets

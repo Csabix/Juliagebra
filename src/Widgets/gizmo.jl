@@ -3,25 +3,29 @@ using LinearAlgebra
 mutable struct GizmoGL <: OpenGLWidgetDNA 
     _widget::OpenGLWidget
     
-    _lineShader::ShaderProgram
+    _gizmoShader::Pipeline
+    _ubo::Buffer{Vec4}
     
     _id2Axis::Tuple{Vec3F,Vec3F,Vec3F}
     
     _pos::Vec3F
     _size::Float32
 
-    function GizmoGL()
+    function GizmoGL(loader::PipelineLoader, content_scale::Float32)
         widget = OpenGLWidget()
-        
-        lineShader = ShaderProgram(["move_gizmo.vert","gizmo.geom","gizmo.frag"],["VP","gizmoCenter","gizmoScale","selectedID","nanVal","WH","gizmo_axis"])
+
+        gizmoShader = create_graphics_pipeline!(loader;
+            vert = (spv"renderers/gizmo/gizmo.vert",Tuple{GLuint,GLuint}[(0,0),(1,reinterpret(GLuint,content_scale))]),
+            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(1,reinterpret(GLuint,content_scale))]),
+            frag = spv"renderers/gizmo/gizmo.frag"
+        )
+        ubo = Buffer{Vec4}()
+        reserve!(ubo,1,GL_DYNAMIC_STORAGE_BIT)
         
         id2Axis = (Vec3F(1,0,0),Vec3F(0,1,0),Vec3F(0,0,1))
 
-        activate(lineShader)
-        uniform(lineShader,"nanVal",NaN32) 
-
         new(widget,
-            lineShader,
+            gizmoShader,ubo,
             id2Axis,
             Vec3F(0.0,0.0,0.0),0.085)
     end
@@ -29,18 +33,10 @@ end
 
 _OpenGLWidget_(self::GizmoGL)::OpenGLWidget = return self._widget
 
-function draw(self::GizmoGL,vp::Mat4T,cam::Camera,gID::UInt32,wh::Vec2F,gizmo_axis::UInt32)
-    
-    gs = norm(cam._at - cam._eye) * self._size
-
-    activate(self._lineShader)
-    uniform(self._lineShader,"VP",vp)
-
-    uniform(self._lineShader,"gizmoCenter",self._pos)
-    uniform(self._lineShader,"gizmoScale",gs)
-    uniform(self._lineShader,"selectedID",gID)
-    uniform(self._lineShader,"WH",wh)
-    uniform(self._lineShader,"gizmo_axis",gizmo_axis)
+function draw(self::GizmoGL,gizmo_axis::UInt32)
+    upload!(self._ubo,[Vec4(self._pos...,reinterpret(Float32,gizmo_axis))])
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, self._ubo._id);
+    activate(self._gizmoShader)
     glDrawArrays(GL_LINES, 0, 12)
 end
 
@@ -118,5 +114,5 @@ function setAxisClampedT!(self::GizmoGL,selectedAxis::UInt32,shrd::SharedData,vp
 end
 
 function destroy!(self::GizmoGL)
-    destroy!(self._lineShader)
+    self._ubo
 end

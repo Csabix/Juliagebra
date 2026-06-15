@@ -181,7 +181,7 @@ r = Slider();
 end;
 
 dir = @__DIR__ ;
-FILE = dir * "\\scenes\\scene_1.fbx";
+FILE = joinpath(@__DIR__,"scenes","scene_1.fbx");
 scene = load_scene(FILE;scale_factor=0.5f0);
 
 TriangleCluster(scene[1];color=(1.0,1.0,0.0,1.0));

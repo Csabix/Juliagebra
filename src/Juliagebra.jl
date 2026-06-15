@@ -2,6 +2,7 @@
 
 module Juliagebra
 
+include("asset_watcher.jl")
 include("logger.jl")
 
 include("GL/gl.jl")

@@ -29,3 +29,4 @@ docs/site/
 # environment.
 Manifest.toml
 
+*.spv

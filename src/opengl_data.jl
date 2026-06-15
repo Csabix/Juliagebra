@@ -35,17 +35,17 @@ mutable struct OpenGLData
     _passes::@NamedTuple{pre_draw::UInt32, widgets::UInt32, opaque::UInt32, behind_opaque::UInt32, transparent::UInt32, post_process::UInt32}
     _cpu_stopwatch::UInt32
     _shrd::SharedData
-    _widgets::Vector{OpenGLWidgetDNA}
+    _pipeline_loader::PipelineLoader
 
     _observers::Vector{RendererDNA}
     _renderers::PrimitiveRenderers
 
     # ! Shaders
-    _transparent_color_combiner::ShaderProgram
-    _transparent_id_combiner::ShaderProgram
-    _highlighter::ShaderProgram
-    _buffer_clear::ShaderProgram
-    _grid::ShaderProgram
+    _transparent_color_combiner::Pipeline
+    _transparent_id_combiner::Pipeline
+    _highlighter::Pipeline
+    _buffer_clear::Pipeline
+    _grid::Pipeline
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -75,7 +75,7 @@ mutable struct OpenGLData
     _camPos::Vec3F
 
     # GREEN Thread, runs this inside Init, after this construction can begin
-    function OpenGLData(::GLFWData,shrd::SharedData)
+    function OpenGLData(window::GLFWData,shrd::SharedData,asset_watcher::Union{Nothing,AssetWatcher})
         c_debug_callback = @cfunction(debug_callback, Nothing, 
                                  (GLenum, GLenum, GLuint, GLenum, GLsizei, Ptr{GLchar}, Ptr{Cvoid}))
         glEnable(GL_DEBUG_OUTPUT)
@@ -100,18 +100,37 @@ mutable struct OpenGLData
         cpu_stopwatch = add_cpu_stopwatch(profiler)
         init!(profiler)
         
-        widgets = Vector{OpenGLWidgetDNA}()
-        gizmoGL = GizmoGL()
-        orthoGizmoGL = OrthoGizmoGL()
+        pipeline_loader = PipelineLoader()
+        full_compile(pipeline_loader)
+        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
+            if asset_watcher !== nothing
+                watch_folder!(asset_watcher,pkgdir(@__MODULE__,"assets","shaders","src"))
+                set_file_changed_callback(asset_watcher,glsl_shader_extensions,get_glsl_update_callback(pipeline_loader))
+                set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
+                set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,get_glsl_include_update_callback(pipeline_loader))
+            end
+        end
 
-        push!(widgets,gizmoGL)
-        push!(widgets,orthoGizmoGL)
+        gizmoGL = GizmoGL(pipeline_loader,window._scale)
+        orthoGizmoGL = OrthoGizmoGL(pipeline_loader,window._scale)
 
-        transparent_color_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_color.frag"],["width"])
-        transparent_id_combiner = ShaderProgram(["combiners/fullscreen.vert","combiners/transparent_id.frag"],["width"])
-        highlighter = ShaderProgram(["postprocess/highlight.vert","postprocess/highlight.frag"])
-        buffer_clear = ShaderProgram(["./buffer_clear.comp"])
-        grid = ShaderProgram(["postprocess/grid.vert","postprocess/grid.frag"])
+        transparent_color_combiner = create_graphics_pipeline!(pipeline_loader;
+            vert = spv"renderers/fullscreen.vert",
+            frag = spv"renderers/transparent_color.frag"
+        )
+        transparent_id_combiner = create_graphics_pipeline!(pipeline_loader;
+            vert = spv"renderers/fullscreen.vert",
+            frag = spv"renderers/transparent_id.frag"
+        )
+        highlighter = create_graphics_pipeline!(pipeline_loader;
+            vert = spv"postprocess/highlight.vert",
+            frag = spv"postprocess/highlight.frag"
+        )
+        buffer_clear = create_compute_pipeline!(pipeline_loader,spv"renderers/buffer_clear.comp")
+        grid = create_graphics_pipeline!(pipeline_loader;
+            vert = spv"postprocess/grid.vert",
+            frag = spv"postprocess/grid.frag"
+        )
 
         depth_stencil = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(shrd._width,shrd._height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -161,14 +180,14 @@ mutable struct OpenGLData
 
         # ? It's empty because of "reset!".
         observers::Vector{RendererDNA} = RendererDNA[]
-        renderers = PrimitiveRenderers()
+        renderers = PrimitiveRenderers(pipeline_loader)
         
         p = perspective(Float32(70.0),Float32(shrd._width/shrd._height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(profiler,passes,cpu_stopwatch,shrd,widgets,observers,renderers,
+        self = new(profiler,passes,cpu_stopwatch,shrd,pipeline_loader,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
@@ -326,7 +345,6 @@ function _transparent(self::OpenGLData,cam::Camera)
     activate(self._transparent_color_combiner)
     activate(self._accumTexture,GL_TEXTURE0)
     activate(self._revealTexture,GL_TEXTURE1)
-    uniform(self._transparent_color_combiner,"width",UInt32(self._shrd._width))
     glDrawArrays(GL_TRIANGLES,UInt32(0),Int32(3))::Nothing
     glColorMaski(0,GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE)
     glColorMaski(1,GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE)
@@ -335,7 +353,6 @@ function _transparent(self::OpenGLData,cam::Camera)
     glStencilFunc(GL_EQUAL, 0, 0xff)
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
     activate(self._transparent_id_combiner)
-    uniform(self._transparent_color_combiner,"width",UInt32(self._shrd._width))
     glDrawArrays(GL_TRIANGLES,UInt32(0),Int32(3))::Nothing
     glDisable(GL_STENCIL_TEST)
     
@@ -350,14 +367,12 @@ function _widgets(self::OpenGLData,cam::Camera)
     activate(self._opaqueFBO)
     glDepthFunc(GL_ALWAYS)
 
-    wh = Vec2F(self._shrd._width,self._shrd._height)
-
     glDisable(GL_BLEND)
     glEnablei(GL_BLEND, 0)
     glDisablei(GL_BLEND, 1)
     glBlendFunci(0, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._vp,cam,self._shrd._selectedGizmo,wh,self._shrd._gizmoConstraints) end
-    draw(self._orthoGizmoGL,cam,wh)
+    if self._shrd._gizmoEnabled draw(self._gizmoGL,self._shrd._gizmoConstraints) end
+    draw(self._orthoGizmoGL)
 
     glDepthFunc(GL_LEQUAL)
     glDisable(GL_BLEND)
@@ -432,10 +447,10 @@ end
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     glCheckErrors(self)
     begin_cpu(self._profiler, self._cpu_stopwatch)
-    readID(self)
 
     _ubo_update!(self,cam)
     added_all!(self._renderers)
+    scene_change |= update!(self._pipeline_loader)
     scene_change |= sync_all!(self._renderers)
     if scene_change
         render_scene!(self,cam)
@@ -444,6 +459,7 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
     begin_gpu(self._profiler,self._passes.post_process)
     blit_scene!(self,cam)
     end_gpu(self._profiler,self._passes.post_process)
+    readID(self)
 
     lock(self._ubo)
     end_cpu(self._profiler, self._cpu_stopwatch)
@@ -451,13 +467,9 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
 end
 
 function destroy!(self::OpenGLData)
+    destroy!(self._pipeline_loader)
     destroy_dependent_observers(self._observers)
     destroy!(self._renderers)
-
-    destroy!(self._transparent_color_combiner)
-    destroy!(self._transparent_id_combiner)
-    destroy!(self._buffer_clear)
-    destroy!(self._grid)
 
     destroy!(self._opaqueFBO)
     destroy!(self._behindOpaqueFBO)

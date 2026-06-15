@@ -1,7 +1,7 @@
 mutable struct GLFWData
-
     _shrd::SharedData
     _window::GLFW.Window
+    _scale::Float32
 
     function GLFWData(shrd::SharedData)
         GLFW.WindowHint(GLFW.DOUBLEBUFFER , 1);
@@ -23,7 +23,9 @@ mutable struct GLFWData
         GLFW.SwapInterval(1)
         shrd._vsync_state = 1
 
-        new(shrd,window)
+        (x,_) = GLFW.GetWindowContentScale(window)
+
+        new(shrd,window,x)
     end
 end
 

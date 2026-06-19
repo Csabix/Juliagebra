@@ -40,9 +40,10 @@ struct PrimitiveRenderers
     triangle::TriangleRenderer
     extras::Vector{Any}
 
-    function PrimitiveRenderers()
-        extras = Any[f() for f in _EXTRA_PRIMITIVE_FACTORIES]
-        return new(PointRenderer(),LineRenderer(),SphereRenderer(),TriangleRenderer(),extras)
+    function PrimitiveRenderers(loader::PipelineLoader)
+            #extras = Any[f() for f in _EXTRA_PRIMITIVE_FACTORIES]
+            extras = Any[f(loader) for f in _EXTRA_PRIMITIVE_FACTORIES]
+        return new(PointRenderer(loader),LineRenderer(loader),SphereRenderer(loader),TriangleRenderer(loader), extras)
     end
 end
 

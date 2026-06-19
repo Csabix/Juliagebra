@@ -37,7 +37,7 @@ mutable struct ImGuiData <: ImGuiDNA
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
         shrd::SharedData = getShrd(app)
-        model::ModelDNA = getModel(app)
+        model::Model = getModel(app)
 
         imgui_context = CImGui.CreateContext()
         
@@ -45,6 +45,7 @@ mutable struct ImGuiData <: ImGuiDNA
         io = CImGui.GetIO()
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
+        ImPlot.SetCurrentContext(ImPlot.CreateContext())
         
         #config = CImGui.ImFontConfig()
         #config.OversampleH = 3
@@ -120,11 +121,16 @@ function render!(self::ImGuiData,app::AppDNA)
 end
 
 function update!(self::ImGuiData, app::AppDNA)
+    tgl::ToggleRenderer = self._pool[1]
     slr::SliderRenderer = self._pool[2]
+    txt::TextBoxRenderer = self._pool[3]
     str::StepperRenderer = self._pool[4]
     
+    update!(tgl,app)
     update!(slr,app)
+    update!(txt,app)
     update!(str,app)
+
 
     update!(self._dock._windows[5],getModel(app))
 end
@@ -158,10 +164,10 @@ function _display!(self::ImGuiData,cam::Camera)
     cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
 end
 
-function _display!(self::ImGuiData,dependentL::DependentGraphDNA)
+function _display!(self::ImGuiData,graph::DependentGraph)
     CImGui.Text("Stored RenderedDependent Objects:")
     i = 1
-    for (dependentObject) in _DependentGraph(dependentL)._dependentObjects
+    for (dependentObject) in graph._dependentObjects
         CImGui.Text("$(i) - $(string(dependentObject))")
         #if CImGui.TreeNode()        
         #    CImGui.TreePop()
@@ -203,7 +209,7 @@ function resize!(self::ImGuiData)
 end
 
 function destroy!(self::ImGuiData)
-
+    ImPlot.DestroyContext(ImPlot.GetCurrentContext())
     CImGui.ImGui_ImplOpenGL3_Shutdown()
     CImGui.ImGui_ImplGlfw_Shutdown()
     CImGui.DestroyContext()

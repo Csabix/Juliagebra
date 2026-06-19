@@ -1,4 +1,4 @@
-const _SHADER_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Shaders")
+const _SHADER_FOLDER::String = joinpath(pkgdir(@__MODULE__),"assets","shaders","src")
 const _possible_types = Union{String,Tuple{String,Vector{String}},Tuple{String,Vector{Pair{String,String}}},Tuple{String,Vector{String},Vector{Pair{String,String}}}}
 
 struct ShaderProgram

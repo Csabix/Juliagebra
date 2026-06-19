@@ -1,7 +1,7 @@
 mutable struct GLFWData
-
     _shrd::SharedData
     _window::GLFW.Window
+    _scale::Float32
 
     function GLFWData(shrd::SharedData)
         GLFW.WindowHint(GLFW.DOUBLEBUFFER , 1);
@@ -23,7 +23,9 @@ mutable struct GLFWData
         GLFW.SwapInterval(1)
         shrd._vsync_state = 1
 
-        new(shrd,window)
+        (x,_) = GLFW.GetWindowContentScale(window)
+
+        new(shrd,window,x)
     end
 end
 
@@ -47,7 +49,11 @@ function set_limit!(frame_limiter::FrameLimiter, limit::Float64)
     frame_limiter.ns_per_frame = round(UInt64, 1_000_000_000 / limit)
 end
 
-get_limit(::Nothing)::Float64 = 64.0
+function get_limit(::Nothing)::Float64
+    primary = GLFW.GetPrimaryMonitor()
+    mode = GLFW.GetVideoMode(primary)
+    return mode.refreshrate
+end
 function get_limit(frame_limiter::FrameLimiter)::Float64
     return Float64(1_000_000_000) / Float64(frame_limiter.ns_per_frame)
 end

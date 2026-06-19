@@ -95,7 +95,9 @@ function resolve_includes(path::String, visited=String[])::String
     end
 
     push!(visited, path)
-    
+
+    source = replace(source, r"#extension\s+GL_GOOGLE_include_directive\s*:\s*require" => "")
+
     include_regex = r"#include\s+\"([^\"]+)\""
     source = replace(source, include_regex => function (m)
         inside_include = match(include_regex, m).captures[1]

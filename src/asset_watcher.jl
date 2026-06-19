@@ -111,7 +111,7 @@ function update!(watcher::AssetWatcher,delta_time::Float64)::Nothing
         if isfile(file)
             curr_time = mtime(file)
             if curr_time != last_time # File changed
-                watcher.watched_files[file] = curr_time 
+                watcher.watched_files[file] = curr_time
                 if haskey(watcher.file_changed_callback, ext)
                     watcher.file_changed_callback[ext](file)
                 end

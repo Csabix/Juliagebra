@@ -487,11 +487,21 @@ function _to_spirv(loader::PipelineLoader, shader::ShaderGLSL)::Nothing
     return nothing
 end
 
+function _has_files(folder::String)
+    !isdir(folder) && return false
+    for (root, dirs, files) in walkdir(folder)
+        if !isempty(files)
+            return true
+        end
+    end
+    return false
+end
+
 function full_compile(loader::PipelineLoader)::Nothing
     # Compile if JULIAGEBRA_COMPILE_SPIRV is true or spirv folder doesnt exists or empty
     if !(haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") &&
         ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true" ||
-        !(isdir(_shader_spirv_folder) && !isempty(_shader_spirv_folder)))
+        !_has_files(_shader_spirv_folder))
         return nothing
     end
 

@@ -60,7 +60,9 @@ mutable struct OpenGLData
     _transparentFBO::FrameBuffer
 
     _ubo::MappedBuffer{UBO_Data}
-    _pixel_buffer::Buffer{UVec2}
+    _pixel_buffer_dist::Buffer{UVec4}
+    _pixel_buffer_col::Buffer{UVec4}
+    _pixel_buffer_id::Buffer{UVec2}
     
     _empty_VAO::VertexArray
 
@@ -99,7 +101,7 @@ mutable struct OpenGLData
         )
         cpu_stopwatch = add_cpu_stopwatch(profiler)
         init!(profiler)
-        
+
         pipeline_loader = PipelineLoader()
         full_compile(pipeline_loader)
         if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
@@ -164,8 +166,12 @@ mutable struct OpenGLData
         reserve!(ubo, 1, 0)
         glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubo._id);
 
-        pixel_buffer = Buffer{UVec2}()
-        reserve!(pixel_buffer, shrd._width * shrd._height * 5, 0)
+        pixel_buffer_dist = Buffer{UVec4}()
+        reserve!(pixel_buffer_dist, shrd._width * shrd._height, 0)
+        pixel_buffer_col = Buffer{UVec4}()
+        reserve!(pixel_buffer_col, shrd._width * shrd._height, 0)
+        pixel_buffer_id = Buffer{UVec2}()
+        reserve!(pixel_buffer_id, shrd._width * shrd._height, 0)
         empty_vao = VertexArray()
         
         glEnable(GL_DEPTH_TEST)
@@ -191,7 +197,7 @@ mutable struct OpenGLData
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
-            ubo,pixel_buffer,empty_vao,
+            ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             gizmoGL,orthoGizmoGL,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
@@ -245,7 +251,9 @@ function resize!(self::OpenGLData)
     resize!(self._behindOpaqueDepthstencilTexture,width,height)
     resize!(self._accumTexture,width,height)
     resize!(self._revealTexture,width,height)
-    reserve!(self._pixel_buffer, self._shrd._width * self._shrd._height * 5, 0)
+    reserve!(self._pixel_buffer_dist, self._shrd._width * self._shrd._height, 0)
+    reserve!(self._pixel_buffer_col, self._shrd._width * self._shrd._height, 0)
+    reserve!(self._pixel_buffer_id, self._shrd._width * self._shrd._height, 0)
 end
 
 function readID(self::OpenGLData)
@@ -265,11 +273,6 @@ function readID(self::OpenGLData)
 end
 
 function _predraw(self::OpenGLData,cam::Camera)::Nothing
-    bind_ssbo(self._pixel_buffer,11)
-    activate(self._buffer_clear)
-    glDispatchCompute(cld(length(self._pixel_buffer),128*5),1,1)
-    unbind_ssbo(11)
-
     # Clear opaque
     activate(self._opaqueFBO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
@@ -281,7 +284,6 @@ function _predraw(self::OpenGLData,cam::Camera)::Nothing
     glClearBufferfv(GL_COLOR, 1, Float32[1.0f0, 1.0f0, 1.0f0, 1.0f0])
 
     # Pre draw call
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT)
     pre_draw(self._renderers,cam,self._shrd)
 end
 
@@ -326,15 +328,17 @@ function _transparent(self::OpenGLData,cam::Camera)
     glBlendEquation(GL_FUNC_ADD)::Nothing
 
     activate(self._transparentFBO)
-    bind_ssbo(self._pixel_buffer,11)
+    bind_ssbo(self._pixel_buffer_dist,11)
+    bind_ssbo(self._pixel_buffer_col,12)
+    bind_ssbo(self._pixel_buffer_id,13)
     
     # draws
-    activate(self._depthstencilTexture,GL_TEXTURE12)
+    activate(self._depthstencilTexture,GL_TEXTURE13)
     transparent(self._renderers,cam,self._shrd)
     
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_CULL_FACE)
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
     glDepthMask(GL_FALSE)
     
     activate(self._opaqueFBO)
@@ -361,6 +365,9 @@ function _transparent(self::OpenGLData,cam::Camera)
     glDisable(GL_BLEND)
     glDepthMask(GL_TRUE)
     unbind_ssbo(11)
+    unbind_ssbo(12)
+    unbind_ssbo(13)
+    deactivate(GL_TEXTURE13)
 end
 
 function _widgets(self::OpenGLData,cam::Camera)
@@ -463,7 +470,6 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool)
 
     lock(self._ubo)
     end_cpu(self._profiler, self._cpu_stopwatch)
-    frame_end(self._profiler)
 end
 
 function destroy!(self::OpenGLData)
@@ -474,7 +480,9 @@ function destroy!(self::OpenGLData)
     destroy!(self._opaqueFBO)
     destroy!(self._behindOpaqueFBO)
     destroy!(self._transparentFBO)
-    destroy!(self._pixel_buffer)
+    destroy!(self._pixel_buffer_dist)
+    destroy!(self._pixel_buffer_col)
+    destroy!(self._pixel_buffer_id)
 
     destroy!(self._rgbaTexture)
     destroy!(self._idTexture)

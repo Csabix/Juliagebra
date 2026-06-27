@@ -13,6 +13,9 @@ struct ViewingState <: ModelState end
 struct EvalingState <: ModelState end
 
 include("Nodes/schedule.jl")
+include("Evaluation/completed_condition.jl")
+include("Evaluation/goal.jl")
+
 include("dependent_graph.jl")
 include("Nodes/dependent.jl")
 
@@ -27,8 +30,6 @@ include("Nodes/subject.jl")
 include("Construction/builder.jl")
 include("Construction/adder.jl")
 
-include("Evaluation/completed_condition.jl")
-include("Evaluation/goal.jl")
 include("Evaluation/synchronizer.jl")
 include("Evaluation/evalworker.jl")
 include("Evaluation/scheduler.jl")

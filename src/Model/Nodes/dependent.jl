@@ -10,6 +10,9 @@ mutable struct Dependent
     _schedule::Schedule # ? Who Depends on me (collectively)?
     _callback::Function
 
+    # ? Was this node evaled by an EvalWorker?
+    _evaledcond::CompletedCondition
+
     function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
         schedule = Schedule()
         
@@ -17,8 +20,9 @@ mutable struct Dependent
         @assert allunique(_graphParents) "Dependent parents have duplicates!"
 
         entryNodes = Vector{Any}(undef,length(_graphParents))
-    
-        new(0,_graphParents,entryNodes,schedule,callback)
+        evaledcond::CompletedCondition = CompletedCondition()
+
+        new(0,_graphParents,entryNodes,schedule,callback,evaledcond)
     end
 end
 
@@ -32,10 +36,9 @@ getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID
 getSchedule(self::DependentDNA) = return _Dependent_(self)._schedule
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
+get_evaledcond(self::DependentDNA)::CompletedCondition = return self._evaledcond
 
-function _isUnbuilt(self::Dependent)::Bool
-    return (self._graphID == 0)
-end
+_isUnbuilt(self::Dependent)::Bool = return (self._graphID == 0)
 isUnbuilt(self::DependentDNA)::Bool = return _isUnbuilt(_Dependent_(self))
 
 function setEntryNodes(self::DependentDNA)

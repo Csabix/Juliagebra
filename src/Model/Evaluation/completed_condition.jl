@@ -3,6 +3,12 @@
 # ! CompletedCondition
 # ? ---------------------------------
 
+
+"""
+Used for waiting on a node to be completed.
+- Use Base.wait() to wait until completed.
+- Use Base.notify() to wake waiters.
+"""
 mutable struct CompletedCondition
     _condition::Threads.Condition
     @atomic _completed::Bool

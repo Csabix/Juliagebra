@@ -113,8 +113,8 @@ mutable struct OpenGLData
             end
         end
 
-        gizmoGL = GizmoGL(pipeline_loader,window._scale)
-        orthoGizmoGL = OrthoGizmoGL(pipeline_loader,window._scale)
+        gizmoGL = GizmoGL(pipeline_loader,window.scale)
+        orthoGizmoGL = OrthoGizmoGL(pipeline_loader,window.scale)
 
         transparent_color_combiner = create_graphics_pipeline!(pipeline_loader;
             vert = spv"renderers/fullscreen.vert",

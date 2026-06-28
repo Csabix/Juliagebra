@@ -4,6 +4,7 @@
     height::Int32   = Int32(0)
     s_width::Int32  = Int32(0)
     s_height::Int32 = Int32(0)
+    scale::Float32 = 0.0f0
 end
 
 const KEY_DOWN::UInt8           = 0x01
@@ -81,11 +82,13 @@ function init!(w::GLFWData,window_name::String,width::Cint,height::Cint,debug::B
     GLFW.SwapInterval(1)
 
     (buffer_w,buffer_h) = GLFW.GetFramebufferSize(window)
+    (x_scale,_) = GLFW.GetWindowContentScale(window)
     w._window = window
     w.width = buffer_w
     w.height = buffer_h
     w.s_width = width
     w.s_height = height
+    w.scale = x_scale
     return nothing
 end
 

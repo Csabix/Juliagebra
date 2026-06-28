@@ -29,10 +29,10 @@ mutable struct LineRenderer
     updated::LinePropertyUpdate
     emptyVAO::VertexArray
 
-    shader_predraw::ShaderProgram
-    shaders_opaque::Vector{ShaderProgram}
-    shaders_behind_opaque::Vector{ShaderProgram}
-    shaders_transparent::Vector{ShaderProgram}
+    shader_predraw::Pipeline
+    shaders_opaque::Vector{Pipeline}
+    shaders_behind_opaque::Vector{Pipeline}
+    shaders_transparent::Vector{Pipeline}
 
     # Static
     ranges::Vector{Tuple{Int,Int,Int}}
@@ -56,6 +56,7 @@ mutable struct LineRenderer
     gpu_gpu_sync::GLsync
 
     # Dynamic
+    UBO::RepeatBufferUBO{GLuint}
     update_list::Vector{UInt32}
     types_dynamic::Vector{UInt8}
     draw_ranges_dynamic::Vector{Tuple{Int,Int}}
@@ -78,18 +79,32 @@ mutable struct LineRenderer
     gpu_gpu_sync_dynamic::GLsync
 
     # GREEN Thread
-    function LineRenderer()
+    function LineRenderer(loader::PipelineLoader)
         updated = _LINE_PROP_NONE
         emptyVAO = VertexArray()
 
-        shader_predraw = ShaderProgram(["renderers/line/line.comp"],["offset"])
-        shaders_opaque = Vector{ShaderProgram}()
-        shaders_behind_opaque = Vector{ShaderProgram}()
-        shaders_transparent = Vector{ShaderProgram}()
-        types = ["SOLID","DASHED","DOTTED","WAVE","DASH_DOT","ARROW"]
-        for type in types push!(shaders_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type])])) end
-        for type in types push!(shaders_behind_opaque,ShaderProgram(["renderers/line/line.vert",("renderers/line/line_behind_opaque.frag",[type])])) end
-        for type in types push!(shaders_transparent,ShaderProgram(["renderers/line/line.vert",("renderers/line/line.frag",[type,"TRANSPARENT_WEIGHTED_ONLY"])])) end
+        shader_predraw = create_compute_pipeline!(loader,spv"renderers/line/line.comp")
+        shaders_opaque = Vector{Pipeline}()
+        shaders_behind_opaque = Vector{Pipeline}()
+        shaders_transparent = Vector{Pipeline}()
+        for i in 0:(_LINE_TYPE_COUNT - 1) 
+            push!(shaders_opaque,create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag",Tuple{GLuint,GLuint}[(0,0),(1,GLuint(i))])
+            ))
+        end
+        for i in 0:(_LINE_TYPE_COUNT - 1) 
+            push!(shaders_behind_opaque,create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag",Tuple{GLuint,GLuint}[(0,1),(1,GLuint(i))])
+            ))
+        end
+        for i in 0:(_LINE_TYPE_COUNT - 1) 
+            push!(shaders_transparent,create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_transparent.frag",Tuple{GLuint,GLuint}[(0,0),(1,GLuint(i))])
+            ))
+        end
         
         # Static
 
@@ -114,6 +129,8 @@ mutable struct LineRenderer
         gpu_gpu_sync::GLsync = C_NULL
 
         # Dynamic
+
+        UBO = RepeatBufferUBO{GLuint}()
 
         update_list = Vector{UInt32}()
         types_dynamic = Vector{UInt8}()
@@ -144,7 +161,7 @@ mutable struct LineRenderer
             distance_buffer_in,color_style_buffer_in,position_width_buffer_in,
             position_distance_buffer_out,color_buffer_out,begin_pos_rad,sdf_buffer_out,end_pos_rad,
             gpu_gpu_sync,
-            update_list,types_dynamic,draw_ranges_dynamic,
+            UBO,update_list,types_dynamic,draw_ranges_dynamic,
             coords_sizes_dynamic,color_style_dynamic,
             distances_dynamic,
             distance_buffer_in_dynamic,color_style_buffer_in_dynamic,position_width_buffer_in_dynamic,
@@ -230,7 +247,6 @@ function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
     @time_cpu_end Renderer Line Distances Static
     
-    wait(self.distance_buffer_in)
     copyto!(self.distance_buffer_in, self.distances)
     
 end
@@ -248,7 +264,6 @@ function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
     @time_cpu_end Renderer Line Distances Dynamic
 
-    wait(last(self.distance_buffer_in_dynamic))
     @inbounds for i in 1:length(self.distances_dynamic)
         copyto!(self.distance_buffer_in_dynamic[i], self.distances_dynamic[i])
     end
@@ -308,10 +323,6 @@ end
 
 function destroy!(self::LineRenderer)::Nothing
     destroy!(self.emptyVAO)
-    destroy!(self.shader_predraw)
-    foreach(destroy!,self.shaders_opaque)
-    foreach(destroy!,self.shaders_behind_opaque)
-    foreach(destroy!,self.shaders_transparent)
 
     destroy!(self.distance_buffer_in)
     destroy!(self.color_style_buffer_in)
@@ -551,7 +562,6 @@ function sync_all!(self::LineRenderer)::Bool
     end
     scene_change::Bool = false
     if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE || (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
-        wait(self.distance_buffer_in)
         if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE
             copyto!(self.position_width_buffer_in, self.coords_sizes)
         end
@@ -561,7 +571,6 @@ function sync_all!(self::LineRenderer)::Bool
         scene_change = true
     end
     if length(self.update_list) != 0
-        wait(last(self.distance_buffer_in_dynamic))
 
         for ref in self.update_list
             upload!(self.position_width_buffer_in_dynamic[ref], self.coords_sizes_dynamic[ref], 0)
@@ -589,6 +598,31 @@ function sync_all!(self::LineRenderer)::Bool
 end
 
 function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+    if length(self.coords_sizes) == 0 && length(self.coords_sizes_dynamic) == 0 return nothing end
+
+    prev_offset::UInt32 = 0
+    offset::UInt32 = 0
+    offsets::Vector{GLuint} = Vector{GLuint}()
+    sizehint!(offsets, max(length(self.coords_sizes_dynamic),1))
+    for i in 1:_LINE_TYPE_COUNT
+        for j in 1:length(self.coords_sizes_dynamic)
+            if self.types_dynamic[j] != i || length(self.coords_sizes_dynamic[j]) <= 3 continue end
+            push!(offsets,GLuint(offset))
+            offset += UInt32(length(self.coords_sizes_dynamic[j]) - 3)
+        end
+        self.draw_ranges_dynamic[i] = (prev_offset, offset - prev_offset)
+        prev_offset = offset
+    end
+
+    if length(offsets) == 0 push!(offsets, GLuint(0)) end
+
+    if length(self.UBO) != length(offsets)
+        upload!(self.UBO,offsets,GL_DYNAMIC_STORAGE_BIT)
+    else
+        upload!(self.UBO,offsets)
+    end
+
+
     (vp, v, p) = get_matrices(cam)
 
     # Static
@@ -607,12 +641,11 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
 
     (cam_light, side_light) = get_lights(cam)
     activate(self.shader_predraw)
-    uniform(self.shader_predraw,"offset",UInt32(0))
+    bind_ubo(self.UBO, 1, 8) # Always 0
     @time_gpu_begin Renderer Line Pre_Draw Static
     glDispatchCompute(cld(length(self.coords_sizes),32),1,1);
     @time_gpu_end Renderer Line Pre_Draw Static
     self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(self.distance_buffer_in)
     end
     # Dynamic
     
@@ -628,8 +661,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     (cam_light, side_light) = get_lights(cam)
     activate(self.shader_predraw)
 
-    prev_offset::UInt32 = 0
-    offset::UInt32 = 0
+    index = 1
     @time_gpu_begin Renderer Line Pre_Draw Dynamic
     for i in 1:_LINE_TYPE_COUNT
         for j in 1:length(self.coords_sizes_dynamic)
@@ -637,17 +669,14 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
             bind_ssbo(self.distance_buffer_in_dynamic[j],0)
             bind_ssbo(self.color_style_buffer_in_dynamic[j],1)
             bind_ssbo(self.position_width_buffer_in_dynamic[j],2)
-            uniform(self.shader_predraw,"offset",offset)
+            bind_ubo(self.UBO, index, 8)
             glDispatchCompute(cld(length(self.coords_sizes_dynamic[j]),32),1,1);
-            offset += UInt32(length(self.coords_sizes_dynamic[j]) - 3)
+            index += 1
         end
-        self.draw_ranges_dynamic[i] = (prev_offset, offset - prev_offset)
-        prev_offset = offset
     end
     @time_gpu_end Renderer Line Pre_Draw Dynamic
 
     self.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(last(self.distance_buffer_in_dynamic))
     end
 
     return nothing

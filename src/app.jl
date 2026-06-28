@@ -5,7 +5,6 @@
 # ? ---------------------------------
 
 mutable struct App <: AppDNA
-
     _shrd::SharedData
     _glfw::Union{GLFWData,Nothing}
     _inputs::Union{Inputs,Nothing}
@@ -24,6 +23,8 @@ mutable struct App <: AppDNA
     
     _model::Model
     _scene_change::Bool
+
+    _asset_watcher::Union{Nothing,AssetWatcher}
 
     function App(
         name::String="Juliagebra",
@@ -47,8 +48,13 @@ mutable struct App <: AppDNA
         commander = Commander()
         
         model = Model()
-                
-        new(shrd,glfw,inputs,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false)
+
+        asset_watcher::Union{Nothing,AssetWatcher} = nothing
+        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
+            asset_watcher = AssetWatcher()
+        end
+        
+        new(shrd,glfw,inputs,opengl,imgui,nothing,nothing,windowCreated,peripherals,cam,manipulator,optimizer,starter,commander,model,false,asset_watcher)
     end
 end
 
@@ -260,6 +266,7 @@ function play!(self::App)
         yield()
         perf_get_results()
         updateDeltaTime!(self)
+        if self._asset_watcher !== nothing update!(self._asset_watcher,Float64(self._shrd._deltaTime)) end
         self._scene_change |= updateCam!(self)
         
         model::Model = self._model
@@ -308,6 +315,7 @@ function update!(self::App, state::ViewingState, iconified::Bool)
         update!(self._opengl,self._cam,self._scene_change)
         render!(self._imgui,self)
         update!(self._shrd)
+        frame_end(self._opengl._profiler)
     end
 end
 
@@ -322,6 +330,7 @@ function update!(self::App, state::BuildingState, iconified::Bool)
         update!(self._opengl,self._cam,self._scene_change)
         renderBuildingState(self._imgui,self)
         update!(self._shrd)
+        frame_end(self._opengl._profiler)
     end
 end
 
@@ -336,6 +345,7 @@ function update!(self::App, state::EvalingState, iconified::Bool)
         update!(self._opengl,self._cam,self._scene_change)
         render!(self._imgui,self)
         update!(self._shrd)
+        frame_end(self._opengl._profiler)
     end
 end
 
@@ -347,7 +357,7 @@ function init!(self::App)
     self._glfw = GLFWData()
     init!(self._glfw, "Juliagebra", Int32(1280), Int32(720), true)
     self._inputs = Inputs(self._glfw)
-    self._opengl = OpenGLData(self._glfw,self._shrd)
+    self._opengl = OpenGLData(self._glfw,self._shrd,self._asset_watcher)
     #setInputEvents(self._glfw._window,self) # Before call to ImGUI
     setup_callbacks(self)
     setup_event_handles(self._glfw,self._inputs)

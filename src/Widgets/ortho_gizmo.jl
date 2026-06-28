@@ -1,34 +1,34 @@
 mutable struct OrthoGizmoGL <: OpenGLWidgetDNA
     _widget::OpenGLWidget
 
-    _lineShader::ShaderProgram
+    _gizmoShader::Pipeline
 
     _empty_vao::VertexArray
 
-    function OrthoGizmoGL()
+    function OrthoGizmoGL(loader::PipelineLoader, content_scale::Float32)
         widget = OpenGLWidget()
 
-        lineShader = ShaderProgram(["ortho_gizmo.vert","gizmo.geom","gizmo.frag"],["VP","WH"])
+        gizmoShader = create_graphics_pipeline!(loader;
+            vert = (spv"renderers/gizmo/gizmo.vert",Tuple{GLuint,GLuint}[(0,1),(1,reinterpret(GLuint,content_scale))]),
+            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(1,reinterpret(GLuint,content_scale))]),
+            frag = spv"renderers/gizmo/gizmo.frag"
+        )
 
         empty_vao::VertexArray = VertexArray()
 
         new(widget,
-            lineShader,
+            gizmoShader,
             empty_vao)
     end
 end
 
 _OpenGLWidget_(self::OrthoGizmoGL)::OpenGLWidget = return self._widget
 
-function draw(self::OrthoGizmoGL,cam::Camera,wh::Vec2F)
-    #vp,_,_ = get_matrices(cam,3)
-    #activate(self._empty_vao)
-    #activate(self._lineShader)
-    #uniform(self._lineShader,"VP",vp)
-    #uniform(self._lineShader,"WH",wh)
-    #glDrawArrays(GL_LINES, 0, 12)
+function draw(self::OrthoGizmoGL)
+    activate(self._empty_vao)
+    activate(self._gizmoShader)
+    glDrawArrays(GL_LINES, 0, 12)
 end
 
 function destroy!(self::OrthoGizmoGL)
-    destroy!(self._lineShader)
 end

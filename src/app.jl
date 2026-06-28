@@ -286,6 +286,7 @@ function update!(self::App, state::ViewingState, iconified::Bool)
         update!(self._opengl,self._cam,self._scene_change)
         render!(self._imgui,self)
         update!(self._shrd)
+        frame_end(self._opengl._profiler)
     end
 end
 
@@ -300,6 +301,7 @@ function update!(self::App, state::BuildingState, iconified::Bool)
         update!(self._opengl,self._cam,self._scene_change)
         renderBuildingState(self._imgui,self)
         update!(self._shrd)
+        frame_end(self._opengl._profiler)
     end
 end
 
@@ -314,6 +316,7 @@ function update!(self::App, state::EvalingState, iconified::Bool)
         update!(self._opengl,self._cam,self._scene_change)
         render!(self._imgui,self)
         update!(self._shrd)
+        frame_end(self._opengl._profiler)
     end
 end
 

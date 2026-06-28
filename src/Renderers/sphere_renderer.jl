@@ -25,7 +25,7 @@ mutable struct SphereRenderer
         )
         
         shader_transparent_front = create_graphics_pipeline!(loader;
-            vert = spv"renderers/sphere/sphere.vert",
+            vert = (spv"renderers/sphere/sphere.vert",Tuple{GLuint,GLuint}[(0,reinterpret(GLuint,Float32(0.0)))]),
             frag = (spv"renderers/sphere/sphere_transparent.frag",Tuple{GLuint,GLuint}[(0,reinterpret(GLuint,Float32(1.0)))])
         )
 

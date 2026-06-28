@@ -247,7 +247,6 @@ function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
     @time_cpu_end Renderer Line Distances Static
     
-    wait(self.distance_buffer_in)
     copyto!(self.distance_buffer_in, self.distances)
     
 end
@@ -265,7 +264,6 @@ function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
     @time_cpu_end Renderer Line Distances Dynamic
 
-    wait(last(self.distance_buffer_in_dynamic))
     @inbounds for i in 1:length(self.distances_dynamic)
         copyto!(self.distance_buffer_in_dynamic[i], self.distances_dynamic[i])
     end
@@ -564,7 +562,6 @@ function sync_all!(self::LineRenderer)::Bool
     end
     scene_change::Bool = false
     if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE || (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
-        wait(self.distance_buffer_in)
         if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE
             copyto!(self.position_width_buffer_in, self.coords_sizes)
         end
@@ -574,7 +571,6 @@ function sync_all!(self::LineRenderer)::Bool
         scene_change = true
     end
     if length(self.update_list) != 0
-        wait(last(self.distance_buffer_in_dynamic))
 
         for ref in self.update_list
             upload!(self.position_width_buffer_in_dynamic[ref], self.coords_sizes_dynamic[ref], 0)
@@ -650,7 +646,6 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     glDispatchCompute(cld(length(self.coords_sizes),32),1,1);
     @time_gpu_end Renderer Line Pre_Draw Static
     self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(self.distance_buffer_in)
     end
     # Dynamic
     
@@ -682,7 +677,6 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     @time_gpu_end Renderer Line Pre_Draw Dynamic
 
     self.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(last(self.distance_buffer_in_dynamic))
     end
 
     return nothing

@@ -12,7 +12,7 @@ struct BuildingState <: ModelState end
 struct ViewingState <: ModelState end
 struct EvalingState <: ModelState end
 
-include("Nodes/schedule.jl")
+include("Nodes/subgraphs.jl")
 include("Evaluation/completed_condition.jl")
 include("Evaluation/goal.jl")
 

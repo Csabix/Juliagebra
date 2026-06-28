@@ -1,10 +1,9 @@
 
 # ? ---------------------------------
 # ! InsertionTopoSubgraph
-# ! OrderedTopoSubgraph
 # ? ---------------------------------
 
-@kwdef mutable struct InsertionTopoSubgraph
+@kwdef struct InsertionTopoSubgraph
     _ids::Vector{Int} = Vector{Int}()
 end
 

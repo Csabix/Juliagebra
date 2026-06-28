@@ -1,4 +1,4 @@
 using Test
 
-#include("dependenttests.jl")
-include("macro_tests.jl")
+include("model_tests.jl")
+#include("macro_tests.jl")

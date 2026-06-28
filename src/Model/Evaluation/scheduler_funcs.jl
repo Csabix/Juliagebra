@@ -4,30 +4,29 @@ function startGraphWorkers!(self::Scheduler, model::Model)
     
     self._taken = length(self)
     heads::Set{DependentDNA} = Set{DependentDNA}()
-    schedules::Vector{InsertionTopoSubgraph} = []
+    subgraphs::Vector{InsertionTopoSubgraph} = []
 
     for _ in 1:self._taken
-        d::DependentDNA = popfirst!(self._in)
-        push!(schedules,get_subgraph(d))
-        push!(heads,d)
+        head::DependentDNA = popfirst!(self._in)
+        push!(subgraphs,get_subgraph(head))
+        push!(heads,head)
     end
 
-    if !isempty(schedules)
-        # TODO: maybe copy to avoid GC?
-        self._subgraph = merge(schedules)
+    if !isempty(subgraphs)
+        copy!(self._merged_subgraph, merge(subgraphs))
         
-        # ? Filter out heads, which are not in the schedules.
-        empty!(self._roots)
-        for d in heads
-            if (d isa SubjectDNA) && !(d in dependentsOf(self._subgraph))
-                push!(self._roots,d)
+        # ? Filter out heads, which are not in the megred subgraph.
+        empty!(self._merged_roots)
+        for head in heads
+            if !(getGraphID(head) in get_ids(self._merged_subgraph))
+                push!(self._merged_roots,head)
             end
         end
 
         # ? Send root Dependents for synchronization,
         # ? since they are up to date from outside modifications.
-        for d in self._roots
-            put!(sy,d)
+        for root in self._merged_roots
+            put!(sy,root)
         end
 
         # ? Assign Dependents in the schedule to workers for onNodeEval() calls.
@@ -37,9 +36,9 @@ end
 
 function _distributeWork(self::Scheduler, model::Model, ::SingleFrameSingleThread)
     w::EvalWorker0 = getWorkers(model)[0]
-    
-    for d in self._subgraph
-        put!(w,d)
+
+    for nodeid in self._merged_subgraph
+        put!(w,nodeid)
     end
 end
 

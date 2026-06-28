@@ -8,6 +8,7 @@
 end
 
 Base.length(self::InsertionTopoSubgraph) = return length(self._ids)
+Base.isempty(self::InsertionTopoSubgraph) = return isempty(self._ids)
 Base.getindex(self::InsertionTopoSubgraph, idx::Int)::Int = return self._ids[idx]
 Base.iterate(self::InsertionTopoSubgraph, state=1) = state<=length(self) ? (return (self._ids[state],state+1)) : (return nothing)
 get_ids(self::InsertionTopoSubgraph)::Vector{Int} = return self._ids
@@ -63,3 +64,4 @@ end
 
 Base.merge(schedules::Vector{InsertionTopoSubgraph})::InsertionTopoSubgraph = return foldl(Base.merge,schedules)
 
+Base.copy!(dst::InsertionTopoSubgraph, src::InsertionTopoSubgraph) = copy!(dst._ids, src._ids)

@@ -38,13 +38,13 @@ end
 Calls onNodeEval() on put nodes, then sends them to synchronizer.
 """
 @kwdef mutable struct EvalWorker0 <: EvalWorker
-    _in::Queue{DependentDNA} = Queue{DependentDNA}()
+    _in::Queue{Int} = Queue{Int}()
     _processedIDs::Vector{Int} = []
     _processedTimes::Vector{Float64} = []
 end
 
-Base.put!(self::EvalWorker0, d::DependentDNA) = push!(self._in,d)
-Base.take!(self::EvalWorker0)::DependentDNA = return popfirst!(self._in)
+Base.put!(self::EvalWorker0, nodeid::Int) = push!(self._in,nodeid)
+Base.take!(self::EvalWorker0)::Int = return popfirst!(self._in)
 Base.length(self::EvalWorker0) = return length(self._in)
 getProcessedIDs(self::EvalWorker0)::Vector{Int} = return self._processedIDs
 getProcessedTimes(self::EvalWorker0)::Vector{Float64} = return self._processedTimes

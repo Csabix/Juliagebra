@@ -30,8 +30,9 @@ Manages correct graph evaluation scheduling.
 @kwdef mutable struct Scheduler
     _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
-    _subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
-    _roots::Set{SubjectDNA} = Set{SubjectDNA}()
+    
+    _merged_subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
+    _merged_roots::Set{DependentDNA} = Set{DependentDNA}()
     
     _evaled::Vector{CompletedCondition} = Vector{CompletedCondition}()
     _evaledGoal::AtomicGoal = AtomicGoal()
@@ -53,12 +54,12 @@ Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "
 Base.isempty(self::Scheduler)::Bool = return isempty(self._in)
 Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
-isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
-isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
-isFinishedFirst(self::Scheduler)::Bool = return length(self._evaled)!=0 && length(self._synced)!=0
 setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
 getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
 getModesLength(self::Scheduler)::Int = return length(self._modes)
+isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
+isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
+isFinishedFirst(self::Scheduler)::Bool = return length(self._evaled)!=0 && length(self._synced)!=0
 
 
 function _isFinishedCorrectly!(::Scheduler, ::SingleFrameSingleThread)::Bool

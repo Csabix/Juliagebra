@@ -11,10 +11,11 @@ function processUntilClosed!(self::EvalWorker0, model::Model)
     for _ in 1:taken
         startTime = time_ns()
         
-        d::DependentDNA = take!(self)
-        _process1(self, model, d)
+        nodeid::Int = take!(self)
+        node::DependentDNA = getDependentNode(model,nodeid)
+        _process1(self, model, node)
 
-        pushEndTime!(self, getGraphID(d), startTime)
+        pushEndTime!(self, nodeid, startTime)
     end
 end
 

@@ -7,14 +7,14 @@ mutable struct Dependent
     _graphID::Int                       
     _graphParents::Vector{<:DependentDNA} # ? Who do I Depend on?
     _entryNodes::Vector{Any}
-    _schedule::Schedule # ? Who Depends on me (collectively)?
+    _subgraph::InsertionTopoSubgraph # ? Who Depends on me (collectively)?
     _callback::Function
 
     # ? Was this node evaled by an EvalWorker?
     _evaledcond::CompletedCondition
 
     function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
-        schedule = Schedule()
+        schedule = InsertionTopoSubgraph()
         
         _graphParents = copy(graphParents)
         @assert allunique(_graphParents) "Dependent parents have duplicates!"
@@ -34,7 +34,7 @@ getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID
-getSchedule(self::DependentDNA) = return _Dependent_(self)._schedule
+get_subgraph(self::DependentDNA) = return _Dependent_(self)._subgraph
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
 get_evaledcond(self::DependentDNA)::CompletedCondition = return self._evaledcond
 

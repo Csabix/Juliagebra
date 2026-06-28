@@ -30,7 +30,7 @@ Manages correct graph evaluation scheduling.
 @kwdef mutable struct Scheduler
     _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
-    _schedule::Schedule = Schedule()
+    _subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
     _roots::Set{SubjectDNA} = Set{SubjectDNA}()
     
     _evaled::Vector{CompletedCondition} = Vector{CompletedCondition}()

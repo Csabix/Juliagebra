@@ -4,22 +4,22 @@ function startGraphWorkers!(self::Scheduler, model::Model)
     
     self._taken = length(self)
     heads::Set{DependentDNA} = Set{DependentDNA}()
-    schedules::Vector{Schedule} = []
+    schedules::Vector{InsertionTopoSubgraph} = []
 
     for _ in 1:self._taken
         d::DependentDNA = popfirst!(self._in)
-        push!(schedules,getSchedule(d))
+        push!(schedules,get_subgraph(d))
         push!(heads,d)
     end
 
     if !isempty(schedules)
         # TODO: maybe copy to avoid GC?
-        self._schedule = merge(schedules)
+        self._subgraph = merge(schedules)
         
         # ? Filter out heads, which are not in the schedules.
         empty!(self._roots)
         for d in heads
-            if (d isa SubjectDNA) && !(d in dependentsOf(self._schedule))
+            if (d isa SubjectDNA) && !(d in dependentsOf(self._subgraph))
                 push!(self._roots,d)
             end
         end
@@ -38,13 +38,13 @@ end
 function _distributeWork(self::Scheduler, model::Model, ::SingleFrameSingleThread)
     w::EvalWorker0 = getWorkers(model)[0]
     
-    for d in self._schedule
+    for d in self._subgraph
         put!(w,d)
     end
 end
 
 function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int,Int}}
-    evaledGoal = length(self._schedule)
+    evaledGoal = length(self._subgraph)
     syncedGoal = 0
 
     # ? Reset condition containers.
@@ -56,8 +56,8 @@ function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFo
     wd::Vector{WorkerFood} = []
 
     # ? Prepare scheduling distribution.
-    for idx in 1:length(self._schedule) 
-        d::DependentDNA = self._schedule[idx]
+    for idx in 1:length(self._subgraph) 
+        d::DependentDNA = self._subgraph[idx]
         
         # ? Collect parents's CompletedConditions.
         conditions::Vector{CompletedCondition} = []
@@ -90,8 +90,8 @@ function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFo
     reset!(self._evaledGoal, evaledGoal)
     reset!(self._syncedGoal, syncedGoal)
     
-    @assert length(self._schedule) == length(self._evaled) "Not enough conditions were created..."
-    @assert length(self._schedule) == length(localIDs) "Not enough parent conditions were assigned!"
+    @assert length(self._subgraph) == length(self._evaled) "Not enough conditions were created..."
+    @assert length(self._subgraph) == length(localIDs) "Not enough parent conditions were assigned!"
     @assert length(self._synced) == syncedGoal "Goal is inconsistent!"
 
     return (wd, localIDs)
@@ -210,7 +210,7 @@ function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameMulti
     @assert length(heights) == length(wd) "Every node must get one weight!"
 
     wd, heights = _sortByWeight(wd, heights)
-    @assert _isTopologicalOrdered(wd) "Schedule is not in topological order!"
+    @assert _isTopologicalOrdered(wd) "Work is not in topological order!"
 
     # ? Assign nodes with weights to workers.
     tags::Vector{Int} = _assignNodesToWorkers(wd, w, heights)

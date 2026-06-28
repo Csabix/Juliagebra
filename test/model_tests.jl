@@ -45,10 +45,10 @@
 
             _buildall(model,4)
 
-            @test SUT.get_set(SUT.getSchedule(node1)) == Set([2, 3, 4])
-            @test SUT.get_set(SUT.getSchedule(node2)) == Set([4])
-            @test SUT.get_set(SUT.getSchedule(node3)) == Set([4])
-            @test isempty(SUT.getSchedule(node4))
+            @test SUT.get_set(SUT.get_subgraph(node1)) == Set([2, 3, 4])
+            @test SUT.get_set(SUT.get_subgraph(node2)) == Set([4])
+            @test SUT.get_set(SUT.get_subgraph(node3)) == Set([4])
+            @test isempty(SUT.get_subgraph(node4))
         end
 
         @testset "DAG" begin
@@ -72,13 +72,13 @@
 
             _buildall(model,7)
 
-            @test SUT.get_set(SUT.getSchedule(node1)) == Set([2,3,4,5,6,7])
-            @test SUT.get_set(SUT.getSchedule(node2)) == Set([4,5])
-            @test SUT.get_set(SUT.getSchedule(node3)) == Set([6,7])
-            @test isempty(SUT.getSchedule(node4))
-            @test isempty(SUT.getSchedule(node5))
-            @test isempty(SUT.getSchedule(node6))
-            @test isempty(SUT.getSchedule(node7))
+            @test SUT.get_set(SUT.get_subgraph(node1)) == Set([2,3,4,5,6,7])
+            @test SUT.get_set(SUT.get_subgraph(node2)) == Set([4,5])
+            @test SUT.get_set(SUT.get_subgraph(node3)) == Set([6,7])
+            @test isempty(SUT.get_subgraph(node4))
+            @test isempty(SUT.get_subgraph(node5))
+            @test isempty(SUT.get_subgraph(node6))
+            @test isempty(SUT.get_subgraph(node7))
         end
 
         @testset "Sink" begin
@@ -100,12 +100,12 @@
 
             _buildall(model,6)
 
-            @test SUT.get_set(SUT.getSchedule(node1)) == Set([4,6])
-            @test SUT.get_set(SUT.getSchedule(node2)) == Set([4,5,6])
-            @test SUT.get_set(SUT.getSchedule(node3)) == Set([5,6])
-            @test SUT.get_set(SUT.getSchedule(node4)) == Set([6])
-            @test SUT.get_set(SUT.getSchedule(node5)) == Set([6])
-            @test isempty(SUT.getSchedule(node6))
+            @test SUT.get_set(SUT.get_subgraph(node1)) == Set([4,6])
+            @test SUT.get_set(SUT.get_subgraph(node2)) == Set([4,5,6])
+            @test SUT.get_set(SUT.get_subgraph(node3)) == Set([5,6])
+            @test SUT.get_set(SUT.get_subgraph(node4)) == Set([6])
+            @test SUT.get_set(SUT.get_subgraph(node5)) == Set([6])
+            @test isempty(SUT.get_subgraph(node6))
         end
     end
 

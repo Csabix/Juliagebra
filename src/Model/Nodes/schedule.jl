@@ -4,28 +4,28 @@
 # ! OrderedTopoSubgraph
 # ? ---------------------------------
 
-@kwdef mutable struct Schedule
+@kwdef mutable struct InsertionTopoSubgraph
     _ids::Vector{Int} = Vector{Int}()
 end
 
-Base.length(self::Schedule) = return length(self._ids)
-Base.getindex(self::Schedule, idx::Int)::Int = return self._ids[idx]
-Base.iterate(self::Schedule, state=1) = state<=length(self) ? (return (self._ids[state],state+1)) : (return nothing)
-get_ids(self::Schedule)::Vector{Int} = return self._ids
-get_set(self::Schedule)::Set{Int} = return Set(self._ids)
+Base.length(self::InsertionTopoSubgraph) = return length(self._ids)
+Base.getindex(self::InsertionTopoSubgraph, idx::Int)::Int = return self._ids[idx]
+Base.iterate(self::InsertionTopoSubgraph, state=1) = state<=length(self) ? (return (self._ids[state],state+1)) : (return nothing)
+get_ids(self::InsertionTopoSubgraph)::Vector{Int} = return self._ids
+get_set(self::InsertionTopoSubgraph)::Set{Int} = return Set(self._ids)
 
-function enchain!(self::Schedule, id::Int)
+function enchain!(self::InsertionTopoSubgraph, id::Int)
     @assert (length(self)>0) ? (id>self._ids[end]) : true "IDs must be increasing!"
     push!(self._ids,id)
 end
 
-function enchain!(self::Schedule, item::DependentDNA)
+function enchain!(self::InsertionTopoSubgraph, item::DependentDNA)
     id::Int = getGraphID(item)
     enchain!(self,id)
 end
 
-function Base.merge(s1::Schedule, s2::Schedule)::Schedule
-    s = Schedule()
+function Base.merge(s1::InsertionTopoSubgraph, s2::InsertionTopoSubgraph)::InsertionTopoSubgraph
+    s = InsertionTopoSubgraph()
     idx1 = 1
     idx2 = 1
     len1 = length(s1)
@@ -62,5 +62,5 @@ function Base.merge(s1::Schedule, s2::Schedule)::Schedule
     return s
 end
 
-Base.merge(schedules::Vector{Schedule})::Schedule = return foldl(Base.merge,schedules)
+Base.merge(schedules::Vector{InsertionTopoSubgraph})::InsertionTopoSubgraph = return foldl(Base.merge,schedules)
 

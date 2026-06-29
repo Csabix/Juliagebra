@@ -15,7 +15,7 @@ function startGraphWorkers!(self::Scheduler, model::Model)
     if !isempty(subgraphs)
         copy!(self._merged_subgraph, merge(subgraphs))
         
-        # ? Filter out heads, which are not in the megred subgraph.
+        # ? Filter out heads, which are not in the merged subgraph.
         empty!(self._merged_roots)
         for head in heads
             if !(getGraphID(head) in get_ids(self._merged_subgraph))
@@ -42,64 +42,50 @@ function _distributeWork(self::Scheduler, model::Model, ::SingleFrameSingleThrea
     end
 end
 
-function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int,Int}}
-    evaledGoal = length(self._subgraph)
-    syncedGoal = 0
+function setup_multithreaded_environment!(self::Scheduler, model::Model)
+    evalGoal = length(self._merged_subgraph)
+    syncGoal = 0
 
-    # ? Reset condition containers.
-    # TODO: Dynamically size and reset.
-    Base.resize!(self._evaled,0)
-    Base.resize!(self._synced,0)
-    
-    localIDs = Dict{Int,Int}()
-    wd::Vector{WorkerFood} = []
+    # ? Setup localidxs to index graphID to local idx.
+    empty!(self._localidxs)
+    for idx in eachindex(get_ids(self._merged_subgraph)) 
+        # ? self._merged_subgraph[idx] == graphID
+        self._localidxs[self._merged_subgraph[idx]] = idx
+    end
 
-    # ? Prepare scheduling distribution.
-    for idx in 1:length(self._subgraph) 
-        d::DependentDNA = self._subgraph[idx]
+    # ? Setup CompletedConditions, synced and syncedGoal of nodes.
+    empty!(self._synced)
+    for nodeid in self._merged_subgraph 
+        node::DependentDNA = getDependentNode(model, nodeid)
         
-        # ? Collect parents's CompletedConditions.
-        conditions::Vector{CompletedCondition} = []
-        for parent in getGraphParents(d) 
-            id = getGraphID(parent)
+        # ? Node is part of merged subgraph.
+        reset_as_inside_node!(get_evaledcond(node))
 
-            if haskey(localIDs, id)
-                push!(conditions, self._evaled[localIDs[id]])
+        for parent in getGraphParents(node) 
+            if !haskey(self._localidxs, nodeid) # ? node is not part of subgraph.
+                reset_as_outside_parent!(get_evaledcond(parent))
             end
-        end 
-        
-        # ? Create dependent's evaled CompletedCondition.
-        localIDs[getGraphID(d)] = idx
-        evaled = CompletedCondition()
-        push!(self._evaled, evaled)
-        
-        if d isa SubjectDNA
-            # ? o is Subject, so create synced condition.
-            o::SubjectDNA = d
-            syncedGoal+=1
-            push!(self._synced, false)
+        end
 
-            push!(wd, WorkerFood(conditions, SyncFood(o, length(self._synced)), evaled))
-        else
-            push!(wd, WorkerFood(conditions, d, evaled))
+        if (node isa SubjectDNA) # ? node will be sent to Synchronizer.
+            syncGoal += 1
+            self._synced[nodeid] = false    
         end
     end
 
-    # ? Reset goals.
-    reset!(self._evaledGoal, evaledGoal)
-    reset!(self._syncedGoal, syncedGoal)
-    
-    @assert length(self._subgraph) == length(self._evaled) "Not enough conditions were created..."
-    @assert length(self._subgraph) == length(localIDs) "Not enough parent conditions were assigned!"
-    @assert length(self._synced) == syncedGoal "Goal is inconsistent!"
-
-    return (wd, localIDs)
+    reset!(self._evalgoal, evalGoal)
+    reset!(self._syncgoal, syncGoal) 
+        
+    @assert length(self._merged_subgraph) == length(self._localidxs) "Not all nodes in subgraph have localidx!"
+    @assert length(self._synced) == syncGoal "Goal is inconsistent!"
 end
 
 function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
     w1::EvalWorkeri = getWorkers(model)[1]
     
-    w1d::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
+    setup_multithreaded_environment!(self, model)
+
+    # TODO: Continue here.
 
     # ? Distribute scheduling.
     put!(w1, w1d)

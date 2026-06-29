@@ -19,13 +19,13 @@ function processUntilClosed!(self::EvalWorker0, model::Model)
     end
 end
 
-function _process1(self::EvalWorker0, ::Model, d::DependentDNA)    
+function _process1(::EvalWorker0, ::Model, d::DependentDNA)    
     @invokelatest _process2(d)
 end
 
-function _process1(self::EvalWorker0, model::Model, o::SubjectDNA)
-    @invokelatest _process2(o)
-    put!(getSynchronizer(model),o)
+function _process1(self::EvalWorker0, model::Model, s::SubjectDNA)
+    @invokelatest _process2(s)
+    put!(getSynchronizer(model),s)
 end
 
 function _process2(dependent::DependentDNA)

@@ -20,7 +20,11 @@ end
 
 isCompleted(self::CompletedCondition)::Bool = return @atomic self._completed
 
-function reset!(self::CompletedCondition)
+function reset_as_outside_parent!(self)
+    @atomic self._completed = true
+end
+
+function reset_as_inside_node!(self)
     @atomic self._completed = false
 end
 

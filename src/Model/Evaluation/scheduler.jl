@@ -34,11 +34,11 @@ Manages correct graph evaluation scheduling.
     _merged_subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
     _merged_roots::Set{DependentDNA} = Set{DependentDNA}()
     
-    _evaled::Vector{CompletedCondition} = Vector{CompletedCondition}()
-    _evaledGoal::AtomicGoal = AtomicGoal()
+    _localidxs::Dict{Int,Int} = Dict{Int,Int}() # ? graphID 2 local idxs.
+    _synced::Dict{Int,Bool} = Dict{Int,Bool}() # ? graphID 2 is synced.
     
-    _synced::Vector{Bool} = Vector{Bool}()
-    _syncedGoal::Goal = Goal()
+    _evalgoal::AtomicGoal = AtomicGoal()
+    _syncgoal::Goal = Goal()
 
     _mode::SchedulingMode = SingleFrameSingleThread()
     _modes::Vector{SchedulingMode} = [
@@ -57,7 +57,7 @@ Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
 getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
 getModesLength(self::Scheduler)::Int = return length(self._modes)
-isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
+isFinished(self::Scheduler)::Bool = return isReached(self._evalgoal) && isReached(self._syncgoal)
 isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
 isFinishedFirst(self::Scheduler)::Bool = return length(self._evaled)!=0 && length(self._synced)!=0
 

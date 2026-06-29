@@ -42,19 +42,22 @@ function _distributeWork(self::Scheduler, model::Model, ::SingleFrameSingleThrea
     end
 end
 
-function setup_multithreaded_environment!(self::Scheduler, model::Model)
-    evalGoal = length(self._merged_subgraph)
-    syncGoal = 0
-
-    # ? Setup localidxs to index graphID to local idx.
+function setup_localidxs!(self::Scheduler)
     empty!(self._localidxs)
+    
+    # ? Setup localidxs to index graphID to local idx.
     for idx in eachindex(get_ids(self._merged_subgraph)) 
         # ? self._merged_subgraph[idx] == graphID
         self._localidxs[self._merged_subgraph[idx]] = idx
     end
+end
+
+function setup_conditions_and_goals!(self::Scheduler, model::Model)
+    evalGoal = length(self._merged_subgraph)
+    syncGoal = 0
+    empty!(self._synced)
 
     # ? Setup CompletedConditions, synced and syncedGoal of nodes.
-    empty!(self._synced)
     for nodeid in self._merged_subgraph 
         node::DependentDNA = getDependentNode(model, nodeid)
         
@@ -83,12 +86,16 @@ end
 function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
     w1::EvalWorkeri = getWorkers(model)[1]
     
-    setup_multithreaded_environment!(self, model)
+    setup_localidxs!(self)
+    setup_conditions_and_goals!(self, model)
 
-    # TODO: Continue here.
+    empty!(w1)
 
-    # ? Distribute scheduling.
-    put!(w1, w1d)
+    for id in self._merged_subgraph
+        put!(w1,id)
+    end
+
+    signal_start!(w1)
 end
 
 function _calculateNodeWeights(wd::Vector{WorkerFood}, localIDs::Dict{Int, Int})::Vector{Int}

@@ -17,6 +17,9 @@ function processInternal!(self::Synchronizer)
 end
 
 function processAvailableExternal!(self::Synchronizer, model::Model)::Bool
+    
+    # TODO: Continue Here.
+    
     taken = Base.n_avail(self._external)
     self._taken += taken
     observers = Set{ObserverDNA}()

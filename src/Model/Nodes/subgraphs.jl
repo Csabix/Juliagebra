@@ -3,8 +3,13 @@
 # ! InsertionTopoSubgraph
 # ? ---------------------------------
 
+"""
+The graphIDs of nodes reachable from a root are stored in InsertionTopoSubgraph.
+- Nodes are stored in insertion order.
+- The vector forms a topological order conforming to dependency constraints.
+"""
 @kwdef struct InsertionTopoSubgraph
-    _ids::Vector{Int} = Vector{Int}()
+    _ids::Vector{Int} = Vector{Int}() # ? Vector of graphIDs.
 end
 
 Base.length(self::InsertionTopoSubgraph) = return length(self._ids)

@@ -39,22 +39,20 @@ end
 # ? ---------------------------------
 
 function processUntilClosed!(self::EvalWorkeri, model::Model)
-    for foods in self._in
-        Base.resize!(self._processedIDs,0)
-        Base.resize!(self._processedTimes,0)
+    for _ in self._signals # ? signal is always true
         
-        for food in foods 
-            conditions::Vector{CompletedCondition} = food.conditions
-
-            # ? Wait for parents to be completed. 
-            for c in conditions
-                wait(c)
+        for graphID in self._ids
+            node::DependentDNA = getDependentNode(model,graphID)
+            
+            for parent in getGraphParents(node) 
+                # ? Wait for parent to be completed. 
+                parent_cond::CompletedCondition = get_evaledcond(parent)
+                wait(parent_cond)
             end
-            
+
+            # ? Eval the node.
             startTime = time_ns()
-            
-            _process1(self, model, food.evaled, food.data)
-            
+            eval_node!(self, model, node)
             pushEndTime!(self, getGraphID(getDependent(food)), startTime)
         end
     end
@@ -62,18 +60,18 @@ function processUntilClosed!(self::EvalWorkeri, model::Model)
     println("ThreadID($(Threads.threadid())): EvalWorkeri Ended!")
 end
 
-function _process1(self::EvalWorkeri, model::Model, evaled::CompletedCondition, d::DependentDNA)
-    @invokelatest _process2(d)
-    notify(evaled)
+function eval_node!(::EvalWorkeri, model::Model, node::DependentDNA)
+    @invokelatest _process2(node)
+    notify(get_evaledcond(node))
     increment(getScheduler(model)._evaledGoal)
 end
 
-function _process1(self::EvalWorkeri, model::Model, evaled::CompletedCondition, data::SyncFood)
-    o::SubjectDNA = data.subject
-
-    @invokelatest _process2(o)
-    notify(evaled)
+function eval_node!(::EvalWorkeri, model::Model, node::SubjectDNA)
+    @invokelatest _process2(node)
+    notify(get_evaledcond(node))
     increment(getScheduler(model)._evaledGoal)
 
-    put!(getSynchronizer(model),data)
+    # ? Send Subject to Synchronizer.
+    put!(getSynchronizer(model),node)
 end
+

@@ -58,14 +58,16 @@ getProcessedTimes(self::EvalWorker0)::Vector{Float64} = return self._processedTi
 Calls onNodeEval() on put nodes, then sends them to synchronizer.
 """
 @kwdef mutable struct EvalWorkeri <: EvalWorker
-    _in::Channel{Vector{WorkerFood}} = Channel{Vector{WorkerFood}}(1)
+    _signals::Channel{Bool} = Channel{Bool}(1)
+    _ids::Vector{Int} = []
     _processedIDs::Vector{Int} = []
     _processedTimes::Vector{Float64} = []
 end
 
-Base.put!(self::EvalWorkeri, fs::Vector{WorkerFood}) = put!(self._in,fs)
-Base.take!(self::EvalWorkeri)::DependentDNA = return take!(self._in)
-destroy!(self::EvalWorkeri) = close(self._in)
+Base.put!(self::EvalWorkeri, graphID::Int) = push!(self._ids, graphID)
+Base.empty!(self::EvalWorkeri) = (empty!(self._ids);empty!(self._processedIDs);empty!(self._processedTimes))
+signal_start!(self::EvalWorkeri) = put!(self._signals,true)
+destroy!(self::EvalWorkeri) = close(self._signals)
 getProcessedIDs(self::EvalWorkeri)::Vector{Int} = return self._processedIDs
 getProcessedTimes(self::EvalWorkeri)::Vector{Float64} = return self._processedTimes
 

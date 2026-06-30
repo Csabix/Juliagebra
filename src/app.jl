@@ -25,6 +25,9 @@ mutable struct App <: AppDNA
     _asset_watcher::Union{Nothing,AssetWatcher}
     hovered::UInt32
 
+    _delta_time::Float64
+    _vsync_state::Int32
+
     function App(
         name::String="Juliagebra",
         width::Int=1280,
@@ -52,7 +55,13 @@ mutable struct App <: AppDNA
         end
         hovered::UInt32 = 0
 
-        new(glfw,inputs,opengl,imgui,nothing,nothing,windowCreated,cam,manipulator,optimizer,starter,commander,model,false,asset_watcher,hovered)
+        delta_time = 0.0
+        vsync_state = Int32(1)
+
+        new(
+            glfw,inputs,opengl,imgui,
+            nothing,nothing,windowCreated,cam,manipulator,
+            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state)
     end
 end
 

@@ -309,4 +309,3 @@ b5 = Vec3D(1,4,0)
 c5 = Vec3D(0,3,0)
 d5 = Vec3D(0,4,1)
 Tetrahedra(a5,b5,d5,c5; color=(0.0,0.0,0.6), border_color=(0.9,0.0,0.0), border_style="<-", border_size=6.0);
-Juliagebra.Wait()

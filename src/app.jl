@@ -78,9 +78,20 @@ function window_resize!(self::App, event::Event)::Bool
     return false
 end
 
+function mouse_move!(self::App, event::Event)
+    self.hovered = readID(self._opengl,event.x,event.y,self._glfw.width,self._glfw.height)
+    return false
+end
+
 function setup_callbacks(self::App)::Nothing
     register_callback!(event -> resize!(self, event), self._inputs, FRAME_RESIZE)
     register_callback!(event -> resize!(self, event), self._inputs, WINDOW_RESIZE)
+    register_callback!(event -> mouse_move!(self, event), self._inputs, MOUSE_MOVE)
+    
+    register_callback!(event -> on_gizmo_left_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_LEFT))
+    register_callback!(event -> on_gizmo_right_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_RIGHT))
+    register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
+    register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
 
     register_callbacks!(self._inputs, self._manipulator)
     return nothing

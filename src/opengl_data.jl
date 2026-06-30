@@ -181,7 +181,7 @@ mutable struct OpenGLData
 
         # ? It's empty because of "reset!".
         observers::Vector{RendererDNA} = RendererDNA[]
-        renderers = PrimitiveRenderers(pipeline_loader)
+        renderers = PrimitiveRenderers(pipeline_loader,window.scale)
         
         p = perspective(Float32(70.0),Float32(window.width/window.height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
@@ -256,7 +256,7 @@ function readID(self::OpenGLData,x,y,width,height)::UInt32
         activate(self._opaqueFBO)
         glReadBuffer(GL_COLOR_ATTACHMENT1)
         id = Ref{UInt32}(0)
-        glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,num)
+        glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT,id)
         disable(self._opaqueFBO)
         return id[]
     end
@@ -369,6 +369,7 @@ function _widgets(self::OpenGLData,cam::Camera)
     glEnablei(GL_BLEND, 0)
     glDisablei(GL_BLEND, 1)
     glBlendFunci(0, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    ui(self._renderers,cam,self._window)
 
     glDepthFunc(GL_LEQUAL)
     glDisable(GL_BLEND)

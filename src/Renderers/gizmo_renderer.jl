@@ -5,7 +5,8 @@ const AXIS_Z::UInt32    = UInt32(0x4)
 const AXIS_FULL::UInt32 = UInt32(0x7)
 export AXIS_NONE, AXIS_X, AXIS_Y, AXIS_Z, AXIS_FULL
 
-mutable struct GizmoRenderer <: Drawer
+mutable struct GizmoRenderer
+    corner_gizmo::Pipeline
     move_gizmo::Pipeline
     position::Vec3D
     axes::UInt32
@@ -14,16 +15,21 @@ mutable struct GizmoRenderer <: Drawer
     move::Bool
     id_to_axis::Tuple{Vec3F,Vec3F,Vec3F}
     selected::UInt32
-    data::Any
 
     ubo::MappedBuffer{Vec4F}
     empty_vao::VertexArray
 
-    function GizmoRenderer(loader::PipelineLoader)
+    function GizmoRenderer(loader::PipelineLoader,content_scale::Float32)
+        corner_gizmo = create_graphics_pipeline!(loader;
+            vert = (spv"renderers/gizmo/gizmo.vert",Tuple{GLuint,GLuint}[(0,1),(1,reinterpret(GLuint,content_scale))]),
+            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(1,reinterpret(GLuint,content_scale))]),
+            frag = spv"renderers/gizmo/gizmo.frag"
+        )
+
         move_gizmo = create_graphics_pipeline!(loader;
-            vert = spv"./renderers/gizmo/gizmo.vert",
-            geom = spv"./renderers/gizmo/gizmo.geom",
-            frag = spv"./renderers/gizmo/gizmo.frag"
+            vert = (spv"renderers/gizmo/gizmo.vert",Tuple{GLuint,GLuint}[(0,0),(1,reinterpret(GLuint,content_scale))]),
+            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(1,reinterpret(GLuint,content_scale))]),
+            frag = spv"renderers/gizmo/gizmo.frag"
         )
         position = Vec3D(0.0)
         axes = AXIS_NONE
@@ -32,15 +38,14 @@ mutable struct GizmoRenderer <: Drawer
         move = false
         id_to_axis = (Vec3F(1,0,0), Vec3F(0,1,0), Vec3F(0,0,1))
         selected = UInt32(0)
-        data = nothing
 
         ubo = MappedBuffer{Vec4F}()
         reserve!(ubo, 1, 0)
 
         empty_vao = VertexArray()
         return new(
-            move_gizmo,position,axes,
-            initial_constraints,move,id_to_axis,selected,data,
+            corner_gizmo,move_gizmo,position,axes,
+            initial_constraints,move,id_to_axis,selected,
             ubo,empty_vao
         )
     end
@@ -53,15 +58,14 @@ function reset!(renderer::GizmoRenderer)::Nothing
     return nothing
 end
 
-function deinit!(renderer::GizmoRenderer)::Nothing
-    deinit!(renderer.ubo)
-    deinit!(renderer.sync)
+function destroy!(renderer::GizmoRenderer)::Nothing
+    destroy!(renderer.ubo)
     return nothing
 end
 
-function pre_draw!(renderer::GizmoRenderer)::Nothing
+function pre_draw(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
     if renderer.axes == AXIS_NONE return nothing end
-    wait_gpu(renderer.sync)
+    wait(renderer.ubo)
     renderer.ubo[1] = Vec4F(
         Float32(renderer.position[1]),
         Float32(renderer.position[2]),
@@ -71,16 +75,18 @@ function pre_draw!(renderer::GizmoRenderer)::Nothing
     return nothing
 end
 
-function draw_ui!(renderer::GizmoRenderer)::Nothing
+function draw_ui(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
+    activate(renderer.empty_vao)
+    activate(renderer.corner_gizmo)
+    glDrawArrays(GL_LINES, 0, 12)
+
     if renderer.axes == AXIS_NONE return nothing end
 
-    activate(renderer.empty_vao)
     bind_ubo(renderer.ubo, 0)
     activate(renderer.move_gizmo)
     glDrawArrays(GL_LINES, 0, 12)
+    lock(renderer.ubo)
 
-    lock_gpu(renderer.sync)
-    deactivate(renderer.empty_vao)
     return nothing
 end
 
@@ -110,83 +116,78 @@ function _getAxisClampedT(axis_2d::Vec2F, mouse_2d::Vec2F)::Float32
 end
 
 function on_gizmo_left_click!(app)::Bool
-    gizmo = app.renderers[GizmoRenderer]
-    if 0 < app.mouse_id[] <= 3
+    gizmo = app._opengl._renderers.gizmo
+    if 0 < app.hovered <= 3
         axes_map = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
-        gizmo.axes = axes_map[app.mouse_id[]]
+        gizmo.axes = axes_map[app.hovered]
         gizmo.move = true
+        app._scene_change = true
         return true
     end
     return false
 end
 
 function on_gizmo_right_click!(app)::Bool
-    gizmo = app.renderers[GizmoRenderer]
-    
-    if app.mouse_id[] == NodeHandle(0)
-        gizmo.axes = AXIS_NONE
-        gizmo.initial_constraints = AXIS_NONE
-        gizmo.move = false
-        gizmo.data = nothing
-        return false
+    gizmo = app._opengl._renderers.gizmo
+    if app.hovered > 3
+        p = getDependentNode(getModel(app), app.hovered - ID_LOWER_BOUND)
+                
+        if isa(p, PointDependent)
+            pp::PointDependent = p
+            gizmo.initial_constraints = pp._constraints
+            gizmo.axes = pp._constraints
+            gizmo.position = pp._coord
+            gizmo.move = false
+            gizmo.selected = app.hovered
+            app._scene_change = true
+            return true
+        end
     end
-    
-    if app.mouse_id[] > 3
-        axis, position, data = on_click(app.graph.elements[app.mouse_id[]])
-        gizmo.data = data
-        gizmo.initial_constraints = axis
-        gizmo.axes = axis
-        gizmo.position = position
-        gizmo.move = false
-        gizmo.selected = app.mouse_id[]
-        return true
-    end
+    app._scene_change |= gizmo.axes != AXIS_NONE
+    gizmo.axes = AXIS_NONE
+    gizmo.initial_constraints = AXIS_NONE
+    gizmo.move = false
     return false
 end
 
 function on_gizmo_left_release!(app)::Bool
-    gizmo = app.renderers[GizmoRenderer]
+    gizmo = app._opengl._renderers.gizmo
     if gizmo.move
         gizmo.axes = gizmo.initial_constraints
         gizmo.move = false
+        app._scene_change = true
         return true
     end
     return false
 end
 
 function on_gizmo_drag!(app, event)::Bool
-    gizmo = app.renderers[GizmoRenderer]
+    gizmo = app._opengl._renderers.gizmo
     if !gizmo.move || gizmo.axes == AXIS_NONE
         return false
     end
 
-    x = event.x
-    y = Cdouble(app.window.height) - event.y
-
     selected_axis_idx = gizmo.axes == AXIS_Y ? 2 : (gizmo.axes == AXIS_Z ? 3 : 1)
     
-    vp, _, _ = get_matrices(app.camera)
+    vp, _, _ = get_matrices(app._cam)
     origin = Vec3F(gizmo.position)
     axis_vector = gizmo.id_to_axis[selected_axis_idx] + origin
     
-    screen_origin, screen_axis, screen_mouse = screenVecs(origin, axis_vector, x, y, app.window.width, app.window.height, vp)
+    screen_origin, screen_axis, screen_mouse = screenVecs(origin, axis_vector, event.x, event.y, app._glfw.width, app._glfw.height, vp)
     t = _getAxisClampedT(screen_axis - screen_origin, screen_mouse - screen_origin)
     
     if norm(screen_axis - screen_origin) >= 0.01f0
         gizmo.position = Vec3D(origin + (axis_vector - origin) * t)
         
-        if app.mouse_id[] > 3
-            element = app.graph.elements[app.mouse_id[]]
-            if hasproperty(element, :_coord)
-                element._coord = gizmo.position
+        if gizmo.selected > 3
+            p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
+            if p._coord != gizmo.position
+                p._coord = gizmo.position
+                # ? schedule for evalGraph
+                schedule(getModel(app),p)
             end
         end
-    end
-    
-    element, data = on_move(app.graph.elements[gizmo.selected], gizmo.position, gizmo.data)
-    gizmo.data = data
-    app.graph.elements[gizmo.selected] = element
-    invalidate!(app.graph, gizmo.selected)
+    end 
     
     return true
 end

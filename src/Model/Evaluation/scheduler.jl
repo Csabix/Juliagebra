@@ -59,7 +59,7 @@ getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
 getModesLength(self::Scheduler)::Int = return length(self._modes)
 isFinished(self::Scheduler)::Bool = return isReached(self._evalgoal) && isReached(self._syncgoal)
 isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
-isFinishedFirst(self::Scheduler)::Bool = return length(self._evaled)!=0 && length(self._synced)!=0
+isFinishedFirst(self::Scheduler)::Bool = length(self._synced)!=0
 
 
 function _isFinishedCorrectly!(::Scheduler, ::SingleFrameSingleThread)::Bool

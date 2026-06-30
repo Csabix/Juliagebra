@@ -68,7 +68,7 @@ Must init the Model before use.
 function init!(self::Model)
     # YELLOW Thread start
     builderTask = Threads.@spawn begin
-        processUntilClosed!(self._builder,self)
+        process_until_closed!(self._builder,self)
     end
     errormonitor(builderTask)
 
@@ -77,7 +77,7 @@ function init!(self::Model)
     for i in 1:length(self._workers)
         # RED Thread start
         workerTask = Threads.@spawn begin
-            processUntilClosed!(self._workers[i], self)
+            process_until_closed!(self._workers[i], self)
         end
         errormonitor(workerTask)
 

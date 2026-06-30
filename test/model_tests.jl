@@ -22,17 +22,11 @@
     SUT._Dependent_(self::MockDependent)::SUT.Dependent = return self._dependent
     SUT.onNodeEval(::MockDependent) = return nothing
 
-    function _buildall(model::SUT.Model, amount::Int)
-        for i in 1:amount
-            node = take!(model._builder._in)
-            SUT._build(model, node)
-        end
-    end
-
     @testset verbose=true "Construction Tests" begin
         @testset "Diamond" begin
             model = SUT.Model()        
-        
+            builder = SUT.getBuilder(model)
+
             node1 = MockDependent()
             node2 = MockDependent([node1])
             node3 = MockDependent([node1])
@@ -43,7 +37,7 @@
             SUT.build!(model, node3)
             SUT.build!(model, node4)
 
-            _buildall(model,4)
+            SUT.process_avail!(builder, model)
 
             @test SUT.get_set(SUT.get_subgraph(node1)) == Set([2, 3, 4])
             @test SUT.get_set(SUT.get_subgraph(node2)) == Set([4])
@@ -53,6 +47,7 @@
 
         @testset "DAG" begin
             model = SUT.Model()        
+            builder = SUT.getBuilder(model)      
         
             node1 = MockDependent()
             node2 = MockDependent([node1])
@@ -70,7 +65,7 @@
             SUT.build!(model, node6)
             SUT.build!(model, node7)
 
-            _buildall(model,7)
+            SUT.process_avail!(builder, model)
 
             @test SUT.get_set(SUT.get_subgraph(node1)) == Set([2,3,4,5,6,7])
             @test SUT.get_set(SUT.get_subgraph(node2)) == Set([4,5])
@@ -83,6 +78,7 @@
 
         @testset "Sink" begin
             model = SUT.Model()        
+            builder = SUT.getBuilder(model)     
         
             node1 = MockDependent()
             node2 = MockDependent()
@@ -98,7 +94,7 @@
             SUT.build!(model, node5)
             SUT.build!(model, node6)
 
-            _buildall(model,6)
+            SUT.process_avail!(builder, model)
 
             @test SUT.get_set(SUT.get_subgraph(node1)) == Set([4,6])
             @test SUT.get_set(SUT.get_subgraph(node2)) == Set([4,5,6])

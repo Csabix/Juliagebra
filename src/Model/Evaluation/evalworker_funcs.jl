@@ -38,9 +38,8 @@ end
 # ! Workeri
 # ? ---------------------------------
 
-function processUntilClosed!(self::EvalWorkeri, model::Model)
+function process_until_closed!(self::EvalWorkeri, model::Model)
     for _ in self._signals # ? signal is always true
-        
         for graphID in self._ids
             node::DependentDNA = getDependentNode(model,graphID)
             

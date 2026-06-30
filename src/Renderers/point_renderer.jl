@@ -290,7 +290,7 @@ function sync_all!(self::PointRenderer)::Bool
     return true
 end
 
-function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
+function opaque(self::PointRenderer,cam::Camera,window::GLFWData)::Nothing
     activate(self.shader)
     @time_gpu_begin Renderer Point
     for points_data in self.points
@@ -304,7 +304,7 @@ function opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function behind_opaque(self::PointRenderer,cam::Camera,shrd::SharedData)::Nothing
+function behind_opaque(self::PointRenderer,cam::Camera,window::GLFWData)::Nothing
     activate(self.shader_behind)
     for points_data in self.points
         if length(points_data.coords) != 0

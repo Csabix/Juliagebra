@@ -128,7 +128,7 @@ function sync_all!(self::TriangleRenderer)::Bool
     return !isempty(self.update_normals) || !isempty(self.color_updates)
 end
 
-function pre_draw(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
+function pre_draw(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.update_normals) return nothing end
     activate(self.shader_calc_normals)
     for i in self.update_normals
@@ -148,7 +148,7 @@ function pre_draw(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function opaque(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
+function opaque(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.coords) return nothing end
     if !isempty(self.update_normals) || !isempty(self.color_updates)
         glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
@@ -169,7 +169,7 @@ function opaque(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function transparent(self::TriangleRenderer,cam::Camera,shrd::SharedData)::Nothing
+function transparent(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.coords) return nothing end
     glDisable(GL_CULL_FACE)
 

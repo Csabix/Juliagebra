@@ -12,8 +12,6 @@ Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
 
 mutable struct ImGuiData <: ImGuiDNA
-    _shrd::SharedData
-    
     _io::Ptr{CImGui.lib.ImGuiIO}
 
     _textFont::Ptr{CImGui.lib.ImFont}
@@ -29,7 +27,6 @@ mutable struct ImGuiData <: ImGuiDNA
     function ImGuiData(app::AppDNA)
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
-        shrd::SharedData = getShrd(app)
         model::Model = getModel(app)
 
         imgui_context = CImGui.CreateContext()
@@ -56,7 +53,6 @@ mutable struct ImGuiData <: ImGuiDNA
         dock = Dock()
 
         add!(dock,GuiDependentsWindow())
-        add!(dock,DataPeeker())
         add!(dock,Console())
         add!(dock,PerformanceWindow())
         add!(dock,GraphWindow())
@@ -68,7 +64,7 @@ mutable struct ImGuiData <: ImGuiDNA
         push!(widgets,dock)
         push!(widgets,ResetWidget())
         
-        self = new(shrd,io,textFont,iconFont,pool,dependents,widgets,dock)
+        self = new(io,textFont,iconFont,pool,dependents,widgets,dock)
         
         resetObservers!(self)
         return self
@@ -123,7 +119,7 @@ function update!(self::ImGuiData, app::AppDNA)
     update!(str,app)
 
 
-    update!(self._dock._windows[5],getModel(app))
+    update!(self._dock._windows[4],getModel(app))
 end
 
 function renderBuildingState(::Any, ::AppDNA)

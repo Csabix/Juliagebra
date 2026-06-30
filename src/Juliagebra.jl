@@ -71,11 +71,7 @@ include("LBVH/lbvh_cache.jl")
 
 const ID_LOWER_BOUND::Int = 3
 
-include("shared_data.jl")
-
 include("glfw_data.jl")
-
-include("peripherals.jl")
 
 include("camera.jl")
 include("camera_manipulator.jl")
@@ -91,15 +87,10 @@ include("Widgets/dock.jl")
 include("Widgets/window.jl")
 include("Widgets/reset_widget.jl")
 
-include("Widgets/data_peeker.jl")
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
 include("Widgets/Windows/frame_time_window.jl")
-
-include("Widgets/gizmo.jl")
-include("Widgets/ortho_gizmo.jl")
-
 
 include("Renderers/renderers.jl")
 include("opengl_data.jl")

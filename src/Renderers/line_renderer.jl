@@ -597,7 +597,7 @@ function sync_all!(self::LineRenderer)::Bool
     return scene_change
 end
 
-function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function pre_draw(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if length(self.coords_sizes) == 0 && length(self.coords_sizes_dynamic) == 0 return nothing end
 
     prev_offset::UInt32 = 0
@@ -628,7 +628,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     # Static
     
     if length(self.coords_sizes) > 1
-    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
+    _calc_distances!(self,vp,Vec2F(window.width,window.height))
 
     bind_ssbo(self.distance_buffer_in,0)
     bind_ssbo(self.color_style_buffer_in,1)
@@ -650,7 +650,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     # Dynamic
     
     if length(self.coords_sizes_dynamic) > 0
-    _calc_distances_dynamic!(self,vp,Vec2F(shrd._width,shrd._height))
+    _calc_distances_dynamic!(self,vp,Vec2F(window.width,window.height))
 
     bind_ssbo(self.position_distance_buffer_out_dynamic,3)
     bind_ssbo(self.color_buffer_out_dynamic,4)
@@ -682,7 +682,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
     glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
     glDeleteSync(self.gpu_gpu_sync);
@@ -725,7 +725,7 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function behind_opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     (_, _, p) = get_matrices(cam)
     glEnable(GL_BLEND)
     glBlendColor(0.0, 0.0, 0.0, 0.4)
@@ -768,7 +768,7 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function transparent(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)

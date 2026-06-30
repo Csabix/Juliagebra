@@ -205,7 +205,7 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
     # --- MOUSE MOVE EVENT ---
     register_callback!(inputs, MOUSE_MOVE) do ev
         du = Float32(ev.dx) / 100.0f0
-        dv = Float32(ev.dy) / 100.0f0
+        dv = -Float32(ev.dy) / 100.0f0
 
         if cam._move_state == _ORBITAL_ORBIT || cam._move_state == _ORBITAL_LOOK
             cam._u += du

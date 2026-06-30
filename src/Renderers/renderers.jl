@@ -55,34 +55,34 @@ function sync_all!(renderers::PrimitiveRenderers)::Bool
     return redraw_scene
 end
 
-function pre_draw(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    pre_draw(renderers.line,cam,shrd)
-    pre_draw(renderers.triangle,cam,shrd)
+function pre_draw(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
+    pre_draw(renderers.line,cam,window)
+    pre_draw(renderers.triangle,cam,window)
     return nothing
 end
 
-function opaque_occluder(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    opaque(renderers.sphere,cam,shrd)
-    opaque(renderers.triangle,cam,shrd)
+function opaque_occluder(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
+    opaque(renderers.sphere,cam,window)
+    opaque(renderers.triangle,cam,window)
     return nothing
 end
 
-function opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    opaque(renderers.line,cam,shrd)
-    opaque(renderers.point,cam,shrd)
+function opaque(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
+    opaque(renderers.line,cam,window)
+    opaque(renderers.point,cam,window)
     return nothing
 end
 
-function behind_opaque(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    behind_opaque(renderers.line,cam,shrd)
-    behind_opaque(renderers.point,cam,shrd)
+function behind_opaque(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
+    behind_opaque(renderers.line,cam,window)
+    behind_opaque(renderers.point,cam,window)
     return nothing
 end
 
-function transparent(renderers::PrimitiveRenderers,cam::Camera,shrd::SharedData)::Nothing
-    transparent(renderers.line,cam,shrd)
-    transparent(renderers.sphere,cam,shrd)
-    transparent(renderers.triangle,cam,shrd)
+function transparent(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
+    transparent(renderers.line,cam,window)
+    transparent(renderers.sphere,cam,window)
+    transparent(renderers.triangle,cam,window)
     return nothing
 end
 

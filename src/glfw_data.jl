@@ -223,6 +223,9 @@ function _input_call(inputs::Inputs,event::Event)::Nothing
 end
 
 function _key_callback(window::GLFW.Window, key::GLFW.Key, scancode::Cint, action::GLFW.Action, mods::Cint, inputs::Inputs)::Nothing
+    io_ptr = CImGui.GetIO()
+    io = unsafe_load(io_ptr)
+    if io.WantCaptureKeyboard return nothing end
     event::Event = Event(
         action == GLFW.RELEASE ? KEY_UP : KEY_DOWN,
         UInt8(mods),
@@ -236,6 +239,9 @@ function _key_callback(window::GLFW.Window, key::GLFW.Key, scancode::Cint, actio
 end
 
 function _mouse_move_callback(w::GLFWData, window::GLFW.Window, xpos::Cdouble, ypos::Cdouble, inputs::Inputs)::Nothing
+    io_ptr = CImGui.GetIO()
+    io = unsafe_load(io_ptr)
+    if io.WantCaptureMouse return nothing end
     ypos = Cdouble(w.height) - ypos
     event::Event = Event(
         MOUSE_MOVE,
@@ -252,6 +258,9 @@ function _mouse_move_callback(w::GLFWData, window::GLFW.Window, xpos::Cdouble, y
 end
 
 function _mouse_button_callback(window::GLFW.Window, button::GLFW.MouseButton, action::GLFW.Action, mods::Cint, inputs::Inputs)::Nothing
+    io_ptr = CImGui.GetIO()
+    io = unsafe_load(io_ptr)
+    if io.WantCaptureMouse return nothing end
     type = action == GLFW.PRESS ? MOUSE_BUTTON_DOWN : MOUSE_BUTTON_UP
 
     event::Event = Event(
@@ -267,6 +276,9 @@ function _mouse_button_callback(window::GLFW.Window, button::GLFW.MouseButton, a
 end
 
 function _scroll_callback(window::GLFW.Window, xoffset::Cdouble, yoffset::Cdouble, inputs::Inputs)::Nothing
+    io_ptr = CImGui.GetIO()
+    io = unsafe_load(io_ptr)
+    if io.WantCaptureMouse return nothing end
     event::Event = Event(
         MOUSE_WHEEL,
         0x00,

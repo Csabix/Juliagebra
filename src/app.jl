@@ -106,13 +106,6 @@ function setup_callbacks(self::App)::Nothing
     return nothing
 end
 
-function can_capture_keys(self::App)::Bool
-    return !captures_keyboard(self._imgui)
-end
-function can_capture_mouse(self::App)::Bool
-    return !captures_mouse(self._imgui)
-end
-
 function updateCam!(self::App,delta_time::Float64)::Bool
     update!(self._manipulator, delta_time, self._inputs)
     self._opengl._camPos = self._cam._eye

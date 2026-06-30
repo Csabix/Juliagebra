@@ -12,8 +12,6 @@ Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
 
 mutable struct ImGuiData <: ImGuiDNA
-    _io::Ptr{CImGui.lib.ImGuiIO}
-
     _textFont::Ptr{CImGui.lib.ImFont}
     _iconFont::Ptr{CImGui.lib.ImFont}
 
@@ -64,7 +62,7 @@ mutable struct ImGuiData <: ImGuiDNA
         push!(widgets,dock)
         push!(widgets,ResetWidget())
         
-        self = new(io,textFont,iconFont,pool,dependents,widgets,dock)
+        self = new(textFont,iconFont,pool,dependents,widgets,dock)
         
         resetObservers!(self)
         resize!(self,glfwD)
@@ -82,16 +80,6 @@ function resetObservers!(self::ImGuiData)
         TextBoxRenderer(self),  # ? 3
         StepperRenderer(self)   # ? 4
     ]
-end
-
-@inline function captures_mouse(self::ImGuiData)
-    io = unsafe_load(self._io)
-    return io.WantCaptureMouse
-end
-
-@inline function captures_keyboard(self::ImGuiData)
-    io = unsafe_load(self._io)
-    return io.WantCaptureKeyboard
 end
 
 function render!(self::ImGuiData,app::AppDNA)

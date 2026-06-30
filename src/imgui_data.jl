@@ -67,6 +67,7 @@ mutable struct ImGuiData <: ImGuiDNA
         self = new(io,textFont,iconFont,pool,dependents,widgets,dock)
         
         resetObservers!(self)
+        resize!(self,glfwD)
         return self
     end
 end

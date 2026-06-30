@@ -236,8 +236,8 @@ function glCheckErrors(::OpenGLData)
 end
 
 function resize!(self::OpenGLData,window::GLFWData)
-    width = window.width
-    height = window.height
+    width = Int64(window.width)
+    height = Int64(window.height)
     glViewport(0,0,width,height)
     resize!(self._rgbaTexture,width,height)
     resize!(self._idTexture,width,height)
@@ -245,7 +245,7 @@ function resize!(self::OpenGLData,window::GLFWData)
     resize!(self._behindOpaqueDepthstencilTexture,width,height)
     resize!(self._accumTexture,width,height)
     resize!(self._revealTexture,width,height)
-    pixel_count = Int64(self._window.width * self._window.height)
+    pixel_count = width * height
     reserve!(self._pixel_buffer_dist, pixel_count, 0)
     reserve!(self._pixel_buffer_col, pixel_count, 0)
     reserve!(self._pixel_buffer_id, pixel_count, 0)

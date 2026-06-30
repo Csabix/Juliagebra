@@ -68,7 +68,7 @@ sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 function resize!(self::App, event::Event)::Bool
     resize!(self._glfw, event.width, event.height)
     resize!(self._opengl, self._glfw)
-    set_aspect!(app.camera, app.window.width, app.window.height)
+    set_aspect!(self._cam, self._glfw.width, self._glfw.height)
     return false
 end
 
@@ -85,7 +85,7 @@ end
 
 function setup_callbacks(self::App)::Nothing
     register_callback!(event -> resize!(self, event), self._inputs, FRAME_RESIZE)
-    register_callback!(event -> resize!(self, event), self._inputs, WINDOW_RESIZE)
+    register_callback!(event -> window_resize!(self, event), self._inputs, WINDOW_RESIZE)
     register_callback!(event -> mouse_move!(self, event), self._inputs, MOUSE_MOVE)
     
     register_callback!(event -> on_gizmo_left_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_LEFT))

@@ -188,7 +188,7 @@ end
 # ? BuildingState
 
 function update!(self::Model, ::BuildingState)::Bool
-    return processAvailable!(self._adder)
+    return process_available!(self._adder)
 end
 
 function endState(self::Model, state::BuildingState)

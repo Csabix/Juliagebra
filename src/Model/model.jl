@@ -188,7 +188,7 @@ end
 # ? BuildingState
 
 function update!(self::Model, ::BuildingState)::Bool
-    return process_available!(self._adder)
+    return process_avail!(self._adder)
 end
 
 function endState(self::Model, state::BuildingState)
@@ -234,11 +234,11 @@ function update!(self::Model, ::ViewingState)::Bool
         elseif (mode isa SingleFrameMultipleThreads)
             @time_cpu_begin Graph_update
             # ? Scheduler will schedule work to all Workeri.
-            startGraphWorkers!(self._scheduler, self)
+            start_evaluation!(self._scheduler, self)
             # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer)
+            process_w0_avail!(self._synchronizer, self)
             # ? Modell Task must process all Subject and wait for all work to be completed.
-            processUntilFinishedExternal!(self._synchronizer, self)
+            process_wi_until_finish!(self._synchronizer, self)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
@@ -248,20 +248,20 @@ function update!(self::Model, ::ViewingState)::Bool
         elseif (mode isa MultipleFramesSingleThread)
             @time_cpu_begin Graph_update
             # ? Scheduler will schedule work to all Workeri.
-            startGraphWorkers!(self._scheduler, self)
+            start_evaluation!(self._scheduler, self)
             # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer)
+            process_w0_avail!(self._synchronizer, self)
             # ? Process only available observers.
-            processAvailableExternal!(self._synchronizer, self)
+            process_wi_avail!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.
         elseif (mode isa MultipleFramesMultipleThreads)
             @time_cpu_begin Graph_update
             # ? Scheduler will schedule work to all Workeri.
-            startGraphWorkers!(self._scheduler, self)
+            start_evaluation!(self._scheduler, self)
             # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer)
+            process_w0_avail!(self._synchronizer, self)
             # ? Process only available observers.
-            processAvailableExternal!(self._synchronizer, self)
+            process_wi_avail!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.
         end
     end
@@ -292,7 +292,7 @@ end
 
 function update!(self::Model, ::EvalingState)::Bool
     # ? Internal was processed in ViewingState, which started EvalingState.
-    return processAvailableExternal!(self._synchronizer, self)
+    return process_wi_avail!(self._synchronizer, self)
 end
 
 function endState(self::Model, state::EvalingState)

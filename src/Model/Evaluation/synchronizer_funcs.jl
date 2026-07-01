@@ -19,7 +19,7 @@ end
 
 function process_wi_avail!(self::Synchronizer, model::Model)::Bool
     empty!(self._observers)
-    taken = Base.n_avail(self._wi_nodes)
+    taken = Base.n_avail(self._wi_nodeids)
     self._taken += taken
 
     for _ in 1:taken

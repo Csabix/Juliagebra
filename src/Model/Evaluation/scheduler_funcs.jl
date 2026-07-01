@@ -99,19 +99,23 @@ function distribute_work!(self::Scheduler, model::Model, ::Union{SingleFrameTwoT
     signal_start!(w1)
 end
 
-function _calculateNodeWeights(wd::Vector{Int}, localIDs::Dict{Int, Int})::Vector{Int}
-    # ? Calculate node weights based on max height.
-    heights::Vector{Int} = [1 for _ in wd]
-    for idx in reverse(eachindex(wd))
-        d::DependentDNA = getDependent(wd[idx])
-        height = heights[localIDs[getGraphID(d)]]
+function get_node_weights(self::Scheduler, model::Model)::Vector{Int}
+    heights::Vector{Int} = [1 for _ in self._merged_subgraph]
+    
+    # ? Calculate node weights based on largest height to any sink node.
+    # ? Children of nodes are always later in the merged subgraph, hence the reverse.
+    for idx in reverse(eachindex(get_ids(self._merged_subgraph)))
+        nodeid::Int = self._merged_subgraph[idx]
+        node::DependentDNA = getDependentNode(model, nodeid)
+        node_height = heights[self._localidxs[nodeid]]
         
-        for parent in getGraphParents(d) 
-            id = getGraphID(parent)
+        for parent in getGraphParents(node) 
+            parentid::Int = getGraphID(parent)
 
-            if haskey(localIDs,id)
-                _height = heights[localIDs[id]]
-                heights[localIDs[id]] = max(_height, height+1)
+            if haskey(self._localidxs,parentid)
+                parentidx::Int = self._localidxs[parentid]
+                parent_height = heights[parentidx]
+                heights[parentidx] = max(parent_height, node_height+1)
             end
         end        
     end
@@ -119,65 +123,53 @@ function _calculateNodeWeights(wd::Vector{Int}, localIDs::Dict{Int, Int})::Vecto
     return heights
 end
 
-function _assignNodesToWorkers(wd::Vector{Int}, w::Workers, heights::Vector{Int})::Vector{Int}
-    # ? Which worker gets the node at idx in heights.
+function tag_by_weights(nodeids::Vector{Int}, weights::Vector{Int}, max_workers::Int)::Vector{Int}
+    @assert length(nodeids) == length(weights) "nodeids and weights have different lengths!"
+    
+    # ? Which worker gets the node at idx in nodeids.
     tags::Vector{Int} = []
     
-    # ? For a height, which Worker is the next one.
-    heightTags::Dict{Int,Int} = Dict{Int,Int}()
-    
-    # ? For rotating between workers, which is the max.
-    tagMax = length(w)
-    
-    for idx in eachindex(wd)
-        height = heights[idx]
+    # ? For a weight, which Worker is the next one.
+    weight_next_tag::Dict{Int,Int} = Dict{Int,Int}()
+        
+    for idx in eachindex(nodeids)
+        weight::Int = weights[idx]
 
-        if !haskey(heightTags,height)
-            heightTags[height] = 0
+        if !haskey(weight_next_tag,weight)
+            weight_next_tag[weight] = 0
         else
-            _height = heightTags[height] + 1
-            heightTags[height] = (_height % tagMax)
+            next_tag = weight_next_tag[weight] + 1
+            weight_next_tag[weight] = (next_tag % max_workers)
         end
 
-        push!(tags,heightTags[height]+1)
+        # ? +1 so don't assign worker0, instead schedule [1;max_workers]
+        push!(tags,weight_next_tag[weight]+1)
     end
 
     return tags
 end
 
-function _createWorkContainers(wd::Vector{Int}, w::Workers, tags::Vector{Int})::Vector{Vector{WorkerFood}}
-    # ? Amount of workers, to distribute to.
-    tagMax = length(w)
+function is_topo_ordered(nodeids::Vector{Int}, model::Model)::Bool
+    localidxs::Dict{Int,Int} = Dict{Int,Int}()
 
-    # ? Vectors for each worker to complete.
-    wds::Vector{Vector{WorkerFood}} = [[] for _ in 1:tagMax]
-    
-    for idx in eachindex(tags)
-        push!(wds[tags[idx]], wd[idx])
+    # ? Get GraphID 2 local idx.
+    for idx in eachindex(nodeids)
+        nodeid::Int = nodeids[idx]
+
+        @assert !haskey(localidxs, nodeid) "Dependents are not unique!"
+        localidxs[nodeid] = idx
     end
 
-    return wds
-end
+    # ? Determine if all node parents are below in nodeids.
+    for idx in eachindex(nodeids)
+        nodeid::Int =  nodeids[idx]
+        node::DependentDNA = getDependentNode(model, nodeid)
 
-function _isTopologicalOrdered(wd::Vector{Int})::Bool
-    localIDs::Dict{Int,Int} = Dict{Int,Int}()
-    
-    # ? gather graphID -> idx
-    for idx in eachindex(wd)
-        od::Union{SubjectDNA,DependentDNA} = getDependent(wd[idx])
-
-        @assert !haskey(localIDs, getGraphID(od)) "Dependents are not unique!"
-        localIDs[getGraphID(od)] = idx
-    end
-
-    for idx in eachindex(wd)
-        od::Union{SubjectDNA,DependentDNA} = getDependent(wd[idx])
-
-        for parent in getGraphParents(od)
-            pid = getGraphID(parent)
+        for parent in getGraphParents(node)
+            parentid::Int = getGraphID(parent)
             
-            if haskey(localIDs, pid)
-                pidx = localIDs[pid]
+            if haskey(localidxs, parentid)
+                pidx = localidxs[parentid]
                 if idx <= pidx
                     # ? Parent is below in the list, so topological order is violated.
                     return false
@@ -189,32 +181,42 @@ function _isTopologicalOrdered(wd::Vector{Int})::Bool
     return true
 end
 
-function _sortByWeight(wd::Vector{Int}, weights::Vector{Int})::Tuple{Vector{Int}, Vector{Int}}
+function sort_subgraph_by_weights(self::Scheduler, weights::Vector{Int})::Tuple{Vector{Int}, Vector{Int}}
     idxs = sortperm(weights; rev=true)
-    return (wd[idxs], weights[idxs])
+    return (get_ids(self._merged_subgraph)[idxs], weights[idxs])
 end
 
-function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads})
-    wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
-    w::Workers = getWorkers(model)
-
+function distribute_work!(self::Scheduler, model::Model, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads})
+    workers::Workers = getWorkers(model)
+    
+    setup_localidxs!(self)
+    setup_conditions_and_goals!(self, model)
+    
+    for idx in 1:length(workers)
+        empty!(workers[idx])
+    end
+    
     # ? Calculate node weights.
-    heights::Vector{Int} = _calculateNodeWeights(wd, localIDs)
-    @assert length(heights) == length(wd) "Every node must get one weight!"
+    heights::Vector{Int} = get_node_weights(self, model)
+    @assert length(heights) == length(self._merged_subgraph) "Every node must get one weight!"
 
-    wd, heights = _sortByWeight(wd, heights)
-    @assert _isTopologicalOrdered(wd) "Work is not in topological order!"
+    sorted_data::Tuple{Vector{Int}, Vector{Int}} = sort_subgraph_by_weights(self, heights)
+    sorted_nodeids::Vector{Int} = sorted_data[1]
+    sorted_weights::Vector{Int} = sorted_data[2]
+    @assert is_topo_ordered(sorted_nodeids, model) "Sorted nodeids is not in topological order!"
 
     # ? Assign nodes with weights to workers.
-    tags::Vector{Int} = _assignNodesToWorkers(wd, w, heights)
-    @assert length(tags) == length(heights) "Every weight must get one worker!"
+    tags::Vector{Int} = tag_by_weights(sorted_nodeids, sorted_weights, length(workers))
+    @assert length(tags) == length(sorted_nodeids) "Every node must get one worker!"
 
-    # ? Create work containers.
-    wds::Vector{Vector{WorkerFood}} = _createWorkContainers(wd, w, tags)
-    @assert length(wds) == length(w) "Every worker must get a container!"
+    # ? Distribute work.
+    for idx in eachindex(tags)
+        tag::Int = tags[idx]
+        put!(workers[tag],sorted_nodeids[idx])
+    end
 
-    # ? Send work.
-    for idx in eachindex(wds) 
-        put!(w[idx],wds[idx])
+    # ? Start workers.
+    for idx in 1:length(workers) 
+        signal_start!(workers[idx])
     end
 end

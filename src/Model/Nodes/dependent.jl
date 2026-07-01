@@ -36,7 +36,7 @@ getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID
 get_subgraph(self::DependentDNA) = return _Dependent_(self)._subgraph
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
-get_evaledcond(self::DependentDNA)::CompletedCondition = return self._evaledcond
+get_evaledcond(self::DependentDNA)::CompletedCondition = return _Dependent_(self)._evaledcond
 
 _isUnbuilt(self::Dependent)::Bool = return (self._graphID == 0)
 isUnbuilt(self::DependentDNA)::Bool = return _isUnbuilt(_Dependent_(self))

@@ -206,11 +206,11 @@ function update!(self::Model, ::ViewingState)::Bool
         if (mode isa SingleFrameSingleThread)
             @time_cpu_begin Graph_update
             # ? Scheduler will schedule work only to Worker0.
-            startGraphWorkers!(self._scheduler, self)
+            start_evaluation!(self._scheduler, self)
             # ? Modell task shall complete Worker0.
             processUntilClosed!(getWorkers(self)[0], self)
             # ? Worker0 forwards work to Internal Queue.
-            process_w0_avail!(self._synchronizer)
+            process_w0_avail!(self._synchronizer, self)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
@@ -220,11 +220,11 @@ function update!(self::Model, ::ViewingState)::Bool
         elseif (mode isa SingleFrameTwoThreads)
             @time_cpu_begin Graph_update
             # ? Scheduler will schedule work only to Worker1.
-            startGraphWorkers!(self._scheduler, self)
+            start_evaluation!(self._scheduler, self)
             # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer)
+            process_w0_avail!(self._synchronizer, self)
             # ? Modell Task must process all Subject and wait for all work to be completed.
-            processUntilFinishedExternal!(self._synchronizer, self)
+            process_wi_until_finish!(self._synchronizer, self)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update

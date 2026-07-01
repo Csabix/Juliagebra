@@ -32,7 +32,7 @@ Manages correct graph evaluation scheduling.
     _taken::Int = 0
     
     _merged_subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
-    _merged_roots::Set{DependentDNA} = Set{DependentDNA}()
+    _merged_roots::Set{Int} = Set{Int}()
     
     _localidxs::Dict{Int,Int} = Dict{Int,Int}() # ? graphID 2 local idxs.
     _synced::Dict{Int,Bool} = Dict{Int,Bool}() # ? graphID 2 is synced.
@@ -69,20 +69,11 @@ end
 function _isFinishedCorrectly!(self::Scheduler, ::SchedulingMode)::Bool
     @assert isFinishedFirst(self) "Not first finish!"
     
-    for c in self._evaled
-        if !isCompleted(c)
+    for synced in values(self._synced)
+        if !synced
             return false
         end
     end
-        
-    for c in self._synced
-        if c == false
-            return false
-        end
-    end
-
-    Base.resize!(self._evaled,0)
-    Base.resize!(self._synced,0)
 
     return true
 end

@@ -1,5 +1,5 @@
 
-function startGraphWorkers!(self::Scheduler, model::Model)
+function start_evaluation!(self::Scheduler, model::Model)
     sy::Synchronizer = getSynchronizer(model)
     
     self._taken = length(self)
@@ -18,23 +18,24 @@ function startGraphWorkers!(self::Scheduler, model::Model)
         # ? Filter out heads, which are not in the merged subgraph.
         empty!(self._merged_roots)
         for head in heads
-            if !(getGraphID(head) in get_ids(self._merged_subgraph))
-                push!(self._merged_roots,head)
+            headid::Int = getGraphID(head)
+            if !(headid in get_ids(self._merged_subgraph))
+                push!(self._merged_roots,headid)
             end
         end
 
         # ? Send root Dependents for synchronization,
         # ? since they are up to date from outside modifications.
-        for root in self._merged_roots
-            put!(sy,root)
+        for rootid in self._merged_roots
+            put_as_w0!(sy,rootid)
         end
 
         # ? Assign Dependents in the schedule to workers for onNodeEval() calls.
-        _distributeWork(self, model, self._mode)        
+        distribute_work!(self, model, self._mode)        
     end
 end
 
-function _distributeWork(self::Scheduler, model::Model, ::SingleFrameSingleThread)
+function distribute_work!(self::Scheduler, model::Model, ::SingleFrameSingleThread)
     w::EvalWorker0 = getWorkers(model)[0]
 
     for nodeid in self._merged_subgraph
@@ -57,7 +58,7 @@ function setup_conditions_and_goals!(self::Scheduler, model::Model)
     syncGoal = 0
     empty!(self._synced)
 
-    # ? Setup CompletedConditions, synced and syncedGoal of nodes.
+    # ? Setup CompletedConditions, synced and syncedGoal of nodes in the merged_subgraph.
     for nodeid in self._merged_subgraph 
         node::DependentDNA = getDependentNode(model, nodeid)
         
@@ -65,7 +66,7 @@ function setup_conditions_and_goals!(self::Scheduler, model::Model)
         reset_as_inside_node!(get_evaledcond(node))
 
         for parent in getGraphParents(node) 
-            if !haskey(self._localidxs, nodeid) # ? node is not part of subgraph.
+            if !haskey(self._localidxs, getGraphID(parent)) # ? node is not part of subgraph.
                 reset_as_outside_parent!(get_evaledcond(parent))
             end
         end
@@ -83,7 +84,7 @@ function setup_conditions_and_goals!(self::Scheduler, model::Model)
     @assert length(self._synced) == syncGoal "Goal is inconsistent!"
 end
 
-function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
+function distribute_work!(self::Scheduler, model::Model, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
     w1::EvalWorkeri = getWorkers(model)[1]
     
     setup_localidxs!(self)

@@ -25,7 +25,8 @@ end
 
 function _process1(self::EvalWorker0, model::Model, s::SubjectDNA)
     @invokelatest _process2(s)
-    put!(getSynchronizer(model),s)
+    id::Int = getGraphID(s)
+    put_as_w0!(getSynchronizer(model),id)
 end
 
 function _process2(dependent::DependentDNA)
@@ -45,14 +46,13 @@ function process_until_closed!(self::EvalWorkeri, model::Model)
             
             for parent in getGraphParents(node) 
                 # ? Wait for parent to be completed. 
-                parent_cond::CompletedCondition = get_evaledcond(parent)
-                wait(parent_cond)
+                wait(get_evaledcond(parent))
             end
 
             # ? Eval the node.
             startTime = time_ns()
             eval_node!(self, model, node)
-            pushEndTime!(self, getGraphID(getDependent(food)), startTime)
+            pushEndTime!(self, graphID, startTime)
         end
     end
 
@@ -62,15 +62,15 @@ end
 function eval_node!(::EvalWorkeri, model::Model, node::DependentDNA)
     @invokelatest _process2(node)
     notify(get_evaledcond(node))
-    increment(getScheduler(model)._evaledGoal)
+    increment(getScheduler(model)._evalgoal)
 end
 
 function eval_node!(::EvalWorkeri, model::Model, node::SubjectDNA)
     @invokelatest _process2(node)
     notify(get_evaledcond(node))
-    increment(getScheduler(model)._evaledGoal)
+    increment(getScheduler(model)._evalgoal)
 
     # ? Send Subject to Synchronizer.
-    put!(getSynchronizer(model),node)
+    put_as_wi!(getSynchronizer(model), getGraphID(node))
 end
 

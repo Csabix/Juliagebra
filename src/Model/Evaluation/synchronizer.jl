@@ -1,14 +1,5 @@
 
 # ? ---------------------------------
-# ! SyncFood
-# ? ---------------------------------
-
-struct SyncFood
-    subject::SubjectDNA
-    syncedIdx::Int
-end
-
-# ? ---------------------------------
 # ! Synchronizer
 # ? ---------------------------------
 
@@ -16,11 +7,11 @@ end
 Calls sync!() and syncAll!() on arrived Dependents.
 """
 @kwdef mutable struct Synchronizer
-    _internal::Queue{SubjectDNA} = Queue{SubjectDNA}()
-    _external::Channel{SyncFood} = Channel{SyncFood}(8192)
+    _w0_nodes::Queue{SubjectDNA} = Queue{SubjectDNA}()
+    _wi_nodes::Channel{SubjectDNA} = Channel{SubjectDNA}(8192)
     _taken::Int = 0
 end
 
-Base.put!(self::Synchronizer, subject::SubjectDNA) = push!(self._internal, subject)
-Base.put!(self::Synchronizer, f::SyncFood) = put!(self._external, f)
+put_as_w0(self::Synchronizer, subject::SubjectDNA) = push!(self._w0_nodes, subject)
+put_as_wi(self::Synchronizer, subject::SubjectDNA) = put!(self._wi_nodes, subject)
 

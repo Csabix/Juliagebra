@@ -1,5 +1,5 @@
 
-function processInternal!(self::Synchronizer)
+function process_w0_avail!(self::Synchronizer)
     self._taken = length(self._internal)
     observers = Set{ObserverDNA}()
 
@@ -16,21 +16,22 @@ function processInternal!(self::Synchronizer)
     end
 end
 
-function processAvailableExternal!(self::Synchronizer, model::Model)::Bool
+function process_wi_avail!(self::Synchronizer, model::Model)::Bool
     
     # TODO: Continue Here.
     
-    taken = Base.n_avail(self._external)
+    taken = Base.n_avail(self._wi_nodes)
     self._taken += taken
     observers = Set{ObserverDNA}()
 
     for _ in 1:taken
-        _processExternal!(self,model,observers)
+        process_wi_item!(self,model,observers)
     end
 
     for o in observers in 
         syncAll!(o)
     end
+    
     return taken > 0
 end
 
@@ -52,14 +53,15 @@ function processUntilFinishedExternal!(self::Synchronizer, model::Model)
     end
 end
 
-function _processExternal!(self::Synchronizer, model::Model, observers::Set{ObserverDNA})
-    data::SyncFood = take!(self._external)
-    o::ObserverDNA = getObserver(data.subject)
-    sync!(o,data.subject)
-        
-    s::Scheduler = getScheduler(model)
-    s._synced[data.syncedIdx] = true
-    increment(s._syncedGoal)
+function process_wi_item!(self::Synchronizer, model::Model, observers::Set{ObserverDNA})
+    s::SubjectDNA = take!(self._external)
+    o::ObserverDNA = getObserver(s)
+    
+    # ? Call sync! event.
+    sync!(o,s)
+    
+    # ? Tell Scheduler sync! event happend.
+    synced_node!(getScheduler(model), s)
 
     push!(observers, o)
 end

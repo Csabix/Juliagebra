@@ -98,7 +98,7 @@ function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameTwoTh
     signal_start!(w1)
 end
 
-function _calculateNodeWeights(wd::Vector{WorkerFood}, localIDs::Dict{Int, Int})::Vector{Int}
+function _calculateNodeWeights(wd::Vector{Int}, localIDs::Dict{Int, Int})::Vector{Int}
     # ? Calculate node weights based on max height.
     heights::Vector{Int} = [1 for _ in wd]
     for idx in reverse(eachindex(wd))
@@ -118,7 +118,7 @@ function _calculateNodeWeights(wd::Vector{WorkerFood}, localIDs::Dict{Int, Int})
     return heights
 end
 
-function _assignNodesToWorkers(wd::Vector{WorkerFood}, w::Workers, heights::Vector{Int})::Vector{Int}
+function _assignNodesToWorkers(wd::Vector{Int}, w::Workers, heights::Vector{Int})::Vector{Int}
     # ? Which worker gets the node at idx in heights.
     tags::Vector{Int} = []
     
@@ -144,7 +144,7 @@ function _assignNodesToWorkers(wd::Vector{WorkerFood}, w::Workers, heights::Vect
     return tags
 end
 
-function _createWorkContainers(wd::Vector{WorkerFood}, w::Workers, tags::Vector{Int})::Vector{Vector{WorkerFood}}
+function _createWorkContainers(wd::Vector{Int}, w::Workers, tags::Vector{Int})::Vector{Vector{WorkerFood}}
     # ? Amount of workers, to distribute to.
     tagMax = length(w)
 
@@ -158,7 +158,7 @@ function _createWorkContainers(wd::Vector{WorkerFood}, w::Workers, tags::Vector{
     return wds
 end
 
-function _isTopologicalOrdered(wd::Vector{WorkerFood})::Bool
+function _isTopologicalOrdered(wd::Vector{Int})::Bool
     localIDs::Dict{Int,Int} = Dict{Int,Int}()
     
     # ? gather graphID -> idx
@@ -188,7 +188,7 @@ function _isTopologicalOrdered(wd::Vector{WorkerFood})::Bool
     return true
 end
 
-function _sortByWeight(wd::Vector{WorkerFood}, weights::Vector{Int})::Tuple{Vector{WorkerFood}, Vector{Int}}
+function _sortByWeight(wd::Vector{Int}, weights::Vector{Int})::Tuple{Vector{Int}, Vector{Int}}
     idxs = sortperm(weights; rev=true)
     return (wd[idxs], weights[idxs])
 end

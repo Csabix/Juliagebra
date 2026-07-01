@@ -210,7 +210,7 @@ function update!(self::Model, ::ViewingState)::Bool
             # ? Modell task shall complete Worker0.
             processUntilClosed!(getWorkers(self)[0], self)
             # ? Worker0 forwards work to Internal Queue.
-            processInternal!(self._synchronizer)
+            process_w0_avail!(self._synchronizer)
             @time_cpu_end Graph_update
             
             block = @get_block Graph_update
@@ -222,7 +222,7 @@ function update!(self::Model, ::ViewingState)::Bool
             # ? Scheduler will schedule work only to Worker1.
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
+            process_w0_avail!(self._synchronizer)
             # ? Modell Task must process all Subject and wait for all work to be completed.
             processUntilFinishedExternal!(self._synchronizer, self)
             @time_cpu_end Graph_update
@@ -236,7 +236,7 @@ function update!(self::Model, ::ViewingState)::Bool
             # ? Scheduler will schedule work to all Workeri.
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
+            process_w0_avail!(self._synchronizer)
             # ? Modell Task must process all Subject and wait for all work to be completed.
             processUntilFinishedExternal!(self._synchronizer, self)
             @time_cpu_end Graph_update
@@ -250,7 +250,7 @@ function update!(self::Model, ::ViewingState)::Bool
             # ? Scheduler will schedule work to all Workeri.
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
+            process_w0_avail!(self._synchronizer)
             # ? Process only available observers.
             processAvailableExternal!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.
@@ -259,7 +259,7 @@ function update!(self::Model, ::ViewingState)::Bool
             # ? Scheduler will schedule work to all Workeri.
             startGraphWorkers!(self._scheduler, self)
             # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
+            process_w0_avail!(self._synchronizer)
             # ? Process only available observers.
             processAvailableExternal!(self._synchronizer, self)
             # ? Let Model step into next state, BuildingState.

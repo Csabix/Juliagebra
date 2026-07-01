@@ -1,22 +1,5 @@
 
 # ? ---------------------------------
-# ! WorkerFood
-# ? ---------------------------------
-
-struct WorkerFood{T<:Union{DependentDNA, SyncFood}}
-    conditions::Vector{CompletedCondition}
-    data::T
-    evaled::CompletedCondition
-
-    function WorkerFood(conditions::Vector{CompletedCondition}, data::T, evaled::CompletedCondition) where {T<:Union{DependentDNA, SyncFood}}
-        new{T}(conditions, data, evaled)
-    end
-end
-
-getDependent(self::WorkerFood{<:DependentDNA})::DependentDNA = return self.data
-getDependent(self::WorkerFood{SyncFood})::SubjectDNA = return self.data.subject
-
-# ? ---------------------------------
 # ! EvalWorker
 # ? ---------------------------------
 

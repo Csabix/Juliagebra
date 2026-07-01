@@ -60,7 +60,7 @@ getModesLength(self::Scheduler)::Int = return length(self._modes)
 isFinished(self::Scheduler)::Bool = return isReached(self._evalgoal) && isReached(self._syncgoal)
 isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
 isFinishedFirst(self::Scheduler)::Bool = length(self._synced)!=0
-
+synced_node!(self::Scheduler, node::SubjectDNA) = (self._synced[getGraphID(node)]=true; increment(self._syncgoal)) 
 
 function _isFinishedCorrectly!(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true

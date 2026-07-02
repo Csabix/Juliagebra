@@ -78,7 +78,8 @@ evalCallbackDpReturn(self::DependentDNA,::Nothing,returnParams...) = error("Miss
 """
 Model will use this function, to set the node to have a starting state.
 - This function can be overridden if neccessary.
-- Function takes into parent states as well.
+- Function must take into parent states as well.
+- Will always run on App thread.
 """
 function node_start!(self::DependentDNA)
     setEntryNodes(self)
@@ -88,11 +89,13 @@ end
 """
 Model will use this function, to update the node's state regarding the updated parents.
 - This function can be overridden if neccessary.
+- Runs on worker specified by thread_affinity function. 
 """
 function node_eval!(self::DependentDNA)
     beforeNodeEval(self)
     onNodeEval(self)
     afterNodeEval(self)
 end
+
 
 

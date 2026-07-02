@@ -70,6 +70,16 @@ function _graph_evaluation!(self::Scheduler, model::Model, ::MultipleFramesMulti
 end
 
 """
+Scheduler will use the returned Int to find a worker for the node.
+- "-1" means any worker is fine.
+- "0" and other numbers mean that worker must be selected.
+- Can be overriden in Dependent child.
+"""
+function thread_affinity(self::DependentDNA, model::Model)::Int
+    return -1
+end
+
+"""
 Resets fields based on shcedule! calls:
 - _taken
 - _first_finish

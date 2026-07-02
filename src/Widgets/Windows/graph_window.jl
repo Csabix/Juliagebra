@@ -100,6 +100,7 @@ function _renderDependentsTab(self::GraphWindow, app::AppDNA)
     m::Model = getModel(app)
     graph::DependentGraph = m._graph
     
+    # TODO: Optimize Table rendering, by only showing x amount of lines.
     if (CImGui.BeginTable("Dependents",3, 
         CImGui.ImGuiTableFlags_RowBg |
         CImGui.ImGuiTableFlags_ScrollX))

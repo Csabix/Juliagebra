@@ -184,6 +184,12 @@ function getDependentNode(self::Model, graphID::Int)::DependentDNA
     return _getDependentNode(self._graph, graphID)
 end
 
+"""
+Get all the nodes added to the model through the build! command.
+"""
+function get_nodes(self::Model)::Vector{DependentDNA}
+    return getNodes(getGraph(self))
+end
 
 # ? BuildingState
 
@@ -199,72 +205,13 @@ end
 
 function update!(self::Model, ::ViewingState)::Bool
     scene_change = false
+    
     if !isempty(self._scheduler)
         scene_change = true
         mode = self._scheduler._mode
-
-        if (mode isa SingleFrameSingleThread)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work only to Worker0.
-            start_evaluation!(self._scheduler, self)
-            # ? Modell task shall complete Worker0.
-            processUntilClosed!(getWorkers(self)[0], self)
-            # ? Worker0 forwards work to Internal Queue.
-            process_w0_avail!(self._synchronizer, self)
-            @time_cpu_end Graph_update
-            
-            block = @get_block Graph_update
-            # TODO: Save and Display theese times for benchmarks.
-            ccputime = _cputime(block)
-
-        elseif (mode isa SingleFrameTwoThreads)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work only to Worker1.
-            start_evaluation!(self._scheduler, self)
-            # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer, self)
-            # ? Modell Task must process all Subject and wait for all work to be completed.
-            process_wi_until_finish!(self._synchronizer, self)
-            @time_cpu_end Graph_update
-            
-            block = @get_block Graph_update
-            # TODO: Save and Display theese times for benchmarks.
-            ccputime = _cputime(block)
-
-        elseif (mode isa SingleFrameMultipleThreads)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work to all Workeri.
-            start_evaluation!(self._scheduler, self)
-            # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer, self)
-            # ? Modell Task must process all Subject and wait for all work to be completed.
-            process_wi_until_finish!(self._synchronizer, self)
-            @time_cpu_end Graph_update
-            
-            block = @get_block Graph_update
-            # TODO: Save and Display theese times for benchmarks.
-            ccputime = _cputime(block)
-
-        elseif (mode isa MultipleFramesSingleThread)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work to all Workeri.
-            start_evaluation!(self._scheduler, self)
-            # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer, self)
-            # ? Process only available observers.
-            process_wi_avail!(self._synchronizer, self)
-            # ? Let Model step into next state, BuildingState.
-        elseif (mode isa MultipleFramesMultipleThreads)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work to all Workeri.
-            start_evaluation!(self._scheduler, self)
-            # ? Must process Root nodes.
-            process_w0_avail!(self._synchronizer, self)
-            # ? Process only available observers.
-            process_wi_avail!(self._synchronizer, self)
-            # ? Let Model step into next state, BuildingState.
-        end
+        graph_evaluation!(getScheduler(self), self, mode)
     end
+
     return scene_change
 end
 

@@ -22,7 +22,8 @@ Base.string(::MultipleFramesSingleThread) = "Multiple Frames - Single Threaded"
 struct MultipleFramesMultipleThreads <: SchedulingMode end
 Base.string(::MultipleFramesMultipleThreads) = "Multiple Frames - Multi Threaded"
 
-
+const SingleFrameModes = Union{SingleFrameSingleThread, SingleFrameTwoThreads, SingleFrameMultipleThreads}
+const MultipleFrameModes = Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
 
 """
 Manages correct graph evaluation scheduling.

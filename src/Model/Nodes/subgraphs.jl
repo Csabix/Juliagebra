@@ -70,3 +70,35 @@ end
 Base.merge(schedules::Vector{InsertionTopoSubgraph})::InsertionTopoSubgraph = return foldl(Base.merge,schedules)
 
 Base.copy!(dst::InsertionTopoSubgraph, src::InsertionTopoSubgraph) = copy!(dst._ids, src._ids)
+
+function is_topo_ordered(nodeids::Vector{Int}, nodes::Vector{DependentDNA})::Bool
+    localidxs::Dict{Int,Int} = Dict{Int,Int}()
+
+    # ? Get GraphID 2 local idx.
+    for idx in eachindex(nodeids)
+        nodeid::Int = nodeids[idx]
+
+        @assert !haskey(localidxs, nodeid) "Dependents are not unique!"
+        localidxs[nodeid] = idx
+    end
+
+    # ? Determine if all node parents are below in nodeids.
+    for idx in eachindex(nodeids)
+        nodeid::Int =  nodeids[idx]
+        node::DependentDNA = nodes[nodeid]
+
+        for parent in getGraphParents(node)
+            parentid::Int = getGraphID(parent)
+            
+            if haskey(localidxs, parentid)
+                pidx = localidxs[parentid]
+                if idx <= pidx
+                    # ? Parent is below in the list, so topological order is violated.
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
+end

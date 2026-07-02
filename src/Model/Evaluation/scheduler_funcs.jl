@@ -1,4 +1,74 @@
 
+function graph_evaluation!(self::Scheduler, model::Model, mode::SingleFrameModes; time_it=true)
+    if time_it
+        @time_cpu_begin Graph_update
+        _graph_evaluation!(self, model, mode)
+        @time_cpu_end Graph_update
+        
+        block = @get_block Graph_update
+        # TODO: Save and Display theese times for benchmarks.
+        ccputime = _cputime(block)
+    else
+        _graph_evaluation!(self, model, mode)
+    end
+end
+
+function graph_evaluation!(self::Scheduler, model::Model, mode::MultipleFrameModes; time_it=true)
+    if time_it
+        @time_cpu_begin Graph_update
+        _graph_evaluation!(self, model, mode)
+    else
+        _graph_evaluation!(self, model, mode)
+    end
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameSingleThread)
+    # ? Scheduler will schedule work only to Worker0.
+    start_evaluation!(self, model)
+    # ? Modell task shall complete Worker0.
+    processUntilClosed!(getWorkers(model)[0], model)
+    # ? Worker0 forwards work to Internal Queue.
+    process_w0_avail!(getSynchronizer(model), model)
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameTwoThreads)
+    # ? Scheduler will schedule work only to Worker1.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Modell Task must process all Subject and wait for all work to be completed.
+    process_wi_until_finish!(getSynchronizer(model), model)
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameMultipleThreads)
+    # ? Scheduler will schedule work to all Workeri.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Modell Task must process all Subject and wait for all work to be completed.
+    process_wi_until_finish!(getSynchronizer(model), model)
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::MultipleFramesSingleThread)
+    # ? Scheduler will schedule work to all Workeri.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Process only available observers.
+    process_wi_avail!(getSynchronizer(model), model)
+    # ? Let Model step into next state, BuildingState.
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::MultipleFramesMultipleThreads)
+    # ? Scheduler will schedule work to all Workeri.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Process only available observers.
+    process_wi_avail!(getSynchronizer(model), model)
+    # ? Let Model step into next state, BuildingState.
+end
+
 function start_evaluation!(self::Scheduler, model::Model)
     sy::Synchronizer = getSynchronizer(model)
     
@@ -149,38 +219,6 @@ function tag_by_weights(nodeids::Vector{Int}, weights::Vector{Int}, max_workers:
     return tags
 end
 
-function is_topo_ordered(nodeids::Vector{Int}, model::Model)::Bool
-    localidxs::Dict{Int,Int} = Dict{Int,Int}()
-
-    # ? Get GraphID 2 local idx.
-    for idx in eachindex(nodeids)
-        nodeid::Int = nodeids[idx]
-
-        @assert !haskey(localidxs, nodeid) "Dependents are not unique!"
-        localidxs[nodeid] = idx
-    end
-
-    # ? Determine if all node parents are below in nodeids.
-    for idx in eachindex(nodeids)
-        nodeid::Int =  nodeids[idx]
-        node::DependentDNA = getDependentNode(model, nodeid)
-
-        for parent in getGraphParents(node)
-            parentid::Int = getGraphID(parent)
-            
-            if haskey(localidxs, parentid)
-                pidx = localidxs[parentid]
-                if idx <= pidx
-                    # ? Parent is below in the list, so topological order is violated.
-                    return false
-                end
-            end
-        end
-    end
-
-    return true
-end
-
 function sort_subgraph_by_weights(self::Scheduler, weights::Vector{Int})::Tuple{Vector{Int}, Vector{Int}}
     idxs = sortperm(weights; rev=true)
     return (get_ids(self._merged_subgraph)[idxs], weights[idxs])
@@ -203,7 +241,7 @@ function distribute_work!(self::Scheduler, model::Model, ::Union{SingleFrameMult
     sorted_data::Tuple{Vector{Int}, Vector{Int}} = sort_subgraph_by_weights(self, heights)
     sorted_nodeids::Vector{Int} = sorted_data[1]
     sorted_weights::Vector{Int} = sorted_data[2]
-    @assert is_topo_ordered(sorted_nodeids, model) "Sorted nodeids is not in topological order!"
+    @assert is_topo_ordered(sorted_nodeids, get_nodes(model)) "Sorted nodeids is not in topological order!"
 
     # ? Assign nodes with weights to workers.
     tags::Vector{Int} = tag_by_weights(sorted_nodeids, sorted_weights, length(workers))

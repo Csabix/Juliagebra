@@ -18,11 +18,16 @@ Base.isempty(self::Adder)::Bool = return isempty(self._in)
 
 
 function process_avail!(self::Adder; send_log::Bool=true)::Bool
-    takeNum = Base.n_avail(self._in)
+    # TODO: Add ms limit, so don't process further if limit is reached.
+    # TODO: Have @invokelatest consume this whole function, if needed.
+
+    avail = Base.n_avail(self._in)
+    taken = 0
     observers = Set{ObserverDNA}()
 
-    for i in 1:takeNum
+    for i in 1:avail
         process_item!(self, take!(self._in), observers)
+        taken+=1
     end
     
     for observer in observers        
@@ -30,11 +35,11 @@ function process_avail!(self::Adder; send_log::Bool=true)::Bool
         addedAll!(observer)
     end
 
-    if send_log && takeNum > 1
-        @log "Built $(takeNum)!"
+    if send_log && taken > 1
+        @log "Built $(taken)!"
     end
 
-    return takeNum > 0
+    return taken > 0
 end
 
 function process_item!(::Adder, dependent::DependentDNA, ::Set{ObserverDNA})

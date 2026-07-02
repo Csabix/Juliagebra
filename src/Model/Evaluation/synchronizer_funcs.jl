@@ -44,7 +44,7 @@ function process_wi_until_finish!(self::Synchronizer, model::Model)
 
     wait(s._evalgoal)
 
-    @assert isFinished(s) "Scheduler must be finished here!"
+    @assert is_finished(s) "Scheduler must be finished here!"
 
     for o in self._observers in 
         syncAll!(o)

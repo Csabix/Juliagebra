@@ -69,10 +69,19 @@ function _graph_evaluation!(self::Scheduler, model::Model, ::MultipleFramesMulti
     # ? Let Model step into next state, BuildingState.
 end
 
+"""
+Resets fields based on shcedule! calls:
+- _taken
+- _first_finish
+- _merged_subgraph
+- _merged_roots
+- Calls distribute_work! afterwards.
+"""
 function start_evaluation!(self::Scheduler, model::Model)
     sy::Synchronizer = getSynchronizer(model)
     
     self._taken = length(self)
+    self._first_finish = true
     heads::Set{DependentDNA} = Set{DependentDNA}()
     subgraphs::Vector{InsertionTopoSubgraph} = []
 
@@ -83,6 +92,7 @@ function start_evaluation!(self::Scheduler, model::Model)
     end
 
     if !isempty(subgraphs)
+        # ? Merge subgraphs.
         copy!(self._merged_subgraph, merge(subgraphs))
         
         # ? Filter out heads, which are not in the merged subgraph.
@@ -113,6 +123,9 @@ function distribute_work!(self::Scheduler, model::Model, ::SingleFrameSingleThre
     end
 end
 
+"""
+Sets up _localidxs based on Scheduler state.
+"""
 function setup_localidxs!(self::Scheduler)
     empty!(self._localidxs)
     
@@ -123,6 +136,11 @@ function setup_localidxs!(self::Scheduler)
     end
 end
 
+"""
+Sets up conditions of nodes and:
+- _evalgoal
+- _syncGoal
+"""
 function setup_conditions_and_goals!(self::Scheduler, model::Model)
     evalGoal = length(self._merged_subgraph)
     syncGoal = 0

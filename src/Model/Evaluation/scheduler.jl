@@ -31,7 +31,8 @@ Manages correct graph evaluation scheduling.
 @kwdef mutable struct Scheduler
     _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
-    
+    _first_finish::Bool = false
+
     _merged_subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
     _merged_roots::Set{Int} = Set{Int}()
     
@@ -58,18 +59,26 @@ Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
 setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
 getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
 getModesLength(self::Scheduler)::Int = return length(self._modes)
-isFinished(self::Scheduler)::Bool = return isReached(self._evalgoal) && isReached(self._syncgoal)
-isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
-isFinishedFirst(self::Scheduler)::Bool = length(self._synced)!=0
+get_mode(self::Scheduler)::SchedulingMode = return self._mode
+is_finished(self::Scheduler)::Bool = return isReached(self._evalgoal) && isReached(self._syncgoal)
 synced_node!(self::Scheduler, node::SubjectDNA) = (self._synced[getGraphID(node)]=true; increment(self._syncgoal)) 
 
-function _isFinishedCorrectly!(::Scheduler, ::SingleFrameSingleThread)::Bool
+function is_finished_first!(self::Scheduler)::Bool
+    @assert is_finished(self) "Scheduler didn't finish yet!"
+    
+    if self._first_finish
+        self._first_finish = false
+        return true
+    else
+        return false
+    end
+end
+
+function is_finished_correctly(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
 end
 
-function _isFinishedCorrectly!(self::Scheduler, ::SchedulingMode)::Bool
-    @assert isFinishedFirst(self) "Not first finish!"
-    
+function is_finished_correctly(self::Scheduler, ::SchedulingMode)::Bool
     for synced in values(self._synced)
         if !synced
             return false

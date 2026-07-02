@@ -137,7 +137,7 @@ Decide at the beginning of the frame, which state the model is in.
 - This state is carried until the end of endState call.
 """
 function decideState(self::Model)::ModelState
-    if !isFinished(self._scheduler)
+    if !is_finished(self._scheduler)
         @assert islocked_by_model(self._builder) "Lock lost by Model in EvalingState!"
         
         # ? I still have the lock from ViewingState or EvalingState.
@@ -216,12 +216,11 @@ function update!(self::Model, ::ViewingState)::Bool
 end
 
 function endState(self::Model, state::ViewingState)
-    if isFinished(self._scheduler)
-        if isFinishedFirst(self._scheduler)
-            isCorrect = isFinishedCorrectly!(self._scheduler)
-            @assert isCorrect "Evaling didn't finish correctly!"
-            
-            if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
+    s::Scheduler = getScheduler(self)
+    
+    if is_finished(self._scheduler)
+        if is_finished_first!(self._scheduler)
+            if get_mode(s) isa MultipleFrameModes
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update
@@ -243,12 +242,11 @@ function update!(self::Model, ::EvalingState)::Bool
 end
 
 function endState(self::Model, state::EvalingState)
-    if isFinished(self._scheduler)
-        if isFinishedFirst(self._scheduler)
-            isCorrect = isFinishedCorrectly!(self._scheduler)
-            @assert isCorrect "Evaling didn't finish correctly!" 
-            
-            if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
+    s::Scheduler = getScheduler(self)
+    
+    if is_finished(self._scheduler)
+        if is_finished_first!(self._scheduler)
+            if get_mode(s) isa MultipleFrameModes
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update

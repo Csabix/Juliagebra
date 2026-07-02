@@ -20,19 +20,13 @@ function processUntilClosed!(self::EvalWorker0, model::Model)
 end
 
 function _process1(::EvalWorker0, ::Model, d::DependentDNA)    
-    @invokelatest _process2(d)
+    @invokelatest node_eval!(d)
 end
 
 function _process1(self::EvalWorker0, model::Model, s::SubjectDNA)
-    @invokelatest _process2(s)
+    @invokelatest node_eval!(s)
     id::Int = getGraphID(s)
     put_as_w0!(getSynchronizer(model),id)
-end
-
-function _process2(dependent::DependentDNA)
-    beforeNodeEval(dependent)
-    onNodeEval(dependent)
-    afterNodeEval(dependent)
 end
 
 # ? ---------------------------------
@@ -60,13 +54,13 @@ function process_until_closed!(self::EvalWorkeri, model::Model)
 end
 
 function eval_node!(::EvalWorkeri, model::Model, node::DependentDNA)
-    @invokelatest _process2(node)
+    @invokelatest node_eval!(node)
     notify(get_evaledcond(node))
     increment(getScheduler(model)._evalgoal)
 end
 
 function eval_node!(::EvalWorkeri, model::Model, node::SubjectDNA)
-    @invokelatest _process2(node)
+    @invokelatest node_eval!(node)
     notify(get_evaledcond(node))
     increment(getScheduler(model)._evalgoal)
 

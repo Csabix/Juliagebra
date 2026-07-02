@@ -74,3 +74,25 @@ end
 
 evalCallbackDpReturn(self::DependentDNA,returnVal,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of $(typeof(self)) for $(typeof(returnVal))")
 evalCallbackDpReturn(self::DependentDNA,::Nothing,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of DependentDNA (on Nothing)")
+
+"""
+Model will use this function, to set the node to have a starting state.
+- This function can be overridden if neccessary.
+- Function takes into parent states as well.
+"""
+function node_start!(self::DependentDNA)
+    setEntryNodes(self)
+    onNodeEval(self)
+end
+
+"""
+Model will use this function, to update the node's state regarding the updated parents.
+- This function can be overridden if neccessary.
+"""
+function node_eval!(self::DependentDNA)
+    beforeNodeEval(self)
+    onNodeEval(self)
+    afterNodeEval(self)
+end
+
+

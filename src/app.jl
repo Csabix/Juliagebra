@@ -5,13 +5,12 @@
 # ? ---------------------------------
 
 mutable struct App <: AppDNA
-    _glfw::Union{GLFWData,Nothing}
-    _inputs::Union{Inputs,Nothing}
+    _glfw::GLFWData
+    _inputs::Inputs
     _opengl::Union{OpenGLData,Nothing}
     _imgui::Union{ImGuiData,Nothing}
     _frame_limiter::Union{Nothing,FrameLimiter}
     _old_limiter::Union{Nothing,FrameLimiter}
-    _windowCreated::Bool
     _cam::Camera
     _manipulator::CameraManipulator
     
@@ -23,25 +22,23 @@ mutable struct App <: AppDNA
     _scene_change::Bool
 
     _asset_watcher::Union{Nothing,AssetWatcher}
-    hovered::UInt32
+    _hovered::UInt32
 
     _delta_time::Float64
     _vsync_state::Int32
 
     function App(
         name::String="Juliagebra",
-        width::Int=1280,
-        height::Int=720
-        )
-
-        glfw = nothing
-        inputs = nothing
+        width::Int32=Int32(1280),
+        height::Int32=Int32(720)
+    )
+        glfw = GLFWData(name,width,height)
+        inputs = Inputs(glfw)
         opengl = nothing
         imgui = nothing
-        windowCreated = false
         
         cam = defaultCamera()
-        set_aspect!(cam,width,height)
+        
         manipulator = create_orbital_manipulator(cam)
         optimizer = GlobalDependentOptimizer()
         starter = Starter()
@@ -60,7 +57,7 @@ mutable struct App <: AppDNA
 
         new(
             glfw,inputs,opengl,imgui,
-            nothing,nothing,windowCreated,cam,manipulator,
+            nothing,nothing,cam,manipulator,
             optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state)
     end
 end
@@ -88,7 +85,7 @@ function window_resize!(self::App, event::Event)::Bool
 end
 
 function mouse_move!(self::App, event::Event)
-    self.hovered = readID(self._opengl,event.x,event.y,self._glfw.width,self._glfw.height)
+    self._hovered = readID(self._opengl,event.x,event.y,self._glfw.width,self._glfw.height)
     return false
 end
 
@@ -174,7 +171,7 @@ function update!(self::App, state::ViewingState, iconified::Bool)
             
     if !iconified
         # ? Render scene and dock.
-        update!(self._opengl,self._cam,self._scene_change,self.hovered)
+        update!(self._opengl,self._cam,self._scene_change,self._hovered)
         render!(self._imgui,self)
         frame_end(self._opengl._profiler)
     end
@@ -188,7 +185,7 @@ function update!(self::App, state::BuildingState, iconified::Bool)
 
     if !iconified
         # ? Render scene and loading bar.
-        update!(self._opengl,self._cam,self._scene_change,self.hovered)
+        update!(self._opengl,self._cam,self._scene_change,self._hovered)
         renderBuildingState(self._imgui,self)
         frame_end(self._opengl._profiler)
     end
@@ -202,33 +199,30 @@ function update!(self::App, state::EvalingState, iconified::Bool)
 
     if !iconified
         # ? Render scene and dock.
-        update!(self._opengl,self._cam,self._scene_change,self.hovered)
+        update!(self._opengl,self._cam,self._scene_change,self._hovered)
         render!(self._imgui,self)
         frame_end(self._opengl._profiler)
     end
 end
 
 function init!(self::App)
-    if self._windowCreated
+    if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
     
-    self._glfw = GLFWData()
-    init!(self._glfw, "Juliagebra", Int32(1280), Int32(720), true)
-    self._inputs = Inputs(self._glfw)
+    init!(self._glfw, true)
+    set_aspect!(self._cam,self._glfw.width,self._glfw.height)
     self._opengl = OpenGLData(self._glfw,self._asset_watcher)
-    #setInputEvents(self._glfw._window,self) # Before call to ImGUI
     setup_callbacks(self)
     setup_event_handles(self._glfw,self._inputs)
-    self._imgui = ImGuiData(self) # setup_callbacks
-    self._windowCreated = true
+    self._imgui = ImGuiData(self)
     perf_init_gpu()
 
     init!(self._model)
 end
 
 function destroy!(self::App)
-    if !self._windowCreated
+    if !is_open(self._glfw)
         error("No window created, thus, can't destroy!")
     end
 

@@ -27,7 +27,7 @@ struct UBO_Data
     _light_cam_heigth::Vec4F
     _eye_aspect::Vec4F
     _at_width_u::Vec4F
-    _near_far_fov_unused::Vec4F
+    _near_far_fov_hovered::Vec4F
 end
 
 mutable struct OpenGLData

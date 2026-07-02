@@ -1,10 +1,15 @@
-@kwdef mutable struct GLFWData
-    _window::GLFW.Window = GLFW.Window(C_NULL)
-    width::Int32    = Int32(0)
-    height::Int32   = Int32(0)
-    s_width::Int32  = Int32(0)
-    s_height::Int32 = Int32(0)
-    scale::Float32 = 0.0f0
+mutable struct GLFWData
+    name::String
+    _window::GLFW.Window
+    width::Int32
+    height::Int32
+    s_width::Int32
+    s_height::Int32
+    scale::Float32
+
+    function GLFWData(name::String,inital_width::Int32,inital_height::Int32)
+        return new(name,GLFW.Window(C_NULL),0,0,inital_width,inital_height,0.0f0)
+    end
 end
 
 const KEY_DOWN::UInt8           = 0x01
@@ -62,7 +67,7 @@ mutable struct Inputs
     end
 end
 
-function init!(w::GLFWData,window_name::String,width::Cint,height::Cint,debug::Bool)::Nothing
+function init!(w::GLFWData,debug::Bool)::Nothing
     GLFW.WindowHint(GLFW.DOUBLEBUFFER , 1);
     GLFW.WindowHint(GLFW.DEPTH_BITS, 24);
     GLFW.WindowHint(GLFW.STENCIL_BITS, 8);
@@ -71,13 +76,13 @@ function init!(w::GLFWData,window_name::String,width::Cint,height::Cint,debug::B
     GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 6)
     GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE);
     GLFW.WindowHint(GLFW.OPENGL_DEBUG_CONTEXT, debug)
-        
-    window = GLFW.CreateWindow(width,height,window_name)
+    
+    window = GLFW.CreateWindow(w.s_width,w.s_height,w.name)
 
-    if window == C_NULL
+    if window.handle == C_NULL
         error("GLFW window creation failed.")
     end
-        
+    
     GLFW.MakeContextCurrent(window)
     GLFW.SwapInterval(1)
 
@@ -86,11 +91,11 @@ function init!(w::GLFWData,window_name::String,width::Cint,height::Cint,debug::B
     w._window = window
     w.width = buffer_w
     w.height = buffer_h
-    w.s_width = width
-    w.s_height = height
     w.scale = x_scale
     return nothing
 end
+
+is_open(window::GLFWData) = return window._window.handle != C_NULL
 
 function deinit!(w::GLFWData)
     GLFW.DestroyWindow(w._window)

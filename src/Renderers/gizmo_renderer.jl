@@ -117,9 +117,9 @@ end
 
 function on_gizmo_left_click!(app)::Bool
     gizmo = app._opengl._renderers.gizmo
-    if 0 < app.hovered <= 3
+    if 0 < app._hovered <= 3
         axes_map = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
-        gizmo.axes = axes_map[app.hovered]
+        gizmo.axes = axes_map[app._hovered]
         gizmo.move = true
         app._scene_change = true
         return true
@@ -129,8 +129,8 @@ end
 
 function on_gizmo_right_click!(app)::Bool
     gizmo = app._opengl._renderers.gizmo
-    if app.hovered > 3
-        p = getDependentNode(getModel(app), app.hovered - ID_LOWER_BOUND)
+    if app._hovered > 3
+        p = getDependentNode(getModel(app), app._hovered - ID_LOWER_BOUND)
                 
         if isa(p, PointDependent)
             pp::PointDependent = p
@@ -138,7 +138,7 @@ function on_gizmo_right_click!(app)::Bool
             gizmo.axes = pp._constraints
             gizmo.position = pp._coord
             gizmo.move = false
-            gizmo.selected = app.hovered
+            gizmo.selected = app._hovered
             app._scene_change = true
             return true
         end

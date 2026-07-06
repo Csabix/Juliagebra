@@ -3,13 +3,6 @@
 # ! PointDependent
 # ? ---------------------------------
 
-const AXIS_NONE::UInt8 = 0x0
-const AXIS_X::UInt8    = 0x1
-const AXIS_Y::UInt8    = 0x2
-const AXIS_Z::UInt8    = 0x4
-const AXIS_FULL::UInt8 = 0x7
-export AXIS_NONE, AXIS_X, AXIS_Y, AXIS_Z, AXIS_FULL
-
 mutable struct PointDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     _coord::Vec3D
@@ -20,10 +13,10 @@ mutable struct PointDependent <: RenderedDependentDNA
 
     # YELLOW Thread
     function PointDependent(callback::Function,dependents::Vector{<:DependentDNA},
-                            color::UInt32,style::UInt8,size::UInt8,axis_constraint::UInt8)
+                            color::UInt32,style::UInt8,size::UInt8,axis_constraint::UInt32)
         dependent = RenderedDependent(callback,dependents)
         coord = Vec3DNan
-        new(dependent,coord,color,style,UInt8(size),axis_constraint)
+        new(dependent,coord,color,style,UInt8(size),UInt8(axis_constraint))
     end
 end
 

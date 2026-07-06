@@ -15,13 +15,15 @@ layout(pixel_interlock_unordered) in;
 
 #if defined(TRANSPARENT)
 
-struct PixelData {
-    uvec2 dist_col[4];
-    uvec2 dist_id;
+coherent layout(std430, binding = 11) buffer PixelDataDistBuffer {
+    uvec4 _distances_b[];
+};
+coherent layout(std430, binding = 12) buffer PixelDataColBuffer {
+    uvec4 _colors_b[];
 };
 
-coherent layout(std430, binding = 11) buffer PixelDataBuffer {
-    PixelData _pixel_data[];
+coherent layout(std430, binding = 13) buffer PixelDataBufferID {
+    uvec2 _dist_ids[];
 };
 
 layout(location = 0) out vec4  _accum;
@@ -40,65 +42,69 @@ layout(location = 1) out uint _id_out;
 #endif
 
 #if defined(TRANSPARENT)
-layout(binding = 12) uniform sampler2D _depth_tex;
+layout(binding = 13) uniform sampler2D _depth_tex;
 
-#define WRITE_COLOR(color, id, depth)                                                           \
-if (depth > texelFetch(_depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;                       \
-uint _pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width_u();                       \
-uint _packedColor = packUnorm4x8(color);                                                        \
-                                                                                                \
-uint _max_index;                                                                                \
-uvec2 _max_dist_col = uvec2(uint(0));                                                           \
-                                                                                                \
-beginInvocationInterlockARB();                                                                  \
-const float _dist_id_x = _pixel_data[_pixelIdx].dist_id.x;                                      \
-if (_dist_id_x == uint(0) || _dist_id_x > floatBitsToUint(depth))                               \
-    _pixel_data[_pixelIdx].dist_id = uvec2(floatBitsToUint(depth),id);                          \
-for (uint i = 0; i < 4; ++i) {                                                                  \
-    const uvec2 _dist_col = _pixel_data[_pixelIdx].dist_col[i];                                 \
-    if (uint(0) == _dist_col.x) {                                                               \
-        _max_dist_col = _dist_col;                                                              \
-        _max_index = i;                                                                         \
-        break;                                                                                  \
-    } else if(_dist_col.x > _max_dist_col.x) {                                                  \
-        _max_dist_col = _dist_col;                                                              \
-        _max_index = i;                                                                         \
-    }                                                                                           \
-}                                                                                               \
-                                                                                                \
-if (floatBitsToUint(depth) < _max_dist_col.x || uint(0) == _max_dist_col.x) {                   \
-    _pixel_data[_pixelIdx].dist_col[_max_index] = uvec2(floatBitsToUint(depth), _packedColor);  \
-} else {                                                                                        \
-    _max_dist_col = uvec2(floatBitsToUint(depth), _packedColor);                                \
-}                                                                                               \
-                                                                                                \
-endInvocationInterlockARB();                                                                    \
-                                                                                                \
-if (uint(0) == _max_dist_col.x) discard;                                                        \
-                                                                                                \
-float _d = uintBitsToFloat(_max_dist_col.x) / 200;                                              \
-float _d4 = _d * _d * _d * _d;                                                                  \
-                                                                                                \
-color = unpackUnorm4x8(_max_dist_col.y);                                                        \
-float _weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *                   \
-           clamp(0.03 / (1e-5 + _d4), 1e-2, 3e3);                                               \
-                                                                                                \
-_accum = vec4(color.rgb * color.a, color.a) * _weight;                                          \
+#define WRITE_COLOR(color, id, depth)                                           \
+if (depth > texelFetch(_depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;       \
+uint _pixelIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width_u();       \
+uint _packedColor = packUnorm4x8(color);                                        \
+                                                                                \
+                                                                                \
+beginInvocationInterlockARB();                                                  \
+const float _dist_id_x = _dist_ids[_pixelIdx].x;                                \
+if (_dist_id_x == uint(0) || _dist_id_x > floatBitsToUint(depth))               \
+    _dist_ids[_pixelIdx] = uvec2(floatBitsToUint(depth), id);                   \
+uvec4 distances = _distances_b[_pixelIdx];                                      \
+uint max_idx;                                                                   \
+uint max_dist = 0;                                                              \
+for (uint i = 0; i < 4; ++i) {                                                  \
+    if (distances[i] == 0) {                                                    \
+        max_dist = distances[i];                                                \
+        max_idx = i;                                                            \
+        break;                                                                  \
+    } else if (distances[i] > max_dist) {                                       \
+        max_dist = distances[i];                                                \
+        max_idx = i;                                                            \
+    }                                                                           \
+}                                                                               \
+uint old_col = _colors_b[_pixelIdx][max_idx];                                   \
+if (max_dist == 0 || floatBitsToUint(depth) < max_dist) {                       \
+    distances[max_idx] = floatBitsToUint(depth);                                \
+    _distances_b[_pixelIdx] = distances;                                        \
+    _colors_b[_pixelIdx][max_idx] = _packedColor;                               \
+}                                                                               \
+if (floatBitsToUint(depth) < max_dist) {                                        \
+    _packedColor = old_col;                                                     \
+}                                                                               \
+                                                                                \
+                                                                                \
+endInvocationInterlockARB();                                                    \
+                                                                                \
+if (uint(0) == max_dist) discard;                                               \
+                                                                                \
+float _d = uintBitsToFloat(max_dist) / 200;                                     \
+float _d4 = _d * _d * _d * _d;                                                  \
+                                                                                \
+color = unpackUnorm4x8(_packedColor);                                           \
+float _weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *   \
+           clamp(0.03 / (1e-5 + _d4), 1e-2, 3e3);                               \
+                                                                                \
+_accum = vec4(color.rgb * color.a, color.a) * _weight;                          \
 _reveal = color.a;
 
 #elif defined(TRANSPARENT_WEIGHTED_ONLY)
-layout(binding = 12) uniform sampler2D _depth_tex;
+layout(binding = 13) uniform sampler2D _depth_tex;
 
-#define WRITE_COLOR(color, id, depth)                                                           \
-if (depth > texelFetch(_depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;                       \
-                                                                                                \
-float _d = depth / 200;                                                                         \
-float _d4 = _d * _d * _d * _d;                                                                  \
-                                                                                                \
-float _weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *                   \
-           clamp(0.03 / (1e-5 + _d4), 1e-2, 3e3);                                               \
-                                                                                                \
-_accum = vec4(color.rgb * color.a, color.a) * _weight;                                          \
+#define WRITE_COLOR(color, id, depth)                                           \
+if (depth > texelFetch(_depth_tex, ivec2(gl_FragCoord.xy), 0).r) discard;       \
+                                                                                \
+float _d = depth / 200;                                                         \
+float _d4 = _d * _d * _d * _d;                                                  \
+                                                                                \
+float _weight = max(max(max(color.r, color.g), color.b) * color.a, color.a) *   \
+           clamp(0.03 / (1e-5 + _d4), 1e-2, 3e3);                               \
+                                                                                \
+_accum = vec4(color.rgb * color.a, color.a) * _weight;                          \
 _reveal = color.a;
 
 #else

@@ -2,6 +2,8 @@
 #extension GL_GOOGLE_include_directive : require
 #include "../../common_data.glsl"
 
+layout(constant_id = 0) const float near = 1.0;
+
 restrict readonly layout(std430, binding = 0) buffer CenterRadiusBuffer {
     vec4 center_radius_in[];
 };
@@ -38,7 +40,7 @@ void main() {
 
     float dist = distance(eye(), center);
     if (dist < radius) {
-        gl_Position = vec4(base_offset,0.0,1.0);
+        gl_Position = vec4(base_offset,0.0,1.0) * near;
     } else {
         vec3 a = (eye() - center) / dist; 
         vec3 b = vec3(0.0, 0.0, 1.0);

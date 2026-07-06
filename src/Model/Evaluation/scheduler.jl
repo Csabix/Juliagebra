@@ -52,7 +52,7 @@ Manages correct graph evaluation scheduling.
     ]
 end
 
-Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : push!(self._in,dependent)
+Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "Reached Scheduler max per frame capacity, ignoring Dependent!") : (all(x -> x !== dependent, self._in) && push!(self._in,dependent))
 Base.isempty(self::Scheduler)::Bool = return isempty(self._in)
 Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE

@@ -12,18 +12,8 @@ Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
 
 mutable struct ImGuiData <: ImGuiDNA
-    _shrd::SharedData
-    
-    _io::Ptr{CImGui.lib.ImGuiIO}
-
     _textFont::Ptr{CImGui.lib.ImFont}
     _iconFont::Ptr{CImGui.lib.ImFont}
-
-    _width::Int
-    _height::Int
-
-    _pos_x::Int
-    _pos_y::Int
 
     _pool::Vector{GuiRendererDNA}
     _dependents::Vector{GuiDependentDNA}
@@ -33,10 +23,8 @@ mutable struct ImGuiData <: ImGuiDNA
 
     # GREEN Thread
     function ImGuiData(app::AppDNA)
-        
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
-        shrd::SharedData = getShrd(app)
         model::Model = getModel(app)
 
         imgui_context = CImGui.CreateContext()
@@ -63,7 +51,6 @@ mutable struct ImGuiData <: ImGuiDNA
         dock = Dock()
 
         add!(dock,GuiDependentsWindow())
-        add!(dock,DataPeeker())
         add!(dock,Console())
         add!(dock,PerformanceWindow())
         add!(dock,GraphWindow())
@@ -75,11 +62,10 @@ mutable struct ImGuiData <: ImGuiDNA
         push!(widgets,dock)
         push!(widgets,ResetWidget())
         
-        self = new(shrd,io,textFont,iconFont,0,0,0,0,pool,dependents,widgets,dock)
+        self = new(textFont,iconFont,pool,dependents,widgets,dock)
         
         resetObservers!(self)
-        resize!(self)
-        
+        resize!(self,glfwD)
         return self
     end
 end
@@ -94,16 +80,6 @@ function resetObservers!(self::ImGuiData)
         TextBoxRenderer(self),  # ? 3
         StepperRenderer(self)   # ? 4
     ]
-end
-
-@inline function captures_mouse(self::ImGuiData)
-    io = unsafe_load(self._io)
-    return io.WantCaptureMouse
-end
-
-@inline function captures_keyboard(self::ImGuiData)
-    io = unsafe_load(self._io)
-    return io.WantCaptureKeyboard
 end
 
 function render!(self::ImGuiData,app::AppDNA)
@@ -132,7 +108,7 @@ function update!(self::ImGuiData, app::AppDNA)
     update!(str,app)
 
 
-    update!(self._dock._windows[5],getModel(app))
+    update!(self._dock._windows[4],getModel(app))
 end
 
 function renderBuildingState(::Any, ::AppDNA)
@@ -152,67 +128,17 @@ function renderBuildingState(self::ImGuiData,app::AppDNA)
     CImGui.ImGui_ImplOpenGL3_RenderDrawData(CImGui.GetDrawData())
 end
 
-function _display!(self::ImGuiData,cam::Camera)
-    cam._fov = slider1(cam._fov,"Fov",0.0,150.0)
-    cam._at = slider3(cam._at,"At",-10.0,10.0)
-    cam._eye = slider3(cam._eye,"Eye",-50.0,50.0)
-    cam._leftRightRot = slider1(cam._leftRightRot,"Left-Right",0.0,360.0)
-    cam._upDownRot = slider1(cam._upDownRot,"Up-Down",0.0,360.0)
-    cam._rotateSensitivity = slider1(cam._rotateSensitivity,"Rotate sensitivity",0.0,500.0)
-    cam._zoom = slider1(cam._zoom,"Zoom",0.0,10.0)
-    cam._zoomSensitivity = slider1(cam._zoomSensitivity,"Zoom sensitivity",0.0,100.0)
-    cam._moveSpeed = slider1(cam._moveSpeed,"Movement speed",0.0,10.0)
-end
-
-function _display!(self::ImGuiData,graph::DependentGraph)
-    CImGui.Text("Stored RenderedDependent Objects:")
-    i = 1
-    for (dependentObject) in graph._dependentObjects
-        CImGui.Text("$(i) - $(string(dependentObject))")
-        #if CImGui.TreeNode()        
-        #    CImGui.TreePop()
-        #end
-        i+=1
-    end
-end
-
-function _display!(self::ImGuiData,openglD::OpenGLData)
-
-    CImGui.Text("Background Color:")
-
-    #r = slider(openglD._backgroundCol.x,"R-(Bckg)",0.0,1.0)
-    #g = slider(openglD._backgroundCol.y,"G-(Bckg)",0.0,1.0)
-    #b = slider(openglD._backgroundCol.z,"B-(Bckg)",0.0,1.0)
-    #openglD._backgroundCol = Vec3(r,g,b)
-    openglD._backgroundCol = slider3(openglD._backgroundCol,"RGB-(Bckg)",0.0,1.0)
-    openglD._gizmoGL._pos = slider3(openglD._gizmoGL._pos,"Gizmo-(x,y,z)",-10.0,10.0)
-
-    CImGui.Text("Renderers:")
-    for renderer in openglD._renders
-        if renderer !== nothing
-            CImGui.Text("$(string(renderer))")
-        end
-    end
-
-
-
-end
-
-function resize!(self::ImGuiData)
-    self._width = self._shrd._width
-    self._height = floor(self._shrd._height * 0.3)
-    self._pos_y = self._shrd._height - self._height
-
+function resize!(self::ImGuiData,window::GLFWData)
     for widget in self._widgets
-        resize!(widget,self._shrd._width,self._shrd._height)
+        resize!(widget,Int(window.s_width),Int(window.s_height))
     end
 end
 
-function destroy!(self::ImGuiData)
+function destroy!(::ImGuiData)::Nothing
     ImPlot.DestroyContext(ImPlot.GetCurrentContext())
     CImGui.ImGui_ImplOpenGL3_Shutdown()
     CImGui.ImGui_ImplGlfw_Shutdown()
     CImGui.DestroyContext()
-
+    return nothing
 end
 

@@ -7,7 +7,7 @@ mutable struct Texture2D <: OpenGLWrapper
     _uploadFormat::GLuint
     _eachDataType::GLuint
 
-    function Texture2D(width::Int,height::Int,internalFormat::GLuint,uploadFormat::GLuint,eachDataType::GLuint)
+    function Texture2D(width,height,internalFormat::GLuint,uploadFormat::GLuint,eachDataType::GLuint)
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
         
         id = Ref{GLuint}(0)
@@ -30,12 +30,13 @@ function _updateSomeTexture!(id::GLuint,width::Int,height::Int,internalFormat::G
     glTexImage2D(GL_TEXTURE_2D,0,internalFormat,width,height,0,uploadFormat,eachDataType,data)
 end
 
+deactivate(unit::GLuint) = (glActiveTexture(unit); glBindTexture(GL_TEXTURE_2D, 0))::Nothing
 activate(self::Texture2D,unit::GLuint)::Nothing = (glActiveTexture(unit); glBindTexture(GL_TEXTURE_2D, self._id))::Nothing
 upload!(self::Texture2D,data) = _updateSomeTexture!(self._id,self._width,self._height,self._internalFormat,self._uploadFormat,self._eachDataType,data)
 upload!(self::Texture2D) = upload!(self,C_NULL)
 resize!(self::Texture2D,width::Int,height::Int) = (self._width = width; self._height = height; upload!(self))
 destroy!(self::Texture2D)::Nothing = glDeleteTextures(1,[self._id])
 
-createRGBATexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
-createIDTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT)
-createDepthTexture2D(width::Int,height::Int)::Texture2D = Texture2D(width,height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
+createRGBATexture2D(width,height)::Texture2D = Texture2D(width,height,GL_RGBA,GL_RGBA,GL_UNSIGNED_BYTE)
+createIDTexture2D(width,height)::Texture2D = Texture2D(width,height,GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT)
+createDepthTexture2D(width,height)::Texture2D = Texture2D(width,height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)

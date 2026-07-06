@@ -247,7 +247,6 @@ function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
     @time_cpu_end Renderer Line Distances Static
     
-    wait(self.distance_buffer_in)
     copyto!(self.distance_buffer_in, self.distances)
     
 end
@@ -265,7 +264,6 @@ function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
     @time_cpu_end Renderer Line Distances Dynamic
 
-    wait(last(self.distance_buffer_in_dynamic))
     @inbounds for i in 1:length(self.distances_dynamic)
         copyto!(self.distance_buffer_in_dynamic[i], self.distances_dynamic[i])
     end
@@ -564,7 +562,6 @@ function sync_all!(self::LineRenderer)::Bool
     end
     scene_change::Bool = false
     if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE || (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
-        wait(self.distance_buffer_in)
         if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE
             copyto!(self.position_width_buffer_in, self.coords_sizes)
         end
@@ -574,7 +571,6 @@ function sync_all!(self::LineRenderer)::Bool
         scene_change = true
     end
     if length(self.update_list) != 0
-        wait(last(self.distance_buffer_in_dynamic))
 
         for ref in self.update_list
             upload!(self.position_width_buffer_in_dynamic[ref], self.coords_sizes_dynamic[ref], 0)
@@ -601,7 +597,7 @@ function sync_all!(self::LineRenderer)::Bool
     return scene_change
 end
 
-function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function pre_draw(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if length(self.coords_sizes) == 0 && length(self.coords_sizes_dynamic) == 0 return nothing end
 
     prev_offset::UInt32 = 0
@@ -632,7 +628,7 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     # Static
     
     if length(self.coords_sizes) > 1
-    _calc_distances!(self,vp,Vec2F(shrd._width,shrd._height))
+    _calc_distances!(self,vp,Vec2F(window.width,window.height))
 
     bind_ssbo(self.distance_buffer_in,0)
     bind_ssbo(self.color_style_buffer_in,1)
@@ -650,12 +646,11 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     glDispatchCompute(cld(length(self.coords_sizes),32),1,1);
     @time_gpu_end Renderer Line Pre_Draw Static
     self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(self.distance_buffer_in)
     end
     # Dynamic
     
     if length(self.coords_sizes_dynamic) > 0
-    _calc_distances_dynamic!(self,vp,Vec2F(shrd._width,shrd._height))
+    _calc_distances_dynamic!(self,vp,Vec2F(window.width,window.height))
 
     bind_ssbo(self.position_distance_buffer_out_dynamic,3)
     bind_ssbo(self.color_buffer_out_dynamic,4)
@@ -682,13 +677,12 @@ function pre_draw(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     @time_gpu_end Renderer Line Pre_Draw Dynamic
 
     self.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    lock(last(self.distance_buffer_in_dynamic))
     end
 
     return nothing
 end
 
-function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
     glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
     glDeleteSync(self.gpu_gpu_sync);
@@ -731,7 +725,7 @@ function opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function behind_opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     (_, _, p) = get_matrices(cam)
     glEnable(GL_BLEND)
     glBlendColor(0.0, 0.0, 0.0, 0.4)
@@ -774,7 +768,7 @@ function behind_opaque(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function transparent(self::LineRenderer,cam::Camera,shrd::SharedData)::Nothing
+function transparent(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)

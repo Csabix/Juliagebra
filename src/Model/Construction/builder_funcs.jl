@@ -28,6 +28,9 @@ function process_item!(self::Builder, model::Model, item::_BuilderT)
     end
 end
 
+"""
+Builds InsertionTopoSubgraph field for dependents.
+"""
 function _build(model::Model, dependent::DependentDNA)::DependentDNA
     @assert isUnbuilt(dependent) "Dependent is already built!"
     
@@ -43,7 +46,9 @@ function _build(model::Model, dependent::DependentDNA)::DependentDNA
     return dependent
 end
 
-
+"""
+Builds InsertionTopoSubgraph field for subjects, then assigns the Subject to the given Observer.
+"""
 function _build(model::Model, oo::Tuple{SubjectDNA,ObserverDNA})::SubjectDNA
     subject::SubjectDNA = oo[1]
     observer::ObserverDNA = oo[2]

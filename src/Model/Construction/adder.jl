@@ -6,7 +6,10 @@
 const ADDER_IN_CHANNEL_SIZE = 8192
 
 """
-Calls added! and addedAll! calls on built Dependents if needed.
+Last stage of Construction pipeline.
+- Runs on App main-thread.
+- Sets the starting state of nodes.
+- Calls added! addedAll! events on subject-observers.
 """
 @kwdef mutable struct Adder
     _in::Channel{DependentDNA} = Channel{DependentDNA}(ADDER_IN_CHANNEL_SIZE)

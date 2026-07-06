@@ -3,6 +3,10 @@
 # ! Dependent
 # ? ---------------------------------
 
+"""
+Nodes in the Graph are represented by this struct.
+- Construction pipeline takes it through Builder -> Adder.
+"""
 mutable struct Dependent
     _graphID::Int                       
     _graphParents::Vector{<:DependentDNA} # ? Who do I Depend on?
@@ -82,8 +86,9 @@ Model will use this function, to set the node to have a starting state.
 - Will always run on App thread.
 """
 function node_start!(self::DependentDNA)
-    setEntryNodes(self)
+    beforeNodeEval(self)
     onNodeEval(self)
+    afterNodeEval(self)
 end
 
 """

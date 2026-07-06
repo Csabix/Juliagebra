@@ -20,7 +20,7 @@ Base.put!(self::Adder,o::DependentDNA) = put!(self._in,o)
 Base.isempty(self::Adder)::Bool = return isempty(self._in)
 
 
-function process_avail!(self::Adder; send_log::Bool=true, ms_limit::Float64=16.67)::Bool
+function process_avail!(self::Adder; send_log::Bool=true, ms_limit::Float64=33.333)::Bool
     # TODO: Have @invokelatest consume this whole function, if needed.
 
     avail = Base.n_avail(self._in)

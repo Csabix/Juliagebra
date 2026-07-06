@@ -34,7 +34,7 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
         deleteat!(gui.frame_times, 1:(valid_idx - 1))
     end
 
-    current_dt = Float64(app._shrd._deltaTime) * 1000.0
+    current_dt = app._delta_time * 1000.0
     if isempty(gui.frame_times)
         push!(gui.frame_times, current_dt)
     else
@@ -92,14 +92,14 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
     end
 
     items = ("Adaptive (-1)", "Off (0)", "On (1)")
-    current_idx = app._shrd._vsync_state == -1 ? 0 : (app._shrd._vsync_state == 0 ? 1 : 2)
+    current_idx = app._vsync_state == -1 ? 0 : (app._vsync_state == 0 ? 1 : 2)
 
     if CImGui.BeginCombo("VSync Interval", items[current_idx + 1])
         for i in 0:2
             is_selected = (current_idx == i)
             if CImGui.Selectable(items[i+1], is_selected)
                 new_val = i == 0 ? -1 : (i == 1 ? 0 : 1)
-                app._shrd._vsync_state = new_val
+                app._vsync_state = new_val
                 GLFW.SwapInterval(new_val) 
             end
             if is_selected

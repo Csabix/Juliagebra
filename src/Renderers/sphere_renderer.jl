@@ -125,7 +125,7 @@ function sync_all!(self::SphereRenderer)::Bool
     return scene_change
 end
 
-function opaque(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
+function opaque(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.center_radius_opaque) return nothing end
 
     glDisable(GL_CULL_FACE)
@@ -144,7 +144,7 @@ function opaque(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
     return nothing
 end
 
-function transparent(self::SphereRenderer,cam::Camera,shrd::SharedData)::Nothing
+function transparent(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.center_radius_transparent) return nothing end
     
     bind_ssbo(self.center_radius_buffer_transparent,0)

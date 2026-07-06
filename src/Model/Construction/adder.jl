@@ -17,17 +17,23 @@ Base.put!(self::Adder,o::DependentDNA) = put!(self._in,o)
 Base.isempty(self::Adder)::Bool = return isempty(self._in)
 
 
-function process_avail!(self::Adder; send_log::Bool=true)::Bool
-    # TODO: Add ms limit, so don't process further if limit is reached.
+function process_avail!(self::Adder; send_log::Bool=true, ms_limit::Float64=16.67)::Bool
     # TODO: Have @invokelatest consume this whole function, if needed.
 
     avail = Base.n_avail(self._in)
     taken = 0
     observers = Set{ObserverDNA}()
 
+    ns_limit::UInt64 = ms_to_ns(ms_limit)
+    start_time::UInt64 = time_ns()
     for i in 1:avail
         process_item!(self, take!(self._in), observers)
         taken+=1
+
+        # ? Check if ms limit is reached.
+        if time_ns() - start_time > ns_limit
+           break 
+        end
     end
     
     for observer in observers        

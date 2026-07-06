@@ -55,7 +55,6 @@ function _build(model::Model, oo::Tuple{SubjectDNA,ObserverDNA})::SubjectDNA
     # ? Build Subject - Observer connection.
     add!!(observer,subject)
 
-
     startTime = time_ns()
     # ? Build InsertionTopoSubgraph for Node.
     add!!(graph,subject)

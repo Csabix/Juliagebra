@@ -100,6 +100,7 @@ function _renderDependentsTab(self::GraphWindow, app::AppDNA)
     m::Model = getModel(app)
     graph::DependentGraph = m._graph
     
+    # TODO: Optimize Table rendering, by only showing x amount of lines.
     if (CImGui.BeginTable("Dependents",3, 
         CImGui.ImGuiTableFlags_RowBg |
         CImGui.ImGuiTableFlags_ScrollX))
@@ -145,8 +146,8 @@ function _renderEvaluationTab(self::GraphWindow, app::AppDNA)
     CImGui.Text("Scheduler")
     CImGui.Separator()
     CImGui.Text("taken: $(sc._taken)")
-    CImGui.Text("schedule: $([getGraphID(d) for d in dependentsOf(sc._schedule)])")
-    CImGui.Text("roots: $([getGraphID(d) for d in sc._roots])")
+    CImGui.Text("schedule: $(get_ids(sc._merged_subgraph))")
+    CImGui.Text("roots: $([nodeid for nodeid in sc._merged_roots])")
     CImGui.Spacing()
     CImGui.Spacing()
     CImGui.Spacing()

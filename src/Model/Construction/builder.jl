@@ -7,7 +7,9 @@ const BUILDER_IN_CHANNEL_SIZE = 8192
 const _BuilderT = Union{DependentDNA,Tuple{SubjectDNA,ObserverDNA}}
 
 """
-Builds un-built Dependents up until added! and addedAll!! calls.
+Builds un-built non-main-thread parts of Dependents.
+- Calculates data pararell to script/jupyter notebook/repl.
+- Forwards nodes to Adder.
 """
 @kwdef mutable struct Builder
     _in::Channel{_BuilderT} = Channel{_BuilderT}(BUILDER_IN_CHANNEL_SIZE)

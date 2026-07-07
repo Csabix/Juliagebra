@@ -3,24 +3,34 @@
 # ! Dependent
 # ? ---------------------------------
 
+"""
+Nodes in the Graph are represented by this struct.
+- Construction pipeline takes it through Builder -> Adder.
+"""
 mutable struct Dependent
     _graphID::Int                       
     _graphParents::Vector{<:DependentDNA} # ? Who do I Depend on?
     _entryNodes::Vector{Any}
-    _schedule::Schedule # ? Who Depends on me (collectively)?
+    _subgraph::InsertionTopoSubgraph # ? Who Depends on me (collectively)?
     _callback::Function
 
+    # ? Was this node evaled by an EvalWorker?
+    _evaledcond::CompletedCondition
+
     function Dependent(callback::Function,graphParents::Vector{<:DependentDNA})
-        schedule = Schedule()
+        schedule = InsertionTopoSubgraph()
         
         _graphParents = copy(graphParents)
         @assert allunique(_graphParents) "Dependent parents have duplicates!"
 
         entryNodes = Vector{Any}(undef,length(_graphParents))
-    
-        new(0,_graphParents,entryNodes,schedule,callback)
+        evaledcond::CompletedCondition = CompletedCondition()
+
+        new(0,_graphParents,entryNodes,schedule,callback,evaledcond)
     end
 end
+
+Base.show(::Any, ::Any, ::DependentDNA) = return nothing
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 
@@ -28,12 +38,11 @@ getGraphParents(self::DependentDNA) = return _Dependent_(self)._graphParents
 getGraphParent(self::DependentDNA,idx::Int) = return getGraphParents(self)[idx]
 getEntryNodes(self::DependentDNA) = return _Dependent_(self)._entryNodes
 getGraphID(self::DependentDNA) = return _Dependent_(self)._graphID
-getSchedule(self::DependentDNA) = return _Dependent_(self)._schedule
+get_subgraph(self::DependentDNA) = return _Dependent_(self)._subgraph
 getCallback(self::DependentDNA) = return _Dependent_(self)._callback
+get_evaledcond(self::DependentDNA)::CompletedCondition = return _Dependent_(self)._evaledcond
 
-function _isUnbuilt(self::Dependent)::Bool
-    return (self._graphID == 0)
-end
+_isUnbuilt(self::Dependent)::Bool = return (self._graphID == 0)
 isUnbuilt(self::DependentDNA)::Bool = return _isUnbuilt(_Dependent_(self))
 
 function setEntryNodes(self::DependentDNA)
@@ -69,3 +78,29 @@ end
 
 evalCallbackDpReturn(self::DependentDNA,returnVal,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of $(typeof(self)) for $(typeof(returnVal))")
 evalCallbackDpReturn(self::DependentDNA,::Nothing,returnParams...) = error("Missing \"evalCallbackDpReturn\" for subclass of DependentDNA (on Nothing)")
+
+"""
+Model will use this function, to set the node to have a starting state.
+- This function can be overridden if neccessary.
+- Function must take into parent states as well.
+- Will always run on App thread.
+"""
+function node_start!(self::DependentDNA)
+    beforeNodeEval(self)
+    onNodeEval(self)
+    afterNodeEval(self)
+end
+
+"""
+Model will use this function, to update the node's state regarding the updated parents.
+- This function can be overridden if neccessary.
+- Runs on worker specified by thread_affinity function. 
+"""
+function node_eval!(self::DependentDNA)
+    beforeNodeEval(self)
+    onNodeEval(self)
+    afterNodeEval(self)
+end
+
+
+

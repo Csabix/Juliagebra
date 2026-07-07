@@ -23,8 +23,6 @@ function add!!(collector::ObserverDNA,collected::SubjectDNA)
 
     subject._observer = collector
     subject._observerID = length(observer._subjectItems)
-
-    #push!(getSchedule(collected)._set,collector)
 end
 
 added!(itemCollector::ObserverDNA{T},item::T) where T = error("Missing \"added!\" func for types of (\"$(typeof(itemCollector))\",\"$(typeof(item))\")!")

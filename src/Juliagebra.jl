@@ -86,6 +86,7 @@ include("Widgets/imgui_widget.jl")
 include("Widgets/dock.jl")
 include("Widgets/window.jl")
 include("Widgets/reset_widget.jl")
+include("Widgets/options_widget.jl")
 
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")

@@ -1,6 +1,7 @@
 
 mutable struct OptionsWidget <: ImGuiWidgetDNA
     _widget::ImGuiWidget
+    _window::WindowDNA
 
     _posX::Int
     _posY::Int
@@ -11,7 +12,7 @@ mutable struct OptionsWidget <: ImGuiWidgetDNA
     _padding::Int
 
     function OptionsWidget()
-        new(ImGuiWidget(),0,0,0,0,0)
+        new(ImGuiWidget(),OptionsWindow(),0,0,0,0,0)
     end
 end
 
@@ -38,13 +39,15 @@ function render(self::OptionsWidget, app::AppDNA)
 
     # ? Options button
     if (CImGui.Button("\uE1AD",buttonSize))
-        println("Open options")
+        toggle!(self._window)
     end
 
     CImGui.PopFont()
     
     CImGui.End()
     CImGui.PopStyleVar(3)
+
+    render(self._window, app)
 end
 
 function resize!(self::OptionsWidget,x::Int,y::Int)

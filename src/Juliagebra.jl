@@ -100,6 +100,7 @@ include("opengl_data.jl")
 # ! Dependents
 # ? ---------------------------------
 
+include("Widgets/Windows/property_window.jl")
 include("Dependents/dependents.jl")
 
 include("Widgets/points_window.jl")

@@ -37,6 +37,55 @@ evalCallbackDpReturn(self::PointDependent,value::Vec3F) = self._coord = Vec3D(va
 evalCallbackDpReturn(self::PointDependent,value::Vec3D) = self._coord = value
 evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
+edit_dependent_overload(::PointDependent)::Bool = true
+function edit_dependent(point::PointDependent,model::Model,renderers::PrimitiveRenderers)::Nothing
+    id = getGraphID(point)
+    coord = point._coord
+    x_ref = Ref(Cdouble(coord.x))
+    y_ref = Ref(Cdouble(coord.y))
+    z_ref = Ref(Cdouble(coord.z))
+    invalidate = false
+    if CImGui.InputDouble("##x$id", x_ref, 0.0, 0.0, "%.4f")
+        point._coord = Vec3D(x_ref[],coord[2],coord[3])
+        invalidate = true
+    end
+    if CImGui.InputDouble("##y$id", y_ref, 0.0, 0.0, "%.4f")
+        point._coord = Vec3D(coord[1],y_ref[],coord[3])
+        invalidate = true
+    end
+    if CImGui.InputDouble("##z$id", z_ref, 0.0, 0.0, "%.4f")
+        point._coord = Vec3D(coord[1],coord[2],z_ref[])
+        invalidate = true
+    end
+    if invalidate schedule(model,point) end
+
+    new_color = color_edit3(point._color, "##pcol$id")
+    if new_color !== nothing
+        point._color = new_color
+        ref = getObserver(point)._refs[getObserverID(point)]
+        update_colors!(renderers.point,ref,new_color)
+    end
+
+    _POINT_STYLE_VALUES = [POINT_NONE, POINT_PLUS]
+    _POINT_STYLE_LABELS = [".", "+"]
+    cur_idx = something(findfirst(==(point._style), _POINT_STYLE_VALUES), 1) - 1
+    style_ref = Ref(Cint(cur_idx))
+    if CImGui.Combo("##pst$id", style_ref, _POINT_STYLE_LABELS, length(_POINT_STYLE_LABELS))
+        point._style = style_ref[]
+        ref = getObserver(point)._refs[getObserverID(point)]
+        update_styles!(renderers.point,ref,point._style)
+    end
+
+    CImGui.TableNextColumn()
+    size_ref = Ref(Cint(point._size))
+    if CImGui.SliderInt("##psz$id", size_ref, 0, 255)
+        point._size = UInt8(size_ref[])
+        ref = getObserver(point)._refs[getObserverID(point)]
+        update_sizes!(renderers.point,ref,point._size)
+    end
+    return nothing
+end
+
 # ? ---------------------------------
 # ! Points
 # ? ---------------------------------

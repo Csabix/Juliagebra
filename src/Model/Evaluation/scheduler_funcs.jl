@@ -1,124 +1,219 @@
 
-function startGraphWorkers!(self::Scheduler, model::Model)
+function graph_evaluation!(self::Scheduler, model::Model, mode::SingleFrameModes; time_it=true)
+    if time_it
+        @time_cpu_begin Graph_update
+        _graph_evaluation!(self, model, mode)
+        @time_cpu_end Graph_update
+        
+        block = @get_block Graph_update
+        # TODO: Save and Display theese times for benchmarks.
+        ccputime = _cputime(block)
+    else
+        _graph_evaluation!(self, model, mode)
+    end
+end
+
+function graph_evaluation!(self::Scheduler, model::Model, mode::MultipleFrameModes; time_it=true)
+    if time_it
+        @time_cpu_begin Graph_update
+        _graph_evaluation!(self, model, mode)
+    else
+        _graph_evaluation!(self, model, mode)
+    end
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameSingleThread)
+    # ? Scheduler will schedule work only to Worker0.
+    start_evaluation!(self, model)
+    # ? Modell task shall complete Worker0.
+    processUntilClosed!(getWorkers(model)[0], model)
+    # ? Worker0 forwards work to Internal Queue.
+    process_w0_avail!(getSynchronizer(model), model)
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameTwoThreads)
+    # ? Scheduler will schedule work only to Worker1.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Modell Task must process all Subject and wait for all work to be completed.
+    process_wi_until_finish!(getSynchronizer(model), model)
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameMultipleThreads)
+    # ? Scheduler will schedule work to all Workeri.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Modell Task must process all Subject and wait for all work to be completed.
+    process_wi_until_finish!(getSynchronizer(model), model)
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::MultipleFramesSingleThread)
+    # ? Scheduler will schedule work to all Workeri.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Process only available observers.
+    process_wi_avail!(getSynchronizer(model), model)
+    # ? Let Model step into next state, BuildingState.
+end
+
+function _graph_evaluation!(self::Scheduler, model::Model, ::MultipleFramesMultipleThreads)
+    # ? Scheduler will schedule work to all Workeri.
+    start_evaluation!(self, model)
+    # ? Must process Root nodes.
+    process_w0_avail!(getSynchronizer(model), model)
+    # ? Process only available observers.
+    process_wi_avail!(getSynchronizer(model), model)
+    # ? Let Model step into next state, BuildingState.
+end
+
+"""
+Scheduler will use the returned Int to find a worker for the node.
+- "-1" means any worker is fine.
+- "0" and other numbers mean that worker must be selected.
+- Can be overriden in Dependent child.
+"""
+function thread_affinity(self::DependentDNA, model::Model)::Int
+    return -1
+end
+
+"""
+Resets fields based on shcedule! calls:
+- _taken
+- _first_finish
+- _merged_subgraph
+- _merged_roots
+- Calls distribute_work! afterwards.
+"""
+function start_evaluation!(self::Scheduler, model::Model)
     sy::Synchronizer = getSynchronizer(model)
     
     self._taken = length(self)
+    self._first_finish = true
     heads::Set{DependentDNA} = Set{DependentDNA}()
-    schedules::Vector{Schedule} = []
+    subgraphs::Vector{InsertionTopoSubgraph} = []
 
     for _ in 1:self._taken
-        d::DependentDNA = popfirst!(self._in)
-        push!(schedules,getSchedule(d))
-        push!(heads,d)
+        head::DependentDNA = popfirst!(self._in)
+        push!(subgraphs,get_subgraph(head))
+        push!(heads,head)
     end
 
-    if !isempty(schedules)
-        # TODO: maybe copy to avoid GC?
-        self._schedule = merge(schedules)
+    if !isempty(subgraphs)
+        # ? Merge subgraphs.
+        copy!(self._merged_subgraph, merge(subgraphs))
         
-        # ? Filter out heads, which are not in the schedules.
-        empty!(self._roots)
-        for d in heads
-            if (d isa SubjectDNA) && !(d in dependentsOf(self._schedule))
-                push!(self._roots,d)
+        # ? Filter out heads, which are not in the merged subgraph.
+        empty!(self._merged_roots)
+        for head in heads
+            headid::Int = getGraphID(head)
+            if !(headid in get_ids(self._merged_subgraph))
+                push!(self._merged_roots,headid)
             end
         end
 
         # ? Send root Dependents for synchronization,
         # ? since they are up to date from outside modifications.
-        for d in self._roots
-            put!(sy,d)
+        for rootid in self._merged_roots
+            put_as_w0!(sy,rootid)
         end
 
         # ? Assign Dependents in the schedule to workers for onNodeEval() calls.
-        _distributeWork(self, model, self._mode)        
+        distribute_work!(self, model, self._mode)        
     end
 end
 
-function _distributeWork(self::Scheduler, model::Model, ::SingleFrameSingleThread)
+function distribute_work!(self::Scheduler, model::Model, ::SingleFrameSingleThread)
     w::EvalWorker0 = getWorkers(model)[0]
-    
-    for d in self._schedule
-        put!(w,d)
+
+    for nodeid in self._merged_subgraph
+        put!(w,nodeid)
     end
 end
 
-function _setupMultiThreadedDistribution(self::Scheduler)::Tuple{Vector{WorkerFood}, Dict{Int,Int}}
-    evaledGoal = length(self._schedule)
-    syncedGoal = 0
-
-    # ? Reset condition containers.
-    # TODO: Dynamically size and reset.
-    Base.resize!(self._evaled,0)
-    Base.resize!(self._synced,0)
+"""
+Sets up _localidxs based on Scheduler state.
+"""
+function setup_localidxs!(self::Scheduler)
+    empty!(self._localidxs)
     
-    localIDs = Dict{Int,Int}()
-    wd::Vector{WorkerFood} = []
+    # ? Setup localidxs to index graphID to local idx.
+    for idx in eachindex(get_ids(self._merged_subgraph)) 
+        # ? self._merged_subgraph[idx] == graphID
+        self._localidxs[self._merged_subgraph[idx]] = idx
+    end
+end
 
-    # ? Prepare scheduling distribution.
-    for idx in 1:length(self._schedule) 
-        d::DependentDNA = self._schedule[idx]
+"""
+Sets up conditions of nodes and:
+- _evalgoal
+- _syncGoal
+"""
+function setup_conditions_and_goals!(self::Scheduler, model::Model)
+    evalGoal = length(self._merged_subgraph)
+    syncGoal = 0
+    empty!(self._synced)
+
+    # ? Setup CompletedConditions, synced and syncedGoal of nodes in the merged_subgraph.
+    for nodeid in self._merged_subgraph 
+        node::DependentDNA = getDependentNode(model, nodeid)
         
-        # ? Collect parents's CompletedConditions.
-        conditions::Vector{CompletedCondition} = []
-        for parent in getGraphParents(d) 
-            id = getGraphID(parent)
+        # ? Node is part of merged subgraph.
+        reset_as_inside_node!(get_evaledcond(node))
 
-            if haskey(localIDs, id)
-                push!(conditions, self._evaled[localIDs[id]])
+        for parent in getGraphParents(node) 
+            if !haskey(self._localidxs, getGraphID(parent)) # ? node is not part of subgraph.
+                reset_as_outside_parent!(get_evaledcond(parent))
             end
-        end 
-        
-        # ? Create dependent's evaled CompletedCondition.
-        localIDs[getGraphID(d)] = idx
-        evaled = CompletedCondition()
-        push!(self._evaled, evaled)
-        
-        if d isa SubjectDNA
-            # ? o is Subject, so create synced condition.
-            o::SubjectDNA = d
-            syncedGoal+=1
-            push!(self._synced, false)
+        end
 
-            push!(wd, WorkerFood(conditions, SyncFood(o, length(self._synced)), evaled))
-        else
-            push!(wd, WorkerFood(conditions, d, evaled))
+        if (node isa SubjectDNA) # ? node will be sent to Synchronizer.
+            syncGoal += 1
+            self._synced[nodeid] = false    
         end
     end
 
-    # ? Reset goals.
-    reset!(self._evaledGoal, evaledGoal)
-    reset!(self._syncedGoal, syncedGoal)
-    
-    @assert length(self._schedule) == length(self._evaled) "Not enough conditions were created..."
-    @assert length(self._schedule) == length(localIDs) "Not enough parent conditions were assigned!"
-    @assert length(self._synced) == syncedGoal "Goal is inconsistent!"
-
-    return (wd, localIDs)
+    reset!(self._evalgoal, evalGoal)
+    reset!(self._syncgoal, syncGoal) 
+        
+    @assert length(self._merged_subgraph) == length(self._localidxs) "Not all nodes in subgraph have localidx!"
+    @assert length(self._synced) == syncGoal "Goal is inconsistent!"
 end
 
-function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
+function distribute_work!(self::Scheduler, model::Model, ::Union{SingleFrameTwoThreads, MultipleFramesSingleThread})
     w1::EvalWorkeri = getWorkers(model)[1]
     
-    w1d::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
+    setup_localidxs!(self)
+    setup_conditions_and_goals!(self, model)
 
-    # ? Distribute scheduling.
-    put!(w1, w1d)
+    empty!(w1)
+
+    for id in self._merged_subgraph
+        put!(w1,id)
+    end
+
+    signal_start!(w1)
 end
 
-function _calculateNodeWeights(wd::Vector{WorkerFood}, localIDs::Dict{Int, Int})::Vector{Int}
-    # ? Calculate node weights based on max height.
-    heights::Vector{Int} = [1 for _ in wd]
-    for idx in reverse(eachindex(wd))
-        d::DependentDNA = getDependent(wd[idx])
-        height = heights[localIDs[getGraphID(d)]]
+function get_node_weights(self::Scheduler, model::Model)::Vector{Int}
+    heights::Vector{Int} = [1 for _ in self._merged_subgraph]
+    
+    # ? Calculate node weights based on largest height to any sink node.
+    # ? Children of nodes are always later in the merged subgraph, hence the reverse.
+    for idx in reverse(eachindex(get_ids(self._merged_subgraph)))
+        nodeid::Int = self._merged_subgraph[idx]
+        node::DependentDNA = getDependentNode(model, nodeid)
+        node_height = heights[self._localidxs[nodeid]]
         
-        for parent in getGraphParents(d) 
-            id = getGraphID(parent)
+        for parent in getGraphParents(node) 
+            parentid::Int = getGraphID(parent)
 
-            if haskey(localIDs,id)
-                _height = heights[localIDs[id]]
-                heights[localIDs[id]] = max(_height, height+1)
+            if haskey(self._localidxs,parentid)
+                parentidx::Int = self._localidxs[parentid]
+                parent_height = heights[parentidx]
+                heights[parentidx] = max(parent_height, node_height+1)
             end
         end        
     end
@@ -126,102 +221,68 @@ function _calculateNodeWeights(wd::Vector{WorkerFood}, localIDs::Dict{Int, Int})
     return heights
 end
 
-function _assignNodesToWorkers(wd::Vector{WorkerFood}, w::Workers, heights::Vector{Int})::Vector{Int}
-    # ? Which worker gets the node at idx in heights.
+function tag_by_weights(nodeids::Vector{Int}, weights::Vector{Int}, max_workers::Int)::Vector{Int}
+    @assert length(nodeids) == length(weights) "nodeids and weights have different lengths!"
+    
+    # ? Which worker gets the node at idx in nodeids.
     tags::Vector{Int} = []
     
-    # ? For a height, which Worker is the next one.
-    heightTags::Dict{Int,Int} = Dict{Int,Int}()
-    
-    # ? For rotating between workers, which is the max.
-    tagMax = length(w)
-    
-    for idx in eachindex(wd)
-        height = heights[idx]
+    # ? For a weight, which Worker is the next one.
+    weight_next_tag::Dict{Int,Int} = Dict{Int,Int}()
+        
+    for idx in eachindex(nodeids)
+        weight::Int = weights[idx]
 
-        if !haskey(heightTags,height)
-            heightTags[height] = 0
+        if !haskey(weight_next_tag,weight)
+            weight_next_tag[weight] = 0
         else
-            _height = heightTags[height] + 1
-            heightTags[height] = (_height % tagMax)
+            next_tag = weight_next_tag[weight] + 1
+            weight_next_tag[weight] = (next_tag % max_workers)
         end
 
-        push!(tags,heightTags[height]+1)
+        # ? +1 so don't assign worker0, instead schedule [1;max_workers]
+        push!(tags,weight_next_tag[weight]+1)
     end
 
     return tags
 end
 
-function _createWorkContainers(wd::Vector{WorkerFood}, w::Workers, tags::Vector{Int})::Vector{Vector{WorkerFood}}
-    # ? Amount of workers, to distribute to.
-    tagMax = length(w)
-
-    # ? Vectors for each worker to complete.
-    wds::Vector{Vector{WorkerFood}} = [[] for _ in 1:tagMax]
-    
-    for idx in eachindex(tags)
-        push!(wds[tags[idx]], wd[idx])
-    end
-
-    return wds
-end
-
-function _isTopologicalOrdered(wd::Vector{WorkerFood})::Bool
-    localIDs::Dict{Int,Int} = Dict{Int,Int}()
-    
-    # ? gather graphID -> idx
-    for idx in eachindex(wd)
-        od::Union{SubjectDNA,DependentDNA} = getDependent(wd[idx])
-
-        @assert !haskey(localIDs, getGraphID(od)) "Dependents are not unique!"
-        localIDs[getGraphID(od)] = idx
-    end
-
-    for idx in eachindex(wd)
-        od::Union{SubjectDNA,DependentDNA} = getDependent(wd[idx])
-
-        for parent in getGraphParents(od)
-            pid = getGraphID(parent)
-            
-            if haskey(localIDs, pid)
-                pidx = localIDs[pid]
-                if idx <= pidx
-                    # ? Parent is below in the list, so topological order is violated.
-                    return false
-                end
-            end
-        end
-    end
-
-    return true
-end
-
-function _sortByWeight(wd::Vector{WorkerFood}, weights::Vector{Int})::Tuple{Vector{WorkerFood}, Vector{Int}}
+function sort_subgraph_by_weights(self::Scheduler, weights::Vector{Int})::Tuple{Vector{Int}, Vector{Int}}
     idxs = sortperm(weights; rev=true)
-    return (wd[idxs], weights[idxs])
+    return (get_ids(self._merged_subgraph)[idxs], weights[idxs])
 end
 
-function _distributeWork(self::Scheduler, model::Model, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads})
-    wd::Vector{WorkerFood}, localIDs::Dict{Int,Int} = _setupMultiThreadedDistribution(self)
-    w::Workers = getWorkers(model)
-
+function distribute_work!(self::Scheduler, model::Model, ::Union{SingleFrameMultipleThreads, MultipleFramesMultipleThreads})
+    workers::Workers = getWorkers(model)
+    
+    setup_localidxs!(self)
+    setup_conditions_and_goals!(self, model)
+    
+    for idx in 1:length(workers)
+        empty!(workers[idx])
+    end
+    
     # ? Calculate node weights.
-    heights::Vector{Int} = _calculateNodeWeights(wd, localIDs)
-    @assert length(heights) == length(wd) "Every node must get one weight!"
+    heights::Vector{Int} = get_node_weights(self, model)
+    @assert length(heights) == length(self._merged_subgraph) "Every node must get one weight!"
 
-    wd, heights = _sortByWeight(wd, heights)
-    @assert _isTopologicalOrdered(wd) "Schedule is not in topological order!"
+    sorted_data::Tuple{Vector{Int}, Vector{Int}} = sort_subgraph_by_weights(self, heights)
+    sorted_nodeids::Vector{Int} = sorted_data[1]
+    sorted_weights::Vector{Int} = sorted_data[2]
+    @assert is_topo_ordered(sorted_nodeids, get_nodes(model)) "Sorted nodeids is not in topological order!"
 
     # ? Assign nodes with weights to workers.
-    tags::Vector{Int} = _assignNodesToWorkers(wd, w, heights)
-    @assert length(tags) == length(heights) "Every weight must get one worker!"
+    tags::Vector{Int} = tag_by_weights(sorted_nodeids, sorted_weights, length(workers))
+    @assert length(tags) == length(sorted_nodeids) "Every node must get one worker!"
 
-    # ? Create work containers.
-    wds::Vector{Vector{WorkerFood}} = _createWorkContainers(wd, w, tags)
-    @assert length(wds) == length(w) "Every worker must get a container!"
+    # ? Distribute work.
+    for idx in eachindex(tags)
+        tag::Int = tags[idx]
+        put!(workers[tag],sorted_nodeids[idx])
+    end
 
-    # ? Send work.
-    for idx in eachindex(wds) 
-        put!(w[idx],wds[idx])
+    # ? Start workers.
+    for idx in 1:length(workers) 
+        signal_start!(workers[idx])
     end
 end

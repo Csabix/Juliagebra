@@ -22,7 +22,8 @@ Base.string(::MultipleFramesSingleThread) = "Multiple Frames - Single Threaded"
 struct MultipleFramesMultipleThreads <: SchedulingMode end
 Base.string(::MultipleFramesMultipleThreads) = "Multiple Frames - Multi Threaded"
 
-
+const SingleFrameModes = Union{SingleFrameSingleThread, SingleFrameTwoThreads, SingleFrameMultipleThreads}
+const MultipleFrameModes = Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
 
 """
 Manages correct graph evaluation scheduling.
@@ -30,14 +31,16 @@ Manages correct graph evaluation scheduling.
 @kwdef mutable struct Scheduler
     _in::Queue{DependentDNA} = Queue{DependentDNA}(PER_FRAME_MERGE)
     _taken::Int = 0
-    _schedule::Schedule = Schedule()
-    _roots::Set{SubjectDNA} = Set{SubjectDNA}()
+    _first_finish::Bool = false
+
+    _merged_subgraph::InsertionTopoSubgraph = InsertionTopoSubgraph()
+    _merged_roots::Set{Int} = Set{Int}()
     
-    _evaled::Vector{CompletedCondition} = Vector{CompletedCondition}()
-    _evaledGoal::AtomicGoal = AtomicGoal()
+    _localidxs::Dict{Int,Int} = Dict{Int,Int}() # ? graphID 2 local idxs.
+    _synced::Dict{Int,Bool} = Dict{Int,Bool}() # ? graphID 2 is synced.
     
-    _synced::Vector{Bool} = Vector{Bool}()
-    _syncedGoal::Goal = Goal()
+    _evalgoal::AtomicGoal = AtomicGoal()
+    _syncgoal::Goal = Goal()
 
     _mode::SchedulingMode = SingleFrameSingleThread()
     _modes::Vector{SchedulingMode} = [
@@ -53,35 +56,34 @@ Base.schedule(self::Scheduler,dependent::DependentDNA) = isfull(self) ? (@warn "
 Base.isempty(self::Scheduler)::Bool = return isempty(self._in)
 Base.length(self::Scheduler) = return length(self._in)
 Base.isfull(self::Scheduler) = return length(self._in) == PER_FRAME_MERGE
-isFinished(self::Scheduler)::Bool = return isReached(self._evaledGoal) && isReached(self._syncedGoal)
-isFinishedCorrectly!(self::Scheduler)::Bool = return _isFinishedCorrectly!(self, self._mode)
-isFinishedFirst(self::Scheduler)::Bool = return length(self._evaled)!=0 && length(self._synced)!=0
 setMode(self::Scheduler, idx::Int) = self._mode = self._modes[idx]
 getMode(self::Scheduler, idx::Int)::SchedulingMode = return self._modes[idx]
 getModesLength(self::Scheduler)::Int = return length(self._modes)
+get_mode(self::Scheduler)::SchedulingMode = return self._mode
+is_finished(self::Scheduler)::Bool = return isReached(self._evalgoal) && isReached(self._syncgoal)
+synced_node!(self::Scheduler, node::SubjectDNA) = (self._synced[getGraphID(node)]=true; increment(self._syncgoal)) 
 
+function is_finished_first!(self::Scheduler)::Bool
+    @assert is_finished(self) "Scheduler didn't finish yet!"
+    
+    if self._first_finish
+        self._first_finish = false
+        return true
+    else
+        return false
+    end
+end
 
-function _isFinishedCorrectly!(::Scheduler, ::SingleFrameSingleThread)::Bool
+function is_finished_correctly(::Scheduler, ::SingleFrameSingleThread)::Bool
     return true
 end
 
-function _isFinishedCorrectly!(self::Scheduler, ::SchedulingMode)::Bool
-    @assert isFinishedFirst(self) "Not first finish!"
-    
-    for c in self._evaled
-        if !isCompleted(c)
+function is_finished_correctly(self::Scheduler, ::SchedulingMode)::Bool
+    for synced in values(self._synced)
+        if !synced
             return false
         end
     end
-        
-    for c in self._synced
-        if c == false
-            return false
-        end
-    end
-
-    Base.resize!(self._evaled,0)
-    Base.resize!(self._synced,0)
 
     return true
 end

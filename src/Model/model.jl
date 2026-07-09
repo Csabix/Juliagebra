@@ -12,7 +12,10 @@ struct BuildingState <: ModelState end
 struct ViewingState <: ModelState end
 struct EvalingState <: ModelState end
 
-include("Nodes/schedule.jl")
+include("Nodes/subgraphs.jl")
+include("Evaluation/completed_condition.jl")
+include("Evaluation/goal.jl")
+
 include("dependent_graph.jl")
 include("Nodes/dependent.jl")
 
@@ -27,8 +30,6 @@ include("Nodes/subject.jl")
 include("Construction/builder.jl")
 include("Construction/adder.jl")
 
-include("Evaluation/completed_condition.jl")
-include("Evaluation/goal.jl")
 include("Evaluation/synchronizer.jl")
 include("Evaluation/evalworker.jl")
 include("Evaluation/scheduler.jl")
@@ -67,7 +68,7 @@ Must init the Model before use.
 function init!(self::Model)
     # YELLOW Thread start
     builderTask = Threads.@spawn begin
-        processUntilClosed!(self._builder,self)
+        process_until_closed!(self._builder,self)
     end
     errormonitor(builderTask)
 
@@ -76,7 +77,7 @@ function init!(self::Model)
     for i in 1:length(self._workers)
         # RED Thread start
         workerTask = Threads.@spawn begin
-            processUntilClosed!(self._workers[i], self)
+            process_until_closed!(self._workers[i], self)
         end
         errormonitor(workerTask)
 
@@ -136,7 +137,7 @@ Decide at the beginning of the frame, which state the model is in.
 - This state is carried until the end of endState call.
 """
 function decideState(self::Model)::ModelState
-    if !isFinished(self._scheduler)
+    if !is_finished(self._scheduler)
         @assert islocked_by_model(self._builder) "Lock lost by Model in EvalingState!"
         
         # ? I still have the lock from ViewingState or EvalingState.
@@ -183,11 +184,17 @@ function getDependentNode(self::Model, graphID::Int)::DependentDNA
     return _getDependentNode(self._graph, graphID)
 end
 
+"""
+Get all the nodes added to the model through the build! command.
+"""
+function get_nodes(self::Model)::Vector{DependentDNA}
+    return getNodes(getGraph(self))
+end
 
 # ? BuildingState
 
 function update!(self::Model, ::BuildingState)::Bool
-    return processAvailable!(self._adder)
+    return process_avail!(self._adder)
 end
 
 function endState(self::Model, state::BuildingState)
@@ -198,82 +205,22 @@ end
 
 function update!(self::Model, ::ViewingState)::Bool
     scene_change = false
+    
     if !isempty(self._scheduler)
         scene_change = true
         mode = self._scheduler._mode
-
-        if (mode isa SingleFrameSingleThread)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work only to Worker0.
-            startGraphWorkers!(self._scheduler, self)
-            # ? Modell task shall complete Worker0.
-            processUntilClosed!(getWorkers(self)[0], self)
-            # ? Worker0 forwards work to Internal Queue.
-            processInternal!(self._synchronizer)
-            @time_cpu_end Graph_update
-            
-            block = @get_block Graph_update
-            # TODO: Save and Display theese times for benchmarks.
-            ccputime = _cputime(block)
-
-        elseif (mode isa SingleFrameTwoThreads)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work only to Worker1.
-            startGraphWorkers!(self._scheduler, self)
-            # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
-            # ? Modell Task must process all Subject and wait for all work to be completed.
-            processUntilFinishedExternal!(self._synchronizer, self)
-            @time_cpu_end Graph_update
-            
-            block = @get_block Graph_update
-            # TODO: Save and Display theese times for benchmarks.
-            ccputime = _cputime(block)
-
-        elseif (mode isa SingleFrameMultipleThreads)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work to all Workeri.
-            startGraphWorkers!(self._scheduler, self)
-            # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
-            # ? Modell Task must process all Subject and wait for all work to be completed.
-            processUntilFinishedExternal!(self._synchronizer, self)
-            @time_cpu_end Graph_update
-            
-            block = @get_block Graph_update
-            # TODO: Save and Display theese times for benchmarks.
-            ccputime = _cputime(block)
-
-        elseif (mode isa MultipleFramesSingleThread)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work to all Workeri.
-            startGraphWorkers!(self._scheduler, self)
-            # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
-            # ? Process only available observers.
-            processAvailableExternal!(self._synchronizer, self)
-            # ? Let Model step into next state, BuildingState.
-        elseif (mode isa MultipleFramesMultipleThreads)
-            @time_cpu_begin Graph_update
-            # ? Scheduler will schedule work to all Workeri.
-            startGraphWorkers!(self._scheduler, self)
-            # ? Must process Root nodes.
-            processInternal!(self._synchronizer)
-            # ? Process only available observers.
-            processAvailableExternal!(self._synchronizer, self)
-            # ? Let Model step into next state, BuildingState.
-        end
+        graph_evaluation!(getScheduler(self), self, mode)
     end
+
     return scene_change
 end
 
 function endState(self::Model, state::ViewingState)
-    if isFinished(self._scheduler)
-        if isFinishedFirst(self._scheduler)
-            isCorrect = isFinishedCorrectly!(self._scheduler)
-            @assert isCorrect "Evaling didn't finish correctly!"
-            
-            if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
+    s::Scheduler = getScheduler(self)
+    
+    if is_finished(self._scheduler)
+        if is_finished_first!(self._scheduler)
+            if get_mode(s) isa MultipleFrameModes
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update
@@ -291,16 +238,15 @@ end
 
 function update!(self::Model, ::EvalingState)::Bool
     # ? Internal was processed in ViewingState, which started EvalingState.
-    return processAvailableExternal!(self._synchronizer, self)
+    return process_wi_avail!(self._synchronizer, self)
 end
 
 function endState(self::Model, state::EvalingState)
-    if isFinished(self._scheduler)
-        if isFinishedFirst(self._scheduler)
-            isCorrect = isFinishedCorrectly!(self._scheduler)
-            @assert isCorrect "Evaling didn't finish correctly!" 
-            
-            if self._scheduler._mode isa Union{MultipleFramesSingleThread, MultipleFramesMultipleThreads}
+    s::Scheduler = getScheduler(self)
+    
+    if is_finished(self._scheduler)
+        if is_finished_first!(self._scheduler)
+            if get_mode(s) isa MultipleFrameModes
                 @time_cpu_end Graph_update
                 
                 block = @get_block Graph_update

@@ -1,22 +1,5 @@
 
 # ? ---------------------------------
-# ! WorkerFood
-# ? ---------------------------------
-
-struct WorkerFood{T<:Union{DependentDNA, SyncFood}}
-    conditions::Vector{CompletedCondition}
-    data::T
-    evaled::CompletedCondition
-
-    function WorkerFood(conditions::Vector{CompletedCondition}, data::T, evaled::CompletedCondition) where {T<:Union{DependentDNA, SyncFood}}
-        new{T}(conditions, data, evaled)
-    end
-end
-
-getDependent(self::WorkerFood{<:DependentDNA})::DependentDNA = return self.data
-getDependent(self::WorkerFood{SyncFood})::SubjectDNA = return self.data.subject
-
-# ? ---------------------------------
 # ! EvalWorker
 # ? ---------------------------------
 
@@ -38,13 +21,13 @@ end
 Calls onNodeEval() on put nodes, then sends them to synchronizer.
 """
 @kwdef mutable struct EvalWorker0 <: EvalWorker
-    _in::Queue{DependentDNA} = Queue{DependentDNA}()
+    _in::Queue{Int} = Queue{Int}()
     _processedIDs::Vector{Int} = []
     _processedTimes::Vector{Float64} = []
 end
 
-Base.put!(self::EvalWorker0, d::DependentDNA) = push!(self._in,d)
-Base.take!(self::EvalWorker0)::DependentDNA = return popfirst!(self._in)
+Base.put!(self::EvalWorker0, nodeid::Int) = push!(self._in,nodeid)
+Base.take!(self::EvalWorker0)::Int = return popfirst!(self._in)
 Base.length(self::EvalWorker0) = return length(self._in)
 getProcessedIDs(self::EvalWorker0)::Vector{Int} = return self._processedIDs
 getProcessedTimes(self::EvalWorker0)::Vector{Float64} = return self._processedTimes
@@ -58,14 +41,16 @@ getProcessedTimes(self::EvalWorker0)::Vector{Float64} = return self._processedTi
 Calls onNodeEval() on put nodes, then sends them to synchronizer.
 """
 @kwdef mutable struct EvalWorkeri <: EvalWorker
-    _in::Channel{Vector{WorkerFood}} = Channel{Vector{WorkerFood}}(1)
+    _signals::Channel{Bool} = Channel{Bool}(1)
+    _ids::Vector{Int} = []
     _processedIDs::Vector{Int} = []
     _processedTimes::Vector{Float64} = []
 end
 
-Base.put!(self::EvalWorkeri, fs::Vector{WorkerFood}) = put!(self._in,fs)
-Base.take!(self::EvalWorkeri)::DependentDNA = return take!(self._in)
-destroy!(self::EvalWorkeri) = close(self._in)
+Base.put!(self::EvalWorkeri, graphID::Int) = push!(self._ids, graphID)
+Base.empty!(self::EvalWorkeri) = (empty!(self._ids);empty!(self._processedIDs);empty!(self._processedTimes))
+signal_start!(self::EvalWorkeri) = put!(self._signals,true)
+destroy!(self::EvalWorkeri) = close(self._signals)
 getProcessedIDs(self::EvalWorkeri)::Vector{Int} = return self._processedIDs
 getProcessedTimes(self::EvalWorkeri)::Vector{Float64} = return self._processedTimes
 

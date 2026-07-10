@@ -2,35 +2,46 @@ mutable struct DarkThemeWindow
     _window::Window
     _themeSwitch:: Ref{Bool}
 
+    _lRend::LineRenderer
+    _pRend::PointRenderer
+    _sRend::SphereRenderer
+    _tRend::TriangleRenderer
+
     # o stands for original
     # d stands for dark
     _oBgColor::Array{Cfloat}
     _dBgColor::Array{Cfloat}
 
-    _oPointColor::Array{Cfloat}
+    _oPointColors::Array{Cfloat}
     _dPointColor::Array{Cfloat}
 
-    _oCurveColor::Array{Cfloat}
+    _oCurveColors::Array{Cfloat}
     _dCurveColor::Array{Cfloat}
 
-    _oTriangleColor::Array{Cfloat}
+    _oTriangleColors::Array{Cfloat}
     _dTriangleColor::Array{Cfloat}
 
-    _oSphereColor::Array{Cfloat}
+    _oSphereColors::Array{Cfloat}
     _dSphereColor::Array{Cfloat}
 
-    function DarkThemeWindow(oBgColor,oPointColor,oCurveColor,oTriangleColor,oSphereColor) #These are the main colors of each primitive
-        new(Window(),false,
+    #These are values are for testing purposes.
+    function DarkThemeWindow(oBgColor,lRenderer::LineRenderer,pRenderer::PointRenderer,sRenderer::SphereRenderer,tRenderer::TriangleRenderer) 
+        new(Window(),
+        false,
+        lRenderer,
+        pRenderer,
+        sRenderer,
+        tRenderer,
         Cfloat[oBgColor[0],oBgColor[1],oBgColor[2]],
-        Cfloat[1,2,3],
-        Cfloat[oPointColor[0],oPointColor[1],oPointColor[2]],
-        Cfloat[1,2,3],
-        Cfloat[oCurveColor[0],oCurveColor[1],oCurveColor[2]],
-        Cfloat[1,2,3],
-        Cfloat[oTriangleColor[0],oTriangleColor[1],oTriangleColor[2]],
-        Cfloat[1,2,3],
-        Cfloat[oSphereColor[0],oSphereColor[1],oSphereColor[2]],
-        Cfloat[1,2,3]) 
+        Cfloat[80.0f0,80.0f0,80.0f0],
+        Cfloat[255.0f0,255.0f0,255.0f0],
+        Cfloat[100.0f0,200.0f0,100.0f0],
+        Cfloat[255.0f0,255.0f0,255.0f0],
+        Cfloat[100.0f0,200.0f0,100.0f0],
+        Cfloat[255.0f0,255.0f0,255.0f0],
+        Cfloat[100.0f0,200.0f0,100.0f0],
+        Cfloat[255.0f0,255.0f0,255.0f0],
+        Cfloat[100.0f0,200.0f0,100.0f0])
     end
 end
 
@@ -39,9 +50,18 @@ getWindowName(self::DarkThemeWindow) = "Theme Changer"
 
 function setTheme(self::DarkThemeWindow, app::AppDNA)
     if (self._themeSwitch[])
-        glClearColor(1.0f0, 1.0f0, 1.0f0, 1.0f0)
+        #spheres can't change colors yet.
+        glClearColor(self._dBgColor[1], self._dBgColor[2], self._dBgColor[3], 1.0f0)
+        #update_colors!(self._lRend,,)
+        #update_colors!(self._pRend,,)       
+        #update_color!(self._tRend,,)
+
+
     else
-        glClearColor(self._bgColor[1], self._bgColor[2], self._bgColor[3], 1.0f0)
+        glClearColor(self._obgColor[1], self._obgColor[2], self._obgColor[3], 1.0f0)
+        #update_colors!(self._lRend,,)
+        #update_colors!(self._pRend,,)
+        #update_color!(self._tRend,,)
     end 
     update!(getOpenGL(app), app._cam, true, UInt32(0))
 end

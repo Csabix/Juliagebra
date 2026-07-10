@@ -62,6 +62,7 @@ mutable struct ImGuiData <: ImGuiDNA
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())
+        push!(widgets,OptionsWidget(openglD._backgroundCol))
         
         self = new(textFont,iconFont,pool,dependents,widgets,dock)
         

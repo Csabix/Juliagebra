@@ -272,7 +272,7 @@ function _mouse_button_callback(window::GLFW.Window, button::GLFW.MouseButton, a
         type,
         UInt8(mods),
         Cint(button),
-        0.0,0.0,
+        inputs.last_x,inputs.last_y,
         0.0,0.0,
         Cint(0),Cint(0)
     )
@@ -288,7 +288,7 @@ function _scroll_callback(window::GLFW.Window, xoffset::Cdouble, yoffset::Cdoubl
         MOUSE_WHEEL,
         0x00,
         Cint(0),
-        0.0,0.0,
+        inputs.last_x,inputs.last_y,
         xoffset,yoffset,
         Cint(0),Cint(0)
     )

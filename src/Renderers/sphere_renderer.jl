@@ -1,6 +1,6 @@
 # GREEN Thread
 
-mutable struct SphereRenderer
+mutable struct SphereRenderer <: Renderer
     shader_opaque::Pipeline
     shader_transparent_front::Pipeline
     shader_transparent_back::Pipeline
@@ -43,7 +43,7 @@ mutable struct SphereRenderer
     end
 end
 
-function reset!(self::SphereRenderer)::Nothing
+function clear!(self::SphereRenderer)::Nothing
     destroy!(self.center_radius_buffer_opaque)
     destroy!(self.color_id_buffer_opaque)
     destroy!(self.center_radius_buffer_transparent)
@@ -84,20 +84,6 @@ function add!(self::SphereRenderer,coord::Vec3F,radius::Float32,color::UInt32,id
     end
 end
 
-function added_all!(self::SphereRenderer)::Nothing
-    if length(self.center_radius_opaque) != length(self.center_radius_buffer_opaque)
-        upload!(self.center_radius_buffer_opaque,self.center_radius_opaque,0)
-        upload!(self.color_id_buffer_opaque,self.color_id_opaque,0)
-        self.updated_opaque = false
-    end
-    if length(self.center_radius_transparent) != length(self.center_radius_buffer_transparent)
-        upload!(self.center_radius_buffer_transparent,self.center_radius_transparent,0)
-        upload!(self.color_id_buffer_transparent,self.color_id_transparent,0)
-        self.updated_transparent = false
-    end
-    return nothing
-end
-
 function update_coord_radius!(self::SphereRenderer,ref::UInt32,coord::Vec3F,radius::Float32,color::UInt32)
     if is_packed_opaque(color)
         self.center_radius_opaque[ref] = Vec4F(coord[1],coord[2],coord[3],radius)
@@ -108,24 +94,32 @@ function update_coord_radius!(self::SphereRenderer,ref::UInt32,coord::Vec3F,radi
     end
 end
 
-function sync_all!(self::SphereRenderer)::Bool
-    scene_change::Bool = false
+function pre_draw!(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
+    if length(self.center_radius_opaque) != length(self.center_radius_buffer_opaque)
+        upload!(self.center_radius_buffer_opaque,self.center_radius_opaque,0)
+        upload!(self.color_id_buffer_opaque,self.color_id_opaque,0)
+        self.updated_opaque = false
+    end
+    if length(self.center_radius_transparent) != length(self.center_radius_buffer_transparent)
+        upload!(self.center_radius_buffer_transparent,self.center_radius_transparent,0)
+        upload!(self.color_id_buffer_transparent,self.color_id_transparent,0)
+        self.updated_transparent = false
+    end
+
     if self.updated_opaque
         wait(self.center_radius_buffer_opaque)
         copyto!(self.center_radius_buffer_opaque,self.center_radius_opaque)
         self.updated_opaque = false
-        scene_change = true
     end
     if self.updated_transparent
         wait(self.center_radius_buffer_transparent)
         copyto!(self.center_radius_buffer_transparent,self.center_radius_transparent)
         self.updated_transparent = false
-        scene_change = true
     end
-    return scene_change
+    return nothing
 end
 
-function opaque(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_opaque!(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.center_radius_opaque) return nothing end
 
     glDisable(GL_CULL_FACE)
@@ -144,7 +138,7 @@ function opaque(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function transparent(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_transparent!(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.center_radius_transparent) return nothing end
     
     bind_ssbo(self.center_radius_buffer_transparent,0)

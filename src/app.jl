@@ -15,10 +15,8 @@ mutable struct App <: AppDNA
     _manipulator::CameraManipulator
     
     _optimizer::GlobalDependentOptimizer
-    _starter::Starter
-    _commander::Commander
-    
-    _model::Model
+
+    graph::GeometryPlotGraph
     _scene_change::Bool
 
     _asset_watcher::Union{Nothing,AssetWatcher}
@@ -41,10 +39,8 @@ mutable struct App <: AppDNA
         
         manipulator = create_orbital_manipulator(cam)
         optimizer = GlobalDependentOptimizer()
-        starter = Starter()
-        commander = Commander()
-        
-        model = Model()
+
+        graph = GeometryPlotGraph()
 
         asset_watcher::Union{Nothing,AssetWatcher} = nothing
         if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
@@ -58,7 +54,7 @@ mutable struct App <: AppDNA
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state)
+            optimizer,graph,false,asset_watcher,hovered,delta_time,vsync_state)
     end
 end
 
@@ -66,9 +62,6 @@ getGLFW(self::App) = return self._glfw
 getOpenGL(self::App) = return self._opengl
 getDependentObservers(self::App) = getOpenGL(self)._observers
 getImGui(self::App) = return self._imgui
-getCommander(self::App)::Commander = return self._commander
-getStarter(self::App)::Starter = return self._starter
-getModel(self::App)::Model = return self._model
 sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 
 function resize!(self::App, event::Event)::Bool
@@ -114,11 +107,14 @@ function updateCam!(self::App,delta_time::Float64)::Bool
     return change
 end
 
-# GREEN Thread
-function play!(self::App)
-    init!(self)
-    notify(self._starter)
+struct GizmoPlaceHolder end
+function clear!(app::App)
+    clear!(app.graph)
+    for _ in 1:3 add!(app.graph,GizmoPlaceHolder(),nothing,nothing,NodeFlag(0)) end
+    clear!(app._opengl)
+end
 
+function play!(self::App)
     old_time::Float64 = time()
     while(!get_shouldclose(self._glfw))
         yield()
@@ -126,20 +122,24 @@ function play!(self::App)
         new_time::Float64 = time()
         delta_time = new_time - old_time
         old_time = new_time
+        self._delta_time = delta_time
         if self._asset_watcher !== nothing update!(self._asset_watcher,delta_time) end
         self._scene_change |= updateCam!(self,delta_time)
+
         
-        model::Model = self._model
+        
+        #model::Model = self._model
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
 
         # ? Begin model operations with decided state.
-        state::ModelState = decideState(model)
+        #state::ModelState = decideState(model)
         
         # ? Do model operations with state.
-        update!(self,state,iconified)
+        update!(self,iconified)
+
 
         # ? End model state.
-        endState(model,state)
+        #endState(model,state)
         
         self._scene_change = false
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
@@ -156,18 +156,56 @@ function play!(self::App)
     
 end
 
-function update!(self::App, state::ViewingState, iconified::Bool)
-    model::Model = self._model
+function update!(self::App, iconified::Bool)
+    update!(self.graph, self._delta_time, NodeHandle(4))
+    self._scene_change = true
+    thread_count::Int64 = Base.Threads.nthreads()
+    if thread_count == 1
+        lock_read(self.graph.lck)
+        try
+            invokelatest(validate!,self.graph,NodeHandle(4))
+        finally
+        unlock_read(self.graph.lck)
+        end
+    else
+        @sync begin
+            for _ in 1:thread_count
+                Base.Threads.@spawn begin
+                    lock_read(self.graph.lck)
+                    try
+                        invokelatest(validate!,self.graph,NodeHandle(4))
+                    finally
+                        unlock_read(self.graph.lck)
+                    end
+                end
+            end
+            lock_read(self.graph.lck)
+            try
+                invokelatest(validate!,self.graph,NodeHandle(1))
+            finally
+                unlock_read(self.graph.lck)
+            end
+        end
+    end
     
     # ? Handle commands in the command queue.
-    handleCommands!(self)
+    #handleCommands!(self)
     # ? Schedule a PointDependent.
     #updateGizmo!(self)
     # ? Schedule ToggleDependents, SliderDependents, TextBoxDependents and StepperDependents.
+    if self.graph.needs_render_count[] > 0
+        for index in eachindex(self.graph.nodes)
+            if (has_geom_flag(self.graph.nodes[index],NODE_UPDATE_RENDER))
+                render_node(self.graph.elements[index],self._opengl._renderers,UInt32(index))
+                unset_geom_flags!(self.graph.nodes[index],NODE_UPDATE_RENDER)
+                atomic_sub!(self.graph.needs_render_count,UInt64(1))
+            end
+        end
+    end
     update!(self._imgui,self)
             
     # ? Do sync! and syncAll! calls.
-    self._scene_change |= update!(model,state)
+    #self._scene_change |= update!(model,state)
             
     if !iconified
         # ? Render scene and dock.
@@ -176,7 +214,7 @@ function update!(self::App, state::ViewingState, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
-
+#=
 function update!(self::App, state::BuildingState, iconified::Bool)
     model::Model = self._model
     
@@ -204,7 +242,7 @@ function update!(self::App, state::EvalingState, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
-
+=#
 function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
@@ -217,8 +255,7 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
-
-    init!(self._model)
+    clear!(self)
 end
 
 function destroy!(self::App)
@@ -230,8 +267,6 @@ function destroy!(self::App)
     destroy!(self._imgui)
     destroy!(self._opengl)
     deinit!(self._glfw)
-    destroy!(self._commander)
-    destroy!(self._model)
 end
 
 export App

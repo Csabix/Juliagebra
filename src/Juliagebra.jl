@@ -1,17 +1,9 @@
-# ! All files should be imported here to prevent circular includes.
-
 module Juliagebra
 
-include("asset_watcher.jl")
-include("logger.jl")
-
-include("GL/gl.jl")
-
+using ModernGL
 using JuliaGLM
-
 using LinearAlgebra
 using GLFW
-using ModernGL
 using CImGui
 using ImPlot
 using DataStructures
@@ -20,17 +12,30 @@ using BitFlags
 #pinthreads(:cores)
 import MacroTools
 
+include("logger.jl")
 include("profiling.jl")
 include("performance_metrics.jl")
 
+include("asset_watcher.jl")
+
+include("GL/gl.jl")
+
+
 include("commons.jl")
+
+include("glfw_data.jl")
+
+include("camera.jl")
+include("camera_manipulator.jl")
+
+include("Renderers/renderers.jl")
 
 include("abstracts.jl")
 include("App/enums.jl")
 
 # Forward-declare typed globals before any file references them (Julia 1.11 typed globals requirement)
 global implicitApp::Union{AppDNA,Nothing} = nothing
-global greenTask::Union{Any,Nothing} = nothing
+global _task::Any = nothing
 
 # ? ---------------------------------
 # ! Helpers
@@ -45,6 +50,8 @@ include("Helpers/scene.jl")
 include("Helpers/infer.jl")
 include("Helpers/dependency_lookup.jl")
 
+include("Graph/graph.jl")
+
 # ? ---------------------------------
 # ! Primitives
 # ? ---------------------------------
@@ -57,8 +64,8 @@ include("Primitives/primitive_constructors.jl")
 # ! Model
 # ? ---------------------------------
 
-include("Model/model.jl")
-include("Dependents/extra_model_abstracts.jl")
+#include("Model/model.jl")
+#include("Dependents/extra_model_abstracts.jl")
 
 # ? ---------------------------------
 # ! LBVH
@@ -70,11 +77,6 @@ include("LBVH/lbvh.jl")
 include("LBVH/lbvh_cache.jl")
 
 const ID_LOWER_BOUND::Int = 3
-
-include("glfw_data.jl")
-
-include("camera.jl")
-include("camera_manipulator.jl")
 
 # ? ---------------------------------
 # ! Widgets
@@ -92,30 +94,73 @@ include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
 include("Widgets/Windows/frame_time_window.jl")
 
-include("Renderers/renderers.jl")
 include("opengl_data.jl")
 
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
 
-include("Dependents/dependents.jl")
-
-include("Widgets/points_window.jl")
-include("Widgets/curves_window.jl")
-include("Widgets/surfaces_window.jl")
+#include("Widgets/points_window.jl")
+#include("Widgets/curves_window.jl")
+#include("Widgets/surfaces_window.jl")
 
 include("global_dependent_optimizer.jl")
 
 include("Widgets/Windows/gui_dependents_window.jl")
-include("Widgets/Windows/graph_window.jl")
+#include("Widgets/Windows/graph_window.jl")
+include("Widgets/Windows/property_window.jl")
 
 include("imgui_data.jl")
 
-include("App/starter.jl")
-include("App/commander.jl")
+#include("App/starter.jl")
+#include("App/commander.jl")
 include("app.jl")
 
+function plot()::Nothing
+    global implicitApp
+    if implicitApp === nothing
+        implicitApp = App()
+        init!(implicitApp)
+        global _task
+        _task = ThreadPinning.@spawnat 1 begin
+            play!(implicitApp)
+            _task = nothing
+            println("ThreadID($(Threads.threadid())): App Ended!")
+        end
+        errormonitor(_task)
+    end
+    return nothing
+end
 
+function add_node!(element::Any,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
+    plot()
+    global implicitApp
+    app::App = implicitApp::App
+    return add!(app.graph,element,parents,nothing,UInt64(0))
+end
+
+function add_node!(callback::Function,element::Any,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
+    plot()
+    global implicitApp
+    app::App = implicitApp::App
+    return add!(app.graph,element,parents,callback,UInt64(0))
+end
+
+function get_element(handle::NodeHandle)::Any
+    global implicitApp
+    if implicitApp === nothing throw("No active window") end
+    app::App = implicitApp::App
+    return app.graph.elements[handle]
+end
+
+function Wait()
+    global _task
+    if _task === nothing return end
+    wait(_task)
+end
+
+include("Dependents/dependents.jl")
+
+export plot
 
 end

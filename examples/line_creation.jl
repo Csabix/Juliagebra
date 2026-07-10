@@ -33,7 +33,7 @@ function draw_vector(origin, dir; color="c", style="->", width=5.0f0)
         d3 = Vec3D(d[1], 0.0, d[2])
         return o + d3
     end
-    Segment(origin, offset; color=color, style=style, width=width)
+    Segment(origin, offset; color=color, style=style, size=width)
 end
 
 const add_offset = (p, o, w) -> begin
@@ -286,9 +286,9 @@ function curve_segment(pA, pB, pC, pD, line_width)
     r4 = Point(add_offset, [pC, end_left_offset, line_width]; size=0)
     r5 = Point(add_offset, [pC, end_third_offset, line_width]; size=0)
 
-    triangle(r1, r2, r3, (1, 0, 0))
-    triangle(r3, r2, r4, (0, 1, 0))
-    triangle(r3, r4, r5, (0, 0, 1))
+    triangle(r1, r2, r3, (1.0, 0.0, 0.0))
+    triangle(r3, r2, r4, (0.0, 1.0, 0.0))
+    triangle(r3, r4, r5, (0.0, 0.0, 1.0))
     #=
     @ValueHolder(Float64) do
         cos_abc = abs(dot(dir_AB,normalize(inner_ABC)))

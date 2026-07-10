@@ -43,7 +43,7 @@ function add!(points_data::PointsData,coords,colors,styles,sizes,ids)
     last_length = length(points_data.coords)
     append!(points_data.coords, coords)
     coords_length = length(points_data.coords) - last_length
-    for (color,style,size,id) in zip(take(colors,coords_length), styles, sizes, ids)
+    for (color,style,size,id) in zip(Iterators.take(colors,coords_length), styles, sizes, ids)
         prop = pack_point_property(color,style,size,id)
         push!(points_data.color_sizes, prop[1])
         push!(points_data.style_ids,   prop[2])
@@ -113,7 +113,7 @@ function update_properties!(points_data::PointsData, color::UInt32, style::UInt8
     points_data.style_ids[offset]   = prop[2]
 end
 function update_properties!(points_data::PointsData, len::Int, colors, styles, sizes, ids, offset::Int = 1)
-    for (i,(color,style,size,id)) in enumerate(zip(take(colors,len), styles, sizes, ids))
+    for (i,(color,style,size,id)) in enumerate(zip(Iterators.take(colors,len), styles, sizes, ids))
         update_properties!(points_data,color,style,size,id,offset+i-1)
     end
 end
@@ -123,7 +123,7 @@ function update!(points_data::PointsData, coords, colors, styles, sizes, ids)
     empty!(points_data.color_sizes)
     empty!(points_data.style_ids)
     append!(points_data.coords, coords)
-    for (color,style,size,id) in zip(take(colors,length(coords)), styles, sizes, ids)
+    for (color,style,size,id) in zip(Iterators.take(colors,length(coords)), styles, sizes, ids)
         prop = pack_point_property(color,style,size,id)
         push!(points_data.color_sizes, prop[1])
         push!(points_data.style_ids,   prop[2])
@@ -158,7 +158,7 @@ end
 
 Base.length(points_data::PointsData)::Int = length(points_data.coords)
 
-mutable struct PointRenderer
+mutable struct PointRenderer <: Renderer
     shader::Pipeline
     shader_behind::Pipeline
     points::Vector{PointsData}
@@ -185,7 +185,7 @@ mutable struct PointRenderer
     end
 end
 
-function reset!(self::PointRenderer)::Nothing
+function clear!(self::PointRenderer)::Nothing
     foreach(destroy!,self.points)
     self.points = PointsData[PointsData()]
     self.updates = PointPropertyUpdate[_POINT_PROP_NONE]
@@ -215,8 +215,6 @@ function add_dynamic!(self::PointRenderer,coords,colors,styles,sizes,ids)::UInt3
     push!(self.updates, _POINT_PROP_NONE)
     return length(self.points)
 end
-
-added_all!(self::PointRenderer)::Nothing = foreach(added_all!,self.points)
 
 function update_coords!(self::PointRenderer,ref::UInt32,coord::Vec3F)
     update_coords!(self.points[1], coord, Int(ref))
@@ -277,7 +275,8 @@ function update_styles_dynamic!(self::PointRenderer,ref::UInt32,styles)
     self.updates[ref] |= _POINT_PROP_STYLE_ID
 end
 
-function sync_all!(self::PointRenderer)::Bool
+function pre_draw!(self::PointRenderer, ::Camera, ::GLFWData)::Bool
+    foreach(added_all!,self.points)
     all(u -> u == _POINT_PROP_NONE, self.updates) && return false
     
     wait(self.points[1].buffer[1])
@@ -290,7 +289,7 @@ function sync_all!(self::PointRenderer)::Bool
     return true
 end
 
-function opaque(self::PointRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_opaque!(self::PointRenderer, ::Camera, ::GLFWData)::Nothing
     activate(self.shader)
     @time_gpu_begin Renderer Point
     for points_data in self.points
@@ -304,7 +303,8 @@ function opaque(self::PointRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function behind_opaque(self::PointRenderer,cam::Camera,window::GLFWData)::Nothing
+visible_behind_opaque(self::PointRenderer)::Bool = true
+function draw_behind_opaque!(self::PointRenderer, ::Camera, ::GLFWData)::Nothing
     activate(self.shader_behind)
     for points_data in self.points
         if length(points_data.coords) != 0

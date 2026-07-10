@@ -488,7 +488,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
         push!(init_block.args, quote
             $sym_gs = 0
 
-            if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa DependentDNA
+            if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
                 push!($gs_captured_deps, $(esc(sym)))
                 $sym_gs = length($gs_captured_deps)
             end
@@ -512,7 +512,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
     base_cb_args = [esc(arg_sym) for arg_sym in callback.args[1].args]
 
     return quote
-        $gs_captured_deps = Vector{DependentDNA}()
+        $gs_captured_deps = Vector{NodeHandle}()
 
         $init_block
 

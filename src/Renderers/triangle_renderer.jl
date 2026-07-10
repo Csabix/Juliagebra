@@ -4,7 +4,7 @@ struct _TriangleTransform
     _TriangleTransform(M::Mat4T{Float32}) = new(M,inv(transpose(M)))
 end
 
-mutable struct TriangleRenderer
+mutable struct TriangleRenderer <: Renderer
     shader_calc_normals::Pipeline
     shader_opaque::Pipeline
     shader_transparent::Pipeline
@@ -38,7 +38,7 @@ mutable struct TriangleRenderer
     end
 end
 
-function reset!(self::TriangleRenderer)::Nothing
+function clear!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
 
     self.buffers = Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}()
@@ -78,21 +78,6 @@ function _triangle_renderer_buffer_array()
     return BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}(attributes)
 end
 
-function added_all!(self::TriangleRenderer)::Nothing
-    if length(self.buffers) != length(self.coords)
-        for i in (length(self.buffers)+1):length(self.coords)
-            buffer = _triangle_renderer_buffer_array()
-            upload!(buffer,1,self.coords[i],GL_DYNAMIC_STORAGE_BIT)
-            N = length(self.coords[i])
-            reserve!(buffer,2,N,0)
-            reserve!(buffer,3,N,0)
-            glClearNamedBufferSubData(id(buffer[3]),GL_RG32UI,0,N * sizeof(Vec2T{UInt32}), GL_RG_INTEGER, GL_UNSIGNED_INT, self.color_ids[i])
-            push!(self.buffers, buffer)
-            push!(self.update_normals,UInt32(i))
-        end
-    end
-end
-
 function update_coords!(self::TriangleRenderer,ref::UInt32,coords)::Nothing
     empty!(self.coords[ref])
     append!(self.coords[ref],(Vec4F(c[1],c[2],c[3],1.0f0) for c in coords))
@@ -105,7 +90,20 @@ function update_matrix!(self::TriangleRenderer,ref::UInt32,matrix::Mat4T{Float32
     return nothing
 end
 
-function sync_all!(self::TriangleRenderer)::Bool
+function pre_draw!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
+    if length(self.buffers) != length(self.coords)
+        for i in (length(self.buffers)+1):length(self.coords)
+            buffer = _triangle_renderer_buffer_array()
+            upload!(buffer,1,self.coords[i],GL_DYNAMIC_STORAGE_BIT)
+            N = length(self.coords[i])
+            reserve!(buffer,2,N,0)
+            reserve!(buffer,3,N,0)
+            glClearNamedBufferSubData(id(buffer[3]),GL_RG32UI,0,N * sizeof(Vec2T{UInt32}), GL_RG_INTEGER, GL_UNSIGNED_INT, self.color_ids[i])
+            push!(self.buffers, buffer)
+            push!(self.update_normals,UInt32(i))
+        end
+    end
+    
     for i in self.update_normals
         buffer = self.buffers[i]
         if length(self.coords[i]) != length(buffer)
@@ -125,10 +123,7 @@ function sync_all!(self::TriangleRenderer)::Bool
             glClearNamedBufferSubData(id(buffer[3]),GL_RG32UI,0,N * sizeof(Vec2T{UInt32}), GL_RG_INTEGER, GL_UNSIGNED_INT, self.color_ids[i])
         end
     end
-    return !isempty(self.update_normals) || !isempty(self.color_updates)
-end
-
-function pre_draw(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
+    
     if isempty(self.update_normals) return nothing end
     activate(self.shader_calc_normals)
     for i in self.update_normals
@@ -148,7 +143,7 @@ function pre_draw(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function opaque(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_opaque!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.coords) return nothing end
     if !isempty(self.update_normals) || !isempty(self.color_updates)
         glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
@@ -169,7 +164,7 @@ function opaque(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function transparent(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_transparent!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.coords) return nothing end
     glDisable(GL_CULL_FACE)
 

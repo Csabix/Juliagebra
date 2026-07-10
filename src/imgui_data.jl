@@ -4,10 +4,10 @@
 # ? ---------------------------------
 
 # BLUE Thread
-Dependent2Observer(app::AppDNA, ::ToggleDependent) = getImGui(app)._pool[1]
-Dependent2Observer(app::AppDNA, ::SliderDependent) = getImGui(app)._pool[2]
-Dependent2Observer(app::AppDNA, ::TextBoxDependent) = getImGui(app)._pool[3]
-Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
+#Dependent2Observer(app::AppDNA, ::ToggleDependent) = getImGui(app)._pool[1]
+#Dependent2Observer(app::AppDNA, ::SliderDependent) = getImGui(app)._pool[2]
+#Dependent2Observer(app::AppDNA, ::TextBoxDependent) = getImGui(app)._pool[3]
+#Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 
 const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
 
@@ -15,8 +15,8 @@ mutable struct ImGuiData <: ImGuiDNA
     _textFont::Ptr{CImGui.lib.ImFont}
     _iconFont::Ptr{CImGui.lib.ImFont}
 
-    _pool::Vector{GuiRendererDNA}
-    _dependents::Vector{GuiDependentDNA}
+    #_pool::Vector{GuiRendererDNA}
+    #_dependents::Vector{GuiDependentDNA}
 
     _widgets::Vector{ImGuiWidgetDNA}
     _dock::Dock
@@ -25,7 +25,7 @@ mutable struct ImGuiData <: ImGuiDNA
     function ImGuiData(app::AppDNA)
         glfwD::GLFWData = getGLFW(app)
         openglD::OpenGLData = getOpenGL(app)
-        model::Model = getModel(app)
+        graph::GeometryPlotGraph = app.graph
 
         imgui_context = CImGui.CreateContext()
         
@@ -44,25 +44,23 @@ mutable struct ImGuiData <: ImGuiDNA
         iconFont = CImGui.AddFontFromFileTTF(unsafe_load(io.Fonts),joinpath(_FONT_FOLDER,"MaterialSymbolsRounded.ttf"),24)
 
         # ? It's empty because "resetObservers!" initializes it.
-        pool::Vector{GuiRendererDNA} = []
-        dependents::Vector{GuiDependentDNA} = []
+        #pool::Vector{GuiRendererDNA} = []
+        #dependents::Vector{GuiDependentDNA} = []
 
         widgets = Vector{ImGuiWidgetDNA}()
         dock = Dock()
 
-        add!(dock,GuiDependentsWindow())
+        add!(dock,GuiDependentsWindow(graph))
         add!(dock,Console())
         add!(dock,PerformanceWindow())
-        add!(dock,GraphWindow())
-        add!(dock,PointsWindow(model,openglD._renderers.point))
-        add!(dock,CurvesWindow(model,openglD._renderers.line))
-        add!(dock,SurfacesWindow(model,openglD._renderers.triangle))
+        #add!(dock,GraphWindow())
+        add!(dock,PropertyWindow(graph,openglD._renderers))
         add!(dock,FrameTime())
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())
         
-        self = new(textFont,iconFont,pool,dependents,widgets,dock)
+        self = new(textFont,iconFont,#=pool,dependents,=#widgets,dock)
         
         resetObservers!(self)
         resize!(self,glfwD)
@@ -71,15 +69,15 @@ mutable struct ImGuiData <: ImGuiDNA
 end
 
 function resetObservers!(self::ImGuiData)
-    self._dependents = Vector{GuiDependentDNA}()
-    
+    #self._dependents = Vector{GuiDependentDNA}()
+    #
     # ? Let the garbage collector handle old Observers.
-    self._pool::Vector{GuiRendererDNA} = [
-        ToggleRenderer(self),   # ? 1
-        SliderRenderer(self),   # ? 2
-        TextBoxRenderer(self),  # ? 3
-        StepperRenderer(self)   # ? 4
-    ]
+    #self._pool::Vector{GuiRendererDNA} = [
+    #    ToggleRenderer(self),   # ? 1
+    #    SliderRenderer(self),   # ? 2
+    #    TextBoxRenderer(self),  # ? 3
+    #    StepperRenderer(self)   # ? 4
+    #]
 end
 
 function render!(self::ImGuiData,app::AppDNA)
@@ -97,18 +95,18 @@ function render!(self::ImGuiData,app::AppDNA)
 end
 
 function update!(self::ImGuiData, app::AppDNA)
-    tgl::ToggleRenderer = self._pool[1]
-    slr::SliderRenderer = self._pool[2]
-    txt::TextBoxRenderer = self._pool[3]
-    str::StepperRenderer = self._pool[4]
-    
-    update!(tgl,app)
-    update!(slr,app)
-    update!(txt,app)
-    update!(str,app)
-
-
-    update!(self._dock._windows[4],getModel(app))
+    #tgl::ToggleRenderer = self._pool[1]
+    #slr::SliderRenderer = self._pool[2]
+    #txt::TextBoxRenderer = self._pool[3]
+    #str::StepperRenderer = self._pool[4]
+    #
+    #update!(tgl,app)
+    #update!(slr,app)
+    #update!(txt,app)
+    #update!(str,app)
+    #
+    #
+    #update!(self._dock._windows[4],getModel(app))
 end
 
 function renderBuildingState(::Any, ::AppDNA)

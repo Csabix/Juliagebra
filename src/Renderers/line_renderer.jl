@@ -25,7 +25,7 @@ end
 export SOLID, DASHED, DOTTED, 
         WAVE, DASH_DOT, ARROW, ARROW_REVERSED
 
-mutable struct LineRenderer
+mutable struct LineRenderer <: Renderer
     updated::LinePropertyUpdate
     emptyVAO::VertexArray
 
@@ -269,7 +269,7 @@ function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
     end
 end
 
-function reset!(self::LineRenderer)::Nothing
+function clear!(self::LineRenderer)::Nothing
     destroy!(self.distance_buffer_in)
     destroy!(self.color_style_buffer_in)
     destroy!(self.position_width_buffer_in)
@@ -358,7 +358,7 @@ function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::
     last = length(self.coords_sizes)
     push!(self.coords_sizes, Vec4FNan)
 
-    append!(self.color_style, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
+    append!(self.color_style, (pack_color_reversed(color,reversed) for color in Iterators.take(colors,length(coords))))
     push!(self.color_style, UInt32(0))
 
     push!(self.ranges,tuple(first,last,Int(type)))
@@ -377,7 +377,7 @@ function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::
     color_style = Vector{UInt32}()
     sizehint!(color_style, 2 + length(coords))
     push!(color_style, 0x0)
-    append!(color_style, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
+    append!(color_style, (pack_color_reversed(color,reversed) for color in Iterators.take(colors,length(coords))))
     push!(color_style, 0x0)
     push!(self.color_style_dynamic, color_style)
 
@@ -426,18 +426,6 @@ function added_dynamic!(self::LineRenderer)::Nothing
     reserve!(self.begin_pos_rad_dynamic,N,0)
     reserve!(self.sdf_buffer_out_dynamic,5*N,0)
     reserve!(self.end_pos_rad_dynamic,5*N,0)
-    return nothing
-end
-
-function added_all!(self::LineRenderer)::Nothing
-    N = length(self.coords_sizes)
-    if N != length(self.position_width_buffer_in) && N > 1
-        added_static!(self)
-    end
-
-    if length(self.coords_sizes_dynamic) != length(self.position_width_buffer_in_dynamic)
-        added_dynamic!(self)
-    end
     return nothing
 end
 
@@ -508,7 +496,7 @@ function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width:
     color_style = self.color_style_dynamic[ref]
     empty!(color_style)
     push!(color_style, 0x0)
-    append!(color_style, (pack_color_reversed(color,reversed) for color in take(colors,length(coords))))
+    append!(color_style, (pack_color_reversed(color,reversed) for color in Iterators.take(colors,length(coords))))
     push!(color_style, 0x0)
 
     self.types_dynamic[ref] = type
@@ -555,12 +543,20 @@ function update_size_dynamic!(self::LineRenderer,ref::UInt32,size::Float32)::Not
     return nothing
 end
 
-function sync_all!(self::LineRenderer)::Bool
+function pre_draw!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
+    N = length(self.coords_sizes)
+    if N != length(self.position_width_buffer_in) && N > 1
+        added_static!(self)
+    end
+
+    if length(self.coords_sizes_dynamic) != length(self.position_width_buffer_in_dynamic)
+        added_dynamic!(self)
+    end
+    
     if (self.updated & _LINE_PROP_STYLE) == _LINE_PROP_STYLE
         _sort_lines!(self)
         self.updated |= _LINE_PROP_COORD_SIZE | _LINE_PROP_COLOR_STYLE
     end
-    scene_change::Bool = false
     if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE || (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
         if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE
             copyto!(self.position_width_buffer_in, self.coords_sizes)
@@ -568,7 +564,6 @@ function sync_all!(self::LineRenderer)::Bool
         if (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
             upload!(self.color_style_buffer_in, self.color_style, 0)
         end
-        scene_change = true
     end
     if length(self.update_list) != 0
 
@@ -591,13 +586,9 @@ function sync_all!(self::LineRenderer)::Bool
             reserve!(self.sdf_buffer_out_dynamic,5*N,0)
             reserve!(self.end_pos_rad_dynamic,5*N,0)
         end
-        scene_change = true
     end
     self.updated = _LINE_PROP_NONE
-    return scene_change
-end
 
-function pre_draw(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if length(self.coords_sizes) == 0 && length(self.coords_sizes_dynamic) == 0 return nothing end
 
     prev_offset::UInt32 = 0
@@ -682,7 +673,7 @@ function pre_draw(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_opaque!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
     glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
     glDeleteSync(self.gpu_gpu_sync);
@@ -725,7 +716,8 @@ function opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function behind_opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
+visible_behind_opaque(self::LineRenderer)::Bool = true
+function draw_behind_opaque!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     (_, _, p) = get_matrices(cam)
     glEnable(GL_BLEND)
     glBlendColor(0.0, 0.0, 0.0, 0.4)
@@ -768,7 +760,7 @@ function behind_opaque(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function transparent(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
+function draw_transparent!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
     if (any(x -> x[2] != 0, self.draw_ranges))
 
     activate(self.emptyVAO)

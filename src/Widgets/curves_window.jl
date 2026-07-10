@@ -21,9 +21,9 @@ end
 function set_color(r::LineRenderer,d::SegmentSequenceDependent)
     ref = getObserver(d)._refs[getObserverID(d)]
     if d._break_every >= 2
-        update_colors_dynamic!(r,ref,custom_interleaver(collect(Iterators.take(Iterators.cycle(d._colors),length(d._values))),zero(UInt32),d._break_every))
+        update_colors_dynamic!(r,ref,custom_interleaver(collect(take(cycle(d._colors),length(d._values))),zero(UInt32),d._break_every))
     else
-        update_colors_dynamic!(r,ref,Iterators.cycle(d._colors))
+        update_colors_dynamic!(r,ref,cycle(d._colors))
     end
 end
 

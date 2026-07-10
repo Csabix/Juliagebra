@@ -4,10 +4,10 @@
 # ? ---------------------------------
 
 @kwdef mutable struct GlobalDependentOptimizer
-    _intersectionPrimitiveIters::Dict{DependentDNA,DependentDNA} = Dict{DependentDNA,DependentDNA}()
+    _intersectionPrimitiveIters::Dict{Any,Any} = Dict{Any,Any}()
 end
 
-function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::DependentDNA,T::Type{<:Primitive},call::Function)
+function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::Any,T::Type{<:Primitive},call::Function)
     local gvh::GenericValueHolderDependent
     
     if (haskey(self._intersectionPrimitiveIters,geometry))
@@ -20,7 +20,7 @@ function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::
     return gvh
 end
 
-function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::DependentDNA,T::Type{<:AABBPrimitive})::LazyLBVHDependent{PrimitivesOf{T}}
+function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::Any,T::Type{<:AABBPrimitive})::LazyLBVHDependent{PrimitivesOf{T}}
     local llbvh::LazyLBVHDependent{PrimitivesOf{T}}
     
     if (haskey(self._intersectionPrimitiveIters,geometry))

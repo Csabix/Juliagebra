@@ -1,16 +1,26 @@
-using Base.Iterators: cycle, take, map as imap
+abstract type Renderer end
 
-function packUnorm4x8(v::Vec3T{T})::UInt32 where T <: AbstractFloat
-    return  packUnorm4x8(Vec4F(Float32(v[1]),Float32(v[2]),Float32(v[3]),Float32(1.0)))
+clear!(::Renderer)::Nothing = nothing
+destroy!(::Renderer)::Nothing = nothing
+
+pre_draw!(::Renderer, ::Camera, ::GLFWData)::Nothing = nothing
+draw_ui!(::Renderer, ::Camera, ::GLFWData)::Nothing = nothing
+draw_opaque!(::Renderer, ::Camera, ::GLFWData)::Nothing = nothing
+draw_behind_opaque!(::Renderer, ::Camera, ::GLFWData)::Nothing = nothing
+visible_behind_opaque(::Renderer)::Bool = false
+draw_transparent!(::Renderer, ::Camera, ::GLFWData)::Nothing = nothing
+
+function packUnorm4x8(v::Vec3T{T})::UInt32 where T<:AbstractFloat
+    return packUnorm4x8(Vec4F(Float32(v[1]), Float32(v[2]), Float32(v[3]), Float32(1.0)))
 end
-function packUnorm4x8(v::Vec4T{T})::UInt32 where T <: AbstractFloat
+function packUnorm4x8(v::Vec4T{T})::UInt32 where T<:AbstractFloat
     c1 = UInt32(round(clamp(v[1], 0.0, 1.0) * 255.0))
     c2 = UInt32(round(clamp(v[2], 0.0, 1.0) * 255.0))
     c3 = UInt32(round(clamp(v[3], 0.0, 1.0) * 255.0))
     c4 = UInt32(round(clamp(v[4], 0.0, 1.0) * 255.0))
     return (c4 << 24) | (c3 << 16) | (c2 << 8) | c1
 end
-@inline function is_packed_opaque(packed::UInt32)::Bool
+function is_packed_opaque(packed::UInt32)::Bool
     return return (packed & 0xFF000000) == 0xFF000000
 end
 
@@ -20,88 +30,58 @@ include("line_renderer.jl")
 include("sphere_renderer.jl")
 include("triangle_renderer.jl")
 
-struct PrimitiveRenderers
-    point::PointRenderer
-    line::LineRenderer
-    sphere::SphereRenderer
-    triangle::TriangleRenderer
-    gizmo::GizmoRenderer
+const RENDERER_FACTORIES::Dict{DataType,Function} = Dict{DataType,Function}(
+    GizmoRenderer => (loader::PipelineLoader, scale::Float32) -> GizmoRenderer(loader, scale),
+    PointRenderer => (loader::PipelineLoader, scale::Float32) -> PointRenderer(loader),
+    LineRenderer => (loader::PipelineLoader, scale::Float32) -> LineRenderer(loader),
+    SphereRenderer => (loader::PipelineLoader, scale::Float32) -> SphereRenderer(loader),
+    TriangleRenderer => (loader::PipelineLoader, scale::Float32) -> TriangleRenderer(loader)
+)
 
-    function PrimitiveRenderers(loader::PipelineLoader,content_scale::Float32)
-        return new(
-            PointRenderer(loader),LineRenderer(loader),SphereRenderer(loader),
-            TriangleRenderer(loader),GizmoRenderer(loader,content_scale))
+add_renderer(type::DataType, factory::Function) = RENDERER_FACTORIES[type] = factory
+initialize_renderers(loader::PipelineLoader, scale::Float32) = Dict(type => factory(loader, scale) for (type, factory) in RENDERER_FACTORIES)
+function initialize_renderers!(renderers::Dict{DataType,Renderer}, loader::PipelineLoader, scale::Float32)::Dict{DataType,Renderer}
+    length(renderers) == length(RENDERER_FACTORIES) && return renderers
+    for (type, factory) in RENDERER_FACTORIES
+        get!(renderers, type) do ;
+            factory(loader, scale);
+        end
+    end
+    return renderers
+end
+clear!(renderers::Dict{DataType,Renderer}) = foreach(clear!, values(renderers))
+destroy!(renderers::Dict{DataType,Renderer}) = foreach(destroy!, values(renderers))
+
+function pre_draw!(renderers::Dict{DataType,Renderer}, camera::Camera, window::GLFWData)
+    for renderer::Renderer in values(renderers)
+        pre_draw!(renderer, camera, window)
+    end
+    return nothing
+end
+function draw_ui!(renderers::Dict{DataType,Renderer}, camera::Camera, window::GLFWData)
+    for renderer::Renderer in values(renderers)
+        draw_ui!(renderer, camera, window)
+    end
+    return nothing
+end
+
+const FALLBACK_BEHIND_SIG = Tuple{typeof(draw_behind_opaque!), Renderer, Camera, GLFWData}
+function draw_opaque!(renderers::Dict{DataType,Renderer}, camera::Camera, window::GLFWData, ::Val{T}) where T
+    for renderer in values(renderers)
+        if visible_behind_opaque(renderer) == T
+            draw_opaque!(renderer, camera, window)
+        end
     end
 end
-
-function destroy!(renderers::PrimitiveRenderers)::Nothing
-    destroy!(renderers.point)
-    destroy!(renderers.line)
-    destroy!(renderers.sphere)
-    destroy!(renderers.triangle)
-    destroy!(renderers.gizmo)
+function draw_behind_opaque!(renderers::Dict{DataType,Renderer}, camera::Camera, window::GLFWData)
+    for renderer::Renderer in values(renderers)
+        draw_behind_opaque!(renderer, camera, window)
+    end
     return nothing
 end
-
-function added_all!(renderers::PrimitiveRenderers)::Nothing
-    added_all!(renderers.point)
-    added_all!(renderers.line)
-    added_all!(renderers.sphere)
-    added_all!(renderers.triangle)
-    return nothing
-end
-
-function sync_all!(renderers::PrimitiveRenderers)::Bool
-    redraw_scene::Bool = false
-    redraw_scene |= sync_all!(renderers.point)
-    redraw_scene |= sync_all!(renderers.line)
-    redraw_scene |= sync_all!(renderers.sphere)
-    redraw_scene |= sync_all!(renderers.triangle)
-    return redraw_scene
-end
-
-function pre_draw(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
-    pre_draw(renderers.line,cam,window)
-    pre_draw(renderers.triangle,cam,window)
-    pre_draw(renderers.gizmo,cam,window)
-    return nothing
-end
-
-function ui(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
-    draw_ui(renderers.gizmo,cam,window)
-    return nothing
-end
-
-function opaque_occluder(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
-    opaque(renderers.sphere,cam,window)
-    opaque(renderers.triangle,cam,window)
-    return nothing
-end
-
-function opaque(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
-    opaque(renderers.line,cam,window)
-    opaque(renderers.point,cam,window)
-    return nothing
-end
-
-function behind_opaque(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
-    behind_opaque(renderers.line,cam,window)
-    behind_opaque(renderers.point,cam,window)
-    return nothing
-end
-
-function transparent(renderers::PrimitiveRenderers,cam::Camera,window::GLFWData)::Nothing
-    transparent(renderers.line,cam,window)
-    transparent(renderers.sphere,cam,window)
-    transparent(renderers.triangle,cam,window)
-    return nothing
-end
-
-function reset!(renderers::PrimitiveRenderers)::Nothing
-    reset!(renderers.point)
-    reset!(renderers.line)
-    reset!(renderers.sphere)
-    reset!(renderers.triangle)
-    reset!(renderers.gizmo)
+function draw_transparent!(renderers::Dict{DataType,Renderer}, camera::Camera, window::GLFWData)
+    for renderer::Renderer in values(renderers)
+        draw_transparent!(renderer, camera, window)
+    end
     return nothing
 end

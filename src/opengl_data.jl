@@ -37,8 +37,7 @@ mutable struct OpenGLData
     _cpu_stopwatch::UInt32
     _pipeline_loader::PipelineLoader
 
-    _observers::Vector{RendererDNA}
-    _renderers::PrimitiveRenderers
+    _renderers::Dict{DataType,Renderer}
 
     # ! Shaders
     _transparent_color_combiner::Pipeline
@@ -179,32 +178,26 @@ mutable struct OpenGLData
         
         glEnable(GL_PROGRAM_POINT_SIZE)
 
-        # ? It's empty because of "reset!".
-        observers::Vector{RendererDNA} = RendererDNA[]
-        renderers = PrimitiveRenderers(pipeline_loader,window.scale)
+        renderers = initialize_renderers(pipeline_loader,window.scale)
         
         p = perspective(Float32(70.0),Float32(window.width/window.height),Float32(0.01),Float32(100.0))
         v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
         vp = p * v 
         camPos = Vec3F(0.0,0.0,0.0)
 
-        self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,observers,renderers,
+        self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,renderers,
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
-        
-        self._observers = create_dependent_observers(self)
+
         return self
     end
 end
 
-function resetObservers!(self::OpenGLData)
-    reset!(self._renderers)
-    reset_dependent_observers(self, self._observers)
-end
+clear!(self::OpenGLData) = clear!(self._renderers)
 
 function glError2String(msg::GLenum)::String
     if msg == GL_INVALID_ENUM
@@ -275,17 +268,17 @@ function _predraw(self::OpenGLData,cam::Camera)::Nothing
     glClearBufferfv(GL_COLOR, 1, Float32[1.0f0, 1.0f0, 1.0f0, 1.0f0])
 
     # Pre draw call
-    pre_draw(self._renderers,cam,self._window)
+    pre_draw!(self._renderers,cam,self._window)
 end
 
 function _opaque(self::OpenGLData,cam::Camera)::Nothing
     glStencilFunc(GL_ALWAYS, 1, 0xFF)
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
     glEnable(GL_STENCIL_TEST)
-    opaque(self._renderers,cam,self._window)
+    draw_opaque!(self._renderers,cam,self._window,Val(true))
 
     glStencilFunc(GL_ALWAYS, 2, 0xFF)
-    opaque_occluder(self._renderers,cam,self._window)
+    draw_opaque!(self._renderers,cam,self._window,Val(false))
     glDisable(GL_STENCIL_TEST)
     return nothing
 end
@@ -305,7 +298,7 @@ function _behind_opaque(self::OpenGLData,cam::Camera)::Nothing
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
 
     glEnable(GL_STENCIL_TEST);
-    behind_opaque(self._renderers,cam,self._window)
+    draw_behind_opaque!(self._renderers,cam,self._window)
     glDisable(GL_STENCIL_TEST);
     return nothing
 end
@@ -325,7 +318,7 @@ function _transparent(self::OpenGLData,cam::Camera)
     
     # draws
     activate(self._depthstencilTexture,GL_TEXTURE13)
-    transparent(self._renderers,cam,self._window)
+    draw_transparent!(self._renderers,cam,self._window)
     
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_CULL_FACE)
@@ -369,7 +362,7 @@ function _widgets(self::OpenGLData,cam::Camera)
     glEnablei(GL_BLEND, 0)
     glDisablei(GL_BLEND, 1)
     glBlendFunci(0, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    ui(self._renderers,cam,self._window)
+    draw_ui!(self._renderers,cam,self._window)
 
     glDepthFunc(GL_LEQUAL)
     glDisable(GL_BLEND)
@@ -379,11 +372,11 @@ function render_scene!(self::OpenGLData,cam::Camera)
     begin_gpu(self._profiler,self._passes.pre_draw)
     _predraw(self,cam)
     end_gpu(self._profiler,self._passes.pre_draw)
-
+    
     begin_gpu(self._profiler,self._passes.widgets)
     _widgets(self,cam)
     end_gpu(self._profiler,self._passes.widgets)
-
+    
     begin_gpu(self._profiler,self._passes.opaque)
     _opaque(self,cam)
     end_gpu(self._profiler,self._passes.opaque)
@@ -446,9 +439,9 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool,hovered::UInt32
     begin_cpu(self._profiler, self._cpu_stopwatch)
 
     _ubo_update!(self,cam,hovered)
-    added_all!(self._renderers)
+    #added_all!(self._renderers)
     scene_change |= update!(self._pipeline_loader)
-    scene_change |= sync_all!(self._renderers)
+    #scene_change |= sync_all!(self._renderers)
     if scene_change
         render_scene!(self,cam)
     end
@@ -463,7 +456,6 @@ end
 
 function destroy!(self::OpenGLData)
     destroy!(self._pipeline_loader)
-    destroy_dependent_observers(self._observers)
     destroy!(self._renderers)
 
     destroy!(self._opaqueFBO)

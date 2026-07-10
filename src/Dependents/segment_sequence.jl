@@ -1,61 +1,44 @@
+mutable struct SegmentSequence
+    colors::Vector{UInt32}
+    break_every::Int32
+    size::Float32
+    style::UInt8
 
-# ? ---------------------------------
-# ! SegmentSequenceDependent
-# ? ---------------------------------
+    values::Vector{Vec3D}
+    handle::UInt32
 
-mutable struct SegmentSequenceDependent <: RenderedDependentDNA
-    _renderedDependent::RenderedDependent
-    
-    _colors::Vector{UInt32}
-    _break_every::Int32
-    _size::Float32
-    _style::UInt8
-
-    _values::Vector{Vec3D}
-
-    # YELLOW Thread
-    function SegmentSequenceDependent(
-        callback::Function,dependents::Vector{<:DependentDNA},
-        break_every::Int32,
-        color::Vector{UInt32},style::UInt8,size::Float32)
-        dependent = RenderedDependent(callback,dependents)
-        values = Vector{Vec3F}()
-        new(dependent,color,break_every,size,style,values)
+    function SegmentSequence(break_every::Int32,color::Vector{UInt32},style::UInt8,size::Float32)
+        new(color,break_every,size,style,Vector{Vec3F}(),UInt32(0))
     end
 end
 
-Base.string(self::SegmentSequenceDependent)::String =  return "Segment sequence: $(length(self._values))"
-_RenderedDependent_(self::SegmentSequenceDependent)::RenderedDependent = return self._renderedDependent
+convert_callback_entry(s::SegmentSequence)::Vec3D = s.values
 
-# YELLOW Thread
-# RED Thread
-onNodeEval(self::SegmentSequenceDependent) = evalCallbackDp(self)
-
-Base.eltype(dependent::SegmentSequenceDependent)::DataType = Vector{Vec3D}
-
-function evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
-    self._values = [Vec3D(coord...) for coord in coords]
+function convert_callback_result(s::SegmentSequence,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
+    s.values = [Vec3D(coord...) for coord in coords]
+    return s
 end
-function evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{T}) where T <: Tuple{Any, Any}
-    self._values = [Vec3D(coord...,0.0) for coord in coords]
+function convert_callback_result(s::SegmentSequence,coords::Vector{T}) where T <: Tuple{Any, Any}
+    s.values = [Vec3D(coord...,0.0) for coord in coords]
+    return s
 end
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3D})  = self._values = coords
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec2D})  = self._values = [Vec3D(coord...,0.0) for coord in coords]
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec3F})  = self._values = [Vec3D(coord...) for coord in coords]
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vec2F})  = self._values = [Vec3D(coord...,0.0) for coord in coords]
-evalCallbackDpReturn(self::SegmentSequenceDependent,coords::Vector{Vector}) = self._values = [length(c) == 3 ? Vec3D(c[1],c[2],c[3]) : Vec3D(c[1],c[2],0.0) for c in coords]
-evalCallbackDpReturn(self::SegmentSequenceDependent,::Nothing) = self.values = Vec3D[]
+convert_callback_result(s::SegmentSequence,coords::Vector{Vec3D})  = (s.values = coords; s)
+convert_callback_result(s::SegmentSequence,coords::Vector{Vec2D})  = (s.values = [Vec3D(coord...,0.0) for coord in coords]; s)
+convert_callback_result(s::SegmentSequence,coords::Vector{Vec3F})  = (s.values = [Vec3D(coord...) for coord in coords]; s)
+convert_callback_result(s::SegmentSequence,coords::Vector{Vec2F})  = (s.values = [Vec3D(coord...,0.0) for coord in coords]; s)
+convert_callback_result(s::SegmentSequence,coords::Vector{Vector}) = (s.values = [length(c) == 3 ? Vec3D(c[1],c[2],c[3]) : Vec3D(c[1],c[2],0.0) for c in coords]; s)
+convert_callback_result(s::SegmentSequence,::Nothing) = (s.values = Vec3D[];s)
 
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
-    _segseq::SegmentSequenceDependent
+    segseq::SegmentSequence
     len::Int
 
-    function PSegmentsOfSegmentSequence(segseq::SegmentSequenceDependent)
-        N = length(segseq._values)
+    function PSegmentsOfSegmentSequence(segseq::SegmentSequence)
+        N = length(segseq.values)
         if N < 2 return new(segseq, 0) end
         
         segments = N - 1
-        break_every = segseq._break_every
+        break_every = segseq.break_every
         
         if break_every < 2 return new(segseq, segments) end
         
@@ -63,7 +46,7 @@ struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
     end
 end
 
-PrimitivesOf(self::SegmentSequenceDependent) = PSegmentsOfSegmentSequence(self)
+PrimitivesOf(self::SegmentSequence) = PSegmentsOfSegmentSequence(self)
 
 function Base.length(self::PSegmentsOfSegmentSequence)::Int
     return self.len
@@ -72,13 +55,13 @@ end
 function Base.getindex(self::PSegmentsOfSegmentSequence, index::Int)::PSegment
     @boundscheck 1 <= index <= length(self) || throw(BoundsError(self, index))
 
-    if self._segseq._break_every < 2
+    if self.segseq.break_every < 2
         i = index
     else
-        i = index + div(index - 1, self._segseq._break_every - 1)
+        i = index + div(index - 1, self.segseq.break_every - 1)
     end
     
-    return PSegment(self._segseq._values[i], self._segseq._values[i + 1])
+    return PSegment(self.segseq.values[i], self.segseq.values[i + 1])
 end
 
 function Base.iterate(self::PSegmentsOfSegmentSequence, index::Int = 1)
@@ -90,25 +73,6 @@ end
 
 Base.IteratorSize(::Type{<:PSegmentsOfSegmentSequence}) = Base.HasLength()
 Base.eltype(::Type{PSegmentsOfSegmentSequence}) = PSegment
-
-# ? ---------------------------------
-# ! SegmentSequences
-# ? ---------------------------------
-
-mutable struct SegmentSequences <: RendererDNA{SegmentSequenceDependent}
-    _renderer::Renderer{SegmentSequenceDependent}
-    _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
-    # GREEN Thread
-    function SegmentSequences(context::OpenGLData)
-        renderer = Renderer{SegmentSequenceDependent}(context)
-        refs = Vector{UInt32}()
-        return new(renderer, context._renderers, refs)
-    end
-end
-
-_Renderer_(self::SegmentSequences) = return self._renderer
-Base.string(self::SegmentSequences) = return "SegmentSequences[$(length(self._coords))]"
 
 function custom_interleaver(vec, insert_val::T, n) where T
     new_len = length(vec) + div(length(vec), n)
@@ -126,74 +90,58 @@ function custom_interleaver(vec, insert_val::T, n) where T
     return dest
 end
 
-# GREEN Thread
-function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
-    aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
-    ref = if segseq._break_every >= 2
-        add_dynamic!(self._renderers.line,
-            collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
-            segseq._size,
-            segseq._style
+function render_node(segseq::SegmentSequence, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+    line_renderer::LineRenderer = renderers[LineRenderer]
+    if segseq.handle == 0
+        segseq.handle = if segseq.break_every >= 2
+        add_dynamic!(line_renderer,
+            collect(custom_interleaver((Vec3F(coord) for coord in segseq.values),Vec3FNan,segseq.break_every)),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq.colors),length(segseq.values))),zero(UInt32),segseq.break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((id,)),length(segseq.values))),zero(UInt32),segseq.break_every),
+            segseq.size,
+            segseq.style
         )
     else
-        add_dynamic!(self._renderers.line,
-            (Vec3F(coord) for coord in segseq._values),
-            Iterators.cycle(segseq._colors),
-            Iterators.cycle((aID,)),
-            segseq._size,
-            segseq._style
+        add_dynamic!(line_renderer,
+            (Vec3F(coord) for coord in segseq.values),
+            Iterators.cycle(segseq.colors),
+            Iterators.cycle((id,)),
+            segseq.size,
+            segseq.style
         )
     end
-    push!(self._refs, ref)
-end
-
-# GREEN Thread
-function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
-    aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
-    ref = self._refs[getObserverID(segseq)]
-    if segseq._break_every >= 2
-        update_dynamic!(self._renderers.line,ref,
-            collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
-            segseq._size,
-            segseq._style
-        )
     else
-        update_dynamic!(self._renderers.line,ref,
-            collect((Vec3F(coord) for coord in segseq._values)),
-            Iterators.cycle(segseq._colors),
-            Iterators.cycle([aID]),
-            segseq._size,
-            segseq._style
-        )
+        if segseq.break_every >= 2
+            update_dynamic!(line_renderer,segseq.handle,
+                collect(custom_interleaver((Vec3F(coord) for coord in segseq.values),Vec3FNan,segseq.break_every)),
+                custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq.colors),length(segseq.values))),zero(UInt32),segseq.break_every),
+                custom_interleaver(collect(Iterators.take(Iterators.cycle((id,)),length(segseq.values))),zero(UInt32),segseq.break_every),
+                segseq.size,
+                segseq.style
+            )
+        else
+            update_dynamic!(line_renderer,segseq.handle,
+                collect((Vec3F(coord) for coord in segseq.values)),
+                Iterators.cycle(segseq.colors),
+                Iterators.cycle((id,)),
+                segseq.size,
+                segseq.style
+            )
+        end
     end
+    return nothing
 end
 
-
-function destroy!(self::SegmentSequences)
-end
-
-# YELLOW Thread
-Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = getDependentObservers(app)[_SEGMENT_SEQUENCES]
-
-# ? ---------------------------------
-# ! SegmentSequence
-# ? ---------------------------------
-
-# YELLOW Thread
-function SegmentSequence(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
-    color="c",style="-",size=5.0f0)::SegmentSequenceDependent
+function SegmentSequence(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,break_every=2,color_style::Union{Nothing,String}=nothing;
+    color="c",style="-",size=5.0f0)::NodeHandle
     (c,s) = parse_line_colors_style(color_style, color, style)
-    return Build!(SegmentSequenceDependent(callback, dependents, round(Int32,break_every), c, s, Float32(size)))
+    return add_node!(callback,SegmentSequence(round(Int32,break_every), c, s, Float32(size)),parents)
 end
 
 # YELLOW Thread
-SegmentSequence(dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
-    color="c",style="-",size=5.0f0)::SegmentSequenceDependent =
-SegmentSequence(_deps_collect, dependents, break_every, color_style, color=color, style=style, size=size)
+SegmentSequence(parents::Union{Vector{NodeHandle},Nothing}=nothing,break_every=2,color_style::Union{Nothing,String}=nothing;
+    color="c",style="-",size=5.0f0)::NodeHandle =
+SegmentSequence(_deps_collect, parents, break_every, color_style, color=color, style=style, size=size)
 
 # YELLOW Thread
 macro SegmentSequence(callback::Expr,break_every=2,args...)

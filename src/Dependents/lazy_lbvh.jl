@@ -5,29 +5,22 @@
 
 # TODO: refine LBVHCache-s generic parameter.
 
-mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}} <: DependentDNA
-    _dependent::Dependent
+mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}}
     _iter::Union{T,Nothing}
     _lbvh::LBVHCache
     @atomic _isCacheOld::Bool
     _cacheLock::ReentrantLock
 
     # YELLOW Thread
-    function LazyLBVHDependent{T}(geometry::DependentDNA) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
-        dependent = Dependent([geometry]) do geometry
-            return PrimitivesOf(geometry)
-        end
-        
+    function LazyLBVHDependent{T}(geometry::Any) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
         iter = nothing
         lbvh = LBVHCache{3}()
         isCacheOld = false
         cacheLock = ReentrantLock()
 
-        new{T}(dependent,iter,lbvh,isCacheOld,cacheLock)
+        new{T}(iter,lbvh,isCacheOld,cacheLock)
     end
 end
-
-_Dependent_(self::LazyLBVHDependent)::Dependent = self._dependent
 
 function getLBVH(self::LazyLBVHDependent)
     isOld::Bool = @atomic self._isCacheOld
@@ -63,5 +56,5 @@ evalCallbackDpEntry(self::LazyLBVHDependent)::LazyLBVHDependent = return self
 # ? ---------------------------------
 
 # YELLOW Thread
-LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::DependentDNA) =
+LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any) =
 Build!(LazyLBVHDependent{T}(geometry))

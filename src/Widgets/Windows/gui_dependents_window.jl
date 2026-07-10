@@ -4,45 +4,23 @@
 # ? ---------------------------------
 
 @kwdef mutable struct GuiDependentsWindow <: WindowDNA
-    _window::Window = Window()
-    _isOrdered::Bool = false
+    window::Window = Window()
+    graph::GeometryPlotGraph
+    GuiDependentsWindow(graph::GeometryPlotGraph) = new(Window(), graph)
 end
 
-_Window_(self::GuiDependentsWindow)::Window = self._window
+_Window_(self::GuiDependentsWindow)::Window = self.window
 getWindowName(self::GuiDependentsWindow) = return "GuiDependents"
 
-function renderContent(self::GuiDependentsWindow, app::AppDNA)
-    imgui::ImGuiData = getImGui(app)
-    
-    isOrderedRef = Ref(self._isOrdered)
-    if (CImGui.Checkbox("Order by type",isOrderedRef))
-        self._isOrdered = !self._isOrdered
-    end
-    CImGui.Separator()
-    CImGui.Spacing()
-
-    if self._isOrdered
-        pool::Vector{GuiRendererDNA} = imgui._pool
-        
-        for observer in pool
-            if hasInstance(observer)    
-                CImGui.Text("$(title(observer)) dependents:")
-                CImGui.Separator()
-
-                for subject in getSubjectItems(observer)
-                    CImGui.PushID(getGraphID(subject))
-                    render!(observer, subject, app)
-                    CImGui.PopID()
-                end
-            end
+function renderContent(window::GuiDependentsWindow, app::AppDNA)
+    elements::Vector{Any} = window.graph.elements
+    for index in eachindex(elements)
+        CImGui.PushID(index)
+        e, invalidate = render_node_gui(elements[index])
+        elements[index] = e
+        if invalidate
+            invalidate!(window.graph, NodeHandle(index)) 
         end
-    else
-        dependents::Vector{GuiDependentDNA} = imgui._dependents
-
-        for d in dependents
-            CImGui.PushID(getGraphID(d))
-            render!(getObserver(d),d,app)
-            CImGui.PopID()
-        end
+        CImGui.PopID()
     end
 end

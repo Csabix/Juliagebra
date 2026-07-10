@@ -1,63 +1,56 @@
+mutable struct ParametricCurve
+    range::AbstractRange{Float64}
+    values::Vector{Vec3D}
+    colors::Vector{UInt32}
+    size::Float32
+    style::UInt8
+    handle::UInt32
 
-# ? ---------------------------------
-# ! ParametricCurveDependent
-# ? ---------------------------------
-
-mutable struct ParametricCurveDependent <: RenderedDependentDNA
-    _renderedDependent::RenderedDependent
-    
-    _range::AbstractRange{Float64}
-    _colors::Vector{UInt32}
-    _size::Float32
-    _style::UInt8
-
-    _tValues::Vector{Vec3D} # ? Calculated value for each t
-
-    # YELLOW Thread
-    function ParametricCurveDependent(
-        callback::Function,dependents::Vector{<:DependentDNA},
-        range::AbstractRange{Float64},
-        color::Vector{UInt32},style::UInt8,size::Float32)
-        dependent = RenderedDependent(callback,dependents)
-        tValues = Vector{Vec3D}(undef,length(range))
-        new(dependent,range,color,size,style,tValues)
+    function ParametricCurve(range::AbstractRange{Float64},color::Vector{UInt32},style::UInt8,size::Float32)
+        values = Vector{Vec3D}(undef,length(range))
+        new(range,values,color,size,style,UInt32(0))
     end
 end
 
-Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
-_RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
+convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
 
-Base.eltype(dependent::ParametricCurveDependent)::DataType = Vector{Vec3D}
-
-# YELLOW Thread
-# RED Thread
-function onNodeEval(self::ParametricCurveDependent)
-    for index in 1:length(self._range)
-        evalCallbackDp(self; callbackParams = self._range[index], returnParams = (index))
-    end
-end
-
-function evalCallbackDpReturn(self::ParametricCurveDependent,v,index)
+function convert_result(pc::ParametricCurve,v,index)
     if length(v) == 3
-        self._tValues[index] = Vec3D(v[1],v[2],v[3])
+        pc.values[index] = Vec3D(v[1],v[2],v[3])
     else
-        self._tValues[index] = Vec3D(v[1],v[2],0.0)
+        pc.values[index] = Vec3D(v[1],v[2],0.0)
     end
 end
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Tuple{Any,Any},index)     = self._tValues[index] = Vec3D(v[1],v[2],0.0)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Tuple{Any,Any,Any},index) = self._tValues[index] = Vec3D(v[1],v[2],v[3])
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3D,index)              = self._tValues[index] = v
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)              = self._tValues[index] = Vec3D(v)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec2D,index)              = self._tValues[index] = Vec3D(v[1],v[2],0.0)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec2F,index)              = self._tValues[index] = Vec3D(v[1],v[2],0.0)
-evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index)            = self._tValues[index] = Vec3DNan
+convert_result(pc::ParametricCurve,v::Tuple{Any,Any},index)     = pc.values[index] = Vec3D(v[1],v[2],0.0)
+convert_result(pc::ParametricCurve,v::Tuple{Any,Any,Any},index) = pc.values[index] = Vec3D(v[1],v[2],v[3])
+convert_result(pc::ParametricCurve,v::Vec3D,index)              = pc.values[index] = v
+convert_result(pc::ParametricCurve,v::Vec3F,index)              = pc.values[index] = Vec3D(v)
+convert_result(pc::ParametricCurve,v::Vec2D,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
+convert_result(pc::ParametricCurve,v::Vec2F,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
+convert_result(pc::ParametricCurve,v::Nothing,index)            = pc.values[index] = Vec3DNan
+
+function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::Any
+    for index in eachindex(element.range)
+        convert_result(element,callback(element.range[index],arguments...),index)
+    end
+    return element
+end
+
+function render_node(pc::ParametricCurve, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+    line_renderer::LineRenderer = renderers[LineRenderer]
+    if pc.handle == 0
+        pc.handle = add!(line_renderer,pc.values,Iterators.cycle(pc.colors),Iterators.cycle(id),pc.size,pc.style)
+    else
+        update_coords!(line_renderer,pc.handle,pc.values)
+    end
+    return nothing
+end
 
 # ? For Intersectable ParametricCurves.
-
 struct PSegmentsOfCurve <: PrimitivesOf{PSegment}
-    _curve::ParametricCurveDependent
+    _curve::ParametricCurve
 end
-PrimitivesOf(self::ParametricCurveDependent) = return PSegmentsOfCurve(self)
+PrimitivesOf(self::ParametricCurve) = return PSegmentsOfCurve(self)
 
 Base.length(self::PSegmentsOfCurve) = (max(length(self._curve._range) - 1,0))
 
@@ -77,59 +70,11 @@ function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
     end
 end
 
-
-# ? ---------------------------------
-# ! Curves
-# ? ---------------------------------
-
-mutable struct Curves <: RendererDNA{ParametricCurveDependent}
-    _renderer::Renderer{ParametricCurveDependent}
-    _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
-
-    # GREEN Thread
-    function Curves(context::OpenGLData)
-        renderer = Renderer{ParametricCurveDependent}(context)
-        refs = Vector{UInt32}()
-        new(renderer, context._renderers, refs)
-    end
-end
-
-_Renderer_(self::Curves) = return self._renderer
-Base.string(self::Curves) = return "Curves[$(length(self._coords))]"
-
-# GREEN Thread
-function added!(self::Curves,curve::ParametricCurveDependent)
-    aID = UInt32(getGraphID(curve) + ID_LOWER_BOUND)
-    push!(self._refs,
-        add!(self._renderers.line,
-            curve._tValues,
-            cycle(curve._colors),
-            cycle(aID),
-            curve._size,
-            curve._style,
-        )
-    )
-end
-
-# GREEN Thread
-function sync!(self::Curves,curve::ParametricCurveDependent)
-    ref = self._refs[getObserverID(curve)]
-    update_coords!(self._renderers.line,ref,curve._tValues)
-end
-
-# GREEN Thread
-function destroy!(self::Curves) end
-
-# YELLOW Thread
-Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getDependentObservers(app)[_CURVES]
-
-# YELLOW Thread
 function ParametricCurve(callback::Function,range::AbstractRange{Float64},
-                dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-                color="c",style="-",size=5.0f0)::ParametricCurveDependent
+                parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
+                color="c",style="-",size=5.0f0)::NodeHandle
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size)))
+    return add_node!(callback,ParametricCurve(range,c,s,Float32(size)),parents)
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

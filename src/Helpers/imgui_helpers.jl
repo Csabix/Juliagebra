@@ -1,11 +1,8 @@
 
-function slider1(self::T,text::String,min::AbstractFloat,max::AbstractFloat)::Union{T,Nothing} where T
-    self_ref = Ref(self)
-    if (CImGui.SliderFloat(text,self_ref,min,max))
-        return self_ref[]
-    end
-
-    return nothing
+function slider1(value::AbstractFloat,text::String,min::AbstractFloat,max::AbstractFloat)::Float32
+    value_ref = Ref(Float32(value))
+    CImGui.SliderFloat(text,value_ref,min,max)
+    return value_ref[]
 end
 
 function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)::Vec3T

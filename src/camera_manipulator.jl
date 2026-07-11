@@ -238,12 +238,12 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
         tan_half_fov_Y = tan(deg2rad(cam._cam._fov / 2.0f0))
         tan_half_fov_X = tan_half_fov_Y * cam._cam._aspect
         
-        x = (Float32(ev.x) * 2.0f0 - 1.0f0)
-        y = (Float32(ev.y) * 2.0f0 - 1.0f0)
+        x = Float32(ev.x / inputs.window.s_width) * 2.0f0 - 1.0f0
+        y = Float32(ev.y / inputs.window.s_height) * 2.0f0 - 1.0f0
         w = tan_half_fov_X * old_distance * (delta_distance / old_distance) * x
         h = tan_half_fov_Y * old_distance * (delta_distance / old_distance) * y
 
-        offset = right * w + up * h
+        offset = -right * w + up * h
         cam._cam._at += offset
         cam._cam._eye += offset
         return true

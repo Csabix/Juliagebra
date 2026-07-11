@@ -87,11 +87,13 @@ include("Widgets/imgui_widget.jl")
 include("Widgets/dock.jl")
 include("Widgets/window.jl")
 include("Widgets/reset_widget.jl")
+include("Widgets/options_widget.jl")
 
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
 include("Widgets/Windows/frame_time_window.jl")
+include("Widgets/Windows/options_window.jl")
 
 include("Renderers/renderers.jl")
 include("opengl_data.jl")

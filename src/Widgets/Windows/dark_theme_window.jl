@@ -1,4 +1,4 @@
-mutable struct DarkThemeWindow
+mutable struct DarkThemeWindow <: WindowDNA
     _window::Window
     _themeSwitch:: Ref{Bool}
 
@@ -24,16 +24,16 @@ mutable struct DarkThemeWindow
     _oSphereColors::Array{Cfloat}
     _dSphereColor::Array{Cfloat}
 
-    #These are values are for testing purposes.
-    function DarkThemeWindow(oBgColor,lRenderer::LineRenderer,pRenderer::PointRenderer,sRenderer::SphereRenderer,tRenderer::TriangleRenderer) 
+    #These values are for testing purposes.
+    function DarkThemeWindow(oBgColor,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,) 
         new(Window(),
         false,
         lRenderer,
         pRenderer,
         sRenderer,
         tRenderer,
-        Cfloat[oBgColor[0],oBgColor[1],oBgColor[2]],
-        Cfloat[80.0f0,80.0f0,80.0f0],
+        Cfloat[oBgColor[1],oBgColor[2],oBgColor[3]],
+        Cfloat[0.2f0,0.2f0,0.2f0],
         Cfloat[255.0f0,255.0f0,255.0f0],
         Cfloat[100.0f0,200.0f0,100.0f0],
         Cfloat[255.0f0,255.0f0,255.0f0],
@@ -53,12 +53,12 @@ function setTheme(self::DarkThemeWindow, app::AppDNA)
         #spheres can't change colors yet.
         glClearColor(self._dBgColor[1], self._dBgColor[2], self._dBgColor[3], 1.0f0)
         #update_colors!(self._lRend,,)
-        #update_colors!(self._pRend,,)       
+        #update_colors!(self._pRend,,)
         #update_color!(self._tRend,,)
 
 
     else
-        glClearColor(self._obgColor[1], self._obgColor[2], self._obgColor[3], 1.0f0)
+        glClearColor(self._oBgColor[1], self._oBgColor[2], self._oBgColor[3], 1.0f0)
         #update_colors!(self._lRend,,)
         #update_colors!(self._pRend,,)
         #update_color!(self._tRend,,)
@@ -68,8 +68,7 @@ end
 
 
 function renderContent(self::DarkThemeWindow, app::AppDNA)
-    if (CImGui.Checkbox("Dark Theme", _themeSwitch))
+    if (CImGui.Checkbox("Dark Theme", self._themeSwitch))
         setTheme(self,app)
     end
-    CImGui.BeginDisabled(self._themeSwitch[])
 end

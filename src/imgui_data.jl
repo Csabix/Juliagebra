@@ -58,7 +58,7 @@ mutable struct ImGuiData <: ImGuiDNA
         add!(dock,CurvesWindow(model,openglD._renderers.line))
         add!(dock,SurfacesWindow(model,openglD._renderers.triangle))
         add!(dock,FrameTime())
-        add!(dock,DarkThemeWindow(Cfloat[1.0f0,0.73f0,0.73f0,0.73f0],openglD._renderers.point,openglD._renderers.line,openglD._renderers.triangle,openglD._renderers.sphere))
+        add!(dock,DarkThemeWindow(Cfloat[0.73f0,0.73f0,0.73f0],openglD._renderers.point,openglD._renderers.line,openglD._renderers.triangle,openglD._renderers.sphere))
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())

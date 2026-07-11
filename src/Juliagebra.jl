@@ -110,6 +110,7 @@ include("global_dependent_optimizer.jl")
 
 include("Widgets/Windows/gui_dependents_window.jl")
 include("Widgets/Windows/graph_window.jl")
+include("Widgets/Windows/dark_theme_window.jl")
 
 include("imgui_data.jl")
 

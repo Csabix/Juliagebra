@@ -80,7 +80,7 @@ include("camera_manipulator.jl")
 # ? ---------------------------------
 # ! Widgets
 # ? ---------------------------------
-
+include("Renderers/renderers.jl")
 include("Widgets/widget.jl")
 include("Widgets/opengl_widget.jl")
 include("Widgets/imgui_widget.jl")
@@ -95,7 +95,7 @@ include("Widgets/performance_viewer.jl")
 include("Widgets/Windows/frame_time_window.jl")
 include("Widgets/Windows/options_window.jl")
 
-include("Renderers/renderers.jl")
+
 include("opengl_data.jl")
 
 # ? ---------------------------------
@@ -112,7 +112,6 @@ include("global_dependent_optimizer.jl")
 
 include("Widgets/Windows/gui_dependents_window.jl")
 include("Widgets/Windows/graph_window.jl")
-include("Widgets/Windows/dark_theme_window.jl")
 
 include("imgui_data.jl")
 

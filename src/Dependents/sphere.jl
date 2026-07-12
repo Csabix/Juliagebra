@@ -128,7 +128,7 @@ end
 # GREEN Thread
 function sync!(self::Spheres,sphere::SphereDependent)
     index = self._indexes[getObserverID(sphere)]
-    update_coord_radius!(self._renderers.sphere,index,Vec3F(sphere._center),Float32(sphere._radius),sphere._color)
+    update_coord_radius!(self._renderers.sphere,index,Vec3F(sphere._center),Float32(sphere._radius))
 end
 
 function destroy!(self::Spheres) end

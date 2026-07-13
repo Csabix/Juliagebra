@@ -15,6 +15,7 @@ mutable struct GizmoRenderer
     move::Bool
     id_to_axis::Tuple{Vec3F,Vec3F,Vec3F}
     selected::UInt32
+    selectedAxis::UInt32
 
     ubo::MappedBuffer{Vec4F}
     empty_vao::VertexArray
@@ -38,6 +39,7 @@ mutable struct GizmoRenderer
         move = false
         id_to_axis = (Vec3F(1,0,0), Vec3F(0,1,0), Vec3F(0,0,1))
         selected = UInt32(0)
+        selectedAxis = UInt32(0)
 
         ubo = MappedBuffer{Vec4F}()
         reserve!(ubo, 1, 0)
@@ -45,7 +47,7 @@ mutable struct GizmoRenderer
         empty_vao = VertexArray()
         return new(
             corner_gizmo,move_gizmo,position,axes,
-            initial_constraints,move,id_to_axis,selected,
+            initial_constraints,move,id_to_axis,selected,selectedAxis,
             ubo,empty_vao
         )
     end
@@ -175,5 +177,26 @@ function on_gizmo_drag!(app, event)::Bool
         end
     end
 
+    return true
+end
+
+function on_gizmo_drag_axis_start!(app, axis)::Bool
+    gizmo = app._opengl._renderers.gizmo
+    if (gizmo.selectedAxis & axis > 0 || gizmo.selectedAxis | axis == AXIS_FULL)
+        return false
+    end
+
+    gizmo.selectedAxis |= axis
+    println(gizmo.selectedAxis)
+    return true
+end
+function on_gizmo_drag_axis_end!(app, axis)::Bool
+    gizmo = app._opengl._renderers.gizmo
+    if (gizmo.selectedAxis & axis == 0)
+        return false
+    end
+
+    gizmo.selectedAxis -= axis
+    println(gizmo.selectedAxis)
     return true
 end

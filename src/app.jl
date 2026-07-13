@@ -98,6 +98,16 @@ function setup_callbacks(self::App)::Nothing
     register_callback!(event -> on_gizmo_right_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_RIGHT))
     register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
     register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
+    
+    # --- KEYBOARD DOWN EVENTS ---
+    register_callback!(event -> on_gizmo_drag_axis_start!(self, AXIS_X), self._inputs, KEY_DOWN, Cint(GLFW.KEY_X))
+    register_callback!(event -> on_gizmo_drag_axis_start!(self, AXIS_Y), self._inputs, KEY_DOWN, Cint(GLFW.KEY_Y))
+    register_callback!(event -> on_gizmo_drag_axis_start!(self, AXIS_Z), self._inputs, KEY_DOWN, Cint(GLFW.KEY_Z))
+    
+    # --- KEYBOARD UP EVENTS ---
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, Cint(GLFW.KEY_X))
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, Cint(GLFW.KEY_Y))
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, Cint(GLFW.KEY_Z))
 
     register_callbacks!(self._inputs, self._manipulator)
     return nothing

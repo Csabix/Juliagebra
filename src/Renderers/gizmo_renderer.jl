@@ -10,6 +10,7 @@ const AXIS_TO_VECTOR = Dict{UInt32,Vec3F}(
     AXIS_Y => Vec3F(0,1,0),
     AXIS_Z => Vec3F(0,0,1),
 )
+const ALL_AXES = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
 
 mutable struct GizmoRenderer
     corner_gizmo::Pipeline
@@ -22,6 +23,7 @@ mutable struct GizmoRenderer
     id_to_axis::Tuple{Vec3F,Vec3F,Vec3F}
     selected::UInt32
     selectedAxis::UInt32
+    lastMousePosition::Tuple{Float64,Float64}
 
     ubo::MappedBuffer{Vec4F}
     empty_vao::VertexArray
@@ -46,6 +48,7 @@ mutable struct GizmoRenderer
         id_to_axis = (Vec3F(1,0,0), Vec3F(0,1,0), Vec3F(0,0,1))
         selected = UInt32(0)
         selectedAxis = UInt32(0)
+        lastMousePosition = (Float64(0), Float64(0))
 
         ubo = MappedBuffer{Vec4F}()
         reserve!(ubo, 1, 0)
@@ -53,7 +56,7 @@ mutable struct GizmoRenderer
         empty_vao = VertexArray()
         return new(
             corner_gizmo,move_gizmo,position,axes,
-            initial_constraints,move,id_to_axis,selected,selectedAxis,
+            initial_constraints,move,id_to_axis,selected,selectedAxis,lastMousePosition,
             ubo,empty_vao
         )
     end
@@ -115,7 +118,6 @@ function _seg2segSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float6
 	
     return (d2, t, s)
 end
-
 function _closestPointOnAxis(eye::Vec3D, ray::Vec3D, position::Vec3D, axis_vector::Vec3D)::Vec3D
     (_, _, s) = _seg2segSqDistParams(eye, ray, position, axis_vector)
     return Vec3D(position + axis_vector * s)
@@ -126,12 +128,40 @@ function _planeLineIntersection(eye::Vec3D, ray::Vec3D, position::Vec3D, normal_
     return PrimitiveToPrimitiveIntersection(line, plane)
 end
 
+function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
+    ray = get_ray(app, mouseX, mouseY)
+    newPoint = Vec3D(0)
+    
+    if (any(a -> a == gizmo.axes, ALL_AXES))
+        axis_vector = AXIS_TO_VECTOR[gizmo.axes]
+        newPoint = _closestPointOnAxis(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(axis_vector))
+    else
+        for axis in ALL_AXES
+            if (gizmo.axes & axis == 0)
+                newPoint = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
+                break
+            end
+        end
+    end
+
+    gizmo.position = newPoint
+    if gizmo.selected > 3
+        p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
+        if p._coord != gizmo.position
+            p._coord = gizmo.position
+            # ? schedule for evalGraph
+            schedule(getModel(app),p)
+        end
+    end
+end
+
 function on_gizmo_left_click!(app)::Bool
     gizmo = app._opengl._renderers.gizmo
     if 0 < app._hovered <= 3 # TODO: only when not moving yet
-        axes_map = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
+        axes_map = ALL_AXES
         gizmo.axes = axes_map[app._hovered]
         gizmo.move = true
+        _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
         app._scene_change = true
         return true
     end
@@ -174,38 +204,12 @@ end
 
 function on_gizmo_drag!(app, event)::Bool
     gizmo = app._opengl._renderers.gizmo
+    gizmo.lastMousePosition = (event.x, event.y)
     if !gizmo.move || (gizmo.axes == AXIS_NONE && gizmo.selectedAxis == AXIS_NONE)
         return false
     end
 
-    ray = get_ray(app, event.x, event.y)
-    
-    newPoint = Vec3D(0,0,0)
-    if (gizmo.axes == AXIS_X || gizmo.axes == AXIS_Y || gizmo.axes == AXIS_Z)
-        axis_vector = AXIS_TO_VECTOR[gizmo.axes]
-        newPoint = _closestPointOnAxis(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(axis_vector))
-    else
-        normal_vector = Vec3F(0,0,0)
-        for axis in [AXIS_X, AXIS_Y, AXIS_Z]
-            if (gizmo.axes & axis == 0)
-                normal_vector = AXIS_TO_VECTOR[axis]
-                break
-            end
-        end
-        newPoint = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(normal_vector))
-        println(newPoint)
-    end
-
-    gizmo.position = newPoint
-    if gizmo.selected > 3
-        p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
-        if p._coord != gizmo.position
-            p._coord = gizmo.position
-            # ? schedule for evalGraph
-            schedule(getModel(app),p)
-        end
-    end
-
+    _move_gizmo!(app, gizmo, event.x, event.y)
     return true
 end
 
@@ -218,6 +222,7 @@ function on_gizmo_drag_axis_start!(app, axis)::Bool
     gizmo.selectedAxis |= axis
     gizmo.axes = gizmo.selectedAxis
     gizmo.move = true
+    _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
     
     app._scene_change = true
     return true

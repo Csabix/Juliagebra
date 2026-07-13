@@ -92,7 +92,7 @@ function draw_ui(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function _seg2segSqDistParams(p::Vec3D, v::Vec3D, q::Vec3D, w::Vec3D) :: Tuple{Float64,Float64,Float64}
+function _seg2segSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64,Float64,Float64}
     r  = q - p
 
     # v2, w2 : magnitudes^2
@@ -110,9 +110,17 @@ function _seg2segSqDistParams(p::Vec3D, v::Vec3D, q::Vec3D, w::Vec3D) :: Tuple{F
     return (d2, t, s)
 end
 
+function _closestPointOnAxis(eye::Vec3D, ray::Vec3D, position::Vec3D, axis_vector::Vec3D)::Vec3D
+    (_, _, s) = _seg2segSqDistParams(eye, ray, position, axis_vector)
+    return Vec3D(position + axis_vector * s)
+end
+function _planeLineIntersection()
+    # plane intersection
+end
+
 function on_gizmo_left_click!(app)::Bool
     gizmo = app._opengl._renderers.gizmo
-    if 0 < app._hovered <= 3
+    if 0 < app._hovered <= 3 # TODO: only when not moving yet
         axes_map = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
         gizmo.axes = axes_map[app._hovered]
         gizmo.move = true
@@ -158,16 +166,23 @@ end
 
 function on_gizmo_drag!(app, event)::Bool
     gizmo = app._opengl._renderers.gizmo
-    if !gizmo.move || gizmo.axes == AXIS_NONE
+    if !gizmo.move || (gizmo.axes == AXIS_NONE && gizmo.selectedAxis == AXIS_NONE)
         return false
     end
 
-    selected_axis_idx = gizmo.axes == AXIS_Y ? 2 : (gizmo.axes == AXIS_Z ? 3 : 1)
-
     ray = get_ray(app, event.x, event.y)
-    (_, _, s) = _seg2segSqDistParams(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(gizmo.id_to_axis[selected_axis_idx]))
+    
+    newPoint = Vec3D(0,0,0)
+    if (gizmo.axes != AXIS_NONE)
+        selected_axis_idx = gizmo.axes == AXIS_Y ? 2 : (gizmo.axes == AXIS_Z ? 3 : 1)
+        axis_vector = gizmo.id_to_axis[selected_axis_idx]
+        newPoint = _closestPointOnAxis(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(axis_vector))
+    else
+        # _planeLineIntersection()
+        # TODO: plane intersection
+    end
 
-    gizmo.position = Vec3D(gizmo.position + gizmo.id_to_axis[selected_axis_idx] * s)
+    gizmo.position = newPoint
     if gizmo.selected > 3
         p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
         if p._coord != gizmo.position
@@ -187,7 +202,11 @@ function on_gizmo_drag_axis_start!(app, axis)::Bool
     end
 
     gizmo.selectedAxis |= axis
-    println(gizmo.selectedAxis)
+    gizmo.axes = gizmo.selectedAxis
+    gizmo.move = true
+    
+    app._scene_change = true
+    # println(gizmo.selectedAxis)
     return true
 end
 function on_gizmo_drag_axis_end!(app, axis)::Bool
@@ -197,6 +216,13 @@ function on_gizmo_drag_axis_end!(app, axis)::Bool
     end
 
     gizmo.selectedAxis -= axis
-    println(gizmo.selectedAxis)
+    gizmo.axes = gizmo.selectedAxis
+    if (gizmo.selectedAxis == AXIS_NONE)
+        gizmo.move = false
+        gizmo.axes = gizmo.initial_constraints
+    end
+
+    app._scene_change = true
+    # println(gizmo.selectedAxis)
     return true
 end

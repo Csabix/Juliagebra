@@ -90,29 +90,22 @@ function draw_ui(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function _screen24(v::Vec4F)::Vec2F
-    x = (v.x / v.w)
-    y = (v.y / v.w)
-    return Vec2F(x, y)
-end
+function _seg2segSqDistParams(p::Vec3D, v::Vec3D, q::Vec3D, w::Vec3D) :: Tuple{Float64,Float64,Float64}
+    r  = q - p
 
-function screenVecs(origin, axis, x, y, width, height, vp)
-    screenOrigin = vp * Vec4F(origin, 1.0)
-    screenOrigin = _screen24(screenOrigin)
+    # v2, w2 : magnitudes^2
+    # vw : parallellity
+    v2 = dot(v,v); w2 = dot(w,w); vw = dot(v,w)
 
-    screenAxis = vp * Vec4F(axis, 1.0)
-    screenAxis = _screen24(screenAxis)
-
-    screenMouse = Vec2F((x / width) * 2.0 - 1.0, (y / height) * 2.0 - 1.0)
-
-    return (screenOrigin, screenAxis, screenMouse)
-end
-
-function _getAxisClampedT(axis_2d::Vec2F, mouse_2d::Vec2F)::Float32
-    partOne = axis_2d.x * mouse_2d.x + axis_2d.y * mouse_2d.y
-    partDiv = axis_2d.x * axis_2d.x + axis_2d.y * axis_2d.y
-    if partDiv < 1e-6 return 0.0f0 end
-    return partOne / partDiv
+	D  = v2*w2 - vw*vw # ‖v×w‖²
+    a1 = dot(v,r); a2 = dot(w,r); a3 = dot(cross(v,w), r)
+	
+    t  = ( w2*a1 - vw*a2 ) / D
+    s  = ( vw*a1 - v2*a2 ) / D
+	
+    d2 = a3*a3 / D
+	
+    return (d2, t, s)
 end
 
 function on_gizmo_left_click!(app)::Bool
@@ -168,26 +161,19 @@ function on_gizmo_drag!(app, event)::Bool
     end
 
     selected_axis_idx = gizmo.axes == AXIS_Y ? 2 : (gizmo.axes == AXIS_Z ? 3 : 1)
-    
-    vp, _, _ = get_matrices(app._cam)
-    origin = Vec3F(gizmo.position)
-    axis_vector = gizmo.id_to_axis[selected_axis_idx] + origin
-    
-    screen_origin, screen_axis, screen_mouse = screenVecs(origin, axis_vector, event.x, event.y, app._glfw.width, app._glfw.height, vp)
-    t = _getAxisClampedT(screen_axis - screen_origin, screen_mouse - screen_origin)
-    
-    if norm(screen_axis - screen_origin) >= 0.01f0
-        gizmo.position = Vec3D(origin + (axis_vector - origin) * t)
-        
-        if gizmo.selected > 3
-            p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
-            if p._coord != gizmo.position
-                p._coord = gizmo.position
-                # ? schedule for evalGraph
-                schedule(getModel(app),p)
-            end
+
+    ray = get_ray(app, event.x, event.y)
+    (_, _, s) = _seg2segSqDistParams(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(gizmo.id_to_axis[selected_axis_idx]))
+
+    gizmo.position = Vec3D(gizmo.position + gizmo.id_to_axis[selected_axis_idx] * s)
+    if gizmo.selected > 3
+        p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
+        if p._coord != gizmo.position
+            p._coord = gizmo.position
+            # ? schedule for evalGraph
+            schedule(getModel(app),p)
         end
-    end 
-    
+    end
+
     return true
 end

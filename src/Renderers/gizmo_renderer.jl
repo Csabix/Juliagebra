@@ -5,6 +5,12 @@ const AXIS_Z::UInt32    = UInt32(0x4)
 const AXIS_FULL::UInt32 = UInt32(0x7)
 export AXIS_NONE, AXIS_X, AXIS_Y, AXIS_Z, AXIS_FULL
 
+const AXIS_TO_VECTOR = Dict{UInt32,Vec3F}(
+    AXIS_X => Vec3F(1,0,0),
+    AXIS_Y => Vec3F(0,1,0),
+    AXIS_Z => Vec3F(0,0,1),
+)
+
 mutable struct GizmoRenderer
     corner_gizmo::Pipeline
     move_gizmo::Pipeline
@@ -114,8 +120,10 @@ function _closestPointOnAxis(eye::Vec3D, ray::Vec3D, position::Vec3D, axis_vecto
     (_, _, s) = _seg2segSqDistParams(eye, ray, position, axis_vector)
     return Vec3D(position + axis_vector * s)
 end
-function _planeLineIntersection()
-    # plane intersection
+function _planeLineIntersection(eye::Vec3D, ray::Vec3D, position::Vec3D, normal_vector::Vec3D)
+    line = PLine(eye, ray)
+    plane = PPlane(position, normal_vector)
+    return PrimitiveToPrimitiveIntersection(line, plane)
 end
 
 function on_gizmo_left_click!(app)::Bool
@@ -173,13 +181,19 @@ function on_gizmo_drag!(app, event)::Bool
     ray = get_ray(app, event.x, event.y)
     
     newPoint = Vec3D(0,0,0)
-    if (gizmo.axes != AXIS_NONE)
-        selected_axis_idx = gizmo.axes == AXIS_Y ? 2 : (gizmo.axes == AXIS_Z ? 3 : 1)
-        axis_vector = gizmo.id_to_axis[selected_axis_idx]
+    if (gizmo.axes == AXIS_X || gizmo.axes == AXIS_Y || gizmo.axes == AXIS_Z)
+        axis_vector = AXIS_TO_VECTOR[gizmo.axes]
         newPoint = _closestPointOnAxis(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(axis_vector))
     else
-        # _planeLineIntersection()
-        # TODO: plane intersection
+        normal_vector = Vec3F(0,0,0)
+        for axis in [AXIS_X, AXIS_Y, AXIS_Z]
+            if (gizmo.axes & axis == 0)
+                normal_vector = AXIS_TO_VECTOR[axis]
+                break
+            end
+        end
+        newPoint = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(normal_vector))
+        println(newPoint)
     end
 
     gizmo.position = newPoint
@@ -206,7 +220,6 @@ function on_gizmo_drag_axis_start!(app, axis)::Bool
     gizmo.move = true
     
     app._scene_change = true
-    # println(gizmo.selectedAxis)
     return true
 end
 function on_gizmo_drag_axis_end!(app, axis)::Bool
@@ -223,6 +236,5 @@ function on_gizmo_drag_axis_end!(app, axis)::Bool
     end
 
     app._scene_change = true
-    # println(gizmo.selectedAxis)
     return true
 end

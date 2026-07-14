@@ -97,7 +97,16 @@ function setup_callbacks(self::App)::Nothing
     register_callback!(event -> on_gizmo_left_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_LEFT))
     register_callback!(event -> on_gizmo_right_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_RIGHT))
     register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
-    register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
+    register_callback!(event -> begin
+        if (on_gizmo_drag!(self, event))
+            gizmo = self._opengl._renderers.gizmo
+            self._imgui._coordinatesWidget._coordinates = gizmo.position
+            resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+            return true
+        else
+            return false
+        end
+    end, self._inputs, MOUSE_MOVE)
     
     # --- KEYBOARD DOWN EVENTS ---
     register_callback!(event -> on_gizmo_drag_axis_start!(self, AXIS_X), self._inputs, KEY_DOWN, Cint(GLFW.KEY_X))

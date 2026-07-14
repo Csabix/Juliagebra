@@ -16,6 +16,7 @@ mutable struct GizmoRenderer
     corner_gizmo::Pipeline
     move_gizmo::Pipeline
     position::Vec3D
+    initial_pos_diff::Vec3D
     axes::UInt32
     
     initial_constraints::UInt32
@@ -41,6 +42,7 @@ mutable struct GizmoRenderer
             frag = spv"renderers/gizmo/gizmo.frag"
         )
         position = Vec3D(0.0)
+        initial_pos_diff = Vec3D(0.0)
         axes = AXIS_NONE
         
         initial_constraints = AXIS_NONE
@@ -55,7 +57,7 @@ mutable struct GizmoRenderer
 
         empty_vao = VertexArray()
         return new(
-            corner_gizmo,move_gizmo,position,axes,
+            corner_gizmo,move_gizmo,position,initial_pos_diff,axes,
             initial_constraints,move,id_to_axis,selected,selectedAxis,lastMousePosition,
             ubo,empty_vao
         )
@@ -144,6 +146,12 @@ function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
         end
     end
 
+    # ? The first time the gizmo is moved
+    if (!gizmo.move)
+        gizmo.initial_pos_diff = gizmo.position - newPoint
+    end
+    newPoint += gizmo.initial_pos_diff
+
     gizmo.position = newPoint
     if gizmo.selected > 3
         p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
@@ -160,8 +168,8 @@ function on_gizmo_left_click!(app)::Bool
     if 0 < app._hovered <= 3 # TODO: only when not moving yet
         axes_map = ALL_AXES
         gizmo.axes = axes_map[app._hovered]
-        gizmo.move = true
         _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
+        gizmo.move = true
         app._scene_change = true
         return true
     end
@@ -221,9 +229,9 @@ function on_gizmo_drag_axis_start!(app, axis)::Bool
 
     gizmo.selectedAxis |= axis
     gizmo.axes = gizmo.selectedAxis
-    gizmo.move = true
     _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
     
+    gizmo.move = true
     app._scene_change = true
     return true
 end

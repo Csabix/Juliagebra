@@ -1,7 +1,7 @@
 
 mutable struct CoordinatesWidget <: ImGuiWidgetDNA
     _widget::ImGuiWidget
-    _coordinates::Vec3D
+    _gizmo::GizmoRenderer
 
     _posX::Int
     _posY::Int
@@ -11,8 +11,8 @@ mutable struct CoordinatesWidget <: ImGuiWidgetDNA
 
     _padding::Int
 
-    function CoordinatesWidget()
-        new(ImGuiWidget(),Vec3D(0),0,0,0,0,0)
+    function CoordinatesWidget(gizmo::GizmoRenderer)
+        new(ImGuiWidget(),gizmo,0,0,0,0,0)
     end
 end
 
@@ -21,23 +21,25 @@ _ImGuiWidget_(self::CoordinatesWidget)::ImGuiWidget = return self._widget
 function render(self::CoordinatesWidget, app::AppDNA)
     imgui = getImGui(app)
 
-    CImGui.SetNextWindowPos((self._posX,self._posY))
-    CImGui.SetNextWindowSize((self._width,self._height))
+    if (self._gizmo.axes > 0)
+        CImGui.SetNextWindowPos((self._posX,self._posY))
+        CImGui.SetNextWindowSize((self._width,self._height))
 
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding,5.0)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding,(self._padding,self._padding))
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding,5.0)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding,(self._padding,self._padding))
 
-    CImGui.Begin("CoordinatesWidget",C_NULL,
-        CImGui.ImGuiWindowFlags_NoSavedSettings | 
-        CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove |
-        CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoCollapse |
-        CImGui.ImGuiWindowFlags_NoDecoration)
+        CImGui.Begin("CoordinatesWidget",C_NULL,
+            CImGui.ImGuiWindowFlags_NoSavedSettings | 
+            CImGui.ImGuiWindowFlags_NoResize | CImGui.ImGuiWindowFlags_NoMove |
+            CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoCollapse |
+            CImGui.ImGuiWindowFlags_NoDecoration)
 
-    coords = "(" * string(round(self._coordinates[1]; digits = 1)) * ", " * string(round(self._coordinates[2]; digits = 1)) * ", " * string(round(self._coordinates[3]; digits = 1)) * ")"
-    CImGui.Text(coords)
-    
-    CImGui.End()
-    CImGui.PopStyleVar(2)
+        coords = "(" * string(round(self._gizmo.position[1]; digits = 1)) * ", " * string(round(self._gizmo.position[2]; digits = 1)) * ", " * string(round(self._gizmo.position[3]; digits = 1)) * ")"
+        CImGui.Text(coords)
+        
+        CImGui.End()
+        CImGui.PopStyleVar(2)
+    end
 end
 
 function resize!(self::CoordinatesWidget,x::Int,y::Int)
@@ -45,17 +47,12 @@ function resize!(self::CoordinatesWidget,x::Int,y::Int)
     self._posY = y - 40
 
     plusDigits = 0
-    
-    plusDigits += floor(Int, log10(max(1.0, abs(self._coordinates[1]))))
-    if (self._coordinates[1] < 0) plusDigits += 1 end
-
-    plusDigits += floor(Int, log10(max(1.0, abs(self._coordinates[2]))))
-    if (self._coordinates[2] < 0) plusDigits += 1 end
-
-    plusDigits += floor(Int, log10(max(1.0, abs(self._coordinates[3]))))
-    if (self._coordinates[3] < 0) plusDigits += 1 end
-
-    println(plusDigits)
+    plusDigits += floor(Int, log10(max(1.0, abs(self._gizmo.position[1]))))
+    if (self._gizmo.position[1] < 0) plusDigits += 1 end
+    plusDigits += floor(Int, log10(max(1.0, abs(self._gizmo.position[2]))))
+    if (self._gizmo.position[2] < 0) plusDigits += 1 end
+    plusDigits += floor(Int, log10(max(1.0, abs(self._gizmo.position[3]))))
+    if (self._gizmo.position[3] < 0) plusDigits += 1 end
 
     self._width = 100 + plusDigits * 6
     self._height = 20

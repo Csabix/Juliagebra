@@ -64,7 +64,7 @@ mutable struct ImGuiData <: ImGuiDNA
         push!(widgets,dock)
         push!(widgets,ResetWidget())
         push!(widgets,OptionsWidget(openglD._backgroundCol))
-        coordinatesWidget = CoordinatesWidget()
+        coordinatesWidget = CoordinatesWidget(app._opengl._renderers.gizmo)
         push!(widgets,coordinatesWidget)
         
         self = new(textFont,iconFont,pool,dependents,widgets,dock,coordinatesWidget)

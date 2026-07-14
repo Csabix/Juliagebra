@@ -88,7 +88,6 @@ include("Widgets/dock.jl")
 include("Widgets/window.jl")
 include("Widgets/reset_widget.jl")
 include("Widgets/options_widget.jl")
-include("Widgets/coordinates_widget.jl")
 
 include("Widgets/console.jl")
 include("Widgets/named_window.jl")
@@ -98,6 +97,8 @@ include("Widgets/Windows/options_window.jl")
 
 include("Renderers/renderers.jl")
 include("opengl_data.jl")
+
+include("Widgets/coordinates_widget.jl")
 
 # ? ---------------------------------
 # ! Dependents

@@ -11,6 +11,7 @@ const AXIS_TO_VECTOR = Dict{UInt32,Vec3F}(
     AXIS_Z => Vec3F(0,0,1),
 )
 const ALL_AXES = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
+const MIN_VIEW_ANGLE_DIFF::Float32 = abs(sin(deg2rad(5.0)))
 
 mutable struct GizmoRenderer
     corner_gizmo::Pipeline
@@ -22,6 +23,7 @@ mutable struct GizmoRenderer
     
     initial_constraints::UInt32
     move::Bool
+    first_move::Bool
     id_to_axis::Tuple{Vec3F,Vec3F,Vec3F}
     selected::UInt32
     selectedAxis::UInt32
@@ -52,6 +54,7 @@ mutable struct GizmoRenderer
         
         initial_constraints = AXIS_NONE
         move = false
+        first_move = true
         id_to_axis = (Vec3F(1,0,0), Vec3F(0,1,0), Vec3F(0,0,1))
         selected = UInt32(0)
         selectedAxis = UInt32(0)
@@ -67,7 +70,7 @@ mutable struct GizmoRenderer
         empty_vao = VertexArray()
         return new(
             corner_gizmo,move_gizmo,position,initial_plane_normal,initial_pos_diff,axes,
-            initial_constraints,move,id_to_axis,selected,selectedAxis,lastMousePosition,
+            initial_constraints,move,first_move,id_to_axis,selected,selectedAxis,lastMousePosition,
             ubo_axis,ubo_size,empty_vao
         )
     end
@@ -126,43 +129,63 @@ function _planeLineIntersection(eye::Vec3D, ray::Vec3D, plane_position::Vec3D, p
         return nothing
     end
 end
+function _moveAlongAxis(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F)::Union{Vec3D,Nothing}
+    axis_vector = AXIS_TO_VECTOR[gizmo.axes]
+    if (gizmo.first_move)
+        # ? Perpendicular to ray and the axis
+        perp = cross(ray, axis_vector)
+        # ? Plane normal is perpendicular to previous vector and the axis
+        gizmo.initial_plane_normal = cross(perp, axis_vector)
+    end
+    
+    angleDiff = dot(normalize(app._cam._at - app._cam._eye), normalize(gizmo.initial_plane_normal))
+    if (abs(angleDiff) >= MIN_VIEW_ANGLE_DIFF)
+        intersection = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(gizmo.initial_plane_normal))
+        if (intersection !== nothing)
+            # ? Projecting onto axis to get length
+            t = dot(intersection - gizmo.position, axis_vector)
+            return gizmo.position + t * axis_vector
+        end
+    end
+
+    return nothing
+end
+function _moveAlongPlane(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F)::Union{Vec3D,Nothing}
+    for axis in ALL_AXES
+        # ? Finds the perpendicular axis to the plane that'll be used as its normal
+        if (gizmo.axes & axis == 0)
+            angleDiff = dot(normalize(app._cam._at - app._cam._eye), normalize(AXIS_TO_VECTOR[axis]))
+            if (abs(angleDiff) >= MIN_VIEW_ANGLE_DIFF)
+                intersection = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
+                if (intersection !== nothing)
+                    return intersection
+                end
+            end
+            break
+        end
+    end
+    
+    return nothing
+end
 
 function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     ray = get_ray(app, mouseX, mouseY)
     newPoint = nothing
     
     if (any(a -> a == gizmo.axes, ALL_AXES))
-        axis_vector = AXIS_TO_VECTOR[gizmo.axes]
-        if (!gizmo.move)
-            # ? Perpendicular to forward direction and the axis
-            perp = cross(ray, axis_vector)                          # perp = cross(gizmo.position - app._cam._eye, axis_vector)
-            # ? Plane normal is perpendicular to perp and the axis
-            gizmo.initial_plane_normal = cross(perp, axis_vector)
-        end
-        intersection = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(gizmo.initial_plane_normal))
-        if (intersection !== nothing)
-            # ? Projecting onto axis to get length
-            t = dot(intersection - gizmo.position, axis_vector)
-            newPoint = gizmo.position + t * axis_vector
-        end
+        newPoint = _moveAlongAxis(app, gizmo, ray)
     else
-        for axis in ALL_AXES
-            if (gizmo.axes & axis == 0)
-                intersection = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
-                if (intersection !== nothing)
-                    newPoint = intersection
-                end
-                break
-            end
-        end
+        newPoint = _moveAlongPlane(app, gizmo, ray)
     end
 
-    # ? The first time the gizmo is moved
-    if (!gizmo.move && intersection !== nothing)
+    if (gizmo.first_move && newPoint !== nothing)
+        # ? Stores the initial difference between where the cursor points and where the gizmo is
         gizmo.initial_pos_diff = gizmo.position - newPoint
+        gizmo.first_move = false
     end
 
-    if (intersection !== nothing)
+    if (newPoint !== nothing)
+        # ? Applies the stored difference, so that the gizmo doesn't jump to the cursor at the beginning
         newPoint += gizmo.initial_pos_diff
         gizmo.position = newPoint
     end
@@ -182,8 +205,11 @@ function on_gizmo_left_click!(app)::Bool
     if 0 < app._hovered <= 3 # TODO: only when not moving yet
         axes_map = ALL_AXES
         gizmo.axes = axes_map[app._hovered]
-        _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
+
         gizmo.move = true
+        gizmo.first_move = true
+        _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
+
         app._scene_change = true
         return true
     end
@@ -243,9 +269,11 @@ function on_gizmo_drag_axis_start!(app, axis)::Bool
 
     gizmo.selectedAxis |= axis
     gizmo.axes = gizmo.selectedAxis
-    _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
-    
+
     gizmo.move = true
+    gizmo.first_move = true
+    _move_gizmo!(app, gizmo, gizmo.lastMousePosition[1], gizmo.lastMousePosition[2])
+
     app._scene_change = true
     return true
 end
@@ -257,6 +285,8 @@ function on_gizmo_drag_axis_end!(app, axis)::Bool
 
     gizmo.selectedAxis -= axis
     gizmo.axes = gizmo.selectedAxis
+    gizmo.first_move = true
+
     if (gizmo.selectedAxis == AXIS_NONE)
         gizmo.move = false
         gizmo.axes = gizmo.initial_constraints

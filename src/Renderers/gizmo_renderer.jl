@@ -16,6 +16,7 @@ mutable struct GizmoRenderer
     corner_gizmo::Pipeline
     move_gizmo::Pipeline
     position::Vec3D
+    initial_plane_normal::Vec3D
     initial_pos_diff::Vec3D
     axes::UInt32
     
@@ -45,6 +46,7 @@ mutable struct GizmoRenderer
             frag = spv"renderers/gizmo/gizmo.frag"
         )
         position = Vec3D(0.0)
+        initial_plane_normal = Vec3D(0.0)
         initial_pos_diff = Vec3D(0.0)
         axes = AXIS_NONE
         
@@ -64,7 +66,7 @@ mutable struct GizmoRenderer
 
         empty_vao = VertexArray()
         return new(
-            corner_gizmo,move_gizmo,position,initial_pos_diff,axes,
+            corner_gizmo,move_gizmo,position,initial_plane_normal,initial_pos_diff,axes,
             initial_constraints,move,id_to_axis,selected,selectedAxis,lastMousePosition,
             ubo_axis,ubo_size,empty_vao
         )
@@ -113,56 +115,58 @@ function draw_ui(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
     return nothing
 end
 
-function _seg2segSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64,Float64,Float64}
-    r  = q - p
+function _planeLineIntersection(eye::Vec3D, ray::Vec3D, plane_position::Vec3D, plane_normal::Vec3D)::Union{Vec3D,Nothing}
+    cosRayNormal = dot(ray, plane_normal)
+    if (cosRayNormal == 0.0) return nothing end
 
-    # v2, w2 : magnitudes^2
-    # vw : parallellity
-    v2 = dot(v,v); w2 = dot(w,w); vw = dot(v,w)
-
-	D  = v2*w2 - vw*vw # ‖v×w‖²
-    a1 = dot(v,r); a2 = dot(w,r); a3 = dot(cross(v,w), r)
-	
-    t  = ( w2*a1 - vw*a2 ) / D
-    s  = ( vw*a1 - v2*a2 ) / D
-	
-    d2 = a3*a3 / D
-	
-    return (d2, t, s)
-end
-function _closestPointOnAxis(eye::Vec3D, ray::Vec3D, position::Vec3D, axis_vector::Vec3D)::Vec3D
-    (_, _, s) = _seg2segSqDistParams(eye, ray, position, axis_vector)
-    return Vec3D(position + axis_vector * s)
-end
-function _planeLineIntersection(eye::Vec3D, ray::Vec3D, position::Vec3D, normal_vector::Vec3D)
-    line = PLine(eye, ray)
-    plane = PPlane(position, normal_vector)
-    return PrimitiveToPrimitiveIntersection(line, plane)
+    t = dot(plane_position - eye, plane_normal) / cosRayNormal
+    if (t >= 0)
+        return eye + t * ray
+    else
+        return nothing
+    end
 end
 
 function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     ray = get_ray(app, mouseX, mouseY)
-    newPoint = Vec3D(0)
+    newPoint = nothing
     
     if (any(a -> a == gizmo.axes, ALL_AXES))
         axis_vector = AXIS_TO_VECTOR[gizmo.axes]
-        newPoint = _closestPointOnAxis(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(axis_vector))
+        if (!gizmo.move)
+            # ? Perpendicular to forward direction and the axis
+            perp = cross(ray, axis_vector)                          # perp = cross(gizmo.position - app._cam._eye, axis_vector)
+            # ? Plane normal is perpendicular to perp and the axis
+            gizmo.initial_plane_normal = cross(perp, axis_vector)
+        end
+        intersection = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(gizmo.initial_plane_normal))
+        if (intersection !== nothing)
+            # ? Projecting onto axis to get length
+            t = dot(intersection - gizmo.position, axis_vector)
+            newPoint = gizmo.position + t * axis_vector
+        end
     else
         for axis in ALL_AXES
             if (gizmo.axes & axis == 0)
-                newPoint = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
+                intersection = _planeLineIntersection(Vec3D(app._cam._eye), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
+                if (intersection !== nothing)
+                    newPoint = intersection
+                end
                 break
             end
         end
     end
 
     # ? The first time the gizmo is moved
-    if (!gizmo.move)
+    if (!gizmo.move && intersection !== nothing)
         gizmo.initial_pos_diff = gizmo.position - newPoint
     end
-    newPoint += gizmo.initial_pos_diff
 
-    gizmo.position = newPoint
+    if (intersection !== nothing)
+        newPoint += gizmo.initial_pos_diff
+        gizmo.position = newPoint
+    end
+
     if gizmo.selected > 3
         p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
         if p._coord != gizmo.position

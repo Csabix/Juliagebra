@@ -81,13 +81,13 @@ function pre_gpu_tess!(self::ParametricCurveDependent)
 end
 
 function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool
-    # TODO: measure impact of pre-allocating staging buffers per gpu-tessellated dependent
+    # TODO: measure impact of pre-allocating staging buffers per gpu-tessellated dependent vs on the fly
     dep::ParametricDependent = _ParametricDependent_(self)
 
-    staging_buffer = data(dep._outBuffer)
+    copyto!(dep._stagingBuffer, 1, dep._outBuffer._mapped, 1, dep._sampleCount)
 
-    for i in 1:length(staging_buffer)
-        v4 = staging_buffer[i]
+    for i in eachindex(dep._stagingBuffer)
+        v4 = dep._stagingBuffer[i]
         
         v3 = Vec3D(v4.x, v4.y, v4.z)
         

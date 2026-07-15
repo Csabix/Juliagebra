@@ -19,10 +19,11 @@ mutable struct ParametricDependent <: RenderedDependentDNA
     _tessCompShader::Union{ShaderProgram, Nothing}
     _outBuffer::Union{MappedBuffer{Vec4}, Nothing}
     _sampleCount::Int # num of vec4-s in _outBuffer
+    _stagingBuffer::Vector{Vec4}
 
     function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA})
         renderedDependent = RenderedDependent(callback,dependents)
-        return new(renderedDependent, nothing, nothing, nothing, nothing, 0)
+        return new(renderedDependent, nothing, nothing, nothing, nothing, 0, Vec4[])
     end
 
     function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA},
@@ -30,7 +31,7 @@ mutable struct ParametricDependent <: RenderedDependentDNA
                                  sampleCount::Int)
         renderedDependent = RenderedDependent(callback,dependents)
 
-        return new(renderedDependent, callbackAST, dependentBindings, nothing, nothing, sampleCount)
+        return new(renderedDependent, callbackAST, dependentBindings, nothing, nothing, sampleCount, Vector{Vec4}(undef, sampleCount))
     end
 end
 
@@ -53,7 +54,7 @@ end
 
 function is_valid_parametric_dependent(self::ParametricDependentDNA)::Bool
     dep::ParametricDependent = _ParametricDependent_(self)
-    gpu_props = (dep._callbackAST, dep._dependentBindings, dep._tessCompShader, dep._outBuffer)
+    gpu_props = (dep._callbackAST, dep._dependentBindings, dep._tessCompShader)
     return all(isnothing, gpu_props) || !any(isnothing, gpu_props)
 end
 
@@ -84,29 +85,34 @@ function setup_parametric_dependent!(self::ParametricDependentDNA)
     dep::ParametricDependent = _ParametricDependent_(self)
     @assert dep._tessCompShader === nothing && dep._outBuffer === nothing "setup_parametric_dependent! called on dependent that has already been initialized"
 
-    # CPU tessellated dependent
-    dep._callbackAST === nothing && return
+    # GPU tessellated dependent
+    if dep._callbackAST !== nothing
+        @time_cpu_begin GPUTessSetup
 
-    @time_cpu_begin GPUTessSetup
+        @time_cpu_begin GPUTessSetup CodeGen
+        tess_shader = try_transpile_tess_shader(self)
+        @time_cpu_end GPUTessSetup CodeGen
+        
+        if tess_shader !== nothing
+            dep._tessCompShader = tess_shader
 
-    @time_cpu_begin GPUTessSetup CodeGen
-    tess_shader = try_transpile_tess_shader(self)
-    @time_cpu_end GPUTessSetup CodeGen
-    
-    if tess_shader !== nothing
-        dep._tessCompShader = tess_shader
+            dep._outBuffer = MappedBuffer{Vec4}(; read = true, write = false)
+            reserve!(dep._outBuffer, dep._sampleCount, 0)
+        else
+            dep._callbackAST = nothing
+            dep._dependentBindings = nothing
+        end
 
-        dep._outBuffer = MappedBuffer{Vec4}(; read = true, write = false)
-        reserve!(dep._outBuffer, dep._sampleCount, 0)
-    else
-        dep._callbackAST = nothing
-        dep._dependentBindings = nothing
+        @time_cpu_end GPUTessSetup
     end
 
-    @assert is_valid_parametric_dependent(self) "parametric dependent in invalid state after setup"
+    post_setup_parametric_dependent!(self)
 
-    @time_cpu_end GPUTessSetup
+    @assert is_valid_parametric_dependent(self) "parametric dependent in invalid state after setup"
 end
+
+# hook for any additional OpenGL setup
+post_setup_parametric_dependent!(self::ParametricDependentDNA) = nothing
 
 # called before the tessellation shader is dispatched, can be used for uniform uploads and such
 pre_gpu_tess!(::ParametricDependentDNA) = nothing

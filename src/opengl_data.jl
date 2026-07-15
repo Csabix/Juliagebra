@@ -46,6 +46,7 @@ mutable struct OpenGLData
     _highlighter::Pipeline
     _buffer_clear::Pipeline
     _grid::Pipeline
+    _surface_normals::ShaderProgram
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -128,6 +129,7 @@ mutable struct OpenGLData
             vert = spv"postprocess/grid.vert",
             frag = spv"postprocess/grid.frag"
         )
+        surface_normals = ShaderProgram(["surface_normals.comp"], ["uvGridSize"])
 
         depth_stencil = Texture2D(window.width,window.height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(window.width,window.height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -190,7 +192,7 @@ mutable struct OpenGLData
         camPos = Vec3F(0.0,0.0,0.0)
 
         self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,observers,renderers,
-            transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
+            transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,surface_normals,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,

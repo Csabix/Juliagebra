@@ -20,13 +20,16 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDep
 
     _color::UInt32
 
+    _normalsBuffer::Union{MappedBuffer{Vec4},Nothing}
+
     # YELLOW Thread
     function ParametricSurfaceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         uRange::Range,
         vRange::Range,
         color::UInt32,
-        callback_ast::Union{Expr,Nothing},dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing}
+        callback_ast::Union{Expr,Nothing},
+        dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing}
         ) where {Range<:AbstractRange}
 
         Nu = length(uRange)
@@ -45,13 +48,31 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDep
             0,
             uRange,
             vRange,
-            color)
+            color,
+            nothing)
     end
 end
 
 _ParametricDependent_(self::ParametricSurfaceDependent)::ParametricDependent = return self._parametricDependent
 _RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return _ParametricDependent_(self)._renderedDependent
 Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
+
+function post_setup_parametric_dependent!(self::ParametricSurfaceDependent)
+    dep::ParametricDependent = _ParametricDependent_(self)
+   
+    n = width(self._uvValues) * height(self._uvValues)
+
+    Base.resize!(dep._stagingBuffer, n)
+    
+    self._normalsBuffer = MappedBuffer{Vec4}(; read = true, write = false)
+    reserve!(self._normalsBuffer, n, 0)
+    
+    # force creation of position buffer so that normal calculations can always rely on it
+    if dep._callbackAST === nothing
+        dep._outBuffer = MappedBuffer{Vec4}(; read = false, write = true)
+        reserve!(dep._outBuffer, n, 0)
+    end
+end
 
 evalCallbackDpReturn(self::ParametricSurfaceDependent,value,u,v) = self._uvValues[u,v] = Vec3D(value)
 evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Tuple,u,v) = self._uvValues[u,v] = Vec3D(value...)
@@ -88,8 +109,8 @@ end
 function onNodeEval(self::ParametricSurfaceDependent)
     eval_callbacks!(self)
 
-    # TODO: GPU-side normal calculation
-    update_normals_cpu!(self)
+    # update_normals_cpu!(self)
+    update_normals_gpu!(self)
 end
 
 function eval_callbacks_cpu!(self::ParametricSurfaceDependent)
@@ -155,6 +176,64 @@ function update_normals_cpu!(self::ParametricSurfaceDependent)
         down  = self._uvValues[width(self._uvValues),height(self._uvValues)])
 end
 
+function update_normals_gpu!(self::ParametricSurfaceDependent)
+    h = height(self._uvValues)
+    w = width(self._uvValues)
+    n = h * w
+
+    dep::ParametricDependent = _ParametricDependent_(self)
+
+    if is_cpu_tessellated(self)
+        @assert dep._outBuffer !== nothing "parametric surface without out buffer (position buffer)"
+        
+        # first normal calc after GPU -> CPU fallback state
+        if !dep._outBuffer._write
+            dep._outBuffer._write = true
+            dep._outBuffer._read  = false
+            reserve!(dep._outBuffer, n, 0)
+        end
+
+        i = 1
+        for v in 1:h
+            for u in 1:w
+                dep._stagingBuffer[i] = Vec4F(self._uvValues[u, v], 0)
+                i += 1
+            end
+        end
+
+        copyto!(dep._outBuffer, dep._stagingBuffer)
+    end
+
+    normals_shader = getOpenGL(implicitApp)._surface_normals
+    activate(normals_shader) # TODO: use SPIRV
+    glUniform2i(normals_shader.uniforms["uvGridSize"], GLint(height(self._uvValues)), GLint(width(self._uvValues)))
+
+    bind_ssbo(dep._outBuffer, 0)
+    bind_ssbo(self._normalsBuffer, 1)
+
+    glDispatchCompute(div(w + 15, 16), div(h + 15, 16), 1)
+
+    glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
+    fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+    while true
+        waitReturn = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000);
+        if waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED
+            break
+        elseif waitReturn == GL_WAIT_FAILED
+            @log "Failed to sync after dispatching surface normal calculation compute shader" ERR
+            glDeleteSync(fence)
+        end
+    end
+    glDeleteSync(fence)
+
+    copyto!(dep._stagingBuffer, 1, self._normalsBuffer._mapped, 1, n)
+
+    for v in 1:h, u in 1:w
+        v4 = dep._stagingBuffer[(v - 1) * w + u]
+        self._uvNormals[u, v] = Vec3D(v4.x, v4.y, v4.z)
+    end
+end
+
 # ? methods for GPU tessellation
 
 function pre_gpu_tess!(self::ParametricSurfaceDependent)
@@ -171,12 +250,13 @@ end
 
 function handle_gpu_tess_result!(self::ParametricSurfaceDependent)::Bool
     dep::ParametricDependent = _ParametricDependent_(self)
-    staging_buffer = data(dep._outBuffer)
+    
+    copyto!(dep._stagingBuffer, 1, dep._outBuffer._mapped, 1, dep._sampleCount)
     
     i::Int = 1
     for v in 1:height(self._uvValues)
         for u in 1:width(self._uvValues)
-            v4 = staging_buffer[i]
+            v4 = dep._stagingBuffer[i]
             v3 = Vec3F(v4.x, v4.y, v4.z)
 
             any(x -> isnan(x) || isinf(x), v3) && return false
@@ -188,14 +268,14 @@ function handle_gpu_tess_result!(self::ParametricSurfaceDependent)::Bool
     end
 
     # sync before gpu-side normal calculation
-    # glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
-
-    update_normals_cpu!(self)
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
     return true
 end
 
 function try_transpile_tess_shader(self::ParametricSurfaceDependent)::Union{ShaderProgram,Nothing}
+    @time_cpu_begin GPUTessSetup CodeGen SurfaceWrapperCodeGen
+    
     dep::ParametricDependent = _ParametricDependent_(self)
 
     fn_data = splitdef(dep._callbackAST)
@@ -216,6 +296,7 @@ function try_transpile_tess_shader(self::ParametricSurfaceDependent)::Union{Shad
     end)
 
     dep._callbackAST = combinedef(fn_data)
+    @time_cpu_end GPUTessSetup CodeGen SurfaceWrapperCodeGen
 
     return try_transpile_tess_shader_base(dep._callbackAST, dep._dependentBindings, [(GPU_TESS_UV_GRID_SIZE_STR, IVec2), (GPU_TESS_UV_RANGE_STR, Vec4)])
 end

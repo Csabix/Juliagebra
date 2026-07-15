@@ -26,19 +26,22 @@ mutable struct GizmoRenderer
     selectedAxis::UInt32
     lastMousePosition::Tuple{Float64,Float64}
 
-    ubo::MappedBuffer{Vec4F}
+    # ? 3 floats for position, 4th float for axes visibility
+    ubo_axis::MappedBuffer{Vec4F}
+    # ? 1 float for length + 1 float for thickness
+    ubo_size::MappedBuffer{Float32}
     empty_vao::VertexArray
 
     function GizmoRenderer(loader::PipelineLoader,content_scale::Float32)
         corner_gizmo = create_graphics_pipeline!(loader;
             vert = (spv"renderers/gizmo/gizmo.vert",Tuple{GLuint,GLuint}[(0,1),(1,reinterpret(GLuint,content_scale))]),
-            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(1,reinterpret(GLuint,content_scale))]),
+            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(0,1),(1,reinterpret(GLuint,content_scale))]),
             frag = spv"renderers/gizmo/gizmo.frag"
         )
 
         move_gizmo = create_graphics_pipeline!(loader;
             vert = (spv"renderers/gizmo/gizmo.vert",Tuple{GLuint,GLuint}[(0,0),(1,reinterpret(GLuint,content_scale))]),
-            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(1,reinterpret(GLuint,content_scale))]),
+            geom = (spv"renderers/gizmo/gizmo.geom",Tuple{GLuint,GLuint}[(0,0),(1,reinterpret(GLuint,content_scale))]),
             frag = spv"renderers/gizmo/gizmo.frag"
         )
         position = Vec3D(0.0)
@@ -52,14 +55,16 @@ mutable struct GizmoRenderer
         selectedAxis = UInt32(0)
         lastMousePosition = (Float64(0), Float64(0))
 
-        ubo = MappedBuffer{Vec4F}()
-        reserve!(ubo, 1, 0)
+        ubo_axis = MappedBuffer{Vec4F}()
+        reserve!(ubo_axis, 1, 0)
+        ubo_size = MappedBuffer{Float32}()
+        reserve!(ubo_size, 2, 0)
 
         empty_vao = VertexArray()
         return new(
             corner_gizmo,move_gizmo,position,initial_pos_diff,axes,
             initial_constraints,move,id_to_axis,selected,selectedAxis,lastMousePosition,
-            ubo,empty_vao
+            ubo_axis,ubo_size,empty_vao
         )
     end
 end
@@ -72,19 +77,22 @@ function reset!(renderer::GizmoRenderer)::Nothing
 end
 
 function destroy!(renderer::GizmoRenderer)::Nothing
-    destroy!(renderer.ubo)
+    destroy!(renderer.ubo_axis)
+    destroy!(renderer.ubo_size)
     return nothing
 end
 
 function pre_draw(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
     if renderer.axes == AXIS_NONE return nothing end
-    wait(renderer.ubo)
-    renderer.ubo[1] = Vec4F(
+    wait(renderer.ubo_axis)
+    renderer.ubo_axis[1] = Vec4F(
         Float32(renderer.position[1]),
         Float32(renderer.position[2]),
         Float32(renderer.position[3]),
         reinterpret(Float32, renderer.axes)
     )
+    renderer.ubo_size[1] = Float32(0.5)
+    renderer.ubo_size[2] = Float32(2.0)
     return nothing
 end
 
@@ -95,10 +103,12 @@ function draw_ui(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
 
     if renderer.axes == AXIS_NONE return nothing end
 
-    bind_ubo(renderer.ubo, 0)
+    bind_ubo(renderer.ubo_axis, 0)
+    bind_ubo(renderer.ubo_size, 1)
     activate(renderer.move_gizmo)
     glDrawArrays(GL_LINES, 0, 12)
-    lock(renderer.ubo)
+    lock(renderer.ubo_axis)
+    lock(renderer.ubo_size)
 
     return nothing
 end

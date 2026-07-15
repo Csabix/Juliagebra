@@ -4,8 +4,12 @@
 
 layout(constant_id = 0) const bool CORNER_GIZMO = false;
 layout(constant_id = 1) const float CONTENT_SCALE = 1.0;
-layout(std140, binding = 0) uniform Gizmo_UBO {
+layout(std140, binding = 0) uniform Gizmo_UBO_Axis {
     vec4 center_axis;
+};
+layout(std140, binding = 1) uniform Gizmo_UBO_Size {
+    float gizmo_length;
+    float gizmo_thickness;
 };
 
 const vec3 vertices[6] = vec3[6](vec3(1,0,0),vec3(-1,0,0),vec3(0,1,0),vec3(0,-1,0),vec3(0,0,1),vec3(0,0,-1));
@@ -32,7 +36,7 @@ void main(){
     } else {
         gizmoCenter = center_axis.xyz;
         centerClip = VP * vec4(gizmoCenter, 1.0);
-        gizmoScale = (centerClip.w / P[0][0]) * (gizmoPixelLength / width());
+        gizmoScale = (centerClip.w / P[0][0]) * (gizmoPixelLength * gizmo_length / width());
         
         for (int i = 0; i < 6; ++i) {
             vec4 proj_point = VP * vec4(vertices[i] * gizmoScale + gizmoCenter, 1.0); 

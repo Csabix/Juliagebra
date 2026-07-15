@@ -21,7 +21,7 @@ end
 
 function renderContent(self::SurfacesWindow)
     col_flags = CImGui.ImGuiTableColumnFlags_WidthFixed
-    if !CImGui.BeginTable("surfaces_tbl", 2,
+    if !CImGui.BeginTable("surfaces_tbl", 3,
             CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_RowBg |
             CImGui.ImGuiTableFlags_ScrollY)
         return
@@ -30,6 +30,7 @@ function renderContent(self::SurfacesWindow)
     CImGui.TableSetupScrollFreeze(0, 1)
     CImGui.TableSetupColumn("ID",          col_flags, 28.0)
     CImGui.TableSetupColumn("Color")
+    CImGui.TableSetupColumn("Tess")
     CImGui.TableHeadersRow()
 
     for node in getNodes(self._model._graph)
@@ -49,6 +50,9 @@ function renderContent(self::SurfacesWindow)
             node._color = new_color
             set_color(self._renderer,node)
         end
+
+        CImGui.TableNextColumn()
+        CImGui.Text(is_gpu_tessellated(node) ? "GPU" : "CPU")
     end
 
     CImGui.EndTable()

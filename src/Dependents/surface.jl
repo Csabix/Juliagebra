@@ -1,10 +1,15 @@
+# uniform identifiers used in code gen / upload
+const GPU_TESS_UV_GRID_SIZE = :JG_TESS_UV_GRID_SIZE
+const GPU_TESS_UV_GRID_SIZE_STR = string(GPU_TESS_UV_GRID_SIZE)
+const GPU_TESS_UV_RANGE = :JG_TESS_UV_RANGE
+const GPU_TESS_UV_RANGE_STR = string(GPU_TESS_UV_RANGE)
 
 # ? ---------------------------------
 # ! ParametricSurfaceDependent
 # ? ---------------------------------
 
-mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDependentDNA
-    _renderedDependent::RenderedDependent
+mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDependentDNA
+    _parametricDependent::ParametricDependent
     
     _uvValues::FlatMatrix{Vec3D}
     _uvNormals::FlatMatrix{Vec3D}
@@ -21,13 +26,20 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
         uRange::Range,
         vRange::Range,
         color::UInt32,
+        callback_ast::Union{Expr,Nothing},dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing}
         ) where {Range<:AbstractRange}
 
-        rd = RenderedDependent(callback,dependents)
-        uvValues = FlatMatrix{Vec3D}(length(uRange),length(vRange))        
-        uvNormals = FlatMatrix{Vec3D}(length(uRange),length(vRange))
+        Nu = length(uRange)
+        Nv = length(vRange)
+        pd = if callback_ast !== nothing && dependent_bindings !== nothing
+            ParametricDependent(callback,dependents,callback_ast,dependent_bindings,Nu*Nv)
+        else
+            ParametricDependent(callback,dependents)
+        end
+        uvValues = FlatMatrix{Vec3D}(Nu,Nv)        
+        uvNormals = FlatMatrix{Vec3D}(Nu,Nv)
 
-        new{Range}(rd,
+        new{Range}(pd,
             uvValues,
             uvNormals,
             0,
@@ -37,7 +49,8 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
     end
 end
 
-_RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return self._renderedDependent
+_ParametricDependent_(self::ParametricSurfaceDependent)::ParametricDependent = return self._parametricDependent
+_RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return _ParametricDependent_(self)._renderedDependent
 Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
 
 evalCallbackDpReturn(self::ParametricSurfaceDependent,value,u,v) = self._uvValues[u,v] = Vec3D(value)
@@ -73,6 +86,13 @@ end
 # YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricSurfaceDependent)
+    eval_callbacks!(self)
+
+    # TODO: GPU-side normal calculation
+    update_normals_cpu!(self)
+end
+
+function eval_callbacks_cpu!(self::ParametricSurfaceDependent)
     for v in eachindex(self._vRange)
         for u in eachindex(self._uRange)
             uf::Float64 = self._uRange[u]
@@ -81,7 +101,9 @@ function onNodeEval(self::ParametricSurfaceDependent)
             evalCallbackDp(self;callbackParams = (uf,vf), returnParams = (u,v))
         end
     end
-    
+end
+
+function update_normals_cpu!(self::ParametricSurfaceDependent)
     for v in 2:(height(self._uvValues)-1)
         for u in 2:(width(self._uvValues)-1)
             setNormal(self,u,v)
@@ -131,7 +153,71 @@ function onNodeEval(self::ParametricSurfaceDependent)
     setNormal(self,width(self._uvValues),height(self._uvValues),
         right = self._uvValues[width(self._uvValues),height(self._uvValues)],
         down  = self._uvValues[width(self._uvValues),height(self._uvValues)])
+end
 
+# ? methods for GPU tessellation
+
+function pre_gpu_tess!(self::ParametricSurfaceDependent)
+    shader = _ParametricDependent_(self)._tessCompShader
+    @assert shader !== nothing "GPU tessellation pipeline invoked on CPU-tessellated parametric dependent"
+    # TODO: proper range upload
+    @assert (self._uRange isa StepRange || self._uRange isa StepRangeLen) &&
+            (self._vRange isa StepRange || self._vRange isa StepRangeLen) "GPU tessellation currently only supports StepRanges"
+
+    glUniform1ui(shader.uniforms[GPU_TESS_N_STR], GLuint(width(self._uvValues) * height(self._uvValues)))
+    glUniform2i(shader.uniforms[GPU_TESS_UV_GRID_SIZE_STR], GLint(height(self._uvValues)), GLint(width(self._uvValues)))
+    glUniform4f(shader.uniforms[GPU_TESS_UV_RANGE_STR], first(self._uRange), step(self._uRange), first(self._vRange), step(self._vRange))
+end
+
+function handle_gpu_tess_result!(self::ParametricSurfaceDependent)::Bool
+    dep::ParametricDependent = _ParametricDependent_(self)
+    staging_buffer = data(dep._outBuffer)
+    
+    i::Int = 1
+    for v in 1:height(self._uvValues)
+        for u in 1:width(self._uvValues)
+            v4 = staging_buffer[i]
+            v3 = Vec3F(v4.x, v4.y, v4.z)
+
+            any(x -> isnan(x) || isinf(x), v3) && return false
+            
+            evalCallbackDpReturn(self, v3, u, v)
+
+            i += 1
+        end
+    end
+
+    # sync before gpu-side normal calculation
+    # glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+
+    update_normals_cpu!(self)
+
+    return true
+end
+
+function try_transpile_tess_shader(self::ParametricSurfaceDependent)::Union{ShaderProgram,Nothing}
+    dep::ParametricDependent = _ParametricDependent_(self)
+
+    fn_data = splitdef(dep._callbackAST)
+
+    if length(get(fn_data, :args, [])) < 2
+        @log "cannot transpile function with less than two arguments as a parametric surface callback" INFO
+        return nothing
+    end
+
+    u_varname = namify(fn_data[:args][1]) # first argument is the first parameter (u)
+    v_varname = namify(fn_data[:args][2]) # second argument is the second parameter (v)
+    deleteat!(fn_data[:args], 1:2)
+
+    # add code for calculating the u, v parameters GPU-side
+    pushfirst!(fn_data[:body].args, quote
+        $u_varname = JG_TESS_UV_RANGE[:x] + (Int32(JG_TESS_ID) % JG_TESS_UV_GRID_SIZE[:y]) * JG_TESS_UV_RANGE[:y]
+        $v_varname = JG_TESS_UV_RANGE[:z] + div(Int32(JG_TESS_ID), JG_TESS_UV_GRID_SIZE[:y]) * JG_TESS_UV_RANGE[:w]
+    end)
+
+    dep._callbackAST = combinedef(fn_data)
+
+    return try_transpile_tess_shader_base(dep._callbackAST, dep._dependentBindings, [(GPU_TESS_UV_GRID_SIZE_STR, IVec2), (GPU_TESS_UV_RANGE_STR, Vec4)])
 end
 
 # ? For Intersectable ParametricSurfaces.
@@ -223,17 +309,22 @@ Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceR
 function ParametricSurface(callback::Function,
                            uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
                            dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                           color="g")
+                           color="g", enable_gpu_tessellation::Bool=false,
+                           callback_ast::Union{Expr,Nothing}=nothing,dependent_bindings::Union{Dict{Symbol,<:DependentDNA},Nothing}=nothing)
+    if !enable_gpu_tessellation
+        callback_ast = nothing
+        dependent_bindings = nothing
+    end 
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
+    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c,callback_ast,dependent_bindings))
 end
 
 macro ParametricSurface(callback::Expr,uRange,vRange,args...)
-    (positional_args, kw_args) = _parse_macro_arguments((:color_data,),(:color,), args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_data,),(:color,:enable_gpu_tessellation), args...)
     callback = _validate_callback_expr(callback, 2)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricSurface,
                                 positional_args,kw_args,
-                                (cb, deps) -> (cb, uRange, vRange, deps))
+                                (cb, deps) -> (cb, uRange, vRange, deps), true)
 end
 
 export ParametricSurface

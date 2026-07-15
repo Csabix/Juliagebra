@@ -39,9 +39,6 @@ _RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return 
 
 Base.eltype(dependent::ParametricCurveDependent)::DataType = Vector{Vec3D}
 
-# force GPU tessellated dependents to OpenGL's thread
-thread_affinity(self::ParametricCurveDependent, ::Model) = is_gpu_tessellated(self) ? 0 : -1
-
 # YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricCurveDependent)
@@ -74,11 +71,13 @@ evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index)           
 function pre_gpu_tess!(self::ParametricCurveDependent)
     shader = _ParametricDependent_(self)._tessCompShader
     @assert shader !== nothing "GPU tessellation pipeline invoked on CPU-tessellated parametric dependent"
+    @assert self._range isa StepRange || self._range isa StepRangeLen "GPU tessellation currently only supports StepRanges"
+
 
     # currently assumes uniformly spaced tessellation params (which AbstractRange-s are)
     # this minimizes required CPU -> GPU upload, but can be changed later to stream non-uniform distributions
     glUniform1ui(shader.uniforms[GPU_TESS_N_STR], GLuint(length(self._range)))
-    glUniform2f(shader.uniforms[GPU_TESS_T_RANGE_STR], first(self._range), last(self._range))
+    glUniform2f(shader.uniforms[GPU_TESS_T_RANGE_STR], first(self._range), step(self._range))
 end
 
 function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool
@@ -116,8 +115,7 @@ function try_transpile_tess_shader(self::ParametricCurveDependent)::Union{Shader
 
     # add code for calculating the t parameter GPU-side, assuming uniform spacing
     pushfirst!(fn_data[:body].args, :(
-        $t_varname = 
-            (Float32($GPU_TESS_ID) / Float32($GPU_TESS_N - 1)) * ($GPU_TESS_T_RANGE[:y] - $GPU_TESS_T_RANGE[:x]) + $GPU_TESS_T_RANGE[:x]
+        $t_varname = $GPU_TESS_T_RANGE[:x] + Float32($GPU_TESS_ID) * $GPU_TESS_T_RANGE[:y]
     ))
     
     dep._callbackAST = combinedef(fn_data)

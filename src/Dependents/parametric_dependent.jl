@@ -38,6 +38,9 @@ _ParametricDependent_(self::ParametricDependentDNA)::ParametricDependent = error
 _RenderedDependent_(self::ParametricDependentDNA)::RenderedDependent = _ParametricDependent_(self)._renderedDependent
 _Subject_(self::ParametricDependentDNA)::Subject = _RenderedDependent_(self)._subject
 
+# force GPU tessellated dependents to OpenGL's thread
+thread_affinity(self::ParametricDependentDNA, ::Model) = is_gpu_tessellated(self) ? 0 : -1
+
 # ensures GPU resources are initialized prior to first tessellation
 function node_start!(self::ParametricDependentDNA)
     start_time = time_ns()

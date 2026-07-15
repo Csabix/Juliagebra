@@ -59,6 +59,8 @@ mutable struct GizmoRenderer
         reserve!(ubo_axis, 1, 0)
         ubo_size = MappedBuffer{Float32}()
         reserve!(ubo_size, 2, 0)
+        ubo_size[1] = 1.0
+        ubo_size[2] = 1.0
 
         empty_vao = VertexArray()
         return new(
@@ -91,8 +93,6 @@ function pre_draw(renderer::GizmoRenderer,cam::Camera,window::GLFWData)::Nothing
         Float32(renderer.position[3]),
         reinterpret(Float32, renderer.axes)
     )
-    renderer.ubo_size[1] = Float32(0.5)
-    renderer.ubo_size[2] = Float32(2.0)
     return nothing
 end
 

@@ -135,7 +135,7 @@ end
     if !self._read
         glGetNamedBufferSubData(self._id, 0, N * sizeof(T), out_vec)
     else
-        copyto!(out_vec, self)
+        copyto!(out_vec, 1, self._mapped, 1, N)
     end
 
     return out_vec
@@ -188,12 +188,6 @@ end
 function Base.copyto!(dest::MappedBuffer, src)
     @assert dest._write "trying to copy data to MappedBuffer with non-writeable mapping"
     copyto!(dest._mapped, src)
-    return dest
-end
-
-function Base.copyto!(dest, src::MappedBuffer)
-    @assert src._read "trying to copy data from MappedBuffer with non-readable mapping"
-    copyto!(dest, src._mapped)
     return dest
 end
 

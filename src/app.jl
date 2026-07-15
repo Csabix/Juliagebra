@@ -27,6 +27,8 @@ mutable struct App <: AppDNA
     _delta_time::Float64
     _vsync_state::Int32
 
+    _cb_helper_asts::Vector{Expr}
+
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -55,10 +57,12 @@ mutable struct App <: AppDNA
         delta_time = 0.0
         vsync_state = Int32(1)
 
+        cb_helper_asts = Expr[]
+
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state)
+            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state,cb_helper_asts)
     end
 end
 

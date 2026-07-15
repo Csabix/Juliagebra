@@ -10,6 +10,7 @@ const _TRIANGLE_CLUSTERS::UInt = 8
 include("parsers.jl")
 include("dependent_renderer.jl")
 include("rendered_dependent.jl")
+include("parametric_dependent.jl")
 include("Gui/gui_renderer.jl")
 include("Gui/gui_dependent.jl")
 include("point.jl")

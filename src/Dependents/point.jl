@@ -44,12 +44,12 @@ evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 mutable struct Points <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
     _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
+    _refs::Vector{PointHandle}
 
     # GREEN Thread
     function Points(context::OpenGLData)
         renderer = Renderer{PointDependent}(context)
-        refs = Vector{UInt32}()
+        refs = Vector{PointHandle}()
         new(renderer, context._renderers, refs)
     end
 end
@@ -60,14 +60,14 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 # GREEN Thread
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
-    ref = add!(self._renderers.point,Vec3F(point._coord),point._color,point._style,point._size,aID)
+    ref = add!(self._renderers.point,point._coord,point._color,point._style,point._size,aID)
     push!(self._refs, ref)
 end
 
 # GREEN Thread
 function sync!(self::Points,point::PointDependent)
     ref = self._refs[getObserverID(point)]
-    update_coords!(self._renderers.point,ref,Vec3F(point._coord))
+    set_position!(self._renderers.point,ref,point._coord)
 end
 
 # GREEN Thread

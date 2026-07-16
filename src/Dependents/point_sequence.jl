@@ -33,12 +33,12 @@ evalCallbackDpReturn(self::PointSequenceDependent,::Nothing) = self._coords = Ve
 mutable struct PointSequences <:RendererDNA{PointSequenceDependent}
     _renderer::Renderer{PointSequenceDependent}
     _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
+    _refs::Vector{PointHandle}
 
     # GREEN Thread
     function PointSequences(context::OpenGLData) 
         renderer = Renderer{PointSequenceDependent}(context)
-        refs = Vector{UInt32}()
+        refs = Vector{PointHandle}()
         new(renderer,context._renderers,refs)
     end
 end
@@ -49,24 +49,25 @@ Base.string(self::PointSequences) = return "PointSequences($(length(self._buffer
 # GREEN Thread
 function added!(self::PointSequences,point_cloud::PointSequenceDependent)
     aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
-    ref = add_dynamic!(self._renderers.point,
-                       (Vec3F(coord) for coord in point_cloud._coords),
-                       cycle([point_cloud._color]),
-                       cycle([point_cloud._style]),
-                       cycle([UInt8(point_cloud._size)]),
-                       cycle([aID]))
+    ref = add!(self._renderers.point,
+                (Vec3F(coord) for coord in point_cloud._coords),
+                [point_cloud._color],
+                [point_cloud._style],
+                [UInt8(point_cloud._size)],
+                [aID],
+                true)
     push!(self._refs, ref);
 end
 
 function sync!(self::PointSequences,point_cloud::PointSequenceDependent)
     aID = UInt32(getGraphID(point_cloud) + ID_LOWER_BOUND)
     ref = self._refs[getObserverID(point_cloud)]
-    update_dyncamic!(self._renderers.point, ref,
+    set_properties!(self._renderers.point, ref,
                     (Vec3F(coord) for coord in point_cloud._coords),
-                    cycle([point_cloud._color]),
-                    cycle([point_cloud._style]),
-                    cycle([UInt8(point_cloud._size)]),
-                    cycle([aID]))
+                    [point_cloud._color],
+                    [point_cloud._style],
+                    [UInt8(point_cloud._size)],
+                    [aID])
 end
 
 function destroy!(self::PointSequences) end

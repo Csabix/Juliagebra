@@ -36,12 +36,12 @@ evalCallbackDpReturn(self::PointSetDependent,::Nothing) = fill!(self._coords, Ve
 mutable struct PointSets <:RendererDNA{PointSetDependent}
     _renderer::Renderer{PointSetDependent}
     _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
+    _refs::Vector{PointHandle}
 
     # GREEN Thread
     function PointSets(context::OpenGLData) 
         renderer = Renderer{PointSetDependent}(context)
-        refs = Vector{UInt32}()
+        refs = Vector{PointHandle}()
         new(renderer,context._renderers,refs)
     end
 end
@@ -54,16 +54,16 @@ function added!(self::PointSets,point_set::PointSetDependent)
     aID = UInt32(getGraphID(point_set) + ID_LOWER_BOUND)
     ref = add!(self._renderers.point,
         (Vec3F(coord) for coord in point_set._coords),
-        cycle([point_set._color]),
-        cycle([point_set._style]),
-        cycle([UInt8(point_set._size)]),
-        cycle([aID]))
+        [point_set._color],
+        [point_set._style],
+        [UInt8(point_set._size)],
+        [aID])
     push!(self._refs, ref)
 end
 
 function sync!(self::PointSets,point_set::PointSetDependent)
     ref = self._refs[getObserverID(point_set)]
-    update_coords!(self._renderers.point,ref,point_set._coords)
+    set_position!(self._renderers.point,ref,point_set._coords)
 end
 
 function destroy!(self::PointSets) end

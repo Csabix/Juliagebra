@@ -18,7 +18,7 @@ mutable struct GizmoRenderer
     move_gizmo::Pipeline
     position::Vec3D
     initial_plane_normal::Vec3D
-    initial_pos_diff::Vec3D
+    initial_ray_diff::Vec3D
     axes::UInt32
     
     initial_constraints::UInt32
@@ -49,7 +49,7 @@ mutable struct GizmoRenderer
         )
         position = Vec3D(0.0)
         initial_plane_normal = Vec3D(0.0)
-        initial_pos_diff = Vec3D(0.0)
+        initial_ray_diff = Vec3F(0.0)
         axes = AXIS_NONE
         
         initial_constraints = AXIS_NONE
@@ -69,7 +69,7 @@ mutable struct GizmoRenderer
 
         empty_vao = VertexArray()
         return new(
-            corner_gizmo,move_gizmo,position,initial_plane_normal,initial_pos_diff,axes,
+            corner_gizmo,move_gizmo,position,initial_plane_normal,initial_ray_diff,axes,
             initial_constraints,move,first_move,id_to_axis,selected,selectedAxis,lastMousePosition,
             ubo_axis,ubo_size,empty_vao
         )
@@ -172,6 +172,15 @@ function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     ray = get_ray(app, mouseX, mouseY)
     newPoint = nothing
     
+    if (gizmo.first_move)
+        toPoint = normalize(gizmo.position - app._cam._eye)
+        # ? Stores the initial difference between where the eye-point vector and the eye-mouse ray
+        gizmo.initial_ray_diff = toPoint - ray
+    end
+
+    # ? Applies the stored difference, so that the gizmo doesn't jump to the cursor at the beginning
+    ray = Vec3F(ray + gizmo.initial_ray_diff)
+
     if (any(a -> a == gizmo.axes, ALL_AXES))
         newPoint = _moveAlongAxis(app, gizmo, ray)
     else
@@ -179,14 +188,10 @@ function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     end
 
     if (gizmo.first_move && newPoint !== nothing)
-        # ? Stores the initial difference between where the cursor points and where the gizmo is
-        gizmo.initial_pos_diff = gizmo.position - newPoint
         gizmo.first_move = false
     end
 
     if (newPoint !== nothing)
-        # ? Applies the stored difference, so that the gizmo doesn't jump to the cursor at the beginning
-        newPoint += gizmo.initial_pos_diff
         gizmo.position = newPoint
     end
 

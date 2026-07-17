@@ -203,6 +203,16 @@ function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     end
 end
 
+function update_position!(app, point)
+    gizmo = app._opengl._renderers.gizmo
+    if (gizmo.axes != 0)
+        p::PointDependent = getDependentNode(getModel(app), gizmo.selected - ID_LOWER_BOUND)::PointDependent
+        if (isa(p, PointDependent) && point == p)
+            gizmo.position = p._coord
+        end
+    end
+end
+
 function on_gizmo_left_click!(app)::Bool
     gizmo = app._opengl._renderers.gizmo
     if 0 < app._hovered <= 3 # TODO: only when not moving yet

@@ -39,7 +39,7 @@ function get_matrices(self::Camera)
 end
 function get_ray(app::AppDNA, x, y)::Vec3F
     self = app._cam
-    mouse = Vec2F((x / app._glfw.width) * 2.0 - 1.0, (y / app._glfw.height) * 2.0 - 1.0)
+    mouse = Vec2F(((x + 0.5) / app._glfw.width) * 2.0 - 1.0, ((y + 0.5) / app._glfw.height) * 2.0 - 1.0)
     
     forward = normalize(self._at - self._eye)
     right = normalize(cross(forward, self._up))

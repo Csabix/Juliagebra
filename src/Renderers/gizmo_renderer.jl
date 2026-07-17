@@ -24,7 +24,6 @@ mutable struct GizmoRenderer
     initial_constraints::UInt32
     move::Bool
     first_move::Bool
-    id_to_axis::Tuple{Vec3F,Vec3F,Vec3F}
     selected::UInt32
     selectedAxis::UInt32
     lastMousePosition::Tuple{Float64,Float64}
@@ -55,7 +54,6 @@ mutable struct GizmoRenderer
         initial_constraints = AXIS_NONE
         move = false
         first_move = true
-        id_to_axis = (Vec3F(1,0,0), Vec3F(0,1,0), Vec3F(0,0,1))
         selected = UInt32(0)
         selectedAxis = UInt32(0)
         lastMousePosition = (Float64(0), Float64(0))
@@ -70,7 +68,7 @@ mutable struct GizmoRenderer
         empty_vao = VertexArray()
         return new(
             corner_gizmo,move_gizmo,position,initial_plane_normal,initial_ray_diff,axes,
-            initial_constraints,move,first_move,id_to_axis,selected,selectedAxis,lastMousePosition,
+            initial_constraints,move,first_move,selected,selectedAxis,lastMousePosition,
             ubo_axis,ubo_size,empty_vao
         )
     end
@@ -268,7 +266,7 @@ end
 
 function on_gizmo_drag_axis_start!(app, axis)::Bool
     gizmo = app._opengl._renderers.gizmo
-    if (gizmo.selectedAxis & axis > 0 || gizmo.selectedAxis | axis == AXIS_FULL)
+    if (gizmo.axes == 0 || gizmo.selectedAxis & axis > 0 || gizmo.selectedAxis | axis == AXIS_FULL)
         return false
     end
 

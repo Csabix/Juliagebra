@@ -6,6 +6,7 @@ const _SEGMENT_SEQUENCES::UInt = 5
 const _SPHERES::UInt = 6
 const _SURFACES::UInt = 7
 const _TRIANGLE_CLUSTERS::UInt = 8
+const _INFINITE_LINES::UInt = 9
 
 include("parsers.jl")
 include("dependent_renderer.jl")
@@ -27,6 +28,7 @@ include("triangle.jl")
 include("tetrahedra.jl")
 include("segment_sequence.jl")
 include("triangle_cluster.jl")
+include("infinite_line.jl")
 
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
 _deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
@@ -60,7 +62,8 @@ function create_dependent_observers(data::OpenGLData)::Vector{RendererDNA}
         SegmentSequences(data),
         Spheres(data),
         ParametricSurfaceRenderer(data),
-        TriangleClusters(data)
+        TriangleClusters(data),
+        InfiniteLines(data)
     ]
 end
 
@@ -80,5 +83,6 @@ function reset_dependent_observers(data::OpenGLData, observers::Vector{RendererD
     push!(observers,Spheres(data))
     push!(observers,ParametricSurfaceRenderer(data))
     push!(observers,TriangleClusters(data))
+    push!(observers,InfiniteLines(data))
     return nothing
 end

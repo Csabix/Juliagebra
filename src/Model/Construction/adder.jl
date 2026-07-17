@@ -32,6 +32,7 @@ function process_avail!(self::Adder; send_log::Bool=true, ms_limit::Float64=33.3
     for i in 1:avail
         process_item!(self, take!(self._in), observers)
         taken+=1
+        # println(taken)
 
         # ? Check if ms limit is reached.
         if time_ns() - start_time > ns_limit

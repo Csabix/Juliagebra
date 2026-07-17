@@ -61,17 +61,21 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
     ref = add!(self._renderers.point,Vec3F(point._coord),point._color,point._style,point._size,aID)
+    # println(ref)
     push!(self._refs, ref)
 end
 
 # GREEN Thread
 function sync!(self::Points,point::PointDependent)
     ref = self._refs[getObserverID(point)]
+    # println(ref, " -> ", getObserverID(point))
     update_coords!(self._renderers.point,ref,Vec3F(point._coord))
 end
 
 # GREEN Thread
-function destroy!(self::Points) end
+function destroy!(self::Points)
+    # println("ded")
+end
 
 # YELLOW Thread
 Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_POINTS]
@@ -88,9 +92,10 @@ function Point(callback::Function,dependents::Vector{<:DependentDNA}=DependentDN
 end
 
 # YELLOW Thread
-Point(x::Real,y::Real,z::Real,color_style::Union{Nothing,String}=nothing;
-    color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y|AXIS_Z)::PointDependent =
-Point(() -> Vec3D(x,y,z),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
+function Point(x::Real,y::Real,z::Real,color_style::Union{Nothing,String}=nothing;    color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y|AXIS_Z)::PointDependent
+    # println("new point from xyz/no callback")
+    return Point(() -> Vec3D(x,y,z),DependentDNA[],color_style,color=color,style=style,size=size,axis_constraint=axis_constraint)
+end
 
 Point(x::Real,y::Real,color_style::Union{Nothing,String}=nothing;
     color="m",style=".",size=25,axis_constraint=AXIS_X|AXIS_Y)::PointDependent =

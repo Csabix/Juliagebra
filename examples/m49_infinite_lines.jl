@@ -23,6 +23,16 @@ Point([i2]) do intersection
     return intersection[1]
 end
 
+p7 = Point(7, 1, 2)
+p8 = Point(4, 6, 3)
+p9 = Point(5,10,-5)
+t1 = Triangle(p7,p8,p9)
+
+i3 = Intersection(l2, t1)
+Point([i3]) do intersection
+    return intersection[1]
+end
+
 
 
 Juliagebra.Wait()

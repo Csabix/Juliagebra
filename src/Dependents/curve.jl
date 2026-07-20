@@ -101,18 +101,14 @@ Base.string(self::Curves) = return "Curves[$(length(self._coords))]"
 # GREEN Thread
 function added!(self::Curves,curve::ParametricCurveDependent)
     aID = UInt32(getGraphID(curve) + ID_LOWER_BOUND)
-
-    ref = add!(self._renderers.line,
+    push!(self._refs,
+        add!(self._renderers.line,
             curve._tValues,
             cycle(curve._colors),
             cycle(aID),
             curve._size,
             curve._style,
         )
-    # println(ref)
-    
-    push!(self._refs,
-        ref
     )
 end
 

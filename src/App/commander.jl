@@ -112,11 +112,9 @@ end
 
 function _Build!(dependent::DependentDNA, app::AppDNA)
     build!(getModel(app),dependent)
-    # println("dependent: ", typeof(dependent))
 end
 
 function _Build!(subject::SubjectDNA, app::AppDNA)
     build!(getModel(app), subject, Dependent2Observer(app,subject))
-    # println("subject: ", typeof(typeof), "observer: ", typeof(Dependent2Observer(app,subject)), " (", length(Dependent2Observer(app,subject)._refs), ")")
 end
 

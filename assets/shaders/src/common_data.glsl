@@ -30,3 +30,39 @@ float fov() { return _near_far_fov_hovered.z; }
 uint hovered_id() { return floatBitsToUint(_near_far_fov_hovered.w); }
 
 #endif
+
+#ifdef RAY
+#ifndef RAY_DEF
+vec3 rayDirection() {
+    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
+    if (fov() < 0.0) {
+        return normalize(-backward);
+    } else {
+        vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
+        vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
+
+        float focal_length = -1.0 / tan(fov() * 0.5);
+        vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
+        screen_uv.x *= aspect();
+
+        return normalize(screen_uv.x  * right + 
+                         screen_uv.y  * up + 
+                         focal_length * backward);
+    }
+}
+
+vec3 ray_origin() {
+    if (fov() < 0.0) {
+        vec3 right = vec3(V[0][0], V[1][0], V[2][0]);
+        vec3 up    = vec3(V[0][1], V[1][1], V[2][1]);
+        vec2 uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0;
+        uv.x *= aspect();
+        float ortho_scale = -fov();
+        return eye() + (uv.x * ortho_scale * right) + (uv.y * ortho_scale * up);
+    } else {
+        return eye();
+    }
+}
+#define RAY_DEF
+#endif
+#endif

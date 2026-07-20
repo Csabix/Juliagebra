@@ -437,7 +437,7 @@ function _ubo_update!(self::OpenGLData,cam::Camera,hovered::UInt32)
         vp,v,p,
         Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
         Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._window.width))),
-        Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),reinterpret(Float32,hovered))
+        Vec4F(cam._zNear,cam._zFar,get_fov(cam),reinterpret(Float32,hovered))
     )
     glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
 end

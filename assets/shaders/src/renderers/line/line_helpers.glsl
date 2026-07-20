@@ -1,6 +1,7 @@
 #ifndef LINE_HELPERS
 #define LINE_HELPERS
 #extension GL_GOOGLE_include_directive : require
+#define RAY
 #include "../../common_data.glsl"
 #include "../color_output.glsl"
 
@@ -11,20 +12,6 @@ vec4 get_color(in vec4 color, in vec3 normal) {
     float diffuse = (max(dot(normal,light_cam()),0.0) * FRONT + max(dot(normal,light_side()),0.0) * SIDE) * DIFFUSE;
     float ambient = AMBIENT;
     return vec4(color.rgb * (diffuse + ambient), color.a);
-}
-
-vec3 rayDirection() {
-    vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
-    vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
-    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
-
-    float focal_length = -1.0 / tan(fov() * 0.5);
-    vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
-    screen_uv.x *= aspect();
-
-    return normalize(screen_uv.x  * right + 
-                     screen_uv.y  * up + 
-                     focal_length * backward);
 }
 
 float iSphere(vec3 ro, vec3 rd, vec3 sp, float r) {
@@ -108,7 +95,7 @@ float iUnevenCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float ra, float rb, out
 }
 
 vec4 get_normal_depth(vec4 pos_rad_begin, vec4 pos_rad_end) {
-    vec3 ro = eye();
+    vec3 ro = ray_origin();
     vec3 rd = rayDirection();
     
     vec3 pa = pos_rad_begin.xyz;

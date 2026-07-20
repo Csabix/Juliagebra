@@ -22,6 +22,41 @@ function defaultCamera()::Camera
     return camera
 end
 
+function ortho(fovy::T, aspect::T, zNear::T, zFar::T, dist::T) :: Mat4T{T} where T
+    a  = tan(fovy / T(2))
+    dz = zFar - zNear
+    return Mat4T{T}(
+        one(T) / (dist * aspect * a), 0,                            0,                    0,
+        0,                            one(T) / (dist * a),          0,                    0,
+        0,                            0,                            -T(2) / dz,           0,
+        0,                            0,                            -(zFar + zNear) / dz, one(T)
+    )
+end
+
+function ortho(cam::Camera)
+    dist = norm(cam._at - cam._eye)
+    fovy_rad = deg2rad(cam._fov) # Converts degrees to radians
+    return ortho(fovy_rad, cam._aspect, cam._zNear, cam._zFar, dist)
+end
+
+function swap_projection(cam::Camera)
+    if cam._proj[16] == 1.0f0
+        cam._proj = perspective(deg2rad(cam._fov),cam._aspect,cam._zNear,cam._zFar)
+    else
+        cam._proj = ortho(cam)
+    end
+end
+
+function get_fov(self::Camera)::Float32
+    if self._proj[16] == 1.0f0
+        d = norm(self._at - self._eye)
+        a  = tan(deg2rad(self._fov) / 2.0f0)
+        return -d * a;
+    else
+        return deg2rad(self._fov)
+    end
+end
+
 function get_lights(self::Camera, z::Float32 = 45.0f0)
     z = deg2rad(z)
     l_cam = normalize(self._at - self._eye)

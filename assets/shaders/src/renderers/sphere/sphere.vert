@@ -42,21 +42,27 @@ void main() {
     if (dist < radius) {
         gl_Position = vec4(base_offset,0.0,1.0) * near;
     } else {
-        vec3 a = (eye() - center) / dist; 
-        vec3 b = vec3(0.0, 0.0, 1.0);
+        if (P[3][3] == 1.0) {
+            vec4 viewPos = V * vec4(center, 1.0);
+            viewPos.xy += base_offset * radius;
+            gl_Position = P * viewPos;
+        } else {
+            vec3 a = (eye() - center) / dist; 
+            vec3 b = vec3(0.0, 0.0, 1.0);
 
-        vec3 v = cross(a, b);
-        float c = dot(a, b);
-        float k = 1.0 / (1.0 + c);
+            vec3 v = cross(a, b);
+            float c = dot(a, b);
+            float k = 1.0 / (1.0 + c);
 
-        mat3 Rot = c > -0.9999 ? mat3(
-            v.x * v.x * k + c,   v.y * v.x * k - v.z, v.z * v.x * k + v.y,
-            v.x * v.y * k + v.z, v.y * v.y * k + c,   v.z * v.y * k - v.x,
-            v.x * v.z * k - v.y, v.y * v.z * k + v.x, v.z * v.z * k + c
-        ) : mat3(-1.0);
+            mat3 Rot = c > -0.9999 ? mat3(
+                v.x * v.x * k + c,   v.y * v.x * k - v.z, v.z * v.x * k + v.y,
+                v.x * v.y * k + v.z, v.y * v.y * k + c,   v.z * v.y * k - v.x,
+                v.x * v.z * k - v.y, v.y * v.z * k + v.x, v.z * v.z * k + c
+            ) : mat3(-1.0);
 
-        vec3 surfaceCenter = center + a * radius;
-        vec3 offset = Rot * vec3(base_offset,0.0) * radius;
-        gl_Position = VP * vec4(surfaceCenter + offset, 1.0);
+            vec3 surfaceCenter = center + a * radius;
+            vec3 offset = Rot * vec3(base_offset,0.0) * radius;
+            gl_Position = VP * vec4(surfaceCenter + offset, 1.0);
+        }
     }
 }

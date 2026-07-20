@@ -148,6 +148,11 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
         return true
     end
 
+    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_5)) do ev
+        swap_projection(cam._cam)
+        return true
+    end
+
 
     # --- KEYBOARD UP EVENTS ---
     register_callback!(ev -> (cam._forward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_W))

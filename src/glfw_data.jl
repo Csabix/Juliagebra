@@ -55,8 +55,8 @@ mutable struct Inputs
     function Inputs(window::GLFWData)
         new(
             SVector{8}([Vector{Tuple{UInt8,Function}}() for _ in 1:8]), 
-            -1.0, 
-            -1.0, 
+            0.0,
+            0.0,
             window,
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
@@ -126,13 +126,10 @@ function screen_resize!(w::GLFWData, width::Cint, height::Cint)::Bool
 end
 
 function disable_mouse(inputs::Inputs)
-    inputs.last_x = NaN64
-    inputs.last_y = NaN64
     GLFW.SetInputMode(inputs.window._window, GLFW.CURSOR, GLFW.CURSOR_DISABLED);
 end
 function enable_mouse(inputs::Inputs)
-    inputs.last_x = NaN64
-    inputs.last_y = NaN64
+    (inputs.last_x,inputs.last_y) = GLFW.GetCursorPos(inputs.window._window)
     GLFW.SetInputMode(inputs.window._window, GLFW.CURSOR, GLFW.CURSOR_NORMAL);
 end
 
@@ -162,7 +159,7 @@ end
 
 function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::Cint = Cint(0), mod::UInt8 = UInt8(KEY_MOD_NONE))::Int32
     push!(inputs.handle_map, (type, Cint(code), mod, func))
-    push!(inputs.event_callbacks[type], (mod, func))        
+    push!(inputs.event_callbacks[type], (mod, func))
     if type in (KEY_DOWN, KEY_UP, MOUSE_BUTTON_DOWN, MOUSE_BUTTON_UP)
         dict = if type == KEY_DOWN; inputs.button_press
                elseif type == KEY_UP; inputs.button_release
@@ -253,7 +250,7 @@ function _mouse_move_callback(w::GLFWData, window::GLFW.Window, xpos::Cdouble, y
         0x00,
         Cint(0),
         xpos,ypos,
-        isnan(inputs.last_x) ? 0.0 : xpos - inputs.last_x,isnan(inputs.last_y) ? 0.0 : ypos - inputs.last_y,
+        xpos - inputs.last_x,ypos - inputs.last_y,
         Cint(0),Cint(0)
     )
     inputs.last_x = xpos
@@ -330,6 +327,8 @@ precompile(_frame_resize_callback, (GLFW.Window, Cint, Cint, Inputs))
 precompile(_window_resize_callback, (GLFW.Window, Cint, Cint, Inputs))
 
 function setup_event_handles(window::GLFWData,inputs::Inputs)::Nothing
+    (inputs.last_x,inputs.last_y) = GLFW.GetCursorPos(window._window)
+
     key_callback = (window_ptr::GLFW.Window,key::GLFW.Key,scancode::Cint,action::GLFW.Action,mods::Cint) -> _key_callback(window_ptr,key,scancode,action,mods,inputs)
     GLFW.SetKeyCallback(window._window,key_callback)
 

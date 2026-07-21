@@ -19,7 +19,7 @@ function Plane(first,second,third,distance=_INFINITE_PLANE_DISTANCE,color_style:
 
     n = ceil(Int16, log10(distance))
 
-    return ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),[first,second,third];color=color) do u,v,a,b,c
+    ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),deps;color=color) do u,v,a,b,c
         dir1 = normalize(b - a)
         dir2 = normalize(c - a)
         normal = cross(dir1, dir2)
@@ -27,6 +27,10 @@ function Plane(first,second,third,distance=_INFINITE_PLANE_DISTANCE,color_style:
         u = sign(u) * 10^abs(u)
         v = sign(v) * 10^abs(v)
         return a + (dir1 * v + perp * u)
+    end
+
+    return ValueHolder(PPlane,deps) do a,b,c
+        return PPlane(a, normalize(cross(b - a, c - a)))
     end
 end
 

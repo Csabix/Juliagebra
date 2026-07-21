@@ -9,29 +9,34 @@ p3 = Point( 4,5,-1)
 p4 = Point(-4,5, 1)
 l1 = Line(p3,p4)
 
-i1 = Intersection(s1, l1)
-Point([i1]) do intersection
-    return intersection[1]
+Point([l1];color="r") do line
+    println(line) # PLine
+    return line.p + line.v
 end
+
+# i1 = Intersection(s1, l1)
+# Point([i1]) do intersection
+#     return intersection[1]
+# end
 
 p5 = Point( 4,5,  0)
 p6 = Point(-4,5,1.9)
 l2 = Line(p5,p6,100; color="y", style=".")
 
-i2 = Intersection(l1, l2)
-Point([i2]) do intersection
-    return intersection[1]
-end
+# i2 = Intersection(l1, l2)
+# Point([i2]) do intersection
+#     return intersection[1]
+# end
 
 p7 = Point(7, 1, 2)
 p8 = Point(4, 6, 3)
 p9 = Point(5,10,-5)
 t1 = Triangle(p7,p8,p9)
 
-i3 = Intersection(l2, t1)
-Point([i3]) do intersection
-    return intersection[1]
-end
+# i3 = Intersection(l2, t1)
+# Point([i3]) do intersection
+#     return intersection[1]
+# end
 
 
 

@@ -98,6 +98,8 @@ include("Widgets/Windows/options_window.jl")
 include("Renderers/renderers.jl")
 include("opengl_data.jl")
 
+include("Widgets/coordinates_widget.jl")
+
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------

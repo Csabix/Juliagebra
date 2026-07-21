@@ -85,3 +85,20 @@ end
 function get_matrices(self::Camera)
     return self.view_proj, self.view, self.proj
 end
+function get_ray(app::AppDNA, x, y)::Vec3F
+    self = app._cam
+    mouse = Vec2F(((x + 0.5) / app._glfw.width) * 2.0 - 1.0, ((y + 0.5) / app._glfw.height) * 2.0 - 1.0)
+
+    forward = -Vec3F(self.view[3,1],self.view[3,2],self.view[3,3])
+    right = Vec3F(self.view[1,1],self.view[1,2],self.view[1,3])
+    camUp = Vec3F(self.view[2,1],self.view[2,2],self.view[2,3])
+
+    halfHeight = tan(deg2rad(self.fov) / 2.0) * self.zNear
+    halfWidth = halfHeight * self.aspect
+
+    nearPlaneCenter = self.eye + forward * self.zNear
+    nearPlaneMouse = nearPlaneCenter + right * (mouse[1] * halfWidth) + camUp * (mouse[2] * halfHeight)
+    ray = normalize(nearPlaneMouse - self.eye)
+
+    return ray
+end

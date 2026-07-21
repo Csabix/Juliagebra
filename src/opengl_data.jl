@@ -419,7 +419,6 @@ function blit_scene!(self::OpenGLData,cam::Camera,hovered::UInt32)
 end
 
 function _ubo_update!(self::OpenGLData,cam::Camera,hovered::UInt32)
-    # Ubo update
     (vp, v, p) = get_matrices(cam)
     (cam_light, side_light) = get_lights(cam)
     glBindBufferBase(GL_UNIFORM_BUFFER, 10, 0)

@@ -245,14 +245,18 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
         tan_half_fov_Y = tan(deg2rad(cam._cam.fov / 2.0f0))
         tan_half_fov_X = tan_half_fov_Y * cam._cam.aspect
         
-        x = (Float32(ev.x) * 2.0f0 - 1.0f0)
-        y = (Float32(ev.y) * 2.0f0 - 1.0f0)
+        x = Float32(ev.x / inputs.window.s_width) * 2.0f0 - 1.0f0
+        y = Float32(ev.y / inputs.window.s_height) * 2.0f0 - 1.0f0
+        if cam._move_state != _ORBITAL_NONE
+            x = 0.0f0
+            y = 0.0f0
+        end
         w = tan_half_fov_X * old_distance * (delta_distance / old_distance) * x
         h = tan_half_fov_Y * old_distance * (delta_distance / old_distance) * y
 
-        offset = right * w + up * h
+        offset = -right * w + up * h
         cam._cam.at += offset
-        cam._cam.eye += offset
+        cam._cam.eye += offset - lookat * delta_distance
         if !is_perspective(cam._cam) calculate_projection_matrix!(cam._cam) end
         return true
     end

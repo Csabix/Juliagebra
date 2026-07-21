@@ -12,10 +12,21 @@ layout(location = 0) noperspective out vec4 segment_SDF_field_g_out; // x,y,lenX
 layout(location = 1) flat          out vec3 color_g_out;
 layout(location = 2) flat          out uint id_g_out;
 
+layout(constant_id = 0) const bool CORNER_GIZMO = false;
 layout(constant_id = 1) const float CONTENT_SCALE = 1.0;
+layout(std140, binding = 0) uniform Gizmo_UBO_Axis {
+    vec4 center_axis;
+};
+layout(std140, binding = 1) uniform Gizmo_UBO_Size {
+    float gizmo_length;
+    float gizmo_thickness;
+};
 
 void main() {
-    const float WIDTH = 5.5 * CONTENT_SCALE;
+    float WIDTH = 5.5 * CONTENT_SCALE;
+    if (!CORNER_GIZMO) {
+        WIDTH *= gizmo_thickness;
+    }
     color_g_out = color_v_out[0];
     id_g_out    = id_v_out[0];
 
@@ -43,8 +54,7 @@ void main() {
     vec2 AB_dir = normalize(B - A);
     vec2 AB_N = vec2(-AB_dir.y, AB_dir.x);
 
-
-    float len_X = WIDTH +  WIDTH;
+    float len_X = WIDTH + WIDTH;
     float len_Y = segment_len + WIDTH + WIDTH;
 
 

@@ -230,16 +230,20 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
         cam._zoom = max(cam._zoom + -Float32(ev.dy) / 10.0f0, 0.01f0)
         new_distance = exp(cam._zoom) - 1.0f0
         delta_distance = new_distance - old_distance
-
+        
         lookat = normalize(cam._cam._at - cam._cam._eye)
         right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0)
         up = normalize(cross(right, lookat))
-
+        
         tan_half_fov_Y = tan(deg2rad(cam._cam._fov / 2.0f0))
         tan_half_fov_X = tan_half_fov_Y * cam._cam._aspect
         
         x = Float32(ev.x / inputs.window.s_width) * 2.0f0 - 1.0f0
         y = Float32(ev.y / inputs.window.s_height) * 2.0f0 - 1.0f0
+        if cam._move_state != _ORBITAL_NONE
+            x = 0.0f0
+            y = 0.0f0
+        end
         w = tan_half_fov_X * old_distance * (delta_distance / old_distance) * x
         h = tan_half_fov_Y * old_distance * (delta_distance / old_distance) * y
 

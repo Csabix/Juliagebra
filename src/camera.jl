@@ -1,65 +1,78 @@
 using LinearAlgebra
 
 @kwdef mutable struct Camera
-    _eye::Vec3F= Vec3F(0.0f0,-5.0f0,1.0f0)
-    _up::Vec3F = Vec3F(0.0f0,0.0f0,1.0f0)
-    _at::Vec3F = Vec3F(0.0f0,0.0f0,0.0f0)
+    eye::Vec3F= Vec3F(0.0f0,-5.0f0,1.0f0)
+    at::Vec3F = Vec3F(0.0f0,0.0f0,0.0f0)
+    up::Vec3F = Vec3F(0.0f0,0.0f0,1.0f0)
 
-    _view::Mat4T{Float32} = mat4(1.0f0)
-    _proj::Mat4T{Float32} = mat4(1.0f0)
-    _view_proj::Mat4T{Float32} = mat4(1.0f0)
+    view::Mat4T{Float32} = mat4(0.0f0)
+    proj::Mat4T{Float32} = mat4(0.0f0)
+    view_proj::Mat4T{Float32} = mat4(0.0f0)
 
-    _fov::Float32 = 50.0f0
-    _zNear::Float32 = 0.01f0
-    _zFar::Float32 = 999.0f0
-    _aspect::Float32 = 1280.0f0 / 720.0f0
+    fov::Float32 = 50.0f0
+    zNear::Float32 = 0.01f0
+    zFar::Float32 = 999.0f0
+    aspect::Float32 = 1280.0f0 / 720.0f0
 end
 
 function defaultCamera()::Camera
     camera = Camera()
-    camera._proj = perspective(deg2rad(camera._fov),camera._aspect,camera._zNear,camera._zFar)
-    camera._view = lookat(camera._eye,camera._at,camera._up)
+    calculate_matrices!(camera)
     return camera
 end
 
-function ortho(fovy::T, aspect::T, zNear::T, zFar::T, dist::T) :: Mat4T{T} where T
-    a  = tan(fovy / T(2))
-    dz = zFar - zNear
-    return Mat4T{T}(
-        one(T) / (dist * aspect * a), 0,                            0,                    0,
-        0,                            one(T) / (dist * a),          0,                    0,
-        0,                            0,                            -T(2) / dz,           0,
-        0,                            0,                            -(zFar + zNear) / dz, one(T)
+is_perspective(camera::Camera)::Bool = camera.proj[16] != 1.0f0
+function set_ortho!(camera::Camera)::Nothing
+    dist::Float32 = norm(camera.at - camera.eye)
+    fovy::Float32 = deg2rad(camera.fov)
+    a::Float32  = tan(fovy / 2.0f0)
+    dz::Float32 = camera.zFar - camera.zNear
+    ortho = Mat4T{Float32}(
+        1.0f0 / (dist * camera.aspect * a), 0.0f0,                       0.0f0,                        0.0f0,
+        0.0f0,                       1.0f0 / (dist * a),          0.0f0,                        0.0f0,
+        0.0f0,                       0.0f0,                       -2.0f0 / dz,                  0.0f0,
+        0.0f0,                       0.0f0,                       -(camera.zFar + camera.zNear) / dz, 1.0f0
     )
+    camera.proj = ortho
+    return nothing
+end
+function set_perspective!(camera::Camera)::Nothing
+    camera.proj = perspective(deg2rad(camera.fov),camera.aspect,camera.zNear,camera.zFar)
+    return nothing
 end
 
-function ortho(cam::Camera)
-    dist = norm(cam._at - cam._eye)
-    fovy_rad = deg2rad(cam._fov) # Converts degrees to radians
-    return ortho(fovy_rad, cam._aspect, cam._zNear, cam._zFar, dist)
-end
+swap_projection!(cam::Camera) = is_perspective(cam) ? set_ortho!(cam) : set_perspective!(cam)
 
-function swap_projection(cam::Camera)
-    if cam._proj[16] == 1.0f0
-        cam._proj = perspective(deg2rad(cam._fov),cam._aspect,cam._zNear,cam._zFar)
-    else
-        cam._proj = ortho(cam)
-    end
+function calculate_projection_matrix!(camera::Camera)::Nothing
+    is_perspective(camera) ? set_perspective!(camera) : set_ortho!(camera)
+    camera.view_proj = camera.proj * camera.view
+    return nothing
+end
+function calculate_view_matrix!(camera::Camera)::Nothing
+    camera.view = lookat(camera.eye,camera.at,camera.up)
+    camera.view_proj = camera.proj * camera.view
+    return nothing
+end
+function calculate_matrices!(camera::Camera)::Nothing
+    camera.view = lookat(camera.eye,camera.at,camera.up)
+    is_perspective(camera) ? set_perspective!(camera) : set_ortho!(camera)
+    camera.view_proj = camera.proj * camera.view
+    return nothing
 end
 
 function get_fov(self::Camera)::Float32
-    if self._proj[16] == 1.0f0
-        d = norm(self._at - self._eye)
-        a  = tan(deg2rad(self._fov) / 2.0f0)
-        return -d * a;
+    if is_perspective(self)
+        return deg2rad(self.fov)
     else
-        return deg2rad(self._fov)
+        d = norm(self.at - self.eye)
+        a  = tan(deg2rad(self.fov) / 2.0f0)
+        return -d * a;
     end
 end
 
 function get_lights(self::Camera, z::Float32 = 45.0f0)
     z = deg2rad(z)
-    l_cam = normalize(self._at - self._eye)
+    l_cam = normalize(self.at - self.eye)
     rot = Mat3T{Float32}(
         cos(z), -sin(z), 0.0f0,
         sin(z),  cos(z), 0.0f0,
@@ -70,40 +83,5 @@ function get_lights(self::Camera, z::Float32 = 45.0f0)
 end
 
 function get_matrices(self::Camera)
-    return self._view_proj, self._view, self._proj
-end
-
-function set_view!(self::Camera,eye::Vec3F,at::Vec3F,up::Vec3F)
-    self._eye = eye
-    self._at = at
-    self._view = lookat(self._eye,self._at,up)
-    return nothing
-end
-function set_proj!(self::Camera,fov,width,height,zn,zf)
-    self._fov = Float32(fov)
-    self._aspect = Float32(width)/Float32(height)
-    self._zNear = Float32(zn)
-    self._zFar = Float32(zf)
-    self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
-    return nothing
-end
-function set_fov!(self::Camera,fov)
-	self._fov = Float32(fov)
-	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
-    return nothing
-end
-function set_aspect!(self::Camera,width,height)
-    self._aspect = Float32(width/height)
-	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
-    return nothing
-end
-function set_znear!(self::Camera,zn)
-	self._zNear = Float32(zn)
-	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
-    return nothing
-end
-function set_zfar!(self::Camera,zf)
-	self._zFar = Float32(zf)
-	self._proj = perspective(deg2rad(self._fov),self._aspect,self._zNear,self._zFar)
-    return nothing
+    return self.view_proj, self.view, self.proj
 end

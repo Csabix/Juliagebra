@@ -68,10 +68,7 @@ mutable struct OpenGLData
 
     _backgroundCol::Vec3F
 
-    _vp::Mat4T{Float32}
-    _v::Mat4T{Float32}
-    _p::Mat4T{Float32}
-    _camPos::Vec3F
+    _last_vp::Mat4T{Float32}
 
     # GREEN Thread, runs this inside Init, after this construction can begin
     function OpenGLData(window::GLFWData,asset_watcher::Union{Nothing,AssetWatcher})
@@ -184,10 +181,7 @@ mutable struct OpenGLData
         observers::Vector{RendererDNA} = RendererDNA[]
         renderers = PrimitiveRenderers(pipeline_loader,window.scale)
         
-        p = perspective(Float32(70.0),Float32(window.width/window.height),Float32(0.01),Float32(100.0))
-        v = lookat(Vec3F(0.0,-5.0,0.0),Vec3F(0.0,0.0,0.0),Vec3F(0.0,0.0,1.0))
-        vp = p * v 
-        camPos = Vec3F(0.0,0.0,0.0)
+        last_vp = mat4(1.0f0) 
 
         self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
@@ -195,7 +189,7 @@ mutable struct OpenGLData
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
-            vp,v,p,camPos)
+            last_vp)
         
         self._observers = create_dependent_observers(self)
         return self
@@ -436,8 +430,8 @@ function _ubo_update!(self::OpenGLData,cam::Camera,hovered::UInt32)
     self._ubo[1] = UBO_Data(
         vp,v,p,
         Vec4F(-side_light...,width),Vec4F(-cam_light...,height),
-        Vec4F(cam._eye...,width/height),Vec4F(cam._at...,reinterpret(Float32,UInt32(self._window.width))),
-        Vec4F(cam._zNear,cam._zFar,get_fov(cam),reinterpret(Float32,hovered))
+        Vec4F(cam.eye...,cam.aspect),Vec4F(cam.at...,reinterpret(Float32,UInt32(self._window.width))),
+        Vec4F(cam.zNear,cam.zFar,get_fov(cam),reinterpret(Float32,hovered))
     )
     glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
 end

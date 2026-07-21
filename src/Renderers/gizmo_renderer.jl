@@ -11,7 +11,7 @@ const AXIS_TO_VECTOR = Dict{UInt32,Vec3F}(
     AXIS_Z => Vec3F(0,0,1),
 )
 const ALL_AXES = UInt32[AXIS_X, AXIS_Y, AXIS_Z]
-const MIN_VIEW_ANGLE_DIFF::Float32 = abs(sin(deg2rad(5.0)))
+const MIN_VIEW_ANGLE_DIFF::Float32 = abs(sin(deg2rad(2.0)))
 
 mutable struct GizmoRenderer
     corner_gizmo::Pipeline

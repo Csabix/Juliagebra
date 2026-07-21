@@ -41,33 +41,9 @@ end
 struct PPlaneOfPlane <: PrimitivesOf{PSegment} # TODO: change to PPlane
     plane::PPlane
 end
-PrimitivesOf(self::PPlane) = return PPlaneOfPlane(self)
+PrimitivesOf(self::PPlane) = PPlaneOfPlane(self)
 
 Base.length(self::PPlaneOfPlane) = 1
-
-function Base.getindex(self::PPlaneOfPlane, index::Integer)::Union{Nothing, PPlane}
-    println("index: ", index)
-    if (index == 1)
-        println(self.plane)
-        return self.plane
-    else
-        return nothing
-    end
-end
-
-function Base.iterate(self::PPlaneOfPlane, index::Integer = 1)
-    println("iterate: ", index)
-    if (index == 1)
-        return (self[index], (index + 1))
-    else
-        return nothing
-    end
-end
-
-
-
-
-
-
+Base.iterate(self::PPlaneOfPlane, index::Integer = 1) = (self.plane, (index + 1))
 
 export Plane

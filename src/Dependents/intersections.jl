@@ -80,7 +80,7 @@ function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh:
     
     shapes_lbvh = geometry_lbvh._iter
     shapes_b = geometry_b._iter
-            
+
     for primitive_b in shapes_b
         number_of_intersections = LBVHToPrimitiveIntersection(
             lbvh.lbvh_nodes,

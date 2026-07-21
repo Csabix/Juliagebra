@@ -34,4 +34,40 @@ function Plane(first,second,third,distance=_INFINITE_PLANE_DISTANCE,color_style:
     end
 end
 
+# ? ---------------------------------
+# ! Plane to PPlane intersection
+# ? ---------------------------------
+
+struct PPlaneOfPlane <: PrimitivesOf{PSegment} # TODO: change to PPlane
+    plane::PPlane
+end
+PrimitivesOf(self::PPlane) = return PPlaneOfPlane(self)
+
+Base.length(self::PPlaneOfPlane) = 1
+
+function Base.getindex(self::PPlaneOfPlane, index::Integer)::Union{Nothing, PPlane}
+    println("index: ", index)
+    if (index == 1)
+        println(self.plane)
+        return self.plane
+    else
+        return nothing
+    end
+end
+
+function Base.iterate(self::PPlaneOfPlane, index::Integer = 1)
+    println("iterate: ", index)
+    if (index == 1)
+        return (self[index], (index + 1))
+    else
+        return nothing
+    end
+end
+
+
+
+
+
+
+
 export Plane

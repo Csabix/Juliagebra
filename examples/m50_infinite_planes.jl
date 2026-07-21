@@ -18,20 +18,13 @@ Point([plane2];color="r") do plane
 end
 
 l1 = Line(Vec3D(-5,5,10),Vec3D(-5,-5,-10);color="b")
-# i1 = Intersection(l1, plane1)
-# Point([i1]) do intersection
-#     return intersection[1]
-# end
-# i2 = Intersection(l1, plane2)
-# Point([i2]) do intersection
-#     return intersection[1]
-# end
-
-Point([l1,plane1]) do line, plane
-    return PrimitiveToPrimitiveIntersection(line,plane)
+i1 = Intersection(l1, plane1)
+Point([i1]) do intersection
+    return intersection[1]
 end
-Point([l1,plane2]) do line, plane
-    return PrimitiveToPrimitiveIntersection(line,plane)
+i2 = Intersection(l1, plane2)
+Point([i2]) do intersection
+    return intersection[1]
 end
 
 

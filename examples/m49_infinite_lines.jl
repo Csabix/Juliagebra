@@ -7,7 +7,7 @@ s1 = Segment(p1,p2)
 
 p3 = Point( 4,5,-1)
 p4 = Point(-4,5, 1)
-l1 = Line(p3,p4)
+l1 = Line(p3,p4,50)
 
 Point([l1];color="r") do line
     println(line) # PLine
@@ -21,12 +21,12 @@ end
 
 p5 = Point( 4,5,  0)
 p6 = Point(-4,5,1.9)
-l2 = Line(p5,p6,100; color="y", style=".")
+l2 = Line(p5,p6,50; color="y", style=".")
 
-# i2 = Intersection(l1, l2)
-# Point([i2]) do intersection
-#     return intersection[1]
-# end
+i2 = Intersection(l1, l2)
+Point([i2]) do intersection
+    return intersection[1]
+end
 
 p7 = Point(7, 1, 2)
 p8 = Point(4, 6, 3)

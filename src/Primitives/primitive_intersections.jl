@@ -232,4 +232,18 @@ end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,line::PLine)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(line,plane)
 
-export PrimitiveToPrimitiveIntersection
+function PrimitiveToPrimitiveIntersection(line1::PLine,line2::PLine)::Union{Vec3D,Nothing}
+	r  = line2.p - line1.p
+	v2 = dot(line1.v,line1.v); w2 = dot(line2.v,line2.v); vw = dot(line1.v,line2.v)
+	D  = v2*w2 - vw*vw
+	a1 = dot(line1.v,r); a2 = dot(line2.v,r); a3 = dot(cross(line1.v,line2.v), r)
+	t  = ( w2*a1 - vw*a2 ) / D
+	s  = ( vw*a1 - v2*a2 ) / D
+	d2 = a3*a3 / D
+	
+    if (d2 <= LINE_TO_LINE_EPSILON^2)
+        return ((line1.p + line1.v * t) + (line2.p + line2.v * s)) / 2.0
+    else
+        return nothing
+    end
+end

@@ -34,4 +34,37 @@ function Line(first,second,distance=_INFINITE_LINE_DISTANCE,color_style::Union{N
     end
 end
 
+# ? ---------------------------------
+# ! Line to PLine intersection
+# ? ---------------------------------
+
+struct PLineOfLine <: PrimitivesOf{PSegment} # TODO: change to PLine
+    line::PLine
+end
+function PrimitivesOf(self::PLine)
+    # println("p of")
+    return PLineOfLine(self)
+end
+
+Base.length(self::PLineOfLine) = 1
+
+function Base.getindex(self::PLineOfLine, index::Integer)::Union{Nothing, PLine}
+    # println("index: ", index)
+    if (index == 1)
+        # println(self.line)
+        return self.line
+    else
+        return nothing
+    end
+end
+
+function Base.iterate(self::PLineOfLine, index::Integer = 1)
+    # println("iterate: ", index)
+    if (index == 1)
+        return (self[index], (index + 1))
+    else
+        return nothing
+    end
+end
+
 export Line

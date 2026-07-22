@@ -87,9 +87,14 @@ function get_matrices(self::Camera)
 end
 function get_ray(app::AppDNA, x, y)::Vec3F
     self = app._cam
+    forward = -Vec3F(self.view[3,1], self.view[3,2], self.view[3,3])
+    
+    if !is_perspective(self) 
+        return forward 
+    end
+
     mouse = Vec2F(((x + 0.5) / app._glfw.width) * 2.0 - 1.0, ((y + 0.5) / app._glfw.height) * 2.0 - 1.0)
 
-    forward = -Vec3F(self.view[3,1],self.view[3,2],self.view[3,3])
     right = Vec3F(self.view[1,1],self.view[1,2],self.view[1,3])
     camUp = Vec3F(self.view[2,1],self.view[2,2],self.view[2,3])
 
@@ -101,4 +106,22 @@ function get_ray(app::AppDNA, x, y)::Vec3F
     ray = normalize(nearPlaneMouse - self.eye)
 
     return ray
+end
+
+function get_origin(app::AppDNA, x, y)::Vec3F
+    self = app._cam
+    if is_perspective(self) return self.eye end
+
+    right = Vec3F(self.view[1,1], self.view[1,2], self.view[1,3])
+    camUp = Vec3F(self.view[2,1], self.view[2,2], self.view[2,3])
+
+    mouse = Vec2F(((x + 0.5) / app._glfw.width) * 2.0 - 1.0, ((y + 0.5) / app._glfw.height) * 2.0 - 1.0)
+
+    d = norm(self.at - self.eye)
+    a = tan(deg2rad(self.fov) / 2.0f0)
+
+    halfHeight = d * a
+    halfWidth = halfHeight * self.aspect
+
+    return self.eye + right * (mouse[1] * halfWidth) + camUp * (mouse[2] * halfHeight)
 end

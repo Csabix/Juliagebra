@@ -127,7 +127,7 @@ function _planeLineIntersection(eye::Vec3D, ray::Vec3D, plane_position::Vec3D, p
         return nothing
     end
 end
-function _moveAlongAxis(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F)::Union{Vec3D,Nothing}
+function _moveAlongAxis(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F, origin::Vec3F)::Union{Vec3D,Nothing}
     axis_vector = AXIS_TO_VECTOR[gizmo.axes]
     if (gizmo.first_move)
         # ? Perpendicular to ray and the axis
@@ -138,7 +138,7 @@ function _moveAlongAxis(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F)::Union{Ve
     
     angleDiff = dot(normalize(app._cam.at - app._cam.eye), normalize(gizmo.initial_plane_normal))
     if (abs(angleDiff) >= MIN_VIEW_ANGLE_DIFF)
-        intersection = _planeLineIntersection(Vec3D(app._cam.eye), Vec3D(ray), gizmo.position, Vec3D(gizmo.initial_plane_normal))
+        intersection = _planeLineIntersection(Vec3D(origin), Vec3D(ray), gizmo.position, Vec3D(gizmo.initial_plane_normal))
         if (intersection !== nothing)
             # ? Projecting onto axis to get length
             t = dot(intersection - gizmo.position, axis_vector)
@@ -148,13 +148,13 @@ function _moveAlongAxis(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F)::Union{Ve
 
     return nothing
 end
-function _moveAlongPlane(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F)::Union{Vec3D,Nothing}
+function _moveAlongPlane(app::AppDNA, gizmo::GizmoRenderer, ray::Vec3F, origin::Vec3F)::Union{Vec3D,Nothing}
     for axis in ALL_AXES
         # ? Finds the perpendicular axis to the plane that'll be used as its normal
         if (gizmo.axes & axis == 0)
             angleDiff = dot(normalize(app._cam.at - app._cam.eye), normalize(AXIS_TO_VECTOR[axis]))
             if (abs(angleDiff) >= MIN_VIEW_ANGLE_DIFF)
-                intersection = _planeLineIntersection(Vec3D(app._cam.eye), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
+                intersection = _planeLineIntersection(Vec3D(origin), Vec3D(ray), gizmo.position, Vec3D(AXIS_TO_VECTOR[axis]))
                 if (intersection !== nothing)
                     return intersection
                 end
@@ -168,10 +168,11 @@ end
 
 function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     ray = get_ray(app, mouseX, mouseY)
+    origin = get_origin(app, mouseX, mouseY)
     newPoint = nothing
     
     if (gizmo.first_move)
-        toPoint = normalize(gizmo.position - app._cam.eye)
+        toPoint = normalize(gizmo.position - origin)
         # ? Stores the initial difference between where the eye-point vector and the eye-mouse ray
         gizmo.initial_ray_diff = toPoint - ray
     end
@@ -180,9 +181,9 @@ function _move_gizmo!(app::AppDNA, gizmo::GizmoRenderer, mouseX, mouseY)
     ray = Vec3F(ray + gizmo.initial_ray_diff)
 
     if (any(a -> a == gizmo.axes, ALL_AXES))
-        newPoint = _moveAlongAxis(app, gizmo, ray)
+        newPoint = _moveAlongAxis(app, gizmo, ray, origin)
     else
-        newPoint = _moveAlongPlane(app, gizmo, ray)
+        newPoint = _moveAlongPlane(app, gizmo, ray, origin)
     end
 
     if (gizmo.first_move && newPoint !== nothing)

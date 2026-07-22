@@ -16,6 +16,17 @@ void main(){
         color = vec3(1.0) - color;
     }
 
+    float distanceFromEdge = distance_from_aabb_edge(position_in);
+    if (distanceFromEdge <= 2.0) {
+        float t = distanceFromEdge / 2.0;
+        if (visible_in_stripes(gl_FragCoord) == 1) {
+            color = color * t + vec3(1.0) * (1.0 - t);
+        }
+        else {
+            color = color * t + (color / 1.33) * (1.0 - t);
+        }
+    }
+
     float diffuse = (max(dot(normal,light_cam()),0.0) * 0.3 + max(dot(normal,light_side()),0.0) * 0.7) * 0.8;
     float ambient = 0.2;
     vec4 color4 = vec4(color * (diffuse + ambient), color_in.a);

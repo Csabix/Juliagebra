@@ -42,5 +42,20 @@ int inside_aabb(vec4 position) {
         return 0;
     }
 }
+float distance_from_aabb_edge(vec4 position) {
+    float xDiff = min(abs(aabb_min.x - position.x), abs(aabb_max.x - position.x));
+    float yDiff = min(abs(aabb_min.y - position.y), abs(aabb_max.y - position.y));
+    float zDiff = min(abs(aabb_min.z - position.z), abs(aabb_max.z - position.z));
+    float minDistance = min(xDiff, yDiff);
+    return min(minDistance, zDiff);
+}
+int visible_in_stripes(vec4 fragPosition) {
+    if (mod(floor((fragPosition.x - fragPosition.y) / 5.0), 2.0) == 0.0) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
 
 #endif

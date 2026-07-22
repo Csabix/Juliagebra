@@ -34,8 +34,8 @@ void main() {
     const ivec2 coords = ivec2(gl_FragCoord.xy);
 
     vec3 ray_dir = rayDirection();
-    float t = -ray_origin().z / ray_dir.z;
-    vec3 frag_position = ray_origin() + t * ray_dir;
+    float t = -rayOrigin().z / ray_dir.z;
+    vec3 frag_position = rayOrigin() + t * ray_dir;
     
     float depth = texelFetch(depthTex, coords, 0).x;
     float depth_lin = computeLinearDepth(depth);

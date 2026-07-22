@@ -57,7 +57,7 @@ TraceResult intersectSphere(Ray ray, Sphere s){
 
 void main(){
     vec3 v = rayDirection();
-    Ray r = Ray(ray_origin(), 0.01, v, 1000.0);
+    Ray r = Ray(rayOrigin(), 0.01, v, 1000.0);
     
     Sphere s = Sphere(center_in,radius_in);
     TraceResult rs = intersectSphere(r,s);

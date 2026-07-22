@@ -95,7 +95,7 @@ float iUnevenCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float ra, float rb, out
 }
 
 vec4 get_normal_depth(vec4 pos_rad_begin, vec4 pos_rad_end) {
-    vec3 ro = ray_origin();
+    vec3 ro = rayOrigin();
     vec3 rd = rayDirection();
     
     vec3 pa = pos_rad_begin.xyz;

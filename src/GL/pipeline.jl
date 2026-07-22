@@ -199,12 +199,12 @@ function _process_spec_constants(glsl_source::String, spec_constants::Dict{GLuin
             val = spec_constants[id]
             if type_str == "float"
                 hex_str = "0x" * string(val, base=16) * "u"
-                write(out, "const float $var_name = uintBitsToFloat($hex_str);")
+                write(out, "float $var_name = uintBitsToFloat($hex_str);")
             else
-                write(out, "const $type_str $var_name = $val;")
+                write(out, "$type_str $var_name = $type_str($val);")
             end
         else
-            write(out, "const $type_str $var_name = $default_val;")
+            write(out, "$type_str $var_name = $default_val;")
         end
         last_idx = m.offset + length(m.match)
     end
@@ -251,7 +251,7 @@ function _shader(source::ShaderData,binary::Vector{UInt8},as_spirv::Bool)::GLuin
         glDeleteShader(shader)
         shader = GLuint(0)
         
-        println("Failed to compile shader stage")
+        println("Failed to compile shader stage $(source.glsl_path)")
     end
     return shader
 end

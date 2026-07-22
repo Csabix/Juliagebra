@@ -30,12 +30,6 @@ vec4 grid(vec3 position, float scale) {
     return color;
 }
 
-float computeLinearDepth(float clip_space_depth) {
-    const float NEAR = znear();
-    const float FAR  = zfar();
-    return ((FAR * NEAR) / (NEAR - FAR)) / (clip_space_depth - (FAR / (FAR - NEAR)));
-}
-
 void main() {
     const ivec2 coords = ivec2(gl_FragCoord.xy);
 
@@ -45,13 +39,10 @@ void main() {
     
     float depth = texelFetch(depthTex, coords, 0).x;
     float depth_lin = computeLinearDepth(depth);
-    vec3 view_forward = normalize(at() - eye());
+    vec3 view_forward = -vec3(V[0][2], V[1][2], V[2][2]);
     float grid_view_z = t * dot(ray_dir, view_forward);
 
-    bool hit_in_front_of_camera = t > 0.0;
-    bool hit_in_render_distance = grid_view_z <= zfar() && grid_view_z < depth_lin;
-    bool outside_render_distance = depth == 1.0;
-    if (!hit_in_front_of_camera || !hit_in_render_distance || !outside_render_distance){
+    if (t < 0.0 || grid_view_z > zfar() || grid_view_z > depth_lin) {
         discard;
     }
 

@@ -29,6 +29,16 @@ float zfar() { return _near_far_fov_hovered.y; }
 float fov() { return _near_far_fov_hovered.z; }
 uint hovered_id() { return floatBitsToUint(_near_far_fov_hovered.w); }
 
+float computeLinearDepth(float clip_space_depth) {
+    const float NEAR = znear();
+    const float FAR  = zfar();
+    if (fov() < 0.0) {
+        return mix(NEAR, FAR, clip_space_depth);
+    } else {
+        return ((FAR * NEAR) / (NEAR - FAR)) / (clip_space_depth - (FAR / (FAR - NEAR)));
+    }
+}
+
 #endif
 
 #ifdef RAY
@@ -36,10 +46,10 @@ uint hovered_id() { return floatBitsToUint(_near_far_fov_hovered.w); }
 vec3 rayDirection() {
     vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
     if (fov() < 0.0) {
-        return normalize(-backward);
+        return -backward;
     } else {
-        vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
-        vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
+        vec3 right  = vec3(V[0][0], V[1][0], V[2][0]);
+        vec3 up     = vec3(V[0][1], V[1][1], V[2][1]);
 
         float focal_length = -1.0 / tan(fov() * 0.5);
         vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 

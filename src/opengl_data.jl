@@ -38,6 +38,9 @@ struct UBO_AABB
     max::Vec4F
 end
 
+const AABB_MIN_DEFAULT = [-10.0,-10.0,-10.0]
+const AABB_MAX_DEFAULT = [ 10.0, 10.0, 10.0]
+
 mutable struct OpenGLData
     _window::GLFWData
     _profiler::Profiler
@@ -170,7 +173,11 @@ mutable struct OpenGLData
         reserve!(ubo, 1, 0)
         glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubo._id);
         ubo_aabb = MappedBuffer{UBO_AABB}()
-        reserve!(ubo_aabb, 1, 0) # hmmmm sus
+        reserve!(ubo_aabb, 1, 0)
+        ubo_aabb[1] = UBO_AABB(
+            Vec4F(AABB_MIN_DEFAULT[1],AABB_MIN_DEFAULT[2],AABB_MIN_DEFAULT[3],0.0),
+            Vec4F(AABB_MAX_DEFAULT[1],AABB_MAX_DEFAULT[2],AABB_MAX_DEFAULT[3],0.0)
+        )
         glBindBufferBase(GL_UNIFORM_BUFFER, 11, ubo_aabb._id);
 
         pixel_buffer_dist = Buffer{UVec4}()
@@ -452,20 +459,21 @@ function _ubo_update!(self::OpenGLData,cam::Camera,hovered::UInt32)
         Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),reinterpret(Float32,hovered))
     )
     glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
-    wait(self._ubo_aabb)
-    self._ubo_aabb[1] = UBO_AABB(
-        Vec4F(
-            Float32(-5.0),
-            Float32(-5.0),
-            Float32(-5.0),
-            Float32(0)),
-        Vec4F(
-            Float32(5.0),
-            Float32(5.0),
-            Float32(5.0),
-            Float32(0))
-    )
-    glBindBufferBase(GL_UNIFORM_BUFFER, 11, id(self._ubo_aabb))
+    # wait(self._ubo_aabb)
+    # self._ubo_aabb[1] = UBO_AABB(
+    #     Vec4F(
+    #         Float32(-5.0),
+    #         Float32(-5.0),
+    #         Float32(-5.0),
+    #         Float32(0)),
+    #     Vec4F(
+    #         Float32(5.0),
+    #         Float32(5.0),
+    #         Float32(5.0),
+    #         Float32(0))
+    # )
+    # println("opengl")
+    # glBindBufferBase(GL_UNIFORM_BUFFER, 11, id(self._ubo_aabb))
 end
 
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool,hovered::UInt32)

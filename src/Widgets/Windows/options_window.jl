@@ -8,12 +8,17 @@ mutable struct OptionsWindow <: WindowDNA
     _gizmoLength::Ref{Float32}
     _gizmoThickness::Ref{Float32}
 
-    function OptionsWindow(color)
+    _aabbMin::Array{Cfloat}
+    _aabbMax::Array{Cfloat}
+
+    function OptionsWindow(color,aabbMin,aabbMax)
         whitebg = false
         bgColor = Cfloat[color[1], color[2], color[3]]
         gizmoLength = 1.0
         gizmoThickness = 1.0
-        new(Window(), whitebg, bgColor, gizmoLength, gizmoThickness)
+        aabbMin = Cfloat[aabbMin[1],aabbMin[2],aabbMin[3]]
+        aabbMax = Cfloat[aabbMax[1],aabbMax[2],aabbMax[3]]
+        new(Window(), whitebg, bgColor, gizmoLength, gizmoThickness,aabbMin,aabbMax)
     end
 end
 
@@ -36,6 +41,13 @@ function _setGizmo(self::OptionsWindow, app::AppDNA)
     gizmo = app._opengl._renderers.gizmo
     gizmo.ubo_size[1] = self._gizmoLength[]
     gizmo.ubo_size[2] = self._gizmoThickness[]
+    _updateScene!(app)
+end
+function _setInfiniteAABBSize(self::OptionsWindow, app::AppDNA)
+    app._opengl._ubo_aabb[1] = UBO_AABB(
+        Vec4F(self._aabbMin[1],self._aabbMin[2],self._aabbMin[3],0.0),
+        Vec4F(self._aabbMax[1],self._aabbMax[2],self._aabbMax[3],0.0)
+    )
     _updateScene!(app)
 end
 
@@ -63,6 +75,15 @@ function renderContent(self::OptionsWindow, app::AppDNA)
         end
         if (CImGui.SliderFloat("Thickness", self._gizmoThickness, 0.5, 2.0))
             _setGizmo(self, app)
+        end
+    end
+
+    if (CImGui.CollapsingHeader("Infinite AABB settings"))
+        if (CImGui.DragFloat3("Minimum", self._aabbMin, 1.0, -100.0, 100.0))
+            _setInfiniteAABBSize(self, app)
+        end
+        if (CImGui.DragFloat3("Maximum", self._aabbMax, 1.0, -100.0, 100.0))
+            _setInfiniteAABBSize(self, app)
         end
     end
 end

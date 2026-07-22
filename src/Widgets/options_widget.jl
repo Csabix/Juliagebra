@@ -11,8 +11,8 @@ mutable struct OptionsWidget <: ImGuiWidgetDNA
 
     _padding::Int
 
-    function OptionsWidget(bgcolor)
-        new(ImGuiWidget(),OptionsWindow(bgcolor),0,0,0,0,0)
+    function OptionsWidget(bgcolor,aabbMin,aabbMax)
+        new(ImGuiWidget(),OptionsWindow(bgcolor,aabbMin,aabbMax),0,0,0,0,0)
     end
 end
 

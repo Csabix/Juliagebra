@@ -6,7 +6,7 @@
 layout(location = 0) flat in vec4 color_in;
 layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
-// layout(location = 3) in vec4 position_in;
+layout(location = 3) in vec4 position_in;
 
 void main(){
     vec3 normal = normal_in;
@@ -16,14 +16,26 @@ void main(){
         normal = -normal;
         color = vec3(1.0) - color;
     }
+    
+    float distanceFromEdge = distance_from_aabb_edge(position_in);
+    if (distanceFromEdge <= 2.0) {
+        float t = distanceFromEdge / 2.0;
+        alpha *= t;
+        if (visible_in_stripes(gl_FragCoord) == 0) {
+            color = color * t + vec3(1.0) * (1.0 - t);
+        }
+        else {
+            color = color * t + (color / 1.33) * (1.0 - t);
+        }
+    }
+
+    if (inside_aabb(position_in) == 0) {
+        discard;
+    }
 
     float diffuse = (max(dot(normal,light_cam()),0.0) * 0.3 + max(dot(normal,light_side()),0.0) * 0.7) * 0.8;
     float ambient = 0.2;
-    vec4 color4 = vec4(color * (diffuse + ambient), color_in.a);
+    vec4 color4 = vec4(color * (diffuse + ambient), alpha);
 
     WRITE_COLOR(color4, id_in, gl_FragCoord.z)
-
-    // if (abs(position_in.x) > 5.0 || abs(position_in.y) > 5.0 || abs(position_in.z) > 5.0) {
-    //     discard;
-    // }
 }

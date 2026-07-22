@@ -33,12 +33,12 @@ end
 # ! Line to PLine intersection
 # ? ---------------------------------
 
-struct PLineOfLine <: PrimitivesOf{PSegment} # TODO: change to PLine
+struct PLineOfLine <: PrimitivesOf{PLine}
     line::PLine
 end
 PrimitivesOf(self::PLine) = PLineOfLine(self)
 
 Base.length(self::PLineOfLine) = 1
-Base.iterate(self::PLineOfLine, index::Integer = 1) = (self.line, (index + 1))
+Base.iterate(self::PLineOfLine, index::Integer = 1) = index == 1 ? (self.line, (index + 1)) : nothing
 
 export Line

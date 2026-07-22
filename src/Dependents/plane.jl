@@ -38,12 +38,12 @@ end
 # ! Plane to PPlane intersection
 # ? ---------------------------------
 
-struct PPlaneOfPlane <: PrimitivesOf{PSegment} # TODO: change to PPlane
+struct PPlaneOfPlane <: PrimitivesOf{PPlane}
     plane::PPlane
 end
 PrimitivesOf(self::PPlane) = PPlaneOfPlane(self)
 
 Base.length(self::PPlaneOfPlane) = 1
-Base.iterate(self::PPlaneOfPlane, index::Integer = 1) = (self.plane, (index + 1))
+Base.iterate(self::PPlaneOfPlane, index::Integer = 1) = index == 1 ? (self.plane, (index + 1)) : nothing
 
 export Plane

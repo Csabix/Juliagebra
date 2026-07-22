@@ -10,7 +10,6 @@ p4 = Point(-4,5, 1)
 l1 = Line(p3,p4,50)
 
 Point([l1];color="r") do line
-    println(line) # PLine
     return line.p + line.v
 end
 

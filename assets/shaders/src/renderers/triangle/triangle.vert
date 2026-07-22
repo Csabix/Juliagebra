@@ -10,6 +10,7 @@ layout(location = 3) in uint id_in;
 layout(location = 0) flat out vec4 color_out;
 layout(location = 1) flat out vec3 normal_out;
 layout(location = 2) flat out uint id_out;
+layout(location = 3) out vec4 position_out;
 
 layout(std140, binding = 0) uniform TriangleUniforms {
     mat4 M;
@@ -22,4 +23,5 @@ void main() {
     color_out = color_in;
     normal_out = (MIT * normal_in).xyz;
     id_out = id_in;
+    position_out = position_in;
 }

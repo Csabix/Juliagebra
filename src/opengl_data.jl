@@ -30,6 +30,14 @@ struct UBO_Data
     _near_far_fov_hovered::Vec4F
 end
 
+# Has to be "vec4"s, otherwise two 12 bits (of the 3 floats)
+# would be smushed together, and the first float of max
+# would be in the remaining 4 bits, essentially losing that data
+struct UBO_AABB
+    min::Vec4F
+    max::Vec4F
+end
+
 mutable struct OpenGLData
     _window::GLFWData
     _profiler::Profiler
@@ -60,6 +68,7 @@ mutable struct OpenGLData
     _transparentFBO::FrameBuffer
 
     _ubo::MappedBuffer{UBO_Data}
+    _ubo_aabb::MappedBuffer{UBO_AABB}
     _pixel_buffer_dist::Buffer{UVec4}
     _pixel_buffer_col::Buffer{UVec4}
     _pixel_buffer_id::Buffer{UVec2}
@@ -160,6 +169,9 @@ mutable struct OpenGLData
         ubo = MappedBuffer{UBO_Data}()
         reserve!(ubo, 1, 0)
         glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubo._id);
+        ubo_aabb = MappedBuffer{UBO_AABB}()
+        reserve!(ubo_aabb, 1, 0) # hmmmm sus
+        glBindBufferBase(GL_UNIFORM_BUFFER, 11, ubo_aabb._id);
 
         pixel_buffer_dist = Buffer{UVec4}()
         pixel_count = Int64(window.width * window.height)
@@ -193,7 +205,7 @@ mutable struct OpenGLData
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
-            ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
+            ubo,ubo_aabb,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
             vp,v,p,camPos)
         
@@ -440,6 +452,20 @@ function _ubo_update!(self::OpenGLData,cam::Camera,hovered::UInt32)
         Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),reinterpret(Float32,hovered))
     )
     glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
+    wait(self._ubo_aabb)
+    self._ubo_aabb[1] = UBO_AABB(
+        Vec4F(
+            Float32(-5.0),
+            Float32(-5.0),
+            Float32(-5.0),
+            Float32(0)),
+        Vec4F(
+            Float32(5.0),
+            Float32(5.0),
+            Float32(5.0),
+            Float32(0))
+    )
+    glBindBufferBase(GL_UNIFORM_BUFFER, 11, id(self._ubo_aabb))
 end
 
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool,hovered::UInt32)

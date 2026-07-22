@@ -5,6 +5,7 @@
 layout(location = 0) flat in vec4 color_in;
 layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
+layout(location = 3) in vec4 position_in;
 
 void main(){
     vec3 normal = normal_in;
@@ -20,4 +21,8 @@ void main(){
     vec4 color4 = vec4(color * (diffuse + ambient), color_in.a);
 
     WRITE_COLOR(color4, id_in, gl_FragCoord.z)
+
+    if (inside_aabb(position_in) == 0) {
+        discard;
+    }
 }

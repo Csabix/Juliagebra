@@ -11,6 +11,10 @@ layout(std140, binding = 10) uniform UBO_Buffer {
     vec4 _at_width_u;
     vec4 _near_far_fov_hovered;
 };
+layout(std140, binding = 11) uniform Infinite_UBO_Buffer {
+    vec4 aabb_min;
+    vec4 aabb_max;
+};
 
 float width()  { return _light_side_width.w; }
 float height() { return _light_cam_heigth.w; }
@@ -28,5 +32,15 @@ float znear() { return _near_far_fov_hovered.x; }
 float zfar() { return _near_far_fov_hovered.y; }
 float fov() { return _near_far_fov_hovered.z; }
 uint hovered_id() { return floatBitsToUint(_near_far_fov_hovered.w); }
+
+int inside_aabb(vec4 position) {
+    if (position.x >= aabb_min.x && position.y >= aabb_min.y && position.z >= aabb_min.z &&
+        position.x <= aabb_max.x && position.y <= aabb_max.y && position.z <= aabb_max.z) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
 
 #endif

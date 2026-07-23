@@ -212,7 +212,7 @@ function update_normals_gpu!(self::ParametricSurfaceDependent)
     end
 
     normals_shader = getOpenGL(implicitApp)._surface_normals
-    activate(normals_shader) # TODO: use SPIRV
+    activate(normals_shader) # TODO: use SPIRV pipeline
     glUniform2i(normals_shader.uniforms["uvGridSize"], GLint(height(self._uvValues)), GLint(width(self._uvValues)))
 
     bind_ssbo(dep._posBuffer, 0)
@@ -256,7 +256,6 @@ end
 function pre_gpu_tess!(self::ParametricSurfaceDependent)
     shader = _ParametricDependent_(self)._tessCompShader
     @assert shader !== nothing "GPU tessellation pipeline invoked on CPU-tessellated parametric dependent"
-    # TODO: proper range upload
     @assert (self._uRange isa StepRange || self._uRange isa StepRangeLen) &&
             (self._vRange isa StepRange || self._vRange isa StepRangeLen) "GPU tessellation currently only supports StepRanges"
 

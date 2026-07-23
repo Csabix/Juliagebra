@@ -2,8 +2,6 @@ const GPU_TESS_LOCAL_SIZE = 256
 const GPU_TESS_POS_BINDING_IDX = 0
 const GPU_TESS_DEBUG_ARG = "--debug-gpu-tess"
 
-# TODO: gui and other simple dependent uploads
-
 get_glsl_representation(::Type{T}) where {T<:DependentDNA} = Nothing
 try_upload_dependent(uniform::GLint, dep::DependentDNA)::Bool = return false
 
@@ -124,8 +122,6 @@ handle_gpu_tess_result!(self::ParametricDependentDNA)::Bool = error("Missing fun
 
 function eval_callbacks!(self::ParametricDependentDNA)
     @assert is_valid_parametric_dependent(self) "eval_callbacks! called with uninitialized or otherwise invalid parametric dependent"
-
-    # TODO: timings
 
     if is_cpu_tessellated(self)
         @time_cpu_begin ParametricTessellation CPU

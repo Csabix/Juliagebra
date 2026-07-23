@@ -81,7 +81,6 @@ function pre_gpu_tess!(self::ParametricCurveDependent)
 end
 
 function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool
-    # TODO: measure impact of pre-allocating staging buffers per gpu-tessellated dependent vs on the fly
     dep::ParametricDependent = _ParametricDependent_(self)
 
     @time_cpu_begin ParametricTessellation GPU DataProcessing Download

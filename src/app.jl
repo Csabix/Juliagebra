@@ -28,6 +28,7 @@ mutable struct App <: AppDNA
     _vsync_state::Int32
 
     _cb_helper_asts::Vector{Expr}
+    _transpiler_config::ConfigHandle
 
     function App(
         name::String="Juliagebra",
@@ -58,11 +59,16 @@ mutable struct App <: AppDNA
         vsync_state = Int32(1)
 
         cb_helper_asts = Expr[]
+    
+        transpiler_config = ConfigHandle()
+        set_config_opts!(transpiler_config; target_version="460 core", code_gen_indent=UInt16(0),
+                         local_size=UInt32.((GPU_TESS_LOCAL_SIZE, 1, 1)))
 
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state,cb_helper_asts)
+            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state,
+            cb_helper_asts,transpiler_config)
     end
 end
 

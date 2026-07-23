@@ -127,21 +127,16 @@ function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::
 
     @time_cpu_begin GPUTessSetup CodeGen Transpilation
 
-    # TODO: single global config handle in App
-    cfg = ConfigHandle()
-    
-    # 0 cg indent saves us from some unnecessary spacing generation and copy
-    set_config_opts!(cfg; target_version="460 core", code_gen_indent=UInt16(0), local_size=UInt32.((GPU_TESS_LOCAL_SIZE, 1, 1)))
+    cfg = implicitApp._transpiler_config
 
     if dbg
         println("code passed to transpiler:")
         println(translation_unit)
     end
-    
+
     pipe = Pipe()
     glsl_code::Union{String,Nothing} =
         try
-            # TODO: this approach could probably be improved
             redirect_stderr(pipe) do
                 transpile(translation_unit; run_benchmarks=dbg, cfg)
             end

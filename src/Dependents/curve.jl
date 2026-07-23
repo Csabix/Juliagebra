@@ -33,7 +33,7 @@ mutable struct ParametricCurveDependent <: ParametricDependentDNA
     end
 end
 
-Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
+Base.string(self::ParametricCurveDependent)::String = return "ParametricCurve: $(length(self._range))"
 _ParametricDependent_(self::ParametricCurveDependent)::ParametricDependent = return self._parametricDependent
 _RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return _ParametricDependent_(self)._renderedDependent
 
@@ -42,7 +42,7 @@ Base.eltype(dependent::ParametricCurveDependent)::DataType = Vector{Vec3D}
 # YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricCurveDependent)
-    eval_callbacks!(self)    
+    eval_callbacks!(self)
 end
 
 function eval_callbacks_cpu!(self::ParametricCurveDependent)
@@ -84,27 +84,30 @@ function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool
     # TODO: measure impact of pre-allocating staging buffers per gpu-tessellated dependent vs on the fly
     dep::ParametricDependent = _ParametricDependent_(self)
 
-    copyto!(dep._stagingBuffer, 1, dep._outBuffer._mapped, 1, dep._sampleCount)
+    @time_cpu_begin ParametricTessellation GPU DataProcessing Download
+    copyto!(dep._stagingBuffer, 1, dep._posBuffer._mapped, 1, dep._sampleCount)
+    @time_cpu_end ParametricTessellation GPU DataProcessing Download
 
+    @time_cpu_begin ParametricTessellation GPU DataProcessing evalCallbackDpReturn
     for i in eachindex(dep._stagingBuffer)
         v4 = dep._stagingBuffer[i]
-        
         v3 = Vec3D(v4.x, v4.y, v4.z)
-        
+
         any(x -> isnan(x) || isinf(x), v3) && return false
-        
+
         evalCallbackDpReturn(self, v3, i)
     end
+    @time_cpu_end ParametricTessellation GPU DataProcessing evalCallbackDpReturn
 
     return true
 end
 
 function try_transpile_tess_shader(self::ParametricCurveDependent)::Union{ShaderProgram,Nothing}
     @time_cpu_begin GPUTessSetup CodeGen CurveWrapperCodeGen
-    
+
     dep::ParametricDependent = _ParametricDependent_(self)
     fn_data = splitdef(dep._callbackAST)
-    
+
     if isempty(get(fn_data, :args, []))
         @log "cannot transpile zero argument function as a parametric curve callback" WARN
         return nothing
@@ -117,7 +120,7 @@ function try_transpile_tess_shader(self::ParametricCurveDependent)::Union{Shader
     pushfirst!(fn_data[:body].args, :(
         $t_varname = $GPU_TESS_T_RANGE[:x] + Float32($GPU_TESS_ID) * $GPU_TESS_T_RANGE[:y]
     ))
-    
+
     dep._callbackAST = combinedef(fn_data)
     @time_cpu_end GPUTessSetup CodeGen CurveWrapperCodeGen
 

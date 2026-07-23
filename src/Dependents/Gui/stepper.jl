@@ -25,6 +25,12 @@ evalCallbackDpEntry(self::StepperDependent)::Float64 = return self._num
 
 evalCallbackDpReturn(self::StepperDependent,num::Float64) = self._num = num
 
+get_glsl_representation(::Type{StepperDependent}) = Float32
+function try_upload_dependent(uniform::GLint, s::StepperDependent)::Bool
+    glUniform1f(uniform, s._num)
+    return true
+end
+
 # ? ---------------------------------
 # ! StepperRenderer
 # ? ---------------------------------

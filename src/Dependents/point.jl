@@ -39,7 +39,7 @@ evalCallbackDpReturn(self::PointDependent,::Nothing) = self._coord = Vec3DNan
 
 get_glsl_representation(::Type{PointDependent}) = Vec3F
 function try_upload_dependent(uniform::GLint, pt::PointDependent)::Bool
-    glUniform3f(uniform, Vec3F(pt._coord)...)
+    glUniform3f(uniform, Float32.(pt._coord)...)
     return true
 end
 

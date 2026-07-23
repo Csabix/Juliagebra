@@ -28,6 +28,12 @@ evalCallbackDpEntry(self::SliderDependent)::Float64 = return Float64(self._value
 
 evalCallbackDpReturn(self::SliderDependent, v::Vec3F) = self._value = v
 
+get_glsl_representation(::Type{SliderDependent}) = Float32
+function try_upload_dependent(uniform::GLint, s::SliderDependent)::Bool
+    glUniform1f(uniform, s._value.y)
+    return true
+end
+
 # ? ---------------------------------
 # ! SliderRenderer
 # ? ---------------------------------

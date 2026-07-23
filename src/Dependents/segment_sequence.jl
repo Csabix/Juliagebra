@@ -98,11 +98,11 @@ Base.eltype(::Type{PSegmentsOfSegmentSequence}) = PSegment
 mutable struct SegmentSequences <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
     _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
+    _refs::Vector{LineHandle}
     # GREEN Thread
     function SegmentSequences(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
-        refs = Vector{UInt32}()
+        refs = Vector{LineHandle}()
         return new(renderer, context._renderers, refs)
     end
 end
@@ -130,20 +130,22 @@ end
 function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = if segseq._break_every >= 2
-        add_dynamic!(self._renderers.line,
+        add!(self._renderers.line,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
             custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
+            segseq._style,
             segseq._size,
-            segseq._style
+            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
+            true
         )
     else
-        add_dynamic!(self._renderers.line,
+        add!(self._renderers.line,
             (Vec3F(coord) for coord in segseq._values),
-            Iterators.cycle(segseq._colors),
-            Iterators.cycle((aID,)),
+            segseq._colors,
+            segseq._style,
             segseq._size,
-            segseq._style
+            aID,
+            true
         )
     end
     push!(self._refs, ref)
@@ -154,20 +156,18 @@ function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = self._refs[getObserverID(segseq)]
     if segseq._break_every >= 2
-        update_dynamic!(self._renderers.line,ref,
+        set_properties!(self._renderers.line,ref,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
             custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
+            segseq._style,
             segseq._size,
-            segseq._style
         )
     else
-        update_dynamic!(self._renderers.line,ref,
+        set_properties!(self._renderers.line,ref,
             collect((Vec3F(coord) for coord in segseq._values)),
             Iterators.cycle(segseq._colors),
-            Iterators.cycle([aID]),
+            segseq._style,
             segseq._size,
-            segseq._style
         )
     end
 end

@@ -85,12 +85,12 @@ end
 mutable struct Curves <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
     _renderers::PrimitiveRenderers
-    _refs::Vector{UInt32}
+    _refs::Vector{LineHandle}
 
     # GREEN Thread
     function Curves(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
-        refs = Vector{UInt32}()
+        refs = Vector{LineHandle}()
         new(renderer, context._renderers, refs)
     end
 end
@@ -104,10 +104,10 @@ function added!(self::Curves,curve::ParametricCurveDependent)
     push!(self._refs,
         add!(self._renderers.line,
             curve._tValues,
-            cycle(curve._colors),
-            cycle(aID),
-            curve._size,
+            curve._colors,
             curve._style,
+            curve._size,
+            aID,
         )
     )
 end
@@ -115,7 +115,7 @@ end
 # GREEN Thread
 function sync!(self::Curves,curve::ParametricCurveDependent)
     ref = self._refs[getObserverID(curve)]
-    update_coords!(self._renderers.line,ref,curve._tValues)
+    set_position!(self._renderers.line,ref,curve._tValues)
 end
 
 # GREEN Thread

@@ -8,6 +8,7 @@ noperspective layout(location = 1) in vec3 color_in;
 noperspective layout(location = 2) in float total_distance_in;
 flat          layout(location = 3) in vec4 begin_pos_rad_in;
 flat          layout(location = 4) in vec4 end_pos_rad_in;
+			//   layout(location = 5) in vec4 position_in;
 
 void main() {
     float d = pattern(segment_SDF_field_in, total_distance_in);
@@ -21,4 +22,9 @@ void main() {
 
     vec4 color = get_color(vec4(color_in,alpha), normal_depth.xyz);
     WRITE_COLOR(color, 0, normal_depth.w)
+
+    // float ddd = 0.999;
+    // if (abs(position_in.x) > .8 || abs(position_in.y) > .8 || abs(position_in.z) > ddd) {
+    //     discard;
+    // }
 }

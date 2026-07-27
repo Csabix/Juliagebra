@@ -13,17 +13,22 @@ Point([l1];color="r") do line
     return line.p + line.v
 end
 
-# i1 = Intersection(s1, l1)
-# Point([i1]) do intersection
-#     return intersection[1]
-# end
+i1 = Intersection(s1, l1)
+Point([i1]) do intersection
+    return intersection[1]
+end
 
 p5 = Point( 4,5,  0)
 p6 = Point(-4,5,1.9)
 l2 = Line(p5,p6,50; color="y", style=".")
 
-i2 = Intersection(l1, l2)
+i2 = Intersection(l2, s1)
 Point([i2]) do intersection
+    return intersection[1]
+end
+
+i3 = Intersection(l1, l2)
+Point([i3]) do intersection
     return intersection[1]
 end
 

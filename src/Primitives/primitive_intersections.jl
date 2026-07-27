@@ -232,14 +232,20 @@ end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,line::PLine)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(line,plane)
 
-function PrimitiveToPrimitiveIntersection(line1::PLine,line2::PLine)::Union{Vec3D,Nothing}
-	r  = line2.p - line1.p
-	v2 = dot(line1.v,line1.v); w2 = dot(line2.v,line2.v); vw = dot(line1.v,line2.v)
+function Seg2SegSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64,Float64,Float64}
+	r  = q - p
+	v2 = dot(v,v); w2 = dot(w,w); vw = dot(v,w)
 	D  = v2*w2 - vw*vw
-	a1 = dot(line1.v,r); a2 = dot(line2.v,r); a3 = dot(cross(line1.v,line2.v), r)
+	a1 = dot(v,r); a2 = dot(w,r); a3 = dot(cross(v,w), r)
 	t  = ( w2*a1 - vw*a2 ) / D
 	s  = ( vw*a1 - v2*a2 ) / D
 	d2 = a3*a3 / D
+	
+    return (d2,t,s)
+end
+
+function PrimitiveToPrimitiveIntersection(line1::PLine,line2::PLine)::Union{Vec3D,Nothing}
+	(d2,t,s) = Seg2SegSqDistParams(line1.p,line1.v,line2.p,line2.v)
 	
     if (d2 <= LINE_TO_LINE_EPSILON^2)
         return ((line1.p + line1.v * t) + (line2.p + line2.v * s)) / 2.0
@@ -247,3 +253,15 @@ function PrimitiveToPrimitiveIntersection(line1::PLine,line2::PLine)::Union{Vec3
         return nothing
     end
 end
+
+function PrimitiveToPrimitiveIntersection(segment::PSegment,line::PLine)::Union{Vec3D,Nothing}
+    (d2,t,s) = Seg2SegSqDistParams(Vec3D(segment.p0), Vec3D(segment.p1 - segment.p0), line.p, line.v)
+
+    if (t >= 0.0 && t <= 1.0 && d2 <= LINE_TO_LINE_EPSILON^2)
+        return ((segment.p0 + (segment.p1 - segment.p0) * t) + (line.p + line.v * s)) / 2.0
+    else
+        return nothing
+    end
+end
+
+PrimitiveToPrimitiveIntersection(line::PLine,segment::PSegment)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(segment,line)

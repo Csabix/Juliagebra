@@ -7,6 +7,13 @@ layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
 layout(location = 3) in vec4 position_in;
 
+// layout(std140, binding = 1) uniform InfiniteUniform {
+//     // bool isInfinite;
+//     int isInfinite;
+// };
+
+layout(location = 4) uniform bool isInfinite = false;
+
 void main(){
     vec3 normal = normal_in;
     vec3 color = color_in.rgb;
@@ -33,7 +40,7 @@ void main(){
 
     WRITE_COLOR(color4, id_in, gl_FragCoord.z)
 
-    if (inside_aabb(position_in) == 0) {
+    if (inside_aabb(position_in) == 0 && isInfinite) {
         discard;
     }
 }

@@ -1,6 +1,7 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : require
 #define TRANSPARENT
+#define RAY
 #include "../color_output.glsl"
 
 flat layout(location = 0) in vec4 color_in;
@@ -32,20 +33,6 @@ struct Sphere {
     float r;   // radius
 };
 
-vec3 rayDirection() {
-    vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
-    vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
-    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
-
-    float focal_length = -1.0 / tan(fov() * 0.5);
-    vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
-    screen_uv.x *= aspect();
-
-    return normalize(screen_uv.x  * right + 
-                     screen_uv.y  * up + 
-                     focal_length * backward);
-}
-
 TraceResult intersectSphere(Ray ray, Sphere s){
     vec3 p0c = ray.p0 - s.c;
     float a = dot(ray.v, ray.v);
@@ -70,7 +57,7 @@ TraceResult intersectSphere(Ray ray, Sphere s){
 
 void main(){
     vec3 v = rayDirection();
-    Ray r = Ray(eye(), 0.01, v, 1000.0);
+    Ray r = Ray(rayOrigin(), 0.01, v, 1000.0);
     
     Sphere s = Sphere(center_in,radius_in);
     TraceResult rs = intersectSphere(r,s);

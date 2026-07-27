@@ -74,7 +74,8 @@ sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 function resize!(self::App, event::Event)::Bool
     resize!(self._glfw, event.width, event.height)
     resize!(self._opengl, self._glfw)
-    set_aspect!(self._cam, self._glfw.width, self._glfw.height)
+    self._cam.aspect = self._glfw.width / self._glfw.height
+    calculate_projection_matrix!(self._cam)
     return false
 end
 
@@ -131,12 +132,9 @@ end
 
 function updateCam!(self::App,delta_time::Float64)::Bool
     update!(self._manipulator, delta_time, self._inputs)
-    self._opengl._camPos = self._cam._eye
-    vp,v,p = get_matrices(self._cam)
-    change = vp != self._opengl._vp
-    self._opengl._vp = vp
-    self._opengl._v  = v
-    self._opengl._p  = p
+    vp = get_matrices(self._cam)[1]
+    change = vp != self._opengl._last_vp
+    self._opengl._last_vp = vp
     return change
 end
 
@@ -237,7 +235,8 @@ function init!(self::App)
     end
     
     init!(self._glfw, true)
-    set_aspect!(self._cam,self._glfw.width,self._glfw.height)
+    self._cam.aspect = self._glfw.width / self._glfw.height
+    calculate_projection_matrix!(self._cam)
     self._opengl = OpenGLData(self._glfw,self._asset_watcher)
     setup_callbacks(self)
     setup_event_handles(self._glfw,self._inputs)

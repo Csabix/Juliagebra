@@ -265,3 +265,20 @@ function PrimitiveToPrimitiveIntersection(segment::PSegment,line::PLine)::Union{
 end
 
 PrimitiveToPrimitiveIntersection(line::PLine,segment::PSegment)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(segment,line)
+
+function PrimitiveToPrimitiveIntersection(segment::PSegment,plane::PPlane)::Union{Vec3D,Nothing}
+    segment_direction = segment.p1 - segment.p0
+    l = dot(segment_direction,plane.n)
+    if (l == 0.0)
+        return nothing
+    end
+
+    t = dot(plane.p-segment.p0,plane.n) / l
+    if (t >= 0.0 && t <= 1.0)
+        return segment.p0 + t * segment_direction
+    else
+        return nothing
+    end
+end
+
+PrimitiveToPrimitiveIntersection(plane::PPlane,segment::PSegment)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(segment,plane)

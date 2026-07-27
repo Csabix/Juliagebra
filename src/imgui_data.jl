@@ -61,7 +61,7 @@ mutable struct ImGuiData <: ImGuiDNA
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())
-        push!(widgets,OptionsWidget(openglD._backgroundCol,openglD._renderers.point,openglD._renderers.line,openglD._renderers.triangle,openglD._renderers.sphere))
+        push!(widgets,OptionsWidget(openglD._backgroundCol,openglD._renderers.point,openglD._renderers.line,openglD._renderers.triangle,openglD._renderers.sphere,model))
         
         self = new(textFont,iconFont,pool,dependents,widgets,dock)
         

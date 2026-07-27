@@ -1,4 +1,3 @@
-
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
 
@@ -10,34 +9,15 @@ mutable struct OptionsWindow <: WindowDNA
     _tRend::TriangleRenderer
     _sRend::SphereRenderer
 
+    _model::Model
+
     _oBgColor::Array{Cfloat}
     _dBgColor::Array{Cfloat}
-
-    _oPointColors::Array{Cfloat}
-    _dPointColor::Array{Cfloat}
-
-    _oCurveColors::Array{Cfloat}
-    _dCurveColor::Array{Cfloat}
-
-    _oTriangleColors::Array{Cfloat}
-    _dTriangleColor::Array{Cfloat}
-
-    _oSphereColors::Array{Cfloat}
-    _dSphereColor::Array{Cfloat}
-
     
-    function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer)
-        new(Window(), false, false, pRenderer, lRenderer, tRenderer, sRenderer,
+    function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model)
+        new(Window(), false, false, pRenderer, lRenderer, tRenderer, sRenderer, model,
         Cfloat[color[1], color[2], color[3]],
-        Cfloat[0.2f0,0.2f0,0.2f0],
-        Cfloat[1.0f0, 0.753f0, 0.796f0],
-        Cfloat[1.0f0, 0.373f0, 0.635f0],
-        Cfloat[0.0f0,1.0f0,1.0f0],
-        Cfloat[0.302f0, 0.816f0, 0.882f0],
-        Cfloat[1.0f0, 1.0f0, 0.0f0],
-        Cfloat[1.0f0, 0.835f0, 0.31f0],
-        Cfloat[0.0f0, 0.0f0, 0.545f0],
-        Cfloat[0.247f0, 0.427f0, 1.0f0])
+        Cfloat[0.15f0,0.15f0,0.15f0])
     end
 end
 
@@ -58,18 +38,6 @@ function setBackground(self::OptionsWindow, app::AppDNA)
     update!(getOpenGL(app), app._cam, true, UInt32(0))
 end
 
-function setTheme(self::OptionsWindow)
-    if (self._darkTheme[])
-        #update_colors!(self._lRend,,)
-        #update_colors!(self._pRend,,)
-        #update_color!(self._tRend,,)
-    else
-        #update_colors!(self._lRend,,)
-        #update_colors!(self._pRend,,)
-        #update_color!(self._tRend,,)
-    end
-
-end
 
 function renderContent(self::OptionsWindow, app::AppDNA)
     
@@ -83,7 +51,6 @@ function renderContent(self::OptionsWindow, app::AppDNA)
 
     if (CImGui.Checkbox("Dark theme", self._darkTheme))
         setBackground(self,app)
-        setTheme(self)
     end
 
     CImGui.BeginDisabled(self._darkTheme[])

@@ -18,7 +18,7 @@ vec4 grid(vec3 position, float scale) {
     float minimum_y = min(derivative.y, 1.0);
     float minimum_x = min(derivative.x, 1.0);
 
-    vec4 color = vec4(0.2, 0.2, 0.2, 1.0 - min(line, 1.0));
+    vec4 color = vec4(1, 1, 1, 1.0 - min(line, 1.0));
 
     if(position.x > -scale * minimum_x && position.x < scale * minimum_x)
         color.y = 1.0;

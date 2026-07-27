@@ -6,15 +6,13 @@ layout(location = 0) flat in vec4 color_in;
 layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
 layout(location = 3) in vec4 position_in;
-
-// layout(std140, binding = 1) uniform InfiniteUniform {
-//     // bool isInfinite;
-//     int isInfinite;
-// };
-
 layout(location = 4) uniform bool isInfinite = false;
 
 void main(){
+    if (isInfinite && inside_aabb(position_in) == 0) {
+        discard;
+    }
+
     vec3 normal = normal_in;
     vec3 color = color_in.rgb;
     float alpha = color_in.a;
@@ -23,14 +21,16 @@ void main(){
         color = vec3(1.0) - color;
     }
 
-    float distanceFromEdge = distance_from_aabb_edge(position_in);
-    if (distanceFromEdge <= 2.0) {
-        float t = distanceFromEdge / 2.0;
-        if (visible_in_stripes(gl_FragCoord) == 1) {
-            color = color * t + vec3(1.0) * (1.0 - t);
-        }
-        else {
-            color = color * t + (color / 1.33) * (1.0 - t);
+    if (isInfinite) {
+        float distanceFromEdge = distance_from_aabb_edge(position_in);
+        if (distanceFromEdge <= 2.0) {
+            float t = distanceFromEdge / 2.0;
+            if (visible_in_stripes(gl_FragCoord) == 1) {
+                color = color * t + vec3(1.0) * (1.0 - t);
+            }
+            else {
+                color = color * t + (color / 1.33) * (1.0 - t);
+            }
         }
     }
 
@@ -39,8 +39,4 @@ void main(){
     vec4 color4 = vec4(color * (diffuse + ambient), color_in.a);
 
     WRITE_COLOR(color4, id_in, gl_FragCoord.z)
-
-    if (inside_aabb(position_in) == 0 && isInfinite) {
-        discard;
-    }
 }

@@ -7,8 +7,12 @@ layout(location = 0) flat in vec4 color_in;
 layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
 layout(location = 3) in vec4 position_in;
+layout(location = 4) uniform bool isInfinite = false;
 
 void main(){
+    if (isInfinite && inside_aabb(position_in) == 0) {
+        discard;
+    }
     vec3 normal = normal_in;
     vec3 color = color_in.rgb;
     float alpha = color_in.a;
@@ -17,20 +21,18 @@ void main(){
         color = vec3(1.0) - color;
     }
     
-    float distanceFromEdge = distance_from_aabb_edge(position_in);
-    if (distanceFromEdge <= 2.0) {
-        float t = distanceFromEdge / 2.0;
-        alpha *= t;
-        if (visible_in_stripes(gl_FragCoord) == 0) {
-            color = color * t + vec3(1.0) * (1.0 - t);
+    if (isInfinite) {
+        float distanceFromEdge = distance_from_aabb_edge(position_in);
+        if (distanceFromEdge <= 2.0) {
+            float t = distanceFromEdge / 2.0;
+            alpha *= t;
+            if (visible_in_stripes(gl_FragCoord) == 0) {
+                color = color * t + vec3(1.0) * (1.0 - t);
+            }
+            else {
+                color = color * t + (color / 1.33) * (1.0 - t);
+            }
         }
-        else {
-            color = color * t + (color / 1.33) * (1.0 - t);
-        }
-    }
-
-    if (inside_aabb(position_in) == 0) {
-        discard;
     }
 
     float diffuse = (max(dot(normal,light_cam()),0.0) * 0.3 + max(dot(normal,light_side()),0.0) * 0.7) * 0.8;

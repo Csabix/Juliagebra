@@ -60,16 +60,12 @@ end
 
 function destroy!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
-    # destroy!(self.ubo_infinite)
 end
 
 function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,isInfinite::Bool,id::UInt32)::UInt32
     push!(self.coords, collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords)))
     push!(self.matrices, matrix)
     push!(self.color_ids,UVec2(color,id))
-    println(isInfinite)
-    println(id)
-    println(length(self.buffers))
     push!(self.infinite_ids,isInfinite)
     return UInt32(length(self.coords))
 end
@@ -164,7 +160,6 @@ end
 function opaque(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.coords) return nothing end
     if !isempty(self.update_normals) || !isempty(self.color_updates)
-        println("\t", self.color_updates)
         glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
         empty!(self.update_normals)
         empty!(self.color_updates)
@@ -173,25 +168,13 @@ function opaque(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     glDisable(GL_CULL_FACE)
 
     activate(self.shader_opaque)
-    
-    # shaderProgram = self.shader_opaque.loader.pipelines[self.shader_opaque.pipeline_handle]
-    # println("shader: ", shaderProgram)
-    # glUniform1i(4,rand((0,1)))
-    # self.ubo_infinite[1] = rand((0,1)) == 1 ? true : false
 
     for i in 1:length(self.buffers)
         if !is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
         bind_ubo(self.UBO, i, 0)
         glUniform1i(4,self.infinite_ids[i])
         draw(self.buffers[i],GL_TRIANGLES)
-        # println(self.buffers[i])
     end
-    println(self.color_ids)
-    # println("buffers: ", length(self.buffers), ", coords: ", length(self.coords))
-    # for i in 1:length(self.coords)
-    #     println("\t[", i, "]: ", length(self.coords[i]))
-    #     println(self.coords[i])
-    # end
 
     glEnable(GL_CULL_FACE)
     return nothing
@@ -205,6 +188,7 @@ function transparent(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothi
     for i in 1:length(self.buffers)
         if is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
         bind_ubo(self.UBO, i, 0)
+        glUniform1i(4,self.infinite_ids[i])
         draw(self.buffers[i],GL_TRIANGLES)
     end
 

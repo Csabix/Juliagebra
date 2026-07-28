@@ -448,8 +448,10 @@ function _compile_spirv(path::String)::Nothing
     if ext in glsl_shader_extensions
         output = _spirv_output_file(path)
         mkpath(dirname(output))
-        glslang = glslangValidator(identity)
-        run(`$glslang -G $path -o $output`)
+        try
+            run(`$(glslangValidator()) -G $path -o $output`)
+        catch
+        end
     end
     return nothing
 end

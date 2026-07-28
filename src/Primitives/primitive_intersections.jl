@@ -298,3 +298,29 @@ p(segment::PSegment)::Vec3D = Vec3D(segment.p0)
 v(line::PLine)::Vec3D       = line.v
 v(ray::PRay)::Vec3D         = ray.v
 v(segment::PSegment)::Vec3D = Vec3D(segment.p1 - segment.p0)
+
+function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,PRay})::Union{Vec3D,Nothing}
+    p0 = p(line)
+    dir = v(line)
+
+    ab = triangle.v1 - triangle.v0
+    ac = triangle.v2 - triangle.v0
+    ap = p0 - triangle.v0
+    f = cross(dir,ac)
+    g = cross(ap,ab)
+
+    m = (1.0 / dot(f, ab))
+
+    t = m * dot(g, ac)
+    u = m * dot(f, ap)
+    dir = m * dot(g, dir)
+    w = 1.0 - u - dir
+
+    if (ParameterInside(line, t) && 0.0 <= u && 0.0 <= dir && 0.0 <= w)
+        return p(line) + t * v(line)
+    else
+        return nothing
+    end
+end
+
+PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay},triangle::PTriangle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(triangle,line)

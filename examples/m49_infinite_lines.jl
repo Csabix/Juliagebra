@@ -54,8 +54,20 @@ Point([i6]) do intersection
     return intersection[1]
 end
 
-# i3 = Intersection(l2, t1)
-# Point([i3]) do intersection
+i7 = Intersection(t1, l2)
+Point([i7]) do intersection
+    return intersection[1]
+end
+i8 = Intersection(ray1, t1)
+Point([i8]) do intersection
+    return intersection[1]
+end
+
+# p9  = Point(5.0,3.8,1.9)
+# p10 = Point(6.5,3.9,1.8)
+# s2 = Segment(p9,p10)
+# i9 = Intersection(t1, s2)
+# Point([i9]) do intersection // TODO: ???
 #     return intersection[1]
 # end
 

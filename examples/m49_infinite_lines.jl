@@ -34,9 +34,14 @@ end
 
 t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
 
-p7 = Point(-1,-1,-1)
-p8 = Point(2,2,2)
-Ray(p7,p8,100.0)
+p7 = Point(-1.0,2.4,-0.6)
+p8 = Point(2.0,4.3,0.0)
+ray = Ray(p7,p8,100.0;color="m")
+# i4 = Intersection(ray, l2)
+i4 = Intersection(l2, ray)
+Point([i4]) do intersection
+    return intersection[1]
+end
 
 # i3 = Intersection(l2, t1)
 # Point([i3]) do intersection

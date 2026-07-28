@@ -27,5 +27,16 @@ function Ray(point,at,distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothin
     end
 end
 
+# ? ---------------------------------
+# ! Ray to PRay intersection
+# ? ---------------------------------
+
+struct PRayOfRay <: PrimitivesOf{PRay}
+    ray::PRay
+end
+PrimitivesOf(self::PRay) = PRayOfRay(self)
+
+Base.length(self::PRayOfRay) = 1
+Base.iterate(self::PRayOfRay, index::Integer = 1) = index == 1 ? (self.ray, (index + 1)) : nothing
 
 export Ray

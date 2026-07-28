@@ -282,3 +282,15 @@ function PrimitiveToPrimitiveIntersection(segment::PSegment,plane::PPlane)::Unio
 end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,segment::PSegment)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(segment,plane)
+
+function PrimitiveToPrimitiveIntersection(ray::PRay,line::PLine)::Union{Vec3D,Nothing}
+    (d2,t,s) = Seg2SegSqDistParams(ray.p, ray.v, line.p, line.v)
+
+    if (t >= 0.0 && d2 <= LINE_TO_LINE_EPSILON^2)
+        return ((ray.p + ray.v * t) + (line.p + line.v * s)) / 2.0
+    else
+        return nothing
+    end
+end
+
+PrimitiveToPrimitiveIntersection(line::PLine,ray::PRay)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(ray,line)

@@ -48,6 +48,12 @@ Point([i5]) do intersection
     return intersection[1]
 end
 
+# i6 = Intersection(s1, ray1)
+i6 = Intersection(ray1, s1)
+Point([i6]) do intersection
+    return intersection[1]
+end
+
 # i3 = Intersection(l2, t1)
 # Point([i3]) do intersection
 #     return intersection[1]

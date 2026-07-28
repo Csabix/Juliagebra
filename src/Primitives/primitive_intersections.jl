@@ -317,3 +317,19 @@ function PrimitiveToPrimitiveIntersection(segment::PSegment,ray::PRay)::Union{Ve
 end
 
 PrimitiveToPrimitiveIntersection(ray::PRay,segment::PSegment)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(segment,ray)
+
+function PrimitiveToPrimitiveIntersection(ray::PRay,plane::PPlane)::Union{Vec3D,Nothing}
+    l = dot(ray.v,plane.n)
+    if (l == 0.0)
+        return nothing
+    end
+
+    t = dot(plane.p-ray.p,plane.n) / l
+    if (t >= 0.0)
+        return ray.p + t * ray.v
+    else
+        return nothing
+    end
+end
+
+PrimitiveToPrimitiveIntersection(plane::PPlane,ray::PRay)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(ray,plane)

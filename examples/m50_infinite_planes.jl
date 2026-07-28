@@ -51,17 +51,17 @@ Line([i4]) do intersection
 end
 
 ray1 = Ray(Vec3D(3,-1,-2),Vec3D(3,-1,2);color="m")
-# i5 = Intersection(ray1, plane2)
 i5 = Intersection(plane2, ray1)
 Point([i5]) do intersection
     return intersection[1]
 end
 
-# l1 = Line(Vec3D(-5,5,10),Vec3D(-5,-5,-10);color="b")
-# i1 = Intersection(l1, plane1)
-# Point([i1]) do intersection
-#     return intersection[1]
-# end
+l1 = Line(Vec3D(-5,-5,10),Vec3D(-5,-5,-10);color="b")
+i6 = Intersection(l1, plane1)
+Point([i6]) do intersection
+    return intersection[1]
+end
+
 # i2 = Intersection(l1, plane2)
 # Point([i2]) do intersection
 #     return intersection[1]

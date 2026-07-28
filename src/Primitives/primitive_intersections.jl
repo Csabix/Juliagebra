@@ -220,51 +220,6 @@ function PrimitiveToPrimitiveIntersection(plane1::PPlane,plane2::PPlane)::Union{
     return PLine(line_p3,plane_n3)
 end
 
-function PrimitiveToPrimitiveIntersection(line::PLine,plane::PPlane)::Union{Vec3D,Nothing}
-    l = dot(line.v,plane.n)
-    if (l == 0.0)
-        return nothing
-    end
-
-    t = dot(plane.p-line.p,plane.n) / l
-    return line.p + t * line.v   
-end
-
-PrimitiveToPrimitiveIntersection(plane::PPlane,line::PLine)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(line,plane)
-
-function PrimitiveToPrimitiveIntersection(segment::PSegment,plane::PPlane)::Union{Vec3D,Nothing}
-    segment_direction = segment.p1 - segment.p0
-    l = dot(segment_direction,plane.n)
-    if (l == 0.0)
-        return nothing
-    end
-
-    t = dot(plane.p-segment.p0,plane.n) / l
-    if (t >= 0.0 && t <= 1.0)
-        return segment.p0 + t * segment_direction
-    else
-        return nothing
-    end
-end
-
-PrimitiveToPrimitiveIntersection(plane::PPlane,segment::PSegment)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(segment,plane)
-
-function PrimitiveToPrimitiveIntersection(ray::PRay,plane::PPlane)::Union{Vec3D,Nothing}
-    l = dot(ray.v,plane.n)
-    if (l == 0.0)
-        return nothing
-    end
-
-    t = dot(plane.p-ray.p,plane.n) / l
-    if (t >= 0.0)
-        return ray.p + t * ray.v
-    else
-        return nothing
-    end
-end
-
-PrimitiveToPrimitiveIntersection(plane::PPlane,ray::PRay)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(ray,plane)
-
 function Seg2SegSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64,Float64,Float64}
 	r  = q - p
 	v2 = dot(v,v); w2 = dot(w,w); vw = dot(v,w)
@@ -286,18 +241,6 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
         return nothing
     end
 end
-
-ParameterInside(::PLine,::Any)::Bool = true
-ParameterInside(::PRay,t)::Bool      = t >= 0.0
-ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
-
-p(line::PLine)::Vec3D       = line.p
-p(ray::PRay)::Vec3D         = ray.p
-p(segment::PSegment)::Vec3D = Vec3D(segment.p0)
-
-v(line::PLine)::Vec3D       = line.v
-v(ray::PRay)::Vec3D         = ray.v
-v(segment::PSegment)::Vec3D = Vec3D(segment.p1 - segment.p0)
 
 function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,PRay})::Union{Vec3D,Nothing}
     p0 = p(line)
@@ -324,3 +267,31 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,
 end
 
 PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay},triangle::PTriangle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(triangle,line)
+
+function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+    l = dot(v(line),plane.n)
+    if (l == 0.0)
+        return nothing
+    end
+
+    t = dot(plane.p-p(line),plane.n) / l
+    if (ParameterInside(line,t))
+        return p(line) + t * v(line)
+    else
+        return nothing
+    end
+end
+
+PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},plane::PPlane)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(plane,line)
+
+ParameterInside(::PLine,::Any)::Bool = true
+ParameterInside(::PRay,t)::Bool      = t >= 0.0
+ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
+
+p(line::PLine)::Vec3D       = line.p
+p(ray::PRay)::Vec3D         = ray.p
+p(segment::PSegment)::Vec3D = Vec3D(segment.p0)
+
+v(line::PLine)::Vec3D       = line.v
+v(ray::PRay)::Vec3D         = ray.v
+v(segment::PSegment)::Vec3D = Vec3D(segment.p1 - segment.p0)

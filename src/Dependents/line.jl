@@ -29,6 +29,18 @@ function Line(first,second,distance=_INFINITE_LINE_DISTANCE,color_style::Union{N
     end
 end
 
+function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
+    color="g",style="-",size=5.0f0)
+
+    n = ceil(Int16, log2(distance))
+
+    ParametricCurve(range(-n,n,2*n+1),dependents,color_style;color=color,style=style,size=size) do t,intersection
+        pline = callback(intersection)
+        d = sign(t) * 2^abs(t)
+        return pline.p + pline.v * d
+    end
+end
+
 # ? ---------------------------------
 # ! Line to PLine intersection
 # ? ---------------------------------

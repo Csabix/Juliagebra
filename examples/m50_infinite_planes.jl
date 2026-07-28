@@ -32,6 +32,22 @@ Point([i2]) do intersection
     return intersection[1]
 end
 
+i3 = Intersection(plane1, plane2)
+Line([i3]) do intersection
+    return intersection[1]
+end
+
+# println(typeof(i3))
+# println(i3._foundIntersectionNum)
+# println(i3._intersections[1])
+# Point([i3]) do intersection
+#     println(typeof(intersection))
+#     println(typeof(intersection[1]))
+#     return intersection[1].p
+# end
+
+
+
 # l1 = Line(Vec3D(-5,5,10),Vec3D(-5,-5,-10);color="b")
 # i1 = Intersection(l1, plane1)
 # Point([i1]) do intersection

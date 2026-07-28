@@ -578,4 +578,15 @@ function use_spirv(use_spv::Bool)::Nothing
     return nothing
 end
 
+function recompile_shaders(loader::PipelineLoader)::Nothing
+    for item in readdir(_shader_folder, join=true)
+        rm(item, recursive=true, force=true)
+    end
+    compile_shaders(loader)
+    for i in eachindex(loader.pipeline_sources)
+        push!(loader.needs_reload, i)
+    end
+    return nothing
+end
+
 export auto_compile_shaders, use_spirv

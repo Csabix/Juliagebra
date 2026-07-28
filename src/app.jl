@@ -117,6 +117,10 @@ function setup_callbacks(self::App)::Nothing
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
     end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Z))
+    register_callback!(event -> begin
+        recompile_shaders(self._opengl._pipeline_loader)
+        return false
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_F5))
     
     # --- KEYBOARD UP EVENTS ---
     register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, Cint(GLFW.KEY_X))

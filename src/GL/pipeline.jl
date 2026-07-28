@@ -6,7 +6,7 @@ function create_shader_folder()
     return scratch
 end
 
-const _shader_src_folder::String  = pkgdir(@__MODULE__, "assets", "shaders", "src")
+const _shader_src_folder::String = pkgdir(@__MODULE__, "assets", "shaders", "src")
 const _shader_folder::String = create_shader_folder()
 const _shader_glsl_folder::String = joinpath(_shader_folder, "glsl")
 const _shader_spirv_folder::String = joinpath(_shader_folder, "spirv")
@@ -24,7 +24,7 @@ struct ShaderGLSL
             _spirv_output_file(path)
         )
     end
-    ShaderGLSL() = new("","")
+    ShaderGLSL() = new("", "")
 end
 
 macro spv_str(path::String)
@@ -32,10 +32,10 @@ macro spv_str(path::String)
 end
 
 const glsl_shader_extensions::NTuple{14,String} = (
-    "vert","tesc","tese","geom","frag",
+    "vert", "tesc", "tese", "geom", "frag",
     "comp",
-    "mesh","task",
-    "rgen","rint","rahit","rchit","rmiss","rcall"
+    "mesh", "task",
+    "rgen", "rint", "rahit", "rchit", "rmiss", "rcall"
 )
 const glsl_shader_include_extensions::NTuple{1,String} = ("glsl",)
 
@@ -60,7 +60,7 @@ struct PipelineLoader
         needs_reload = Set{Int}()
         dependencies = Dict{String,Set{String}}()
         spirv_extensions = Set{String}()
-        
+
         num_spirv_extensions = Ref{GLint}(0)
         glGetIntegerv(GL_NUM_SPIR_V_EXTENSIONS, num_spirv_extensions)
         for i in 1:num_spirv_extensions[]
@@ -81,13 +81,17 @@ mutable struct Pipeline
 end
 
 function activate(pipeline::Pipeline)::Nothing
-    if !isnothing(pipeline.set_state) pipeline.set_state() end
+    if !isnothing(pipeline.set_state)
+        pipeline.set_state()
+    end
     glUseProgram(pipeline.loader.pipelines[pipeline.pipeline_handle])
     return nothing
 end
 
 function deactivate(pipeline::Pipeline)::Nothing
-    if !isnothing(pipeline.unset_state) pipeline.unset_state() end
+    if !isnothing(pipeline.unset_state)
+        pipeline.unset_state()
+    end
     return nothing
 end
 
@@ -114,7 +118,7 @@ function destroy!(loader::PipelineLoader)::Nothing
     return nothing
 end
 
-function _resolve_includes(path::String, visited, included_files)::Tuple{String, Set{String}}    
+function _resolve_includes(path::String, visited, included_files)::Tuple{String,Set{String}}
     if path in visited
         cycle_path = join(visited, "\n\t") * "\n\t" * path
         println("Circular dependency detected:\n\t$cycle_path")
@@ -132,7 +136,7 @@ function _resolve_includes(path::String, visited, included_files)::Tuple{String,
 
     push!(included_files, path)
     push!(visited, path)
-    
+
     include_directive_pattern = r"#extension\s+GL_GOOGLE_include_directive\s*:\s*require"
     source = replace(source, include_directive_pattern => "")
 
@@ -149,7 +153,7 @@ function _resolve_includes(path::String, visited, included_files)::Tuple{String,
     return (source, included_files)
 end
 
-function _resolve_includes(path::String)::Tuple{String, Set{String}}
+function _resolve_includes(path::String)::Tuple{String,Set{String}}
     @assert isabspath(path)
     source, visited = _resolve_includes(path, String[], Set{String}())
     delete!(visited, path)
@@ -158,13 +162,17 @@ end
 
 function can_use_spirv(binary::Vector{UInt8}, available_extensions::Set{String})::Bool
     words = reinterpret(UInt32, binary)
-    if isempty(words) return false end
+    if isempty(words)
+        return false
+    end
     is_little_endian = words[1] == 0x07230203
     index = 6
     while index <= length(words)
         word = is_little_endian ? words[index] : bswap(words[index])
         word_count = word >> 16
-        if word_count == 0 return false end
+        if word_count == 0
+            return false
+        end
         opcode = word & 0xFFFF
         if opcode == UInt32(17) # OpSourceExtension
             index += word_count
@@ -175,13 +183,15 @@ function can_use_spirv(binary::Vector{UInt8}, available_extensions::Set{String})
                 ptr = pointer(words, index + 1)
                 unsafe_string(convert(Ptr{UInt8}, ptr))
             else
-                string_words = [bswap(words[i]) for i in (index + 1):(index + word_count - 1)]
+                string_words = [bswap(words[i]) for i in (index+1):(index+word_count-1)]
                 GC.@preserve string_words begin
                     unsafe_string(convert(Ptr{UInt8}, pointer(string_words)))
                 end
             end
             index += word_count
-            if !(extension_name in available_extensions) return false end
+            if !(extension_name in available_extensions)
+                return false
+            end
             continue
         end
         break
@@ -189,9 +199,9 @@ function can_use_spirv(binary::Vector{UInt8}, available_extensions::Set{String})
     return true
 end
 
-function _process_spec_constants(glsl_source::String, spec_constants::Dict{GLuint, GLuint})
+function _process_spec_constants(glsl_source::String, spec_constants::Dict{GLuint,GLuint})
     pattern = r"layout\s*\(\s*constant_id\s*=\s*(\d+)\s*\)\s*const\s+(\w+)\s+(\w+)\s*=\s*([^;]+);"
-    
+
     out = IOBuffer()
     last_idx = 1
 
@@ -202,7 +212,7 @@ function _process_spec_constants(glsl_source::String, spec_constants::Dict{GLuin
         type_str = m.captures[2]
         var_name = m.captures[3]
         default_val = strip(m.captures[4])
-        
+
         if haskey(spec_constants, id)
             val = spec_constants[id]
             if type_str == "float"
@@ -253,16 +263,16 @@ function _shader(source::ShaderData, binary::Vector{UInt8}, as_spirv::Bool)::GLu
     if status[] == GL_FALSE
         infoLogLength = Ref{GLint}(0)
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, infoLogLength)
-        
+
         infoLog = Vector{UInt8}(undef, infoLogLength[])
         glGetShaderInfoLog(shader, infoLogLength[], C_NULL, infoLog)
-        
+
         errorMessage = String(infoLog)
         println(errorMessage)
 
         glDeleteShader(shader)
         shader = GLuint(0)
-        
+
         println("Failed to compile shader stage $(source.glsl_path)")
     end
     return shader
@@ -289,10 +299,10 @@ function _link_shaders(shaders::Vector{GLuint})::GLuint
     if status[] == GL_FALSE
         infoLogLength = Ref{GLint}(0)
         glGetProgramiv(prog, GL_INFO_LOG_LENGTH, infoLogLength)
-        
+
         infoLog = Vector{UInt8}(undef, infoLogLength[])
         glGetProgramInfoLog(prog, infoLogLength[], C_NULL, infoLog)
-        
+
         errorMessage = String(infoLog)
         println(errorMessage)
 
@@ -321,7 +331,7 @@ function _compile(loader::PipelineLoader, index)::Nothing
         push!(binaries, isfile(source.spirv_path) ? read(source.spirv_path) : UInt8[])
     end
     as_spirv::Bool = all(binary -> !isempty(binary) && can_use_spirv(binary, loader.spirv_extensions), binaries)
-    
+
     shaders = Vector{GLuint}()
     sizehint!(shaders, 6)
 
@@ -362,18 +372,28 @@ function _insert_shader_data(loader::PipelineLoader, shader_data::Vector{ShaderD
 end
 
 function create_graphics_pipeline!(loader::PipelineLoader;
-    vert::Union{Nothing, ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}} = nothing,
-    tesc::Union{Nothing, ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}} = nothing,
-    tese::Union{Nothing, ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}} = nothing,
-    geom::Union{Nothing, ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}} = nothing,
-    frag::Union{Nothing, ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}} = nothing)::Pipeline
+    vert::Union{Nothing,ShaderGLSL,Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}}=nothing,
+    tesc::Union{Nothing,ShaderGLSL,Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}}=nothing,
+    tese::Union{Nothing,ShaderGLSL,Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}}=nothing,
+    geom::Union{Nothing,ShaderGLSL,Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}}=nothing,
+    frag::Union{Nothing,ShaderGLSL,Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}}=nothing)::Pipeline
 
     shader_data::Vector{ShaderData} = ShaderData[]
-    if vert !== nothing push!(shader_data, _parse_stage_data(GL_VERTEX_SHADER, vert)) end
-    if tesc !== nothing push!(shader_data, _parse_stage_data(GL_TESS_CONTROL_SHADER, tesc)) end
-    if tese !== nothing push!(shader_data, _parse_stage_data(GL_TESS_EVALUATION_SHADER, tese)) end
-    if geom !== nothing push!(shader_data, _parse_stage_data(GL_GEOMETRY_SHADER, geom)) end
-    if frag !== nothing push!(shader_data, _parse_stage_data(GL_FRAGMENT_SHADER, frag)) end
+    if vert !== nothing
+        push!(shader_data, _parse_stage_data(GL_VERTEX_SHADER, vert))
+    end
+    if tesc !== nothing
+        push!(shader_data, _parse_stage_data(GL_TESS_CONTROL_SHADER, tesc))
+    end
+    if tese !== nothing
+        push!(shader_data, _parse_stage_data(GL_TESS_EVALUATION_SHADER, tese))
+    end
+    if geom !== nothing
+        push!(shader_data, _parse_stage_data(GL_GEOMETRY_SHADER, geom))
+    end
+    if frag !== nothing
+        push!(shader_data, _parse_stage_data(GL_FRAGMENT_SHADER, frag))
+    end
 
     handle::PipelineHandle = _insert_shader_data(loader, shader_data)
     _compile(loader, handle)
@@ -381,7 +401,7 @@ function create_graphics_pipeline!(loader::PipelineLoader;
     return Pipeline(nothing, nothing, handle, loader)
 end
 
-function create_compute_pipeline!(loader::PipelineLoader, comp::Union{ShaderGLSL, Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}})::Pipeline
+function create_compute_pipeline!(loader::PipelineLoader, comp::Union{ShaderGLSL,Tuple{ShaderGLSL,Vector{Tuple{GLuint,GLuint}}}})::Pipeline
     shader_data::Vector{ShaderData} = ShaderData[_parse_stage_data(GL_COMPUTE_SHADER, comp)]
 
     handle::PipelineHandle = _insert_shader_data(loader, shader_data)
@@ -430,7 +450,7 @@ function _compile_spirv(path::String)::Nothing
 end
 
 function _remove_shader_dep(dependencies::Dict{String,Set{String}}, path::String)::Nothing
-    for (_,deps) in dependencies
+    for (_, deps) in dependencies
         delete!(deps, path)
     end
     filter!(deps -> !isempty(deps), dependencies)
@@ -439,8 +459,8 @@ end
 
 function _add_shader_dep(dependencies::Dict{String,Set{String}}, path::String, visited::Set{String})::Nothing
     for dep in visited
-        deps = get!(dependencies,dep,Set{String}())
-        push!(deps,path)
+        deps = get!(dependencies, dep, Set{String}())
+        push!(deps, path)
     end
     return nothing
 end
@@ -462,7 +482,7 @@ function _glsl_update_callback(loader::PipelineLoader, path::String)::Nothing
         _compile_spirv(path)
         _remove_shader_dep(loader.dependencies, path)
         _add_shader_dep(loader.dependencies, path, visited)
-        
+
         for i in eachindex(loader.pipeline_sources)
             if any(stage -> stage.spirv_path == spirv_path, loader.pipeline_sources[i])
                 push!(loader.needs_reload, i)
@@ -474,8 +494,8 @@ end
 
 function get_glsl_delete_callback(loader::PipelineLoader)::Function
     return (path::String) -> begin
-        rm(_spirv_output_file(path);force=true)
-        rm(_glsl_output_file(path);force=true)
+        rm(_spirv_output_file(path); force=true)
+        rm(_glsl_output_file(path); force=true)
         _remove_shader_dep(loader.dependencies, path)
         delete!(loader.dependencies, path)
         return nothing
@@ -510,7 +530,7 @@ function _compile_shaders()::Bool
         last_compile_time = mtime(dependencies_path)
         for (root, _, files) in walkdir(_shader_src_folder)
             for file in files
-                if mtime(joinpath(root,file)) > last_compile_time
+                if mtime(joinpath(root, file)) > last_compile_time
                     recompile = true
                 end
             end
@@ -518,8 +538,9 @@ function _compile_shaders()::Bool
     end
 
     if recompile
-        rm(_shader_glsl_folder; force=true, recursive=true)
-        rm(_shader_spirv_folder; force=true, recursive=true)
+        for item in readdir(_shader_folder, join=true)
+            rm(item, recursive=true, force=true)
+        end
         mkpath(_shader_glsl_folder)
         mkpath(_shader_spirv_folder)
     end
@@ -527,7 +548,9 @@ function _compile_shaders()::Bool
 end
 
 function compile_shaders(loader::PipelineLoader)::Nothing
-    if !_compile_shaders() return nothing end
+    if !_compile_shaders()
+        return nothing
+    end
 
     dependencies = Dict{String,Set{String}}()
     for (root, _, files) in walkdir(_shader_src_folder)

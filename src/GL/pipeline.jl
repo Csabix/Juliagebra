@@ -330,7 +330,12 @@ function _compile(loader::PipelineLoader, index)::Nothing
     for source in sources
         push!(binaries, isfile(source.spirv_path) ? read(source.spirv_path) : UInt8[])
     end
-    as_spirv::Bool = all(binary -> !isempty(binary) && can_use_spirv(binary, loader.spirv_extensions), binaries)
+    
+    as_spirv::Bool = if haskey(ENV,"USE_SPIRV") && ENV["USE_SPIRV"] == "true"
+        all(binary -> !isempty(binary) && can_use_spirv(binary, loader.spirv_extensions), binaries)
+    else
+        false
+    end
 
     shaders = Vector{GLuint}()
     sizehint!(shaders, 6)
@@ -568,5 +573,9 @@ function auto_compile_shaders(auto_compile::Bool)::Nothing
     ENV["AUTO_COMPILE_SHADER"] = auto_compile ? "true" : "false"
     return nothing
 end
+function use_spirv(use_spv::Bool)::Nothing
+    ENV["USE_SPIRV"] = use_spv ? "true" : "false"
+    return nothing
+end
 
-export auto_compile_shaders
+export auto_compile_shaders, use_spirv

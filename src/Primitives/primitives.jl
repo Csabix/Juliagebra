@@ -43,6 +43,18 @@ end
 Base.convert(::Type{PLine},::Nothing)::PLine = return PLine(Vec3DNan,Vec3DNan)
 
 """
+Infinite representation of a ray primitive.
+- p is the end point on the ray.
+- v is the direction vector.
+"""
+struct PRay <: Primitive
+    p::Vec3D
+    v::Vec3D
+end
+
+Base.convert(::Type{PRay},::Nothing)::PRay = return PRay(Vec3DNan,Vec3DNan)
+
+"""
 Infinite representation of a plane primitive.
 - p is a point on the plane.
 - n is the normal vector of the plane.

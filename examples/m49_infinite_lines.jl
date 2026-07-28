@@ -32,10 +32,11 @@ Point([i3]) do intersection
     return intersection[1]
 end
 
-p7 = Point(7, 1, 2)
-p8 = Point(4, 6, 3)
-p9 = Point(5,10,-5)
-t1 = Triangle(p7,p8,p9)
+t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
+
+p7 = Point(-1,-1,-1)
+p8 = Point(2,2,2)
+Ray(p7,p8,100.0)
 
 # i3 = Intersection(l2, t1)
 # Point([i3]) do intersection

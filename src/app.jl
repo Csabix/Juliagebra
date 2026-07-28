@@ -21,7 +21,7 @@ mutable struct App <: AppDNA
     _model::Model
     _scene_change::Bool
 
-    _asset_watcher::Union{Nothing,AssetWatcher}
+    _asset_watcher::AssetWatcher
     _hovered::UInt32
 
     _delta_time::Float64
@@ -46,10 +46,7 @@ mutable struct App <: AppDNA
         
         model = Model()
 
-        asset_watcher::Union{Nothing,AssetWatcher} = nothing
-        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
-            asset_watcher = AssetWatcher()
-        end
+        asset_watcher = AssetWatcher()
         hovered::UInt32 = 0
 
         delta_time = 0.0
@@ -150,7 +147,7 @@ function play!(self::App)
         new_time::Float64 = time()
         delta_time = new_time - old_time
         old_time = new_time
-        if self._asset_watcher !== nothing update!(self._asset_watcher,delta_time) end
+        update!(self._asset_watcher,delta_time)
         self._scene_change |= updateCam!(self,delta_time)
         
         model::Model = self._model

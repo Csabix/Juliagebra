@@ -143,7 +143,7 @@ function _resolve_includes(path::String, visited, included_files)::Tuple{String,
     include_regex = r"#include\s+\"([^\"]+)\""
     source = replace(source, include_regex => function (m)
         inside_include = match(include_regex, m).captures[1]
-        include_path = joinpath(dirname(path), inside_include)
+        include_path = normpath(joinpath(dirname(path), inside_include))
         resolved_content, _ = _resolve_includes(include_path, visited, included_files)
         return resolved_content
     end)
@@ -502,22 +502,9 @@ function get_glsl_delete_callback(loader::PipelineLoader)::Function
     end
 end
 
-function get_glsl_include_update_callback(loader::PipelineLoader)::Function
-    return (path::String) -> begin
-        path_abs = normpath(abspath(path))
-        if haskey(loader.dependencies, path_abs)
-            dependents = collect(keys(loader.dependencies[path_abs]))
-            for dependent in dependents
-                _glsl_update_callback(loader, dependent)
-            end
-        end
-        return nothing
-    end
-end
-
 function get_glsl_update_callback(loader::PipelineLoader)::Function
     return (path::String) -> begin
-        return _glsl_update_callback(loader, normpath(abspath(path)))
+        _glsl_update_callback(loader, normpath(abspath(path)))
     end
 end
 
@@ -549,27 +536,37 @@ end
 
 function compile_shaders(loader::PipelineLoader)::Nothing
     if !_compile_shaders()
+        dependencies = deserialize(joinpath(_shader_glsl_folder, "dependencies.jls"))::Dict{String,Set{String}}
+        for (k, v) in dependencies
+            loader.dependencies[k] = v
+        end
         return nothing
     end
 
-    dependencies = Dict{String,Set{String}}()
     for (root, _, files) in walkdir(_shader_src_folder)
         for file in files
             input = joinpath(root, file)
             visited = _compile_glsl(input)
-            _add_shader_dep(dependencies, input, visited)
+            _add_shader_dep(loader.dependencies, input, visited)
         end
     end
-    serialize(joinpath(_shader_glsl_folder, "dependencies.jls"), dependencies)
+    serialize(joinpath(_shader_glsl_folder, "dependencies.jls"), loader.dependencies)
 
-    for (k, v) in dependencies
-        loader.dependencies[k] = v
-    end
-
+    paths = String[]
     for (root, _, files) in walkdir(_shader_src_folder)
         for file in files
-            _compile_spirv(joinpath(root, file))
+            push!(paths,joinpath(root, file))
         end
+    end
+    Threads.@threads for path in paths
+        _compile_spirv(path)
     end
     return nothing
 end
+
+function auto_compile_shaders(auto_compile::Bool)::Nothing
+    ENV["AUTO_COMPILE_SHADER"] = auto_compile ? "true" : "false"
+    return nothing
+end
+
+export auto_compile_shaders

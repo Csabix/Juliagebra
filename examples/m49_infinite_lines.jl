@@ -36,10 +36,15 @@ t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
 
 p7 = Point(-1.0,2.4,-0.6)
 p8 = Point(2.0,4.3,0.0)
-ray = Ray(p7,p8,100.0;color="m")
-# i4 = Intersection(ray, l2)
-i4 = Intersection(l2, ray)
+ray1 = Ray(p7,p8,100.0;color="m")
+i4 = Intersection(l2, ray1)
 Point([i4]) do intersection
+    return intersection[1]
+end
+
+ray2 = Ray(Vec3D(1.0,3.667,-2),Vec3D(1.0,3.667,3);color="m")
+i5 = Intersection(ray1, ray2)
+Point([i5]) do intersection
     return intersection[1]
 end
 

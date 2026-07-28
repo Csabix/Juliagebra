@@ -294,3 +294,13 @@ function PrimitiveToPrimitiveIntersection(ray::PRay,line::PLine)::Union{Vec3D,No
 end
 
 PrimitiveToPrimitiveIntersection(line::PLine,ray::PRay)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(ray,line)
+
+function PrimitiveToPrimitiveIntersection(ray1::PRay, ray2::PRay)
+    (d2,t,s) = Seg2SegSqDistParams(ray1.p, ray1.v, ray2.p, ray2.v)
+
+    if (t >= 0.0 && s >= 0.0 && d2 <= LINE_TO_LINE_EPSILON^2)
+        return ((ray1.p + ray1.v * t) + (ray2.p + ray2.v * s)) / 2.0
+    else
+        return nothing
+    end
+end

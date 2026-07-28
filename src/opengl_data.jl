@@ -98,7 +98,7 @@ mutable struct OpenGLData
         init!(profiler)
 
         pipeline_loader = PipelineLoader()
-        full_compile(pipeline_loader)
+        compile_shaders(pipeline_loader)
         if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
             if asset_watcher !== nothing
                 watch_folder!(asset_watcher,pkgdir(@__MODULE__,"assets","shaders","src"))

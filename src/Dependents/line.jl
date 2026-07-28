@@ -9,7 +9,7 @@ _get_dependent_line(dep::DependentDNA) = dep
 _get_dependent_line(dep) = SourceValueHolder(Vec3D(dep))
 
 function Line(first,second,distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=5.0f0)
+    color="g",style="-",size=3.0f0)
 
     deps = DependentDNA[
         _get_dependent_line(first),
@@ -30,14 +30,16 @@ function Line(first,second,distance=_INFINITE_LINE_DISTANCE,color_style::Union{N
 end
 
 function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=5.0f0)
+    color="g",style="-",size=3.0f0)
 
     n = ceil(Int16, log2(distance))
 
     ParametricCurve(range(-n,n,2*n+1),dependents,color_style;color=color,style=style,size=size) do t,intersection
         pline = callback(intersection)
+        if (pline === nothing) return nothing end
+        
         d = sign(t) * 2^abs(t)
-        return pline.p + pline.v * d
+        return pline.p + normalize(pline.v) * d
     end
 end
 

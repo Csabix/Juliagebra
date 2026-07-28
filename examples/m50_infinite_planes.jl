@@ -37,6 +37,19 @@ Line([i3]) do intersection
     return intersection[1]
 end
 
+# parallelPlane1 = Plane(p1._coord + Vec3D(2,2,2), p2._coord + Vec3D(2,2,2), p3._coord + Vec3D(2,2,2))
+parallelHandle = Point(0,3,3)
+parallelPlane1 = Plane(
+    Vec3D(0,3,2),
+    Vec3D(1,3,2),
+    parallelHandle
+)
+
+i4 = Intersection(plane1, parallelPlane1)
+Line([i4]) do intersection
+    return intersection[1]
+end
+
 # println(typeof(i3))
 # println(i3._foundIntersectionNum)
 # println(i3._intersections[1])

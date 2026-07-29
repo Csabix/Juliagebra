@@ -132,6 +132,13 @@ function plot()::Nothing
     return nothing
 end
 
+function get_element(handle::NodeHandle)::Any
+    global implicitApp
+    if implicitApp === nothing throw("No active window") end
+    app::App = implicitApp::App
+    return app.graph.elements[handle]
+end
+
 function add_node!(element::Any,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
     plot()
     global implicitApp
@@ -150,14 +157,13 @@ function add_node!(callback::Function,parents::Union{Vector{NodeHandle},Nothing}
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,nothing,parents,callback,UInt64(0))
-end
-
-function get_element(handle::NodeHandle)::Any
-    global implicitApp
-    if implicitApp === nothing throw("No active window") end
-    app::App = implicitApp::App
-    return app.graph.elements[handle]
+    value = if parents === nothing
+        callback()
+    else
+        arguments = [get_element(handle) for handle in parents]
+        callback(arguments...)
+    end
+    return add!(app.graph,value,parents,callback,UInt64(0))
 end
 
 function Wait()

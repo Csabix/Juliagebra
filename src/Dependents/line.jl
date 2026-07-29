@@ -8,8 +8,8 @@ const _INFINITE_LINE_DISTANCE = 1024
 _get_dependent_line(dep::DependentDNA) = dep
 _get_dependent_line(dep) = SourceValueHolder(Vec3D(dep))
 
-function Line(p0,p1,distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=3.0f0)
+function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
+    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
 
     deps = DependentDNA[
         _get_dependent_line(p0),
@@ -29,8 +29,8 @@ function Line(p0,p1,distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,
     end
 end
 
-function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=3.0f0)
+function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
+    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
 
     n = ceil(Int16, log2(distance))
 
@@ -40,6 +40,14 @@ function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA
         
         d = sign(t) * 2^abs(t)
         return pline.p + normalize(pline.v) * d
+    end
+end
+
+function Line(line,color_style::Union{Nothing,String}=nothing;
+    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
+    
+    return Line([line],color_style;distance=distance,color=color,style=style,size=size) do l
+        return PLine(p(l),v(l)) # TODO: fix
     end
 end
 

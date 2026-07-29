@@ -8,8 +8,8 @@ const _INFINITE_PLANE_DISTANCE = 100
 _get_dependent_plane(dep::DependentDNA) = dep
 _get_dependent_plane(dep) = SourceValueHolder(Vec3D(dep))
 
-function Plane(p0,p1,p2,distance=_INFINITE_PLANE_DISTANCE,color_style::Union{Nothing,String}=nothing;
-    color="g")
+function Plane(p0,p1,p2,color_style::Union{Nothing,String}=nothing;
+    distance=_INFINITE_PLANE_DISTANCE,color="g")
 
     deps = DependentDNA[
         _get_dependent_plane(p0),

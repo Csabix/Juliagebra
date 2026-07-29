@@ -146,6 +146,13 @@ function add_node!(callback::Function,element::Any,parents::Union{Vector{NodeHan
     return add!(app.graph,element,parents,callback,UInt64(0))
 end
 
+function add_node!(callback::Function,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
+    plot()
+    global implicitApp
+    app::App = implicitApp::App
+    return add!(app.graph,nothing,parents,callback,UInt64(0))
+end
+
 function get_element(handle::NodeHandle)::Any
     global implicitApp
     if implicitApp === nothing throw("No active window") end
@@ -161,6 +168,6 @@ end
 
 include("Dependents/dependents.jl")
 
-export plot
+export plot, add_node!, get_element
 
 end

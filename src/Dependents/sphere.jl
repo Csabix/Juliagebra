@@ -82,8 +82,8 @@ end
 
 export PTrianglesOfSphere
 
-_get_parent_sphere(parent::NodeHandle) = parent, !isa(Base.return_types(convert_callback_entry,(typeof(get_element(parent)),)),Number)
-_get_parent_sphere(parent) = isa(Base.return_types(convert_callback_entry,(typeof(parent),)),Number) ? (add_node!(Float64(parent)), true) : (add_node!(Vec3D(parent)), false)
+_get_parent_sphere(parent::NodeHandle) = parent, isa(convert_callback_entry(get_element(parent)),Number)
+_get_parent_sphere(parent) = isa(convert_callback_entry(parent),Number) ? (add_node!(Float64(parent)), true) : (add_node!(Vec3D(parent)), false)
 
 # YELLOW Thread
 function Sphere(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_data::Union{Nothing,String}=nothing;

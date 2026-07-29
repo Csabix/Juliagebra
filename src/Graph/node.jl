@@ -50,3 +50,7 @@ function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vect
     callback_result::Any = eval_node(element, node.callback, arguments)
     return convert_callback_result(element, callback_result)
 end
+
+export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload
+export on_gizmo_select, on_gizmo_move
+export eval_geometry_node, GeometryPlotNode

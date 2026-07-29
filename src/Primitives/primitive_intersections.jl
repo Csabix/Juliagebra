@@ -108,13 +108,16 @@ function IsCoplanar(D0::Float32, D1::Float32, D2::Float32)::Bool
 end
 
 function EpsilonTest(N::Vec3F, V::Vec3F, triangle::PTriangle)::Tuple{Float32, Float32, Float32}
-    d1::Float32 = -dot(N, V)
+                             # plane equation: normal * v + d = 0
+    d1::Float32 = -dot(N, V) # d1 is the constant of the equation
 
+    # ? signed (distance if normal is unit vector) -> shows which side it is on
     du0::Float32 = dot(N, triangle.v0) + d1
     du1::Float32 = dot(N, triangle.v1) + d1
     du2::Float32 = dot(N, triangle.v2) + d1
 
-    if (abs(du0) < 0.000001) 
+    # ? if really close to plane, round it to zero
+    if (abs(du0) < 0.000001)
         du0 = 0.0
     end
     if (abs(du1) < 0.000001)
@@ -283,6 +286,58 @@ function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,P
 end
 
 PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},plane::PPlane)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(plane,line)
+
+function EdgePlaneIntersection(signed_dist1::Float32,signed_dist2::Float32,vert1::Vec3F,vert2::Vec3F)::Vec3F
+    # ? true if they're on different sides
+    if (signed_dist1 * signed_dist2 <= 0.0)
+        distance = abs(signed_dist1) + abs(signed_dist2)
+        if (distance != 0.0)
+            return vert1 + (vert2 - vert1) * abs(signed_dist1) / distance
+        end
+    end
+    return Vec3FNan
+end
+
+function PrimitiveToPrimitiveIntersection(triangle::PTriangle,plane::PPlane)::Union{PSegment,Nothing}
+    # ? checks whether the planes are parallel
+    v0v1 = triangle.v1 - triangle.v0
+    v0v2 = triangle.v2 - triangle.v0
+    tri_normal = cross(v0v1,v0v2)
+        # println(dot(normalize(tri_normal),normalize(plane.n)))
+        # TODO: NaN numbers? (4 good, 4 nah)
+    if (abs(dot(normalize(tri_normal),normalize(plane.n))) > 0.999999)
+        return nothing
+    end
+
+    du0::Float32, du1::Float32, du2::Float32 = EpsilonTest(Vec3F(plane.n), Vec3F(plane.p), triangle)
+    # ? if signs of all three match, then it's entirely on one side
+    if (((du0 * du1) > 0.0) && ((du0 * du2) > 0.0))
+        return nothing
+    end
+
+    # ? Distribute the possible intersection coordinates, 2 or 3 (when there are two equal) into i1 & i2.
+    i1 = EdgePlaneIntersection(du0,du1,triangle.v0,triangle.v1)
+    i2 = EdgePlaneIntersection(du0,du2,triangle.v0,triangle.v2)
+    if (i1 === Vec3FNan)
+        i1 = i2
+    elseif (i1 == i2)
+        i2 = Vec3FNan
+    end
+    i3 = EdgePlaneIntersection(du1,du2,triangle.v1,triangle.v2)
+    if (i3 !== Vec3FNan)
+        i2 = i3
+        i3 = Vec3FNan
+    end
+
+    # ? Not necessary, there must be at least two intersections; just insurance
+    if (i1 === Vec3FNan || i2 === Vec3FNan)
+        return nothing
+    else
+        return PSegment(i1,i2)
+    end
+end
+
+PrimitiveToPrimitiveIntersection(plane::PPlane,triangle::PTriangle)::Union{PSegment,Nothing} = PrimitiveToPrimitiveIntersection(triangle,plane)
 
 ParameterInside(::PLine,::Any)::Bool = true
 ParameterInside(::PRay,t)::Bool      = t >= 0.0

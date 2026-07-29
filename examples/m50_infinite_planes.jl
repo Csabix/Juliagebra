@@ -17,7 +17,7 @@ Point([plane2];color="r") do plane
     return plane.p + plane.n
 end
 
-p7 = Point(2.0,-5.6,-2.0)
+p7 = Point(6.0,-5.6,-2.0)
 p8 = Point(3.9, 3.2, 3.0)
 segment1 = Segment(p7,p8)
 
@@ -35,7 +35,6 @@ Line([i3]) do intersection
     return intersection[1]
 end
 
-# parallelPlane1 = Plane(p1._coord + Vec3D(2,2,2), p2._coord + Vec3D(2,2,2), p3._coord + Vec3D(2,2,2))
 parallelHandle = Point(0,3,3)
 parallelPlane1 = Plane(
     Vec3D(0,3,2),
@@ -72,6 +71,19 @@ triangle2 = Triangle(p12,p13,p14;color="b")
 i7 = Intersection(triangle1,triangle2)
 for i in 1:25
     Segment([i7]) do intersection
+        return intersection[i]
+    end
+end
+
+i7 = Intersection(triangle1,plane2)
+for i in 1:25
+    Segment([i7]) do intersection
+        return intersection[i]
+    end
+end
+i8 = Intersection(plane2,triangle2)
+for i in 1:25
+    Segment([i8]) do intersection
         return intersection[i]
     end
 end

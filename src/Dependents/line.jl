@@ -8,24 +8,24 @@ const _INFINITE_LINE_DISTANCE = 1024
 _get_dependent_line(dep::DependentDNA) = dep
 _get_dependent_line(dep) = SourceValueHolder(Vec3D(dep))
 
-function Line(first,second,distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
+function Line(p0,p1,distance=_INFINITE_LINE_DISTANCE,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size=3.0f0)
 
     deps = DependentDNA[
-        _get_dependent_line(first),
-        _get_dependent_line(second),
+        _get_dependent_line(p0),
+        _get_dependent_line(p1),
     ]
 
     n = ceil(Int16, log2(distance))
 
-    ParametricCurve(range(-n,n,2*n+1),deps,color_style;color=color,style=style,size=size) do t, a, b
-        dir = normalize(b - a)
+    ParametricCurve(range(-n,n,2*n+1),deps,color_style;color=color,style=style,size=size) do t,p0,p1
+        dir = normalize(p1 - p0)
         d = sign(t) * 2^abs(t)
-        return a + dir * d
+        return p0 + dir * d
     end
 
-    return ValueHolder(PLine,deps) do a, b
-        return PLine(a, normalize(b - a))
+    return ValueHolder(PLine,deps) do p0,p1
+        return PLine(p0, normalize(p1 - p0))
     end
 end
 
@@ -34,8 +34,8 @@ function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA
 
     n = ceil(Int16, log2(distance))
 
-    ParametricCurve(range(-n,n,2*n+1),dependents,color_style;color=color,style=style,size=size) do t,intersection
-        pline = callback(intersection)
+    ParametricCurve(range(-n,n,2*n+1),dependents,color_style;color=color,style=style,size=size) do t,param
+        pline = callback(param)
         if (pline === nothing) return nothing end
         
         d = sign(t) * 2^abs(t)

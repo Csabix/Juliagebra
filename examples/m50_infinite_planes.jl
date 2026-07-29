@@ -17,8 +17,6 @@ Point([plane2];color="r") do plane
     return plane.p + plane.n
 end
 
-# triangle = Triangle(Vec3D(-3.5,-5.0,-6.7),Vec3D(13.4,10.6,5.4),Vec3D(-15.8,-2.6,-2.2);color="b")
-
 p7 = Point(2.0,-5.6,-2.0)
 p8 = Point(3.9, 3.2, 3.0)
 segment1 = Segment(p7,p8)
@@ -57,15 +55,26 @@ Point([i5]) do intersection
 end
 
 l1 = Line(Vec3D(-5,-5,10),Vec3D(-5,-5,-10);color="b")
-i6 = Intersection(l1, plane1)
+i6 = Intersection(l1, plane2)
 Point([i6]) do intersection
     return intersection[1]
 end
 
-# i2 = Intersection(l1, plane2)
-# Point([i2]) do intersection
-#     return intersection[1]
-# end
+p9  = Point(-3,-3,-2)
+p10 = Point(-5,-3,-2)
+p11 = Point(-3,-3,4)
+triangle1 = Triangle(p9,p10,p11;color="b")
+p12 = Point(-3,-2,1)
+p13 = Point(-5,-4,1)
+p14 = Point(-2,-4,1)
+triangle2 = Triangle(p12,p13,p14;color="b")
+
+i7 = Intersection(triangle1,triangle2)
+for i in 1:25
+    Segment([i7]) do intersection
+        return intersection[i]
+    end
+end
 
 
 

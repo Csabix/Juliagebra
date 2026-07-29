@@ -8,29 +8,29 @@ const _INFINITE_PLANE_DISTANCE = 100
 _get_dependent_plane(dep::DependentDNA) = dep
 _get_dependent_plane(dep) = SourceValueHolder(Vec3D(dep))
 
-function Plane(first,second,third,distance=_INFINITE_PLANE_DISTANCE,color_style::Union{Nothing,String}=nothing;
+function Plane(p0,p1,p2,distance=_INFINITE_PLANE_DISTANCE,color_style::Union{Nothing,String}=nothing;
     color="g")
 
     deps = DependentDNA[
-        _get_dependent_plane(first),
-        _get_dependent_plane(second),
-        _get_dependent_plane(third),
+        _get_dependent_plane(p0),
+        _get_dependent_plane(p1),
+        _get_dependent_plane(p2),
     ]
 
     n = ceil(Int16, log10(distance))
 
-    ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),deps;color=color,isInfinite=true) do u,v,a,b,c
-        dir1 = normalize(b - a)
-        dir2 = normalize(c - a)
+    ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),deps,color_style;color=color,isInfinite=true) do u,v,p0,p1,p2
+        dir1 = normalize(p1 - p0)
+        dir2 = normalize(p2 - p0)
         normal = cross(dir1, dir2)
         perp = normalize(cross(dir1, normal))
         u = sign(u) * 10^abs(u)
         v = sign(v) * 10^abs(v)
-        return a + (dir1 * v + perp * u)
+        return p0 + (dir1 * v + perp * u)
     end
 
-    return ValueHolder(PPlane,deps) do a,b,c
-        return PPlane(a, normalize(cross(b - a, c - a)))
+    return ValueHolder(PPlane,deps) do p0,p1,p2
+        return PPlane(p0, normalize(cross(p1 - p0, p2 - p0)))
     end
 end
 

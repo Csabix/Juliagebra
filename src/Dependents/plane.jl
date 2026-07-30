@@ -34,6 +34,37 @@ function Plane(p0,p1,p2,color_style::Union{Nothing,String}=nothing;
     end
 end
 
+function Plane(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
+    distance=_INFINITE_PLANE_DISTANCE,color="g")
+
+    n = ceil(Int16, log10(distance))
+
+    ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),dependents,color_style;color=color,isInfinite=true) do u,v,param1,param2
+        pplane = callback(param1,param2)
+        if (pplane === nothing) return nothing end
+
+        vector = Vec3D(1,0,0)
+        # ? picking a vector that is non collinear with the plane normal
+        if (pplane.n.y == 0.0 && pplane.n.z == 0)
+            vector = Vec3D(0,1,0)
+        end
+
+        dir1 = normalize(cross(vector, pplane.n))
+        perp = normalize(cross(dir1, pplane.n))
+        u = sign(u) * 10^abs(u)
+        v = sign(v) * 10^abs(v)
+        return pplane.p + (dir1 * v + perp * u)
+    end
+end
+
+function Plane(point,line,color_style::Union{Nothing,String}=nothing;
+    distance=_INFINITE_PLANE_DISTANCE,color="g")
+
+    Plane([point,line],color_style;distance=distance,color=color) do p,l
+        return PPlane(p,v(l))
+    end
+end
+
 # ? ---------------------------------
 # ! Plane to PPlane intersection
 # ? ---------------------------------

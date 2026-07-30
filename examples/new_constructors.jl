@@ -20,6 +20,12 @@ Ray(segment;size=3.0,color="r")
 Segment(line)
 Segment(ray)
 
+g = Point(0,5,-5)
+h = Point(0,5,-3)
+plane_normal = Ray(g,h;color="r",size=2.0)
+plane_point = Point(0,1,-6;color="b")
+Plane(plane_point,plane_normal)
+
 
 
 Juliagebra.Wait()

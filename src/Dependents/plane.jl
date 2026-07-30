@@ -29,9 +29,17 @@ function Plane(p0,p1,p2,color_style::Union{Nothing,String}=nothing;
         return p0 + (dir1 * v + perp * u)
     end
 
-    return ValueHolder(PPlane,deps) do p0,p1,p2
+    pplane = ValueHolder(PPlane,deps) do p0,p1,p2
         return PPlane(p0, normalize(cross(p1 - p0, p2 - p0)))
     end
+
+    Segment(p0,p1,color_style;color=color,style="--")
+    Segment(p0,p2,color_style;color=color,style="--")
+    Segment([pplane],color_style;color=color,style="->",size=9.0) do plane
+        return PSegment(plane.p, plane.p + plane.n)
+    end
+
+    return pplane
 end
 
 function Plane(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;

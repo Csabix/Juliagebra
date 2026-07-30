@@ -22,9 +22,15 @@ function Ray(point,at,color_style::Union{Nothing,String}=nothing;
         return p1 + dir * d
     end
 
-    return ValueHolder(PRay,deps) do p1,p2
+    pray = ValueHolder(PRay,deps) do p1,p2
         return PRay(p1, normalize(p2 - p1))
     end
+    
+    Segment([pray],color_style;color=color,style="->",size=size*3) do ray
+        return PSegment(p(ray), p(ray) + v(ray))
+    end
+
+    return pray
 end
 
 function Ray(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
@@ -43,7 +49,7 @@ end
 function Ray(line,color_style::Union{Nothing,String}=nothing;
     distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
     
-    return Ray([line],color_style;distance=distance,color=color,style=style,size=size) do l
+    Ray([line],color_style;distance=distance,color=color,style=style,size=size) do l
         return PRay(p(l),v(l))
     end
 end

@@ -46,7 +46,7 @@ end
 function Line(line,color_style::Union{Nothing,String}=nothing;
     distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
     
-    return Line([line],color_style;distance=distance,color=color,style=style,size=size) do l
+    Line([line],color_style;distance=distance,color=color,style=style,size=size) do l
         return PLine(p(l),v(l)) # TODO: fix
     end
 end

@@ -36,7 +36,7 @@ end
 function Segment(line,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size=3.0f0)
     
-    return Segment([line],color_style;color=color,style=style,size=size) do l
+    Segment([line],color_style;color=color,style=style,size=size) do l
         return PSegment(p(l),p(l) + v(l))
     end
 end

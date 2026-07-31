@@ -15,6 +15,7 @@ layout(location = 3) out vec4 position_out;
 layout(std140, binding = 0) uniform TriangleUniforms {
     mat4 M;
     mat4 MIT;
+    int isInfinite;
 };
 
 void main() {

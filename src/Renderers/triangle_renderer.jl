@@ -1,7 +1,8 @@
 struct _TriangleTransform
     M::Mat4T{Float32}
     MIT::Mat4T{Float32}
-    _TriangleTransform(M::Mat4T{Float32}) = new(M,inv(transpose(M)))
+    IsInfinite::Int32
+    _TriangleTransform(M::Mat4T{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
 end
 
 mutable struct TriangleRenderer
@@ -11,7 +12,6 @@ mutable struct TriangleRenderer
 
     UBO::RepeatBufferUBO{_TriangleTransform}
     buffers::Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}} # position normal color id
-    ubo_infinite::MappedBuffer{Bool}
 
     matrices::Vector{Mat4T{Float32}}
     coords::Vector{Vector{Vec4F}}
@@ -30,14 +30,9 @@ mutable struct TriangleRenderer
             vert = spv"renderers/triangle/triangle.vert",
             frag = spv"renderers/triangle/triangle_transparent.frag")
 
-        ubo_infinite = MappedBuffer{Bool}()
-        reserve!(ubo_infinite, 1, 0)
-        ubo_infinite[1] = false;
-
         new(calc_normals,opaque,transparent,
             RepeatBufferUBO{_TriangleTransform}(),
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
-            ubo_infinite,
             Vector{Mat4T{Float32}}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),Vector{Bool}(),
             Vector{UInt32}(),
             Vector{UInt32}()
@@ -59,7 +54,7 @@ end
 
 function destroy!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
-    destroy!(self.ubo_infinite)
+    destroy!(self.UBO)
 end
 
 function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,isInfinite::Bool,id::UInt32)::UInt32
@@ -147,7 +142,7 @@ function pre_draw(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
         glDispatchCompute(cld(length(self.coords[i]),64),1,1);
     end
 
-    transforms = _TriangleTransform[_TriangleTransform(M) for M in self.matrices]
+    transforms = _TriangleTransform[_TriangleTransform(M,is_infinite) for (M,is_infinite) in zip(self.matrices,self.infinite_ids)]
     if length(self.UBO) != length(transforms)
         upload!(self.UBO,transforms,GL_DYNAMIC_STORAGE_BIT)
     else
@@ -172,11 +167,7 @@ function opaque(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     for i in 1:length(self.buffers)
         if !is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
         bind_ubo(self.UBO, i, 0)
-        wait(self.ubo_infinite)
-        self.ubo_infinite[1] = self.infinite_ids[i]
-        bind_ubo(self.ubo_infinite, 1)
         draw(self.buffers[i],GL_TRIANGLES)
-        lock(self.ubo_infinite)
     end
 
     glEnable(GL_CULL_FACE)
@@ -191,11 +182,7 @@ function transparent(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothi
     for i in 1:length(self.buffers)
         if is_packed_opaque(self.color_ids[i][1]) || length(self.coords[i]) == 0 continue end
         bind_ubo(self.UBO, i, 0)
-        wait(self.ubo_infinite)
-        self.ubo_infinite[1] = self.infinite_ids[i]
-        bind_ubo(self.ubo_infinite, 1)
         draw(self.buffers[i],GL_TRIANGLES)
-        lock(self.ubo_infinite)
     end
 
     glEnable(GL_CULL_FACE)

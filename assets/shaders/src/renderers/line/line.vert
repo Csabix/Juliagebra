@@ -21,14 +21,12 @@ noperspective layout(location=1) out vec3 color_out;
 noperspective layout(location=2) out float total_distance_out;
 flat		  layout(location=3) out vec4 begin_pos_rad_out;
 flat		  layout(location=4) out vec4 end_pos_rad_out;
-			//   layout(location=5) out vec4 position_out;
 
 void main() {
 	const int per_vertex = (gl_BaseInstance + gl_InstanceID) * 5 + gl_VertexID;
 
 	const vec4 position_total_distance = position_total_distance_in[per_vertex];
 	gl_Position = vec4(position_total_distance.xyz,1.0);
-	// position_out = gl_Position;
 	total_distance_out = position_total_distance.w;
 	segment_SDF_field_out = sdf_in[per_vertex];
 

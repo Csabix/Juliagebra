@@ -459,21 +459,6 @@ function _ubo_update!(self::OpenGLData,cam::Camera,hovered::UInt32)
         Vec4F(cam._zNear,cam._zFar,deg2rad(cam._fov),reinterpret(Float32,hovered))
     )
     glBindBufferBase(GL_UNIFORM_BUFFER, 10, id(self._ubo))
-    # wait(self._ubo_aabb)
-    # self._ubo_aabb[1] = UBO_AABB(
-    #     Vec4F(
-    #         Float32(-5.0),
-    #         Float32(-5.0),
-    #         Float32(-5.0),
-    #         Float32(0)),
-    #     Vec4F(
-    #         Float32(5.0),
-    #         Float32(5.0),
-    #         Float32(5.0),
-    #         Float32(0))
-    # )
-    # println("opengl")
-    # glBindBufferBase(GL_UNIFORM_BUFFER, 11, id(self._ubo_aabb))
 end
 
 function update!(self::OpenGLData,cam::Camera,scene_change::Bool,hovered::UInt32)

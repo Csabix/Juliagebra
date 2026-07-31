@@ -22,6 +22,4 @@ void main() {
 
     vec4 color = get_color(vec4(color_in,alpha), normal_depth.xyz);
     WRITE_COLOR(color, 0, normal_depth.w)
-
-    // discard;
 }

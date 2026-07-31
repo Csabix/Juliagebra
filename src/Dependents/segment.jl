@@ -12,7 +12,7 @@ function Segment(p0,p1,color_style::Union{Nothing,String}=nothing;
         _get_dependent_segment(p0),
         _get_dependent_segment(p1)
     ]
-    # × return
+    
     ParametricCurve(range(0,1,length=2),deps,color_style;color=color,style=style,size=size) do t,p0,p1
         return p1 .* t .+ (1-t) .* p0
     end

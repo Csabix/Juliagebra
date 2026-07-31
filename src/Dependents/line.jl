@@ -16,7 +16,7 @@ function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
         _get_dependent_line(p1),
     ]
 
-    n = ceil(Int16, log2(distance))
+    n = ceil(Int16, log(4, distance))
 
     ParametricCurve(range(-n,n,2*n+1),deps,color_style;color=color,style=style,size=size) do t,p0,p1
         dir = normalize(p1 - p0)
@@ -32,13 +32,13 @@ end
 function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
     distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
 
-    n = ceil(Int16, log2(distance))
+    n = ceil(Int16, log(4, distance))
 
     ParametricCurve(range(-n,n,2*n+1),dependents,color_style;color=color,style=style,size=size) do t,param
         pline = callback(param)
         if (pline === nothing) return nothing end
         
-        d = sign(t) * 2^abs(t)
+        d = sign(t) * 4^abs(t)
         return pline.p + normalize(pline.v) * d
     end
 

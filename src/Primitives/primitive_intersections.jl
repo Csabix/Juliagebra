@@ -303,8 +303,6 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,plane::PPlane)::Un
     v0v1 = triangle.v1 - triangle.v0
     v0v2 = triangle.v2 - triangle.v0
     tri_normal = cross(v0v1,v0v2)
-        # println(dot(normalize(tri_normal),normalize(plane.n)))
-        # TODO: NaN numbers? (4 good, 4 nah)
     if (abs(dot(normalize(tri_normal),normalize(plane.n))) > 0.999999)
         return nothing
     end

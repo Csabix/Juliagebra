@@ -14,6 +14,8 @@ end
 
 Base.convert(::Type{PSegment},::Nothing)::PSegment = return PSegment(Vec3DNan,Vec3DNan)
 
+export PSegment
+
 """
 Representation of a triangle primitive.
 - v0, v1, v2 are the corners of the triangle.

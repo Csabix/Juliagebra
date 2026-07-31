@@ -185,7 +185,10 @@ Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = g
 
 # YELLOW Thread
 function SegmentSequence(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
-    color="c",style="-",size=5.0f0)::SegmentSequenceDependent
+    color=default,style=default,size=default)::SegmentSequenceDependent
+
+    
+
     (c,s) = parse_line_colors_style(color_style, color, style)
     return Build!(SegmentSequenceDependent(callback, dependents, round(Int32,break_every), c, s, Float32(size)))
 end

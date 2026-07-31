@@ -127,9 +127,14 @@ Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getDependentObserve
 # YELLOW Thread
 function ParametricCurve(callback::Function,range::AbstractRange{Float64},
                 dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-                color="c",style="-",size=5.0f0)::ParametricCurveDependent
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size)))
+                color=default,style=default,size=default)::ParametricCurveDependent
+    st = resolve_style(ParametricCurveDependent;
+        color=color,
+        style=style,
+        size=size
+    )
+    (c,s) = parse_line_colors_style(color_style,st.color,st.style)
+    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(st.size)))
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

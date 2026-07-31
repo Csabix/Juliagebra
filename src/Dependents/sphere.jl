@@ -145,13 +145,14 @@ _get_dependent_sphere(dep) = isa(dep,Number) ? (SourceValueHolder(Float64(dep)),
 
 # YELLOW Thread
 function Sphere(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                color="b")::SphereDependent
-    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
+                color=default)::SphereDependent
+    c = isnothing(color_data) ? get_color(resolve_style(SphereDependent;color=color).color) : get_color(color_data)
+
     return Build!(SphereDependent(callback,dependents,c))
 end
 
 function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;
-    color="b")::SphereDependent
+    color=default)::SphereDependent
     call_p = function (center,p1)
         radius = norm(center - p1)
         return (center,radius)
@@ -170,7 +171,7 @@ function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;
 end
 
 function Sphere(p1,p2,p3,p4,color_data::Union{Nothing,String}=nothing;
-    color="b")::SphereDependent
+    color=default)::SphereDependent
     call = function (p1,p2,p3,p4)
         s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
         return s

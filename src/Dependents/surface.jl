@@ -223,8 +223,8 @@ Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceR
 function ParametricSurface(callback::Function,
                            uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
                            dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                           color="g")
-    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
+                           color=default)
+    c = isnothing(color_data) ? resolve_style(ParametricSurfaceDependent;color=color).color : get_color(color_data)
     Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
 end
 

@@ -7,7 +7,7 @@ _get_dependent_segment(dep::DependentDNA) = dep
 _get_dependent_segment(dep) = SourceValueHolder(Vec3D(dep))
 
 function Segment(first,second,color_style::Union{Nothing,String}=nothing;
-                 color="c",style="-",size=5.0f0)
+                 color=default,style=default,size=default)
     deps = DependentDNA[
         _get_dependent_segment(first),
         _get_dependent_segment(second)

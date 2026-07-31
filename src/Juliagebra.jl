@@ -117,6 +117,7 @@ include("imgui_data.jl")
 
 include("App/starter.jl")
 include("App/commander.jl")
+include("styles.jl")
 include("app.jl")
 
 

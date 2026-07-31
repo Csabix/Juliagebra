@@ -7,12 +7,15 @@ layout(location = 0) flat in vec4 color_in;
 layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
 layout(location = 3) in vec4 position_in;
-layout(location = 4) uniform bool isInfinite = false;
+layout(std140, binding = 1) uniform Infinite_UBO {
+    bool isInfinite;
+};
 
 void main(){
     if (isInfinite && inside_aabb(position_in) == 0) {
         discard;
     }
+
     vec3 normal = normal_in;
     vec3 color = color_in.rgb;
     float alpha = color_in.a;

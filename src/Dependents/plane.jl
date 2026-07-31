@@ -3,13 +3,13 @@
 # ! Plane
 # ? ---------------------------------
 
-const _INFINITE_PLANE_DISTANCE = 100
+const PLANE_N_LENGTH = ceil(Int16, log10(1000))
 
 _get_dependent_plane(dep::DependentDNA) = dep
 _get_dependent_plane(dep) = SourceValueHolder(Vec3D(dep))
 
 function Plane(p0,p1,p2,color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_PLANE_DISTANCE,color="g")
+    color="g")
 
     deps = DependentDNA[
         _get_dependent_plane(p0),
@@ -17,9 +17,11 @@ function Plane(p0,p1,p2,color_style::Union{Nothing,String}=nothing;
         _get_dependent_plane(p2),
     ]
 
-    n = ceil(Int16, log10(distance))
+    ParametricSurface(
+        range(-PLANE_N_LENGTH,PLANE_N_LENGTH,2*PLANE_N_LENGTH+1),
+        range(-PLANE_N_LENGTH,PLANE_N_LENGTH,2*PLANE_N_LENGTH+1),
+        deps,color_style;color=color,isInfinite=true) do u,v,p0,p1,p2
 
-    ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),deps,color_style;color=color,isInfinite=true) do u,v,p0,p1,p2
         dir1 = normalize(p1 - p0)
         dir2 = normalize(p2 - p0)
         normal = cross(dir1, dir2)
@@ -43,11 +45,13 @@ function Plane(p0,p1,p2,color_style::Union{Nothing,String}=nothing;
 end
 
 function Plane(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_PLANE_DISTANCE,color="g")
+    color="g")
 
-    n = ceil(Int16, log10(distance))
-
-    ParametricSurface(range(-n,n,2*n+1),range(-n,n,2*n+1),dependents,color_style;color=color,isInfinite=true) do u,v,param1,param2
+    ParametricSurface(
+        range(-PLANE_N_LENGTH,PLANE_N_LENGTH,2*PLANE_N_LENGTH+1),
+        range(-PLANE_N_LENGTH,PLANE_N_LENGTH,2*PLANE_N_LENGTH+1),
+        dependents,color_style;color=color,isInfinite=true) do u,v,param1,param2
+            
         pplane = callback(param1,param2)
         if (pplane === nothing) return nothing end
 
@@ -72,9 +76,9 @@ function Plane(callback::Function,dependents::Vector{<:DependentDNA}=DependentDN
 end
 
 function Plane(point,line,color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_PLANE_DISTANCE,color="g")
+    color="g")
 
-    return Plane([point,line],color_style;distance=distance,color=color) do p0,l
+    return Plane([point,line],color_style;color=color) do p0,l
         normal = cross(p0 - p(l), v(l))
         return PPlane(p0,normal)
     end

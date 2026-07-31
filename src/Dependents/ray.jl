@@ -7,18 +7,16 @@ _get_dependent_ray(dep::DependentDNA) = dep
 _get_dependent_ray(dep) = SourceValueHolder(Vec3D(dep))
 
 function Ray(point,at,color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
+    color="g",style="-",size=3.0f0)
 
     deps = DependentDNA[
         _get_dependent_ray(point),
         _get_dependent_ray(at),
     ]
 
-    n = ceil(Int16, log2(distance))
-
-    ParametricCurve(range(0,n,n+1),deps,color_style;color=color,style=style,size=size) do t,p1,p2
+    ParametricCurve(range(0,LINE_N_LENGTH,LINE_N_LENGTH+1),deps,color_style;color=color,style=style,size=size) do t,p1,p2
         dir = normalize(p2 - p1)
-        d = t == 0.0 ? t : 2^t
+        d = t == 0.0 ? t : 4^t
         return p1 + dir * d
     end
 
@@ -34,14 +32,13 @@ function Ray(point,at,color_style::Union{Nothing,String}=nothing;
 end
 
 function Ray(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
-        n = ceil(Int16, log2(distance))
+    color="g",style="-",size=3.0f0)
 
-    ParametricCurve(range(0,n,n+1),dependents,color_style;color=color,style=style,size=size) do t,param
+    ParametricCurve(range(0,LINE_N_LENGTH,LINE_N_LENGTH+1),dependents,color_style;color=color,style=style,size=size) do t,param
         pray = callback(param)
         if (pray === nothing) return nothing end
 
-        d = t == 0.0 ? t : 2^t
+        d = t == 0.0 ? t : 4^t
         return pray.p + pray.v * d
     end
 
@@ -53,9 +50,9 @@ function Ray(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[
 end
 
 function Ray(line,color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
+    color="g",style="-",size=3.0f0)
     
-    return Ray([line],color_style;distance=distance,color=color,style=style,size=size) do l
+    return Ray([line],color_style;color=color,style=style,size=size) do l
         return PRay(p(l),v(l))
     end
 end

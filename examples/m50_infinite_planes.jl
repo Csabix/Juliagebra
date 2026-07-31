@@ -11,7 +11,7 @@ plane1 = Plane(p1,p2,p3)
 p4 = Point(  0,-0.5,0)
 p5 = Point(0.5,-1.5,0)
 p6 = Point(0.5,-0.5,0)
-plane2 = Plane(p4,p5,p6;distance=9.9,color=(1.0,1.0,0.0,0.9))
+plane2 = Plane(p4,p5,p6;color=(1.0,1.0,0.0,0.9))
 
 Point([plane2];color="r") do plane
     return plane.p + plane.n * 2

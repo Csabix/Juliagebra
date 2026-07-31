@@ -3,24 +3,22 @@
 # ! Line
 # ? ---------------------------------
 
-const _INFINITE_LINE_DISTANCE = 1024
+const LINE_N_LENGTH = ceil(Int16, log(4, 1000))
 
 _get_dependent_line(dep::DependentDNA) = dep
 _get_dependent_line(dep) = SourceValueHolder(Vec3D(dep))
 
 function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
+    color="g",style="-",size=3.0f0)
 
     deps = DependentDNA[
         _get_dependent_line(p0),
         _get_dependent_line(p1),
     ]
 
-    n = ceil(Int16, log(4, distance))
-
-    ParametricCurve(range(-n,n,2*n+1),deps,color_style;color=color,style=style,size=size) do t,p0,p1
+    ParametricCurve(range(-LINE_N_LENGTH,LINE_N_LENGTH,2*LINE_N_LENGTH+1),deps,color_style;color=color,style=style,size=size) do t,p0,p1
         dir = normalize(p1 - p0)
-        d = sign(t) * 2^abs(t)
+        d = sign(t) * 4^abs(t)
         return p0 + dir * d
     end
 
@@ -30,11 +28,9 @@ function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
 end
 
 function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
+    color="g",style="-",size=3.0f0)
 
-    n = ceil(Int16, log(4, distance))
-
-    ParametricCurve(range(-n,n,2*n+1),dependents,color_style;color=color,style=style,size=size) do t,param
+    ParametricCurve(range(-LINE_N_LENGTH,LINE_N_LENGTH,2*LINE_N_LENGTH+1),dependents,color_style;color=color,style=style,size=size) do t,param
         pline = callback(param)
         if (pline === nothing) return nothing end
         
@@ -50,9 +46,9 @@ function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA
 end
 
 function Line(line,color_style::Union{Nothing,String}=nothing;
-    distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
+    color="g",style="-",size=3.0f0)
     
-    return Line([line],color_style;distance=distance,color=color,style=style,size=size) do l
+    return Line([line],color_style;color=color,style=style,size=size) do l
         return PLine(p(l),v(l))
     end
 end

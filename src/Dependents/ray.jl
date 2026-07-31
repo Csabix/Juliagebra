@@ -44,12 +44,18 @@ function Ray(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[
         d = t == 0.0 ? t : 2^t
         return pray.p + pray.v * d
     end
+
+    return ValueHolder(PRay,dependents) do param
+        pray = callback(param)
+        if (pray === nothing) return PRay(Vec3DNan,Vec3DNan) end
+        return pray
+    end
 end
 
 function Ray(line,color_style::Union{Nothing,String}=nothing;
     distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
     
-    Ray([line],color_style;distance=distance,color=color,style=style,size=size) do l
+    return Ray([line],color_style;distance=distance,color=color,style=style,size=size) do l
         return PRay(p(l),v(l))
     end
 end

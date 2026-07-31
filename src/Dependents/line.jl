@@ -41,13 +41,19 @@ function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA
         d = sign(t) * 2^abs(t)
         return pline.p + normalize(pline.v) * d
     end
+
+    return ValueHolder(PLine, dependents) do param
+        pline = callback(param)
+        if (pline === nothing) return PLine(Vec3DNan,Vec3DNan) end
+        return pline
+    end
 end
 
 function Line(line,color_style::Union{Nothing,String}=nothing;
     distance=_INFINITE_LINE_DISTANCE,color="g",style="-",size=3.0f0)
     
-    Line([line],color_style;distance=distance,color=color,style=style,size=size) do l
-        return PLine(p(l),v(l)) # TODO: fix
+    return Line([line],color_style;distance=distance,color=color,style=style,size=size) do l
+        return PLine(p(l),v(l))
     end
 end
 

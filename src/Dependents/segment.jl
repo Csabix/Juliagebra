@@ -31,6 +31,12 @@ function Segment(callback::Function,dependents::Vector{<:DependentDNA}=Dependent
         
         return psegment.p1 .* t .+ (1-t) .* psegment.p0
     end
+
+    return ValueHolder(PSegment, dependents) do param
+        psegment = callback(param)
+        if (psegment === nothing) return PSegment(Vec3DNan,Vec3DNan) end
+        return psegment
+    end
 end
 
 function Segment(line,color_style::Union{Nothing,String}=nothing;

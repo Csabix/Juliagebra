@@ -63,13 +63,20 @@ function Plane(callback::Function,dependents::Vector{<:DependentDNA}=DependentDN
         v = sign(v) * 10^abs(v)
         return pplane.p + (dir1 * v + perp * u)
     end
+
+    return ValueHolder(PPlane, dependents) do param1,param2
+        pplane = callback(param1,param2)
+        if (pplane === nothing) return PPlane(Vec3DNan,Vec3DNan) end
+        return pplane
+    end
 end
 
 function Plane(point,line,color_style::Union{Nothing,String}=nothing;
     distance=_INFINITE_PLANE_DISTANCE,color="g")
 
-    Plane([point,line],color_style;distance=distance,color=color) do p,l
-        return PPlane(p,v(l))
+    return Plane([point,line],color_style;distance=distance,color=color) do p0,l
+        normal = cross(p0 - p(l), v(l))
+        return PPlane(p0,normal)
     end
 end
 

@@ -26,6 +26,7 @@ plane_normal = Ray(g,h;color="r",size=2.0)
 plane_point = Point(0,1,-6;color="b")
 Plane(plane_point,plane_normal)
 
+sphere = Sphere((0,10,0),1;color="w")
 
 
 Juliagebra.Wait()

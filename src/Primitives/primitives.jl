@@ -4,24 +4,24 @@ Repsresentation of a segment primitive.
 - p0, p1 are the start and end points of the segment.
 """
 struct PSegment <: AABBPrimitive3D
-    p0::Vec3F
-    p1::Vec3F
+    p0::Vec3D
+    p1::Vec3D
 end
 
 function GetAABB(line_segment::PSegment)::AABB3D
     return AABB3D(min.(line_segment.p0, line_segment.p1), max.(line_segment.p0, line_segment.p1))
 end
 
-Base.convert(::Type{PSegment},::Nothing)::PSegment = return PSegment(Vec3FNan,Vec3FNan)
+Base.convert(::Type{PSegment},::Nothing)::PSegment = return PSegment(Vec3DNan,Vec3DNan)
 
 """
 Representation of a triangle primitive.
 - v0, v1, v2 are the corners of the triangle.
 """
 struct PTriangle <: AABBPrimitive3D
-    v0::Vec3F
-    v1::Vec3F
-    v2::Vec3F
+    v0::Vec3D
+    v1::Vec3D
+    v2::Vec3D
 end
 
 function GetAABB(triangle::PTriangle)::AABB3D

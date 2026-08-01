@@ -15,5 +15,5 @@ void main() {
     dist = distance(at(), eye());
     dist_10 = pow(10.0, floor(log(dist) / log(10.0)));
 
-	gl_Position = vec4(positions[gl_VertexID].xy, -1.0, 1.0);
+	gl_Position = vec4(positions[gl_VertexID].xy, 0.0, 1.0);
 }

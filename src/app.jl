@@ -78,7 +78,8 @@ sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 function resize!(self::App, event::Event)::Bool
     resize!(self._glfw, event.width, event.height)
     resize!(self._opengl, self._glfw)
-    set_aspect!(self._cam, self._glfw.width, self._glfw.height)
+    self._cam.aspect = self._glfw.width / self._glfw.height
+    calculate_projection_matrix!(self._cam)
     return false
 end
 
@@ -101,7 +102,33 @@ function setup_callbacks(self::App)::Nothing
     register_callback!(event -> on_gizmo_left_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_LEFT))
     register_callback!(event -> on_gizmo_right_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_RIGHT))
     register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
-    register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
+    register_callback!(event -> begin
+        drag = on_gizmo_drag!(self, event)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, MOUSE_MOVE)
+    
+    # --- KEYBOARD DOWN EVENTS ---
+    register_callback!(event -> begin
+        drag = on_gizmo_drag_axis_start!(self, AXIS_X)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_X))
+    register_callback!(event -> begin
+        drag = on_gizmo_drag_axis_start!(self, AXIS_Y)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Y))
+    register_callback!(event -> begin
+        drag = on_gizmo_drag_axis_start!(self, AXIS_Z)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Z))
+    
+    # --- KEYBOARD UP EVENTS ---
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, Cint(GLFW.KEY_X))
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, Cint(GLFW.KEY_Y))
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, Cint(GLFW.KEY_Z))
 
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
@@ -109,12 +136,9 @@ end
 
 function updateCam!(self::App,delta_time::Float64)::Bool
     update!(self._manipulator, delta_time, self._inputs)
-    self._opengl._camPos = self._cam._eye
-    vp,v,p = get_matrices(self._cam)
-    change = vp != self._opengl._vp
-    self._opengl._vp = vp
-    self._opengl._v  = v
-    self._opengl._p  = p
+    vp = get_matrices(self._cam)[1]
+    change = vp != self._opengl._last_vp
+    self._opengl._last_vp = vp
     return change
 end
 
@@ -220,7 +244,8 @@ function init!(self::App)
     end
     
     init!(self._glfw, true)
-    set_aspect!(self._cam,self._glfw.width,self._glfw.height)
+    self._cam.aspect = self._glfw.width / self._glfw.height
+    calculate_projection_matrix!(self._cam)
     self._opengl = OpenGLData(self._glfw,self._asset_watcher)
     setup_callbacks(self)
     setup_event_handles(self._glfw,self._inputs)

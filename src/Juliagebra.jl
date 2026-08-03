@@ -95,16 +95,17 @@ include("Widgets/performance_viewer.jl")
 include("Widgets/Windows/frame_time_window.jl")
 include("Widgets/Windows/options_window.jl")
 
-
-include("opengl_data.jl")
-
 include("Widgets/coordinates_widget.jl")
 
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
-
+include("styles.jl")
+include("opengl_data.jl")
+include("Dependents/dependent_renderer.jl")
 include("Dependents/dependents.jl")
+
+include("Dependents/dependent_functions.jl")
 
 include("Widgets/points_window.jl")
 include("Widgets/curves_window.jl")
@@ -119,7 +120,6 @@ include("imgui_data.jl")
 
 include("App/starter.jl")
 include("App/commander.jl")
-include("styles.jl")
 include("app.jl")
 
 

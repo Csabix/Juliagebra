@@ -27,8 +27,6 @@ mutable struct App <: AppDNA
     _delta_time::Float64
     _vsync_state::Int32
 
-    _theme::ThemeType
-
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -48,8 +46,6 @@ mutable struct App <: AppDNA
         
         model = Model()
 
-        theme = defaultTheme
-
         asset_watcher::Union{Nothing,AssetWatcher} = nothing
         if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
             asset_watcher = AssetWatcher()
@@ -62,7 +58,7 @@ mutable struct App <: AppDNA
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state,theme)
+            optimizer,starter,commander,model,false,asset_watcher,hovered,delta_time,vsync_state)
     end
 end
 
@@ -185,8 +181,8 @@ function play!(self::App)
 end
 
 
-function update_theme!(self::App,changed_theme::ThemeType)
-    self._theme = changed_theme
+function update_theme!(self::App,changed_theme::Theme)
+    update_styles!(self._opengl,changed_theme)
 end
 
 function update!(self::App, state::ViewingState, iconified::Bool)

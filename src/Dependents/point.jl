@@ -45,12 +45,14 @@ mutable struct Points <:RendererDNA{PointDependent}
     _renderer::Renderer{PointDependent}
     _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
+    _style::PointStyle
 
     # GREEN Thread
     function Points(context::OpenGLData)
         renderer = Renderer{PointDependent}(context)
         refs = Vector{UInt32}()
-        new(renderer, context._renderers, refs)
+        style = theme_style(context._theme,point_style)
+        new(renderer, context._renderers, refs,style)
     end
 end
 
@@ -61,16 +63,19 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
     
-    theme = resolve_theme(LIGHT_THEME,point)
-     
-    color = isnothing(point._color) ? get_color(theme._color) : point._color
-     
-    style = isnothing(point._style) ? get_point_style(theme._style) : point._style
+    color = isnothing(point._color) ? get_color(self._style._color) : point._color
     
-    size = isnothing(point._size) ? UInt8(round(UInt8,theme._size)) : point._size
+    style = isnothing(point._style) ? get_point_style(self._style._style) : point._style
+    
+    size = isnothing(point._size) ? UInt8(round(UInt8,self._style._size)) : point._size
 
     ref = add!(self._renderers.point,Vec3F(point._coord),color,style,size,aID)
     push!(self._refs, ref)
+end
+
+function update_style!(self::Points,theme::Theme)
+    style = theme_style(theme,point_style)
+    self._style = style
 end
 
 # GREEN Thread

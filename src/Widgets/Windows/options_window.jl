@@ -2,7 +2,6 @@ mutable struct OptionsWindow <: WindowDNA
     _window::Window
 
     _whitebg::Ref{Bool}
-    _darkTheme::Ref{Bool}
 
     _pRend::PointRenderer
     _lRend::LineRenderer
@@ -12,21 +11,22 @@ mutable struct OptionsWindow <: WindowDNA
     _model::Model
 
     _oBgColor::Array{Cfloat}
-    _dBgColor::Array{Cfloat}
     
-    function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model)
-        new(Window(), false, false, pRenderer, lRenderer, tRenderer, sRenderer, model,
-        Cfloat[color[1], color[2], color[3]],
-        Cfloat[0.15f0,0.15f0,0.15f0])
+    _selectedTheme::Ref{Int}
+
+
     _gizmoLength::Ref{Float32}
     _gizmoThickness::Ref{Float32}
 
-    function OptionsWindow(color)
+    
+    function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model)
         whitebg = false
-        bgColor = Cfloat[color[1], color[2], color[3]]
+        oBgColor = Cfloat[color[1], color[2], color[3]]
+        dBgColor = Cfloat[0.15f0,0.15f0,0.15f0]
         gizmoLength = 1.0
         gizmoThickness = 1.0
-        new(Window(), whitebg, bgColor, gizmoLength, gizmoThickness)
+        selectedTheme= Ref(1)
+        new(Window(), whitebg, pRenderer, lRenderer, tRenderer, sRenderer, model, oBgColor,selectedTheme, gizmoLength, gizmoThickness)
     end
 end
 
@@ -39,10 +39,6 @@ end
 function _setBackground(self::OptionsWindow, app::AppDNA)
     if (self._whitebg[])
         glClearColor(1.0f0, 1.0f0, 1.0f0, 1.0f0)
-
-    elseif (self._darkTheme[])
-        glClearColor(self._dBgColor[1], self._dBgColor[2], self._dBgColor[3], 1.0f0)
-        
     else
         glClearColor(self._oBgColor[1], self._oBgColor[2], self._oBgColor[3], 1.0f0)
     end
@@ -57,39 +53,56 @@ function _setGizmo(self::OptionsWindow, app::AppDNA)
 end
 
 
+
 function renderContent(self::OptionsWindow, app::AppDNA)
-    
-    CImGui.BeginDisabled(self._darkTheme[])
     if (CImGui.Checkbox("White background", self._whitebg))
         _setBackground(self, app)
     end
-    CImGui.EndDisabled()
 
     CImGui.BeginDisabled(self._whitebg[])
-
-    if (CImGui.Checkbox("Dark theme", self._darkTheme))
-        setBackground(self,app)
-    end
-
-    CImGui.BeginDisabled(self._darkTheme[])
-
     if (CImGui.ColorEdit3("Custom background color", self._oBgColor, CImGui.ImGuiColorEditFlags_NoInputs))
-        setBackground(self, app)
-    if (CImGui.ColorEdit3("Custom background color", self._bgColor, CImGui.ImGuiColorEditFlags_NoInputs))
         _setBackground(self, app)
     end
-
-    CImGui.EndDisabled()
     CImGui.EndDisabled()
     
     CImGui.SameLine()
     if (CImGui.Button("Default"))
         defcol = getOpenGL(app)._backgroundCol
         self._oBgColor = Cfloat[defcol[1], defcol[2], defcol[3]]
-        setBackground(self, app)
-        self._bgColor = Cfloat[defcol[1], defcol[2], defcol[3]]
         _setBackground(self, app)
     end
+
+
+    if CImGui.BeginCombo("Theme", Themes[self._selectedTheme[]]._name)
+
+    for i in eachindex(Themes)
+
+        selected = (self._selectedTheme[] == i)
+
+        if CImGui.Selectable(Themes[i]._name, selected)
+
+            self._selectedTheme[] = i
+
+            theme = Themes[i]
+
+            update_theme!(app,theme)
+
+            #setStyle!(self._pRend, theme_style(theme, point_style))
+            #setStyle!(self._lRend, theme_style(theme, segmentsequence_style))
+            #setStyle!(self._tRend, theme_style(theme, trianglecluster_style))
+            #setStyle!(self._sRend, theme_style(theme, sphere_style))
+
+            _updateScene!(app)
+        end
+
+        if selected
+            CImGui.SetItemDefaultFocus()
+        end
+    end
+
+        CImGui.EndCombo()
+    end
+
 
     if (CImGui.CollapsingHeader("Gizmo settings"))
         if (CImGui.SliderFloat("Length", self._gizmoLength, 0.5, 2.0))

@@ -10,7 +10,7 @@ p4 = Point(-4,5, 1)
 l1 = Line(p3,p4)
 
 Point([l1];color="r") do line
-    return line.p + line.v
+    return line.p0 + (line.p1 - line.p0)
 end
 
 i1 = Intersection(s1, l1)

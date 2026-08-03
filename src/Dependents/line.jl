@@ -23,7 +23,7 @@ function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
     end
 
     return ValueHolder(PLine,deps) do p0,p1
-        return PLine(p0, normalize(p1 - p0))
+        return PLine(p0, p1)
     end
 end
 
@@ -35,7 +35,7 @@ function Line(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA
         if (pline === nothing) return nothing end
         
         d = sign(t) * 4^abs(t)
-        return pline.p + normalize(pline.v) * d
+        return pline.p0 + normalize(v(pline)) * d
     end
 
     return ValueHolder(PLine, dependents) do param
@@ -49,7 +49,7 @@ function Line(line,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size=3.0f0)
     
     return Line([line],color_style;color=color,style=style,size=size) do l
-        return PLine(p(l),v(l))
+        return PLine(p(l),p1(l))
     end
 end
 

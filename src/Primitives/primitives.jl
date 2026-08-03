@@ -32,24 +32,24 @@ end
 
 """
 Infinite representation of a line primitive.
-- p is a point on the line.
-- v is the direction vector.
+- p0 is a point on the line.
+- p1 is the second point that defines the direction.
 """
 struct PLine <: Primitive
-    p::Vec3D
-    v::Vec3D
+    p0::Vec3D
+    p1::Vec3D
 end
 
 Base.convert(::Type{PLine},::Nothing)::PLine = return PLine(Vec3DNan,Vec3DNan)
 
 """
 Infinite representation of a ray primitive.
-- p is the end point on the ray.
-- v is the direction vector.
+- p0 is the end point on the ray.
+- p1 is the second point that defines the direction.
 """
 struct PRay <: Primitive
-    p::Vec3D
-    v::Vec3D
+    p0::Vec3D
+    p1::Vec3D
 end
 
 Base.convert(::Type{PRay},::Nothing)::PRay = return PRay(Vec3DNan,Vec3DNan)

@@ -186,7 +186,7 @@ function PrimitiveToPrimitiveIntersection(plane1::PPlane,plane2::PPlane)::Union{
 
     line_p3 = (cross(plane_n3,plane2.n) * plane_d1 + cross(plane1.n,plane_n3) * plane_d2) / determinant
 
-    return PLine(line_p3,plane_n3)
+    return PLine(line_p3,line_p3 + plane_n3)
 end
 
 function Seg2SegSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64,Float64,Float64}
@@ -322,10 +322,14 @@ ParameterInside(::PLine,::Any)::Bool = true
 ParameterInside(::PRay,t)::Bool      = t >= 0.0
 ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
 
-p(line::PLine)::Vec3D       = line.p
-p(ray::PRay)::Vec3D         = ray.p
+p(line::PLine)::Vec3D       = line.p0
+p(ray::PRay)::Vec3D         = ray.p0
 p(segment::PSegment)::Vec3D = segment.p0
 
-v(line::PLine)::Vec3D       = line.v
-v(ray::PRay)::Vec3D         = ray.v
+p1(line::PLine)::Vec3D       = line.p0
+p1(ray::PRay)::Vec3D         = ray.p0
+p1(segment::PSegment)::Vec3D = segment.p0
+
+v(line::PLine)::Vec3D       = line.p1 - line.p0
+v(ray::PRay)::Vec3D         = ray.p1 - ray.p0
 v(segment::PSegment)::Vec3D = segment.p1 - segment.p0

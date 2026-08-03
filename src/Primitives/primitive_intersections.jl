@@ -231,3 +231,5 @@ function PrimitiveToPrimitiveIntersection(line::PLine,plane::PPlane)::Union{Vec3
 end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,line::PLine)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(line,plane)
+
+PrimitiveToPrimitiveIntersection(line1::PLine,line2::PLine)::Union{Vec3D,Nothing} = Vec3D(0)

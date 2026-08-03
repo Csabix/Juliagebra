@@ -27,7 +27,9 @@ mutable struct Line
     end
 end
 
-convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
+# convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
+convert_callback_entry(line::Line)::Line = line
+convert_intersection(self::Line)::Line = self
 
 function convert_callback_result(line::Line, result::Tuple{Vec3D,Vec3D})
     line.primitive = typeof(element.primitive)(result[1],result[2])
@@ -60,6 +62,18 @@ function render_node(line::Line, renderers::Dict{DataType,Renderer}, id::UInt32)
     end
     return nothing
 end
+
+# ? ---------------------------------
+# ! Line intersection
+# ? ---------------------------------
+
+struct PLineOfLine <: PrimitivesOf{PLine}
+    line::PLine
+end
+PrimitivesOf(self::Line) = PLineOfLine(self.primitive)
+
+Base.length(self::PLineOfLine) = 1
+Base.iterate(self::PLineOfLine, index::Integer = 1) = index == 1 ? (self.line, (index + 1)) : nothing
 
 # ? ---------------------------------
 # ! Line constructors

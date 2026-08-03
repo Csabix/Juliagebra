@@ -18,6 +18,7 @@ include("segment_sequence.jl")
 include("triangle_cluster.jl")
 include("line.jl")
 include("ray.jl")
+include("plane.jl")
 
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
 _deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)

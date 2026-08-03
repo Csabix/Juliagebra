@@ -62,7 +62,7 @@ function render_node(line::Line, renderers::Dict{DataType,Renderer}, id::UInt32)
 end
 
 # ? ---------------------------------
-# ! Line constructor(s)
+# ! Line constructors
 # ? ---------------------------------
 
 _get_parent_line(parent::NodeHandle) = parent

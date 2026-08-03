@@ -1,6 +1,6 @@
 
 # ? ---------------------------------
-# ! Ray constructor(s)
+# ! Ray constructors
 # ? ---------------------------------
 
 _get_parent_ray(parent::NodeHandle) = parent

@@ -1,47 +1,51 @@
 const LINE_N_LENGTH = ceil(Int16, log(4, 1000))
 const LINE_RANGE = range(-LINE_N_LENGTH, LINE_N_LENGTH, 2*LINE_N_LENGTH + 1)
+const RAY_RANGE = range(0, LINE_N_LENGTH, LINE_N_LENGTH + 1)
+const LINE_TYPE_RANGES = Dict{DataType,AbstractRange{Float64}}(
+    PLine   => LINE_RANGE,
+    PRay    => RAY_RANGE,
+)
+
+# ? ---------------------------------
+# ! Line node
+# ? ---------------------------------
 
 mutable struct Line
-    p0::Vec3D
-    p1::Vec3D
+    primitive::Union{PLine,PRay}
     handle::NodeHandle
     
+    range::AbstractRange{Float64}
     values::Vector{Vec3D}
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
 
-    function Line(colors::Vector{UInt32},style::UInt8,size::Float32)
-        values = Vector{Vec3D}(undef, length(LINE_RANGE))
-        new(Vec3DNan, Vec3DNan, UInt32(0), values, colors, style, size)
+    function Line(primitive::Union{PLine,PRay},colors::Vector{UInt32},style::UInt8,size::Float32)
+        range = LINE_TYPE_RANGES[typeof(primitive)]
+        values = Vector{Vec3D}(undef, length(range))
+        new(primitive, UInt32(0), range, values, colors, style, size)
     end
 end
 
-function convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D}
-    println("convert_callback_entry")
-    return (line.p0, line.p1)
-end
+convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
 
 function convert_callback_result(line::Line, result::Tuple{Vec3D,Vec3D})
-    println("convert_callback_result")
-    line.p0 = Vec3D(result[1])
-    line.p1 = Vec3D(result[2])
+    line.primitive = typeof(element.primitive)(result[1],result[2])
     return line
 end
 
 function convert_result(line::Line, index)
-    t = LINE_RANGE[index]
-    p = line.p0
-    v = normalize(line.p1 - line.p0)
+    t = line.range[index]
+    p = line.primitive.p0
+    v = normalize(line.primitive.p1 - p)
 
     line.values[index] = p + v * sign(t) * 4^abs(t)
 end
 function eval_node(element::Line, callback::Function, arguments::Vector{Any})::Any
     (p0,p1) = callback(arguments...)
-    element.p0 = p0
-    element.p1 = p1
+    element.primitive = typeof(element.primitive)(p0,p1)
 
-    for index in eachindex(LINE_RANGE)
+    for index in eachindex(element.range)
         convert_result(element,index)
     end
     return element
@@ -57,10 +61,31 @@ function render_node(line::Line, renderers::Dict{DataType,Renderer}, id::UInt32)
     return nothing
 end
 
+# ? ---------------------------------
+# ! Line constructor(s)
+# ? ---------------------------------
+
+_get_parent_line(parent::NodeHandle) = parent
+_get_parent_line(parent) = add_node!(Vec3D(parent))
+
 function Line(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size=3.0f0)
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(callback, Line(c,s,size), parents)
+    return add_node!(callback, Line(PLine(Vec3DNan,Vec3DNan),c,s,size), parents)
+end
+
+function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
+    color="g",style="-",size=3.0f0)
+
+    parents = NodeHandle[
+        _get_parent_line(p0),
+        _get_parent_line(p1),
+    ]
+
+    (c,s) = parse_line_colors_style(color_style,color,style)
+    return add_node!(Line(PLine(Vec3DNan,Vec3DNan),c,s,size), parents) do p0,p1
+        return (p0,p1)
+    end
 end
 
 export Line

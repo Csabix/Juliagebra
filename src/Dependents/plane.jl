@@ -96,6 +96,18 @@ function render_node(ps::Plane, renderers::Dict{DataType,Renderer}, id::UInt32):
 end 
 
 # ? ---------------------------------
+# ! Plane intersection
+# ? ---------------------------------
+
+struct PPlaneOfPlane <: PrimitivesOf{PPlane}
+    ray::PPlane
+end
+PrimitivesOf(self::Plane) = PPlaneOfPlane(self.primitive)
+
+Base.length(self::PPlaneOfPlane) = 1
+Base.iterate(self::PPlaneOfPlane, index::Integer = 1) = index == 1 ? (self.ray, (index + 1)) : nothing
+
+# ? ---------------------------------
 # ! Plane constructors
 # ? ---------------------------------
 

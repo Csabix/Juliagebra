@@ -41,14 +41,14 @@ evalCallbackDpEntry(self::IntersectionCalculatorDependent)::IntersectionCalculat
 convert_callback_entry(self::IntersectionCalculatorDependent)::IntersectionCalculatorDependent = return self
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
-    println("FindIntersections: default")
+    # println("FindIntersections: default")
     self._foundIntersectionNum = 0
     BruteForceIntersections(self,shapes_a,shapes_b)
     # println(self._foundIntersectionNum)
 end
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyLBVHDependent{PrimitivesOf{U}}, shapes_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
-    println("FindIntersections: lbvh")
+    # println("FindIntersections: lbvh")
     self._foundIntersectionNum = 0
 
     shapes_a._iter = PrimitivesOf(get_element(shapes_a._geometry))

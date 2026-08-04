@@ -17,27 +17,30 @@ p5 = Point(0.5,-1.5,0)
 p6 = Point(0.5,-0.5,0)
 plane2 = Plane(p4,p5,p6;color=(1.0,1.0,0.0,0.9))
 
-# Point([plane2];color="r") do plane
-#     return plane.p + plane.n * 2
-# end
+Point([plane2];color="r") do plane
+    # println(plane)
+    return nothing
+    return plane.p + plane.n * 2
+end
 
 p7 = Point(6.0,-5.6,-2.0)
 p8 = Point(3.9, 3.2, 3.0)
 segment1 = Segment(p7,p8)
 
-# i1 = Intersection(segment1, plane1)
-# Point([i1]) do intersection
-#     return intersection[1]
-# end
-# i2 = Intersection(plane2, segment1)
-# Point([i2]) do intersection
-#     return intersection[1]
-# end
+i1 = Intersection(segment1, plane1)
+Point([i1]) do intersection
+    return intersection[1]
+end
+i2 = Intersection(plane2, segment1)
+Point([i2]) do intersection
+    return intersection[1]
+end
 
-# i3 = Intersection(plane1, plane2)
-# Line([i3]) do intersection
-#     return intersection[1]
-# end
+i3 = Intersection(plane1, plane2)
+Line([i3]) do intersection
+    println(intersection[1])
+    return intersection[1]
+end
 
 parallelHandle = Point(0,3,3)
 parallelPlane1 = Plane(
@@ -46,22 +49,23 @@ parallelPlane1 = Plane(
     parallelHandle
 )
 
-# i4 = Intersection(plane1, parallelPlane1)
-# Line([i4]) do intersection
-#     return intersection[1]
-# end
+i4 = Intersection(plane1, parallelPlane1)
+Line([i4]) do intersection
+    println(intersection[1])
+    return intersection[1]
+end
 
 ray1 = Ray(Vec3D(3,-1,-2),Vec3D(3,-1,2);color="m")
-# i5 = Intersection(plane2, ray1)
-# Point([i5]) do intersection
-#     return intersection[1]
-# end
+i5 = Intersection(plane2, ray1)
+Point([i5]) do intersection
+    return intersection[1]
+end
 
 l1 = Line(Vec3D(-5,-5,10),Vec3D(-5,-5,-10);color="b")
-# i6 = Intersection(l1, plane2)
-# Point([i6]) do intersection
-#     return intersection[1]
-# end
+i6 = Intersection(l1, plane2)
+Point([i6]) do intersection
+    return intersection[1]
+end
 
 p9  = Point(-3,-3,-2)
 p10 = Point(-5,-3,-2)

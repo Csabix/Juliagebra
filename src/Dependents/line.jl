@@ -25,24 +25,18 @@ end
 # convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
 convert_callback_entry(line::Line)::Line = line
 
-function convert_callback_result(line::Line, result::Tuple{Vec3D,Vec3D})
-    line.primitive = PLine(result[1],result[2])
-    return line
-end
+convert_result(result::Tuple{Vec3D,Vec3D})::PLine = PLine(result[1],result[2])
+convert_result(result::PLine)::PLine = result
+convert_result(::Nothing)::PLine = PLine(Vec3DNan,Vec3DNan)
 
-function convert_result(line::Line, index)
-    t = line.range[index]
-    p = line.primitive.p0
-    v = normalize(line.primitive.p1 - p)
-
-    line.values[index] = p + v * sign(t) * 4^abs(t)
-end
 function eval_node(element::Line, callback::Function, arguments::Vector{Any})::Any
-    (p0,p1) = callback(arguments...)
-    element.primitive = PLine(p0,p1)
+    element.primitive = convert_result(callback(arguments...))
 
     for index in eachindex(element.range)
-        convert_result(element,index)
+        t = element.range[index]
+        p = element.primitive.p0
+        v = normalize(element.primitive.p1 - p)
+        element.values[index] = p + v * sign(t) * 4^abs(t)
     end
     return element
 end

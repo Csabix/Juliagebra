@@ -24,32 +24,26 @@ end
 # convert_callback_entry(ray::Ray)::Tuple{Vec3D,Vec3D} = (ray.primitive.p0, ray.primitive.p1)
 convert_callback_entry(ray::Ray)::Ray = ray
 
-function convert_callback_result(ray::Ray, result::Tuple{Vec3D,Vec3D})
-    ray.primitive = PRay(result[1],result[2])
-    return ray
-end
+convert_result(ray::Ray, result::PRay)               = ray.primitive = result
+convert_result(ray::Ray, result::Tuple{Vec3D,Vec3D}) = ray.primitive = PRay(result[1],result[2])
+convert_result(ray::Ray, ::Nothing)                  = ray.primitive = PRay(Vec3DNan,Vec3DNan)
 
-function convert_result(ray::Ray, index)
-    t = ray.range[index]
-    p = ray.primitive.p0
-    v = normalize(ray.primitive.p1 - p)
+function eval_node(ray::Ray, callback::Function, arguments::Vector{Any})::Any
+    convert_result(ray, callback(arguments...))
 
-    ray.values[index] = p + v * sign(t) * 4^abs(t)
-end
-function eval_node(element::Ray, callback::Function, arguments::Vector{Any})::Any
-    (p0,p1) = callback(arguments...)
-    element.primitive = PRay(p0,p1)
-
-    for index in eachindex(element.range)
-        convert_result(element,index)
+    for index in eachindex(ray.range)
+        t = ray.range[index]
+        p = ray.primitive.p0
+        v = normalize(ray.primitive.p1 - p)
+        ray.values[index] = p + v * sign(t) * 4^abs(t)
     end
-    return element
+    return ray
 end
 
 function render_node(ray::Ray, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
     line_renderer::LineRenderer = renderers[LineRenderer]
     if ray.handle == 0
-        ray.handle = add!(line_renderer,ray.values,Iterators.cycle(ray.colors),Iterators.cycle(id),5.0f0,ray.style)
+        ray.handle = add!(line_renderer,ray.values,Iterators.cycle(ray.colors),Iterators.cycle(id),ray.size,ray.style)
     else
         update_coords!(line_renderer,ray.handle,ray.values)
     end

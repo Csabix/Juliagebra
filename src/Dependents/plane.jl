@@ -41,8 +41,8 @@ function convert_result(plane::Plane,u_idx,v_idx,uf,vf)
     v = sign(vf) * 10^abs(vf)
     plane.uvValues[u_idx,v_idx] = p + (dir1 * v + perp * u)
 end
-function setFirstNormal!(element::Plane, u::Int, v::Int, w::Int, h::Int)
-    vals = element.uvValues
+function setFirstNormal!(plane::Plane, u::Int, v::Int, w::Int, h::Int)
+    vals = plane.uvValues
 
     right = vals[min(u + 1, w), v]
     left  = vals[max(u - 1, 1), v]
@@ -51,30 +51,30 @@ function setFirstNormal!(element::Plane, u::Int, v::Int, w::Int, h::Int)
 
     uVec = right - left
     vVec = down - up
-    element.uvNormals[u, v] = normalize(cross(uVec, vVec))
+    plane.uvNormals[u, v] = normalize(cross(uVec, vVec))
 end
-function setNormalSameAsFirst!(element::Plane, u::Int, v::Int)
-    element.uvNormals[u, v] = element.uvNormals[1, 1]
+function setNormalSameAsFirst!(plane::Plane, u::Int, v::Int)
+    plane.uvNormals[u, v] = plane.uvNormals[1, 1]
 end
-function eval_node(element::Plane, callback::Function, arguments::Vector{Any})::Any
+function eval_node(plane::Plane, callback::Function, arguments::Vector{Any})::Any
     (p,n) = callback(arguments...)
-    element.primitive = PPlane(p,n)
+    plane.primitive = PPlane(p,n)
 
     for (v, vf) in enumerate(PLANE_RANGE), (u, uf) in enumerate(PLANE_RANGE)
-        convert_result(element, u, v, uf, vf)
+        convert_result(plane, u, v, uf, vf)
     end
     
-    w = width(element.uvValues)
-    h = height(element.uvValues)
+    w = width(plane.uvValues)
+    h = height(plane.uvValues)
     for v in 1:h, u in 1:w
         if (v == 1 && u == 1)
-            setFirstNormal!(element, u, v, w, h)
+            setFirstNormal!(plane, u, v, w, h)
         else
-            setNormalSameAsFirst!(element, u, v)
+            setNormalSameAsFirst!(plane, u, v)
         end
     end
 
-    return element
+    return plane
 end
 
 function render_node(ps::Plane, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
@@ -93,7 +93,10 @@ function render_node(ps::Plane, renderers::Dict{DataType,Renderer}, id::UInt32):
         update_coords!(triangle_renderer,ps.handle,triangles)
     end
     return nothing
-end 
+end
+
+p0(plane::Plane) = plane.primitive.p
+n(plane::Plane) = plane.primitive.n
 
 # ? ---------------------------------
 # ! Plane intersection
@@ -139,3 +142,4 @@ function Plane(p0,p1,p2,color_data::Union{Nothing,String}=nothing;
 end
 
 export Plane
+export p0,n

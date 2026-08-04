@@ -8,35 +8,34 @@ s1 = Segment(p1,p2)
 
 p3 = Point( 4,5,-1)
 p4 = Point(-4,5, 1)
-l1 = Line(p3,p4)
-# l1 = Line([p3,p4]) do p0,p1
-#     return (p0,p1)
-# end
+l1 = Line([p3,p4]) do p0,p1
+    return (p0,p1)
+end
 
-# Point([l1];color="r") do (p0,p1)
-#     return p0 + normalize(p1 - p0)
-# end
+Point([l1];color="r") do line
+    return p0(line) + normalize(v(line))
+end
 
-# i1 = Intersection(s1, l1)
-# Point([i1]) do intersection
-#     return intersection[1]
-# end
+i1 = Intersection(s1, l1)
+Point([i1]) do intersection
+    return intersection[1]
+end
 
 p5 = Point( 4,5,  0)
 p6 = Point(-4,5,1.9)
 l2 = Line(p5,p6;color="y",style=".")
 
-# i2 = Intersection(l2, s1)
-# Point([i2]) do intersection
-#     return intersection[1]
-# end
+i2 = Intersection(l2, s1)
+Point([i2]) do intersection
+    return intersection[1]
+end
 
 i3 = Intersection(l1, l2)
 Point([i3]) do intersection
     return intersection[1]
 end
 
-# t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
+t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
 
 p7 = Point(-1.0,2.4,-0.6)
 p8 = Point(2.0,4.3,0.0)

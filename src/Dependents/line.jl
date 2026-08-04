@@ -25,31 +25,35 @@ end
 # convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
 convert_callback_entry(line::Line)::Line = line
 
-convert_result(result::Tuple{Vec3D,Vec3D})::PLine = PLine(result[1],result[2])
-convert_result(result::PLine)::PLine = result
-convert_result(::Nothing)::PLine = PLine(Vec3DNan,Vec3DNan)
+convert_result(line::Line, result::PLine)::PLine       = line.primitive = result
+convert_result(line::Line, result::Tuple{Vec3D,Vec3D}) = line.primitive = PLine(result[1],result[2])
+convert_result(line::Line, ::Nothing)                  = line.primitive = PLine(Vec3DNan,Vec3DNan)
 
-function eval_node(element::Line, callback::Function, arguments::Vector{Any})::Any
-    element.primitive = convert_result(callback(arguments...))
+function eval_node(line::Line, callback::Function, arguments::Vector{Any})::Any
+    convert_result(line, callback(arguments...))
 
-    for index in eachindex(element.range)
-        t = element.range[index]
-        p = element.primitive.p0
-        v = normalize(element.primitive.p1 - p)
-        element.values[index] = p + v * sign(t) * 4^abs(t)
+    for index in eachindex(line.range)
+        t = line.range[index]
+        p = line.primitive.p0
+        v = normalize(line.primitive.p1 - p)
+        line.values[index] = p + v * sign(t) * 4^abs(t)
     end
-    return element
+    return line
 end
 
 function render_node(line::Line, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
     line_renderer::LineRenderer = renderers[LineRenderer]
     if line.handle == 0
-        line.handle = add!(line_renderer,line.values,Iterators.cycle(line.colors),Iterators.cycle(id),5.0f0,line.style)
+        line.handle = add!(line_renderer,line.values,Iterators.cycle(line.colors),Iterators.cycle(id),line.size,line.style)
     else
         update_coords!(line_renderer,line.handle,line.values)
     end
     return nothing
 end
+
+p0(line::Line)::Vec3D = p0(line.primitive)
+p1(line::Line)::Vec3D = p1(line.primitive)
+v(line::Line)::Vec3D  = v(line.primitive)
 
 # ? ---------------------------------
 # ! Line intersection
@@ -91,3 +95,4 @@ function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
 end
 
 export Line
+export p0,p1,v

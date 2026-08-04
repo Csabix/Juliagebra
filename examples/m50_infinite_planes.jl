@@ -18,9 +18,7 @@ p6 = Point(0.5,-0.5,0)
 plane2 = Plane(p4,p5,p6;color=(1.0,1.0,0.0,0.9))
 
 Point([plane2];color="r") do plane
-    # println(plane)
-    return nothing
-    return plane.p + plane.n * 2
+    return p0(plane) + n(plane) * 2
 end
 
 p7 = Point(6.0,-5.6,-2.0)
@@ -38,7 +36,6 @@ end
 
 i3 = Intersection(plane1, plane2)
 Line([i3]) do intersection
-    println(intersection[1])
     return intersection[1]
 end
 
@@ -51,7 +48,6 @@ parallelPlane1 = Plane(
 
 i4 = Intersection(plane1, parallelPlane1)
 Line([i4]) do intersection
-    println(intersection[1])
     return intersection[1]
 end
 

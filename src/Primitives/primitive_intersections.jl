@@ -211,7 +211,7 @@ function Seg2SegSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64
 end
 
 function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line2::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
-    (d2,t,s) = Seg2SegSqDistParams(p(line1), v(line1), p(line2), v(line2))
+    (d2,t,s) = Seg2SegSqDistParams(p0(line1), v(line1), p0(line2), v(line2))
     if (d2 === NaN || t === NaN || s === NaN)
         return nothing
     end
@@ -219,14 +219,14 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
     println("not aabb")
     
     if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= LINE_TO_LINE_EPSILON^2)
-        return (p(line1) + v(line1) * t + p(line2) + v(line2) * s) / 2.0
+        return (p0(line1) + v(line1) * t + p0(line2) + v(line2) * s) / 2.0
     else
         return nothing
     end
 end
 
 function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
-    p0 = p(line)
+    p0 = p0(line)
     dir = v(line)
 
     ab = triangle.v1 - triangle.v0
@@ -262,9 +262,9 @@ function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,P
         return nothing
     end
 
-    t = dot(plane.p-p(line),plane.n) / l
+    t = dot(plane.p-p0(line),plane.n) / l
     if (ParameterInside(line,t))
-        return p(line) + t * v(line)
+        return p0(line) + t * v(line)
     else
         return nothing
     end
@@ -326,9 +326,9 @@ ParameterInside(::PLine,::Any)::Bool = true
 ParameterInside(::PRay,t)::Bool      = t >= 0.0
 ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
 
-p(line::PLine)::Vec3D       = line.p0
-p(ray::PRay)::Vec3D         = ray.p0
-p(segment::PSegment)::Vec3D = segment.p0
+p0(line::PLine)::Vec3D       = line.p0
+p0(ray::PRay)::Vec3D         = ray.p0
+p0(segment::PSegment)::Vec3D = segment.p0
 
 p1(line::PLine)::Vec3D       = line.p0
 p1(ray::PRay)::Vec3D         = ray.p0

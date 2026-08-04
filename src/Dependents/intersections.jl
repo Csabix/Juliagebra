@@ -38,11 +38,12 @@ onNodeEval(self::IntersectionCalculatorDependent) = evalCallbackDp(self; callbac
 evalCallbackDpReturn(self::IntersectionCalculatorDependent,::Nothing) = return nothing
 
 evalCallbackDpEntry(self::IntersectionCalculatorDependent)::IntersectionCalculatorDependent = return self
+convert_callback_entry(self::IntersectionCalculatorDependent)::IntersectionCalculatorDependent = return self
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
     self._foundIntersectionNum = 0
     BruteForceIntersections(self,shapes_a,shapes_b)
-    println(self._foundIntersectionNum)
+    # println(self._foundIntersectionNum)
 end
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyLBVHDependent{PrimitivesOf{U}}, shapes_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
@@ -62,9 +63,13 @@ function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyL
 end
 
 function BruteForceIntersections(self::IntersectionCalculatorDependent{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
+    println("<<< brute force start >>>")
+    println("shapes_a: ", shapes_a)
+    println("shapes_b: ", shapes_b)
     for primitive_a in shapes_a
         for primitive_b in shapes_b
             intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
+            println("intersection of $primitive_a and $primitive_b: $intersection")
             if (intersection !== nothing)
                 if (self._foundIntersectionNum < length(self._intersections))
                     self._intersections[self._foundIntersectionNum + 1] = intersection
@@ -75,6 +80,7 @@ function BruteForceIntersections(self::IntersectionCalculatorDependent{T}, shape
             end
         end
     end
+    println("<<< brute force end >>>")
 end
 
 function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh::LazyLBVHDependent{PrimitivesOf{U}}, geometry_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}    
@@ -115,11 +121,26 @@ end
 # ! IntersectionCalculator(T)
 # ? ---------------------------------
 
+function eval_node(element::IntersectionCalculatorDependent, callback::Function, arguments::Vector{Any})::Any
+    println("eval_node")
+    callback(element, arguments...)
+    println("foundNum: ", element._foundIntersectionNum)
+    println("its[1]: ", element._intersections[1])
+    return element
+end
+
 # YELLOW Thread
 # IntersectionCalculator(T12::Type, geometry1::NodeHandle, geometry2::NodeHandle; maxIntersectionNum=25) =
 # Build!(IntersectionCalculatorDependent{T12}(geometry1,geometry2,UInt(maxIntersectionNum)))
-IntersectionCalculator(T12::Type, geometry1::NodeHandle, geometry2::NodeHandle; maxIntersectionNum=25) =
-add_node!(IntersectionCalculatorDependent{T12}(geometry1,geometry2,UInt(maxIntersectionNum)))
+function IntersectionCalculator(T12::Type, geometry1::NodeHandle, geometry2::NodeHandle; maxIntersectionNum=25)
+    add_node!(IntersectionCalculatorDependent{T12}(geometry1,geometry2,UInt(maxIntersectionNum)),[geometry1,geometry2]) do data,g1,g2
+        println(typeof(data))
+        println(g1)
+        println(g2)
+        FindIntersections(data,g1,g2)
+        return nothing
+    end
+end
 
 # ? ---------------------------------
 # ! Intersection
@@ -132,7 +153,7 @@ end
 function InferPrimitivesT(geometry::NodeHandle)
     DependentT::Type = typeof(get_element(geometry))
     println("\tDependentT: ", DependentT)
-    CallbackDpEntryT::Type = InferSingletonDefinitionFor(DependentT,convert_intersection,Any)
+    CallbackDpEntryT::Type = InferSingletonDefinitionFor(DependentT,convert_callback_entry,Any)
     println("\tCallbackDpEntryT: ", CallbackDpEntryT)
     PrimitivesOfT::Type = InferSingletonDefinitionFor(CallbackDpEntryT,PrimitivesOf,PrimitivesOf)
     println("\tPrimitivesOfT: ", PrimitivesOfT)
@@ -161,12 +182,16 @@ function _Intersection(geometry1::NodeHandle,geometry2::NodeHandle, T1::Type{<:P
         return PrimitivesOf(g)
     end
     
-    println("_")
+    println("___")
 
     # gvh1::GenericValueHolderDependent{PrimitivesOf{T1}} = getIntersectionPrimitiveIter!(implicitApp._optimizer,geometry1,T1,call)
     # gvh2::GenericValueHolderDependent{PrimitivesOf{T2}} = getIntersectionPrimitiveIter!(implicitApp._optimizer,geometry2,T2,call)
-    gvh1 = add_node!(call,geometry1,[geometry1])
-    gvh2 = add_node!(call,geometry2,[geometry2])
+    println(PrimitivesOf(get_element(geometry1)))
+    println("OKAY")
+    gvh1 = add_node!(call,PrimitivesOf(get_element(geometry1)),[geometry1])
+    # println(get_element(gvh1))
+    gvh2 = add_node!(call,PrimitivesOf(get_element(geometry2)),[geometry2])
+    # println(get_element(gvh2))
 
     return IntersectionCalculator(T12, gvh1, gvh2; maxIntersectionNum=maxIntersectionNum)
 end

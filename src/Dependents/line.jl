@@ -29,7 +29,6 @@ end
 
 # convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
 convert_callback_entry(line::Line)::Line = line
-convert_intersection(self::Line)::Line = self
 
 function convert_callback_result(line::Line, result::Tuple{Vec3D,Vec3D})
     line.primitive = typeof(element.primitive)(result[1],result[2])

@@ -12,9 +12,9 @@ l1 = Line([p3,p4]) do p0,p1
     return (p0,p1)
 end
 
-Point([l1];color="r") do (p0,p1)
-    return p0 + normalize(p1 - p0)
-end
+# Point([l1];color="r") do (p0,p1)
+#     return p0 + normalize(p1 - p0)
+# end
 
 # i1 = Intersection(s1, l1)
 # Point([i1]) do intersection
@@ -30,10 +30,10 @@ l2 = Line(p5,p6;color="y",style=".")
 #     return intersection[1]
 # end
 
-# i3 = Intersection(l1, l2)
-# Point([i3]) do intersection
-#     return intersection[1]
-# end
+i3 = Intersection(l1, l2)
+Point([i3]) do intersection
+    return intersection[1]
+end
 
 t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
 

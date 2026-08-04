@@ -1,17 +1,12 @@
 const LINE_N_LENGTH = ceil(Int16, log(4, 1000))
 const LINE_RANGE = range(-LINE_N_LENGTH, LINE_N_LENGTH, 2*LINE_N_LENGTH + 1)
-const RAY_RANGE = range(0, LINE_N_LENGTH, LINE_N_LENGTH + 1)
-const LINE_TYPE_RANGES = Dict{DataType,AbstractRange{Float64}}(
-    PLine   => LINE_RANGE,
-    PRay    => RAY_RANGE,
-)
 
 # ? ---------------------------------
 # ! Line node
 # ? ---------------------------------
 
 mutable struct Line
-    primitive::Union{PLine,PRay}
+    primitive::PLine
     handle::NodeHandle
     
     range::AbstractRange{Float64}
@@ -20,8 +15,8 @@ mutable struct Line
     style::UInt8
     size::Float32
 
-    function Line(primitive::Union{PLine,PRay},colors::Vector{UInt32},style::UInt8,size::Float32)
-        range = LINE_TYPE_RANGES[typeof(primitive)]
+    function Line(primitive::PLine,colors::Vector{UInt32},style::UInt8,size::Float32)
+        range = LINE_RANGE
         values = Vector{Vec3D}(undef, length(range))
         new(primitive, UInt32(0), range, values, colors, style, size)
     end
@@ -31,7 +26,7 @@ end
 convert_callback_entry(line::Line)::Line = line
 
 function convert_callback_result(line::Line, result::Tuple{Vec3D,Vec3D})
-    line.primitive = typeof(element.primitive)(result[1],result[2])
+    line.primitive = PLine(result[1],result[2])
     return line
 end
 
@@ -44,7 +39,7 @@ function convert_result(line::Line, index)
 end
 function eval_node(element::Line, callback::Function, arguments::Vector{Any})::Any
     (p0,p1) = callback(arguments...)
-    element.primitive = typeof(element.primitive)(p0,p1)
+    element.primitive = PLine(p0,p1)
 
     for index in eachindex(element.range)
         convert_result(element,index)

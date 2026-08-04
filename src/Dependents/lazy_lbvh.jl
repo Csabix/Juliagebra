@@ -11,6 +11,8 @@ mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}}
     @atomic _isCacheOld::Bool
     _cacheLock::ReentrantLock
 
+    _geometry::NodeHandle
+
     # YELLOW Thread
     function LazyLBVHDependent{T}(geometry::Any) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
         iter = nothing
@@ -18,7 +20,7 @@ mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}}
         isCacheOld = false
         cacheLock = ReentrantLock()
 
-        new{T}(iter,lbvh,isCacheOld,cacheLock)
+        new{T}(iter,lbvh,isCacheOld,cacheLock,geometry)
     end
 end
 
@@ -42,19 +44,41 @@ end
 
 # YELLOW Thread
 # RED Thread
-onNodeEval(self::LazyLBVHDependent) = evalCallbackDp(self)
-
-function evalCallbackDpReturn(self::LazyLBVHDependent{T},iter::T) where T
-    self._iter = iter
-    @atomic self._isCacheOld = true
+# onNodeEval(self::LazyLBVHDependent) = evalCallbackDp(self)
+# function eval_node(element::LazyLBVHDependent,iter::T)::Any where T
+#     println("--- EVAL LazyLBVHDependent ---")
+#     return element
+# end
+function eval_node(element::LazyLBVHDependent{T}, callback::Function, arguments::Vector{Any})::Any where T
+    # println("!!! EVAL LazyLBVHDependent !!!")
+    return element
 end
 
-evalCallbackDpEntry(self::LazyLBVHDependent)::LazyLBVHDependent = return self
+# function evalCallbackDpReturn(self::LazyLBVHDependent{T},iter::T) where T
+#     println("--- EVAL LazyLBVHDependent ---")
+#     self._iter = iter
+#     @atomic self._isCacheOld = true
+# end
+function convert_callback_result(element::LazyLBVHDependent{T}, result) where T
+    # println("!!! convert_callback_result !!!")
+    return element
+end
+
+# evalCallbackDpEntry(self::LazyLBVHDependent)::LazyLBVHDependent = return self
+function convert_callback_entry(self::LazyLBVHDependent)::LazyLBVHDependent
+    # println("!!! convert_callback_entry !!!")
+    # self._iter = iter
+    # @atomic self._isCacheOld = true
+    return self
+end
 
 # ? ---------------------------------
 # ! LazyLBVH(T)
 # ? ---------------------------------
 
 # YELLOW Thread
-LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any) =
-Build!(LazyLBVHDependent{T}(geometry))
+# LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any) =
+# Build!(LazyLBVHDependent{T}(geometry))
+function LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any)
+    add_node!(LazyLBVHDependent{T}(geometry),[geometry])
+end

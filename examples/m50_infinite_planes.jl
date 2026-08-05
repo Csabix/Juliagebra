@@ -72,25 +72,25 @@ p13 = Point(-5,-4,1)
 p14 = Point(-2,-4,1)
 triangle2 = Triangle(p12,p13,p14;color=(.0,.0,1.0,0.9))
 
-# i7 = Intersection(triangle1,triangle2)
-# for i in 1:25
-#     Segment([i7]) do intersection
-#         return intersection[i]
-#     end
-# end
+i7 = Intersection(triangle1,triangle2)
+for i in 1:25
+    Segment([i7]) do intersection
+        return intersection[i]
+    end
+end
 
-# i7 = Intersection(triangle1,plane2)
-# for i in 1:25
-#     Segment([i7]) do intersection
-#         return intersection[i]
-#     end
-# end
-# i8 = Intersection(plane2,triangle2)
-# for i in 1:25
-#     Segment([i8]) do intersection
-#         return intersection[i]
-#     end
-# end
+i7 = Intersection(triangle1,plane2)
+for i in 1:25
+    Segment([i7]) do intersection
+        return intersection[i]
+    end
+end
+i8 = Intersection(plane2,triangle2)
+for i in 1:25
+    Segment([i8]) do intersection
+        return intersection[i]
+    end
+end
 
 
 

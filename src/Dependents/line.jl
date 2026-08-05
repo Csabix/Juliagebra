@@ -9,16 +9,14 @@ mutable struct Line
     primitive::PLine
     handle::NodeHandle
     
-    range::AbstractRange{Float64}
     values::Vector{Vec3D}
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
 
-    function Line(primitive::PLine,colors::Vector{UInt32},style::UInt8,size::Float32)
-        range = LINE_RANGE
-        values = Vector{Vec3D}(undef, length(range))
-        new(primitive, UInt32(0), range, values, colors, style, size)
+    function Line(colors::Vector{UInt32},style::UInt8,size::Float32)
+        values = Vector{Vec3D}(undef, length(LINE_RANGE))
+        new(PLine(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, size)
     end
 end
 
@@ -32,8 +30,8 @@ convert_result(line::Line, ::Nothing)                  = line.primitive = PLine(
 function eval_node(line::Line, callback::Function, arguments::Vector{Any})::Any
     convert_result(line, callback(arguments...))
 
-    for index in eachindex(line.range)
-        t = line.range[index]
+    for index in eachindex(LINE_RANGE)
+        t = LINE_RANGE[index]
         p = line.primitive.p0
         v = normalize(line.primitive.p1 - p)
         line.values[index] = p + v * sign(t) * 4^abs(t)
@@ -77,7 +75,7 @@ _get_parent_line(parent) = add_node!(Vec3D(parent))
 function Line(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size=3.0f0)
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(callback, Line(PLine(Vec3DNan,Vec3DNan),c,s,size), parents)
+    return add_node!(callback, Line(c,s,size), parents)
 end
 
 function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
@@ -89,7 +87,7 @@ function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
     ]
 
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(Line(PLine(Vec3DNan,Vec3DNan),c,s,size), parents) do p0,p1
+    return add_node!(Line(c,s,size), parents) do p0,p1
         return (p0,p1)
     end
 end

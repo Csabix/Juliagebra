@@ -81,7 +81,6 @@ PrimitivesOf(self::TriangleCluster) = PTrianglesOfTriangleCluster(self.mesh.posi
 
 Base.length(self::PTrianglesOfTriangleCluster) = convert(Integer, length(self._triangles) / 3)
 function Base.iterate(self::PTrianglesOfTriangleCluster, index::Integer = 1)
-    println("iterate: $index / ", length(self))
     if (index <= length(self))
         v0 = self._triangles[index * 3 - 2]
         v1 = self._triangles[index * 3 - 1]

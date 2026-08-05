@@ -49,6 +49,7 @@ function reset!(self::TriangleRenderer)::Nothing
     self.color_ids = Vector{Vec2T{UInt32}}()
     self.update_normals = Vector{UInt32}()
     self.color_updates = Vector{UInt32}()
+    self.infinite_ids = Vector{Bool}()
     return nothing
 end
 

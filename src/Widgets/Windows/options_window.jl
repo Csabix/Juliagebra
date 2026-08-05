@@ -79,10 +79,10 @@ function renderContent(self::OptionsWindow, app::AppDNA)
     end
 
     if (CImGui.CollapsingHeader("Infinite AABB settings"))
-        if (CImGui.DragFloat3("Minimum", self._aabbMin, 1.0, -100.0, 100.0))
+        if (CImGui.DragFloat3("Minimum", self._aabbMin, 1.0, -100.0, -1.0))
             _setInfiniteAABBSize(self, app)
         end
-        if (CImGui.DragFloat3("Maximum", self._aabbMax, 1.0, -100.0, 100.0))
+        if (CImGui.DragFloat3("Maximum", self._aabbMax, 1.0, 1.0, 100.0))
             _setInfiniteAABBSize(self, app)
         end
     end

@@ -86,7 +86,7 @@ function render_node(ps::Plane, renderers::Dict{DataType,Renderer}, id::UInt32):
         triangulateInto!(ps.indexes,ps.vertexes,layers(ps.vertexes))
         copy!(ps.uvValues,ps.vertexes,layers(ps.vertexes))
         triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)),ps.vertexes,layers(ps.vertexes))
-        ps.handle = add!(triangle_renderer,triangles,mat4(1.0f0),ps.color,id)
+        ps.handle = add!(triangle_renderer,triangles,mat4(1.0f0),ps.color,true,id)
     else
         copy!(ps.uvValues,ps.vertexes,layers(ps.vertexes))
         triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)),ps.vertexes,layers(ps.vertexes))

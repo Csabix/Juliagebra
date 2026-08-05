@@ -65,7 +65,7 @@ function render_node(triangles::TriangleCluster, renderers::Dict{DataType,Render
             [Vec3F(triangles.mesh.positions[ind+1]) for ind in triangles.mesh.indices]
         end
     if triangles.handle == 0
-        triangles.handle = add!(triangle_renderer,triangulated,Mat4T{Float32}(triangles.transform),triangles.color,id)
+        triangles.handle = add!(triangle_renderer,triangulated,Mat4T{Float32}(triangles.transform),triangles.color,false,id)
     else
         update_coords!(triangle_renderer,triangles.handle,triangulated)
         update_color!(triangle_renderer,triangles.handle,triangles.color)

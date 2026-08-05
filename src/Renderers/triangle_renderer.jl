@@ -1,7 +1,8 @@
 struct _TriangleTransform
     M::Mat4T{Float32}
     MIT::Mat4T{Float32}
-    _TriangleTransform(M::Mat4T{Float32}) = new(M,inv(transpose(M)))
+    IsInfinite::Int32
+    _TriangleTransform(M::Mat4T{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
 end
 
 mutable struct TriangleRenderer <: Renderer
@@ -15,6 +16,7 @@ mutable struct TriangleRenderer <: Renderer
     matrices::Vector{Mat4T{Float32}}
     coords::Vector{Vector{Vec4F}}
     color_ids::Vector{Vec2T{UInt32}}
+    infinite_ids::Vector{Bool}
 
     update_normals::Vector{UInt32}
     color_updates::Vector{UInt32}
@@ -31,7 +33,7 @@ mutable struct TriangleRenderer <: Renderer
         new(calc_normals,opaque,transparent,
             RepeatBufferUBO{_TriangleTransform}(),
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
-            Vector{Mat4T{Float32}}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),
+            Vector{Mat4T{Float32}}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),Vector{Bool}(),
             Vector{UInt32}(),
             Vector{UInt32}()
         )
@@ -54,10 +56,11 @@ function destroy!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
 end
 
-function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,id::UInt32)::UInt32
+function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,isInfinite::Bool,id::UInt32)::UInt32
     push!(self.coords, collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords)))
     push!(self.matrices, matrix)
     push!(self.color_ids,UVec2(color,id))
+    push!(self.infinite_ids,isInfinite)
     return UInt32(length(self.coords))
 end
 
@@ -133,7 +136,7 @@ function pre_draw!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
         glDispatchCompute(cld(length(self.coords[i]),64),1,1);
     end
 
-    transforms = _TriangleTransform[_TriangleTransform(M) for M in self.matrices]
+    transforms = _TriangleTransform[_TriangleTransform(M,is_infinite) for (M,is_infinite) in zip(self.matrices,self.infinite_ids)]
     if length(self.UBO) != length(transforms)
         upload!(self.UBO,transforms,GL_DYNAMIC_STORAGE_BIT)
     else

@@ -42,43 +42,24 @@ function getLBVH(self::LazyLBVHDependent)
     return self._lbvh
 end
 
-# YELLOW Thread
-# RED Thread
-# onNodeEval(self::LazyLBVHDependent) = evalCallbackDp(self)
-# function eval_node(element::LazyLBVHDependent,iter::T)::Any where T
-#     println("--- EVAL LazyLBVHDependent ---")
-#     return element
-# end
-function eval_node(element::LazyLBVHDependent{T}, callback::Function, arguments::Vector{Any})::Any where T
-    # println("!!! EVAL LazyLBVHDependent !!!")
-    return element
-end
+convert_callback_entry(self::LazyLBVHDependent)::LazyLBVHDependent = self
 
-# function evalCallbackDpReturn(self::LazyLBVHDependent{T},iter::T) where T
-#     println("--- EVAL LazyLBVHDependent ---")
-#     self._iter = iter
-#     @atomic self._isCacheOld = true
-# end
 function convert_callback_result(element::LazyLBVHDependent{T}, result) where T
-    # println("!!! convert_callback_result !!!")
+    element._iter = result
+    @atomic element._isCacheOld = true
     return element
 end
 
-# evalCallbackDpEntry(self::LazyLBVHDependent)::LazyLBVHDependent = return self
-function convert_callback_entry(self::LazyLBVHDependent)::LazyLBVHDependent
-    # println("!!! convert_callback_entry !!!")
-    # self._iter = iter
-    # @atomic self._isCacheOld = true
-    return self
+function eval_node(::LazyLBVHDependent{T}, callback::Function, arguments::Vector{Any})::Any where T
+    return callback(arguments...)
 end
 
 # ? ---------------------------------
 # ! LazyLBVH(T)
 # ? ---------------------------------
 
-# YELLOW Thread
-# LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any) =
-# Build!(LazyLBVHDependent{T}(geometry))
 function LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any)
-    add_node!(LazyLBVHDependent{T}(geometry),[geometry])
+    add_node!(LazyLBVHDependent{T}(geometry),[geometry]) do g
+        return PrimitivesOf(g)
+    end
 end

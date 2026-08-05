@@ -51,8 +51,8 @@ function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyL
     println("FindIntersections: lbvh")
     self._foundIntersectionNum = 0
 
-    shapes_a._iter = PrimitivesOf(get_element(shapes_a._geometry))
-    shapes_b._iter = PrimitivesOf(get_element(shapes_b._geometry))
+    # shapes_a._iter = PrimitivesOf(get_element(shapes_a._geometry))
+    # shapes_b._iter = PrimitivesOf(get_element(shapes_b._geometry))
     # println("a iter: ", typeof(shapes_a._iter))
     # println("b iter: ", typeof(shapes_b._iter))
 
@@ -213,6 +213,8 @@ function _Intersection(geometry1::NodeHandle,geometry2::NodeHandle, T1::Type{<:A
     # llbvh2::LazyLBVHDependent{PrimitivesOf{T2}} = getIntersectionPrimitiveIter!(implicitApp._optimizer,geometry2,T2)
     llbvh1 = LazyLBVH(PrimitivesOf{T1},geometry1)
     llbvh2 = LazyLBVH(PrimitivesOf{T2},geometry2)
+    println(typeof(get_element(llbvh1)))
+    println(typeof(get_element(llbvh2)))
 
     return IntersectionCalculator(T12, llbvh1, llbvh2; maxIntersectionNum=maxIntersectionNum)
 end

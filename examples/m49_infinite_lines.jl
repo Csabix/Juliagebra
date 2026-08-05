@@ -57,7 +57,6 @@ Point([i6]) do intersection
     return intersection[1]
 end
 
-# t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5),Vec3D(6,11,-4),Vec3D(15,-1,2),Vec3D(0))
 t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
 
 

@@ -26,8 +26,8 @@ ray_on_plane = Ray(g,h;color="r",size=2.0f0)
 point_on_plane = Point(-1,-6,-3;color="b")
 x = Plane(point_on_plane,ray_on_plane;color=(.2,.2,.2,.5))
 
-
 sphere = Sphere((0,10,0),1;color="w")
+
 
 
 Juliagebra.Wait()

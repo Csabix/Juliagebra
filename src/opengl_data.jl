@@ -95,7 +95,8 @@ mutable struct OpenGLData
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearStencil(0)
         glStencilMask(0xFF);
-        glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
+        _backgroundCol = Vec3F(0.73f0,0.73f0,0.73f0)
+        glClearColor(_backgroundCol[1], _backgroundCol[2], _backgroundCol[3], 1.0f0)
         glDisable(GL_DITHER);
 
         profiler = Profiler()

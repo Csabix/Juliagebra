@@ -9,8 +9,6 @@ function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment
     v1 = line_segment_a.p1 - line_segment_a.p0
     v2 = line_segment_b.p1 - line_segment_b.p0
 
-    # println("aabb")
-
     n_up = normalize(cross(v1,v2))
     
     d = abs(dot(line_segment_b.p0-line_segment_a.p0,n_up))
@@ -215,8 +213,6 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
     if (d2 === NaN || t === NaN || s === NaN)
         return nothing
     end
-
-    # println("not aabb")
     
     if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= LINE_TO_LINE_EPSILON^2)
         return (p0(line1) + v(line1) * t + p0(line2) + v(line2) * s) / 2.0

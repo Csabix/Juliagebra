@@ -22,7 +22,7 @@ include("plane.jl")
 
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
 _deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
-#function _deps_collect_add!(vec::Vector{Vec3D},v::IntersectionCalculatorDependent)
+#function _deps_collect_add!(vec::Vector{Vec3D},v::IntersectionCalculator)
 #    for i in 1:v._foundIntersectionNum
 #        push!(vec,v[i])
 #    end

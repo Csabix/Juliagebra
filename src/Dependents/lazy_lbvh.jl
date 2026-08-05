@@ -1,11 +1,11 @@
 
 # ? ---------------------------------
-# ! LazyLBVHDependent{T}
+# ! LazyLBVH{T}
 # ? ---------------------------------
 
 # TODO: refine LBVHCache-s generic parameter.
 
-mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}}
+mutable struct LazyLBVH{T <: PrimitivesOf{<:AABBPrimitive}}
     _iter::Union{T,Nothing}
     _lbvh::LBVHCache
     @atomic _isCacheOld::Bool
@@ -14,7 +14,7 @@ mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}}
     _geometry::NodeHandle
 
     # YELLOW Thread
-    function LazyLBVHDependent{T}(geometry::Any) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
+    function LazyLBVH{T}(geometry::Any) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
         iter = nothing
         lbvh = LBVHCache{3}()
         isCacheOld = false
@@ -24,7 +24,7 @@ mutable struct LazyLBVHDependent{T <: PrimitivesOf{<:AABBPrimitive}}
     end
 end
 
-function getLBVH(self::LazyLBVHDependent)
+function getLBVH(self::LazyLBVH)
     isOld::Bool = @atomic self._isCacheOld
     # ? Skip building, if it is old.
     if (isOld)
@@ -42,15 +42,15 @@ function getLBVH(self::LazyLBVHDependent)
     return self._lbvh
 end
 
-convert_callback_entry(self::LazyLBVHDependent)::LazyLBVHDependent = self
+convert_callback_entry(self::LazyLBVH)::LazyLBVH = self
 
-function convert_callback_result(element::LazyLBVHDependent{T}, result) where T
+function convert_callback_result(element::LazyLBVH{T}, result) where T
     element._iter = result
     @atomic element._isCacheOld = true
     return element
 end
 
-function eval_node(::LazyLBVHDependent{T}, callback::Function, arguments::Vector{Any})::Any where T
+function eval_node(::LazyLBVH{T}, callback::Function, arguments::Vector{Any})::Any where T
     return callback(arguments...)
 end
 
@@ -59,7 +59,7 @@ end
 # ? ---------------------------------
 
 function LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any)
-    add_node!(LazyLBVHDependent{T}(geometry),[geometry]) do g
+    return add_node!(LazyLBVH{T}(geometry),[geometry]) do g
         return PrimitivesOf(g)
     end
 end

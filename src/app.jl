@@ -14,7 +14,7 @@ mutable struct App <: AppDNA
     _cam::Camera
     _manipulator::CameraManipulator
     
-    _optimizer::GlobalDependentOptimizer
+    _optimizer::GlobalNodeOptimizer
 
     graph::GeometryPlotGraph
     _scene_change::Bool
@@ -38,7 +38,7 @@ mutable struct App <: AppDNA
         cam = defaultCamera()
         
         manipulator = create_orbital_manipulator(cam)
-        optimizer = GlobalDependentOptimizer()
+        optimizer = GlobalNodeOptimizer()
 
         graph = GeometryPlotGraph()
 

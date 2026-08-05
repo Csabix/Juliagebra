@@ -35,8 +35,6 @@ Point([i3]) do intersection
     return intersection[1]
 end
 
-t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
-
 p7 = Point(-1.0,2.4,-0.6)
 p8 = Point(2.0,4.3,0.0)
 ray1 = Ray([p7,p8];color="m") do p0,p1
@@ -59,22 +57,26 @@ Point([i6]) do intersection
     return intersection[1]
 end
 
-# i7 = Intersection(t1, l2)
-# Point([i7]) do intersection
-#     return intersection[1]
-# end
-# i8 = Intersection(ray1, t1)
-# Point([i8]) do intersection
-#     return intersection[1]
-# end
+# t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5),Vec3D(6,11,-4),Vec3D(15,-1,2),Vec3D(0))
+t1 = Triangle(Vec3D(7,1,2),Vec3D(4,6,3),Vec3D(5,10,-5))
 
-# p9  = Point(5.0,3.8,1.9)
-# p10 = Point(6.5,3.9,1.8)
-# s2 = Segment(p9,p10)
-# i9 = Intersection(t1, s2)
-# Point([i9]) do intersection
-#     return intersection[1]
-# end
+
+i7 = Intersection(l2, t1)
+Point([i7]) do intersection
+    return intersection[1]
+end
+i8 = Intersection(t1, ray1)
+Point([i8]) do intersection
+    return intersection[1]
+end
+
+p9  = Point(5.0,3.8,1.9)
+p10 = Point(6.5,3.9,1.8)
+s2 = Segment(p9,p10)
+i9 = Intersection(t1, s2)
+Point([i9]) do intersection
+    return intersection[1]
+end
 
 
 

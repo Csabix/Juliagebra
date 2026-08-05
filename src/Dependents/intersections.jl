@@ -41,14 +41,14 @@ evalCallbackDpEntry(self::IntersectionCalculatorDependent)::IntersectionCalculat
 convert_callback_entry(self::IntersectionCalculatorDependent)::IntersectionCalculatorDependent = return self
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
-    # println("FindIntersections: default")
+    println("FindIntersections: default")
     self._foundIntersectionNum = 0
     BruteForceIntersections(self,shapes_a,shapes_b)
     # println(self._foundIntersectionNum)
 end
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyLBVHDependent{PrimitivesOf{U}}, shapes_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
-    # println("FindIntersections: lbvh")
+    println("FindIntersections: lbvh")
     self._foundIntersectionNum = 0
 
     shapes_a._iter = PrimitivesOf(get_element(shapes_a._geometry))
@@ -70,11 +70,10 @@ function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyL
 end
 
 function BruteForceIntersections(self::IntersectionCalculatorDependent{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
-    # println("<<< brute force start >>>")
-    # println("shapes_a: ", shapes_a)
-    # println("shapes_b: ", shapes_b)
     for primitive_a in shapes_a
         for primitive_b in shapes_b
+            # println("primitive_a: ", primitive_a)
+            # println("primitive_b: ", primitive_b)
             intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
             # println("intersection of $primitive_a and $primitive_b: $intersection")
             if (intersection !== nothing)

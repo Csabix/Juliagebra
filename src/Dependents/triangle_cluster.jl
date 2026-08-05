@@ -7,7 +7,9 @@ mutable struct TriangleCluster
     function TriangleCluster(mesh::BaseMesh,transform::Mat4T{Float64},color::UInt32)
         new(Mesh(get_positions(mesh),get_indices(mesh)),UInt32(0),transform,color)
     end
-end 
+end
+
+convert_callback_entry(t::TriangleCluster)::TriangleCluster = t
 
 convert_callback_result(t::TriangleCluster,triangles::Vector{Vec3D}) = (t.mesh = Mesh(triangles);t)
 convert_callback_result(t::TriangleCluster,triangles::Vector) = (t.mesh = Mesh([Vec3D(v[1],v[2],v[3]) for v in triangles]);t)
@@ -70,6 +72,24 @@ function render_node(triangles::TriangleCluster, renderers::Dict{DataType,Render
         update_transform!(triangle_renderer,triangles.handle,triangles.transform)
     end
     return nothing
+end
+
+struct PTrianglesOfTriangleCluster <: PrimitivesOf{PTriangle}
+    _triangles::Vector{Vec3D}
+end
+PrimitivesOf(self::TriangleCluster) = PTrianglesOfTriangleCluster(self.mesh.positions)
+
+Base.length(self::PTrianglesOfTriangleCluster) = convert(Integer, length(self._triangles) / 3)
+function Base.iterate(self::PTrianglesOfTriangleCluster, index::Integer = 1)
+    println("iterate: $index / ", length(self))
+    if (index <= length(self))
+        v0 = self._triangles[index * 3 - 2]
+        v1 = self._triangles[index * 3 - 1]
+        v2 = self._triangles[index * 3]
+        return (PTriangle(v0,v1,v2), (index + 1))
+    else
+        return nothing
+    end
 end
 
 export TriangleCluster

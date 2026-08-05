@@ -9,7 +9,7 @@ function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment
     v1 = line_segment_a.p1 - line_segment_a.p0
     v2 = line_segment_b.p1 - line_segment_b.p0
 
-    println("aabb")
+    # println("aabb")
 
     n_up = normalize(cross(v1,v2))
     
@@ -216,7 +216,7 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
         return nothing
     end
 
-    println("not aabb")
+    # println("not aabb")
     
     if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= LINE_TO_LINE_EPSILON^2)
         return (p0(line1) + v(line1) * t + p0(line2) + v(line2) * s) / 2.0
@@ -226,12 +226,12 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
 end
 
 function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
-    p0 = p0(line)
+    p = p0(line)
     dir = v(line)
 
     ab = triangle.v1 - triangle.v0
     ac = triangle.v2 - triangle.v0
-    ap = p0 - triangle.v0
+    ap = p - triangle.v0
     f = cross(dir,ac)
     g = cross(ap,ab)
 
@@ -248,7 +248,7 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,
     w_bar = 1.0 - u_bar - v_bar
 
     if (ParameterInside(line, t) && 0.0 <= u_bar && 0.0 <= v_bar && 0.0 <= w_bar)
-        return p0 + t * dir
+        return p + t * dir
     else
         return nothing
     end

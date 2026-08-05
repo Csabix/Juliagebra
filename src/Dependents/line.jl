@@ -14,9 +14,9 @@ mutable struct Line
     style::UInt8
     size::Float32
 
-    function Line(colors::Vector{UInt32},style::UInt8,size::Float32)
+    function Line(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
         values = Vector{Vec3D}(undef, length(LINE_RANGE))
-        new(PLine(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, size)
+        new(PLine(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, convert(Float32,size))
     end
 end
 
@@ -73,22 +73,29 @@ _get_parent_line(parent::NodeHandle) = parent
 _get_parent_line(parent) = add_node!(Vec3D(parent))
 
 function Line(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=3.0f0)
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
     (c,s) = parse_line_colors_style(color_style,color,style)
     return add_node!(callback, Line(c,s,size), parents)
 end
 
 function Line(p0,p1,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=3.0f0)
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
 
     parents = NodeHandle[
         _get_parent_line(p0),
         _get_parent_line(p1),
     ]
 
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(Line(c,s,size), parents) do p0,p1
+    return Line(parents,color_style;color=color,style=style,size=size) do p0,p1
         return (p0,p1)
+    end
+end
+
+function Line(line,color_style::Union{Nothing,String}=nothing;
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
+
+    return Line([_get_parent_line(line)],color_style;color=color,style=style,size=size) do line
+        return (p0(line),p1(line))
     end
 end
 

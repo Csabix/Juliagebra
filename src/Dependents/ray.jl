@@ -13,9 +13,9 @@ mutable struct Ray
     style::UInt8
     size::Float32
 
-    function Ray(colors::Vector{UInt32},style::UInt8,size::Float32)
+    function Ray(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
         values = Vector{Vec3D}(undef, length(RAY_RANGE))
-        new(PRay(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, size)
+        new(PRay(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, convert(Float32,size))
     end
 end
 
@@ -48,6 +48,10 @@ function render_node(ray::Ray, renderers::Dict{DataType,Renderer}, id::UInt32)::
     return nothing
 end
 
+p0(ray::Ray)::Vec3D = p0(ray.primitive)
+p1(ray::Ray)::Vec3D = p1(ray.primitive)
+v(ray::Ray)::Vec3D  = v(ray.primitive)
+
 # ? ---------------------------------
 # ! Ray intersection
 # ? ---------------------------------
@@ -68,23 +72,31 @@ _get_parent_ray(parent::NodeHandle) = parent
 _get_parent_ray(parent) = add_node!(Vec3D(parent))
 
 function Ray(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=3.0f0)
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
     (c,s) = parse_line_colors_style(color_style,color,style)
     return add_node!(callback, Ray(c,s,size), parents)
 end
 
 function Ray(p0,p1,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size=3.0f0)
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
 
     parents = NodeHandle[
         _get_parent_ray(p0),
         _get_parent_ray(p1),
     ]
 
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(Ray(c,s,size), parents) do p0,p1
+    return Ray(parents,color_style;color=color,style=style,size=size) do p0,p1
         return (p0,p1)
     end
 end
 
+function Ray(line,color_style::Union{Nothing,String}=nothing;
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
+    
+    return Ray([_get_parent_ray(line)],color_style;color=color,style=style,size=size) do line
+        return (p0(line),p1(line))
+    end
+end
+
 export Ray
+export p0,p1,v

@@ -132,12 +132,27 @@ function Plane(p0,p1,p2,color_data::Union{Nothing,String}=nothing;
         _get_parent_plane(p2),
     ]
 
-    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(Plane(c),parents) do p0,p1,p2
+    return Plane(parents,color_data;color=color) do p0,p1,p2
         dir1 = p1 - p0
         dir2 = p2 - p0
         n = cross(dir1,dir2)
         return (p0,normalize(n))
+    end
+end
+
+function Plane(point,line,color_data::Union{Nothing,String}=nothing;
+    color="g")::NodeHandle
+
+    parents = NodeHandle[
+        _get_parent_plane(point),
+        _get_parent_plane(line),
+    ]
+
+    return Plane(parents,color_data;color=color) do point,line
+        dir1 = p0(line) - point
+        dir2 = p1(line) - point
+        normal = cross(dir1,dir2)
+        return (point,normal)
     end
 end
 

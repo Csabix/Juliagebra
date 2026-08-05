@@ -11,8 +11,8 @@ mutable struct Segment
     style::UInt8
     size::Float32
 
-    function Segment(colors::Vector{UInt32},style::UInt8,size::Float32)
-        new(PSegment(Vec3DNan,Vec3DNan), UInt32(0), colors, style, size)
+    function Segment(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
+        new(PSegment(Vec3DNan,Vec3DNan), UInt32(0), colors, style, convert(Float32,size))
     end
 end
 
@@ -62,22 +62,29 @@ _get_parent_segment(parent::NodeHandle) = parent
 _get_parent_segment(parent) = add_node!(Vec3D(parent))
 
 function Segment(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-    color="c",style="-",size=5.0f0)
+    color="c",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     (c,s) = parse_line_colors_style(color_style,color,style)
     return add_node!(callback,Segment(c,s,size),parents)
 end
 
 function Segment(p0,p1,color_style::Union{Nothing,String}=nothing;
-                 color="c",style="-",size=5.0f0)
+    color="c",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
     parents = NodeHandle[
         _get_parent_segment(p0),
         _get_parent_segment(p1),
     ]
     
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(Segment(c,s,size),parents) do p0,p1
+    return Segment(parents,color_style;color=color,style=style,size=size) do p0,p1
         return (p0,p1)
+    end
+end
+
+function Segment(line,color_style::Union{Nothing,String}=nothing;
+    color="c",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
+    
+    return Segment([_get_parent_segment(line)],color_style;color=color,style=style,size=size) do line
+        return (p0(line),p1(line))
     end
 end
 

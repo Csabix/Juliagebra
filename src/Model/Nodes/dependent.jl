@@ -30,7 +30,7 @@ mutable struct Dependent
     end
 end
 
-Base.show(::Any, ::Any, ::DependentDNA) = return nothing
+Base.show(::IO, ::MIME"text/plain", ::DependentDNA) = return nothing
 
 _Dependent_(self::DependentDNA)::Dependent = error("Missing \"_Dependent_\" for subclass of DependentDNA")
 

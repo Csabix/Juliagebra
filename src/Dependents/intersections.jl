@@ -40,12 +40,12 @@ evalCallbackDpReturn(self::IntersectionCalculatorDependent,::Nothing) = return n
 evalCallbackDpEntry(self::IntersectionCalculatorDependent)::IntersectionCalculatorDependent = return self
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
+    self._foundIntersectionNum = 0
     BruteForceIntersections(self,shapes_a,shapes_b)
 end
 
 function FindIntersections(self::IntersectionCalculatorDependent,shapes_a::LazyLBVHDependent{PrimitivesOf{U}}, shapes_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
     self._foundIntersectionNum = 0
-
     if ((length(shapes_a._iter) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b._iter) < BRUTE_FORCE_LBVH_THRESHOLD))
         BruteForceIntersections(self, shapes_a._iter, shapes_b._iter)
     else
@@ -75,12 +75,12 @@ function BruteForceIntersections(self::IntersectionCalculatorDependent{T}, shape
     end
 end
 
-function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh::LazyLBVHDependent{PrimitivesOf{U}}, geometry_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}    
+function LBVHIntersections(self::IntersectionCalculatorDependent, geometry_lbvh::LazyLBVHDependent{PrimitivesOf{U}}, geometry_b::LazyLBVHDependent{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
     lbvh = getLBVH(geometry_lbvh)
     
     shapes_lbvh = geometry_lbvh._iter
     shapes_b = geometry_b._iter
-            
+
     for primitive_b in shapes_b
         number_of_intersections = LBVHToPrimitiveIntersection(
             lbvh.lbvh_nodes,
@@ -150,7 +150,7 @@ function _Intersection(geometry1::DependentDNA,geometry2::DependentDNA, T1::Type
     call = function (g)
         return PrimitivesOf(g)
     end
-        
+
     gvh1::GenericValueHolderDependent{PrimitivesOf{T1}} = getIntersectionPrimitiveIter!(implicitApp._optimizer,geometry1,T1,call)
     gvh2::GenericValueHolderDependent{PrimitivesOf{T2}} = getIntersectionPrimitiveIter!(implicitApp._optimizer,geometry2,T2,call)
 

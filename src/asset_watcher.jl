@@ -19,7 +19,7 @@ end
     file_deleted_callback::Dict{String,Function} = Dict{String,Function}()
 end
 
-function watch_folder!(watcher::AssetWatcher, folder::String, recursive::Bool = true)::Nothing
+function watch_folder!(watcher::AssetWatcher, folder::String, recursive::Bool=true)::Nothing
     folder = normpath(folder)
     push!(watcher.watched_folders, folder)
     if recursive
@@ -32,33 +32,33 @@ function watch_folder!(watcher::AssetWatcher, folder::String, recursive::Bool = 
     return nothing
 end
 
-function set_file_added_callback(watcher::AssetWatcher,extension::String,callback::Function)::Nothing
+function set_file_added_callback(watcher::AssetWatcher, extension::String, callback::Function)::Nothing
     watcher.file_added_callback[extension] = callback
     return nothing
 end
-function set_file_added_callback(watcher::AssetWatcher,extensions,callback::Function)::Nothing
+function set_file_added_callback(watcher::AssetWatcher, extensions, callback::Function)::Nothing
     for extension in extensions
         watcher.file_added_callback[extension] = callback
     end
     return nothing
 end
 
-function set_file_changed_callback(watcher::AssetWatcher,extension::String,callback::Function)::Nothing
+function set_file_changed_callback(watcher::AssetWatcher, extension::String, callback::Function)::Nothing
     watcher.file_changed_callback[extension] = callback
     return nothing
 end
-function set_file_changed_callback(watcher::AssetWatcher,extensions,callback::Function)::Nothing
+function set_file_changed_callback(watcher::AssetWatcher, extensions, callback::Function)::Nothing
     for extension in extensions
         watcher.file_changed_callback[extension] = callback
     end
     return nothing
 end
 
-function set_file_deleted_callback(watcher::AssetWatcher,extension::String,callback::Function)::Nothing
+function set_file_deleted_callback(watcher::AssetWatcher, extension::String, callback::Function)::Nothing
     watcher.file_deleted_callback[extension] = callback
     return nothing
 end
-function set_file_deleted_callback(watcher::AssetWatcher,extensions,callback::Function)::Nothing
+function set_file_deleted_callback(watcher::AssetWatcher, extensions, callback::Function)::Nothing
     for extension in extensions
         watcher.file_deleted_callback[extension] = callback
     end
@@ -73,7 +73,7 @@ function _update_watched_files!(watcher::AssetWatcher)::Nothing
     empty!(watcher.deleted_files)
 
     for folder in watcher.watched_folders
-        for file in readdir(folder;join=true,sort=false)
+        for file in readdir(folder; join=true, sort=false)
             if !haskey(watcher.watched_files, file)
                 ext = _watcher_get_extenstion(file)
                 if haskey(watcher.file_added_callback, ext)
@@ -88,7 +88,12 @@ function _update_watched_files!(watcher::AssetWatcher)::Nothing
     return nothing
 end
 
-function update!(watcher::AssetWatcher,delta_time::Float64)::Nothing
+function update!(watcher::AssetWatcher, delta_time::Float64)::Nothing
+    length(watcher.file_added_callback) == 0 &&
+    length(watcher.file_changed_callback) == 0 &&
+    length(watcher.file_deleted_callback) == 0 &&
+    return nothing
+
     watcher.accum_s += delta_time
     num_files = max(1, length(watcher.watched_files))
     time_per_file = _ASSET_WATCHER_CHECK_EVERY_S / Float64(num_files)
@@ -101,7 +106,7 @@ function update!(watcher::AssetWatcher,delta_time::Float64)::Nothing
     end
     while watcher.accum_s >= time_per_file
         if isnothing(watcher.iterator)
-            _update_watched_files!(watcher) 
+            _update_watched_files!(watcher)
             break
         end
         (file, last_time), state = watcher.iterator
@@ -111,7 +116,7 @@ function update!(watcher::AssetWatcher,delta_time::Float64)::Nothing
         if isfile(file)
             curr_time = mtime(file)
             if curr_time != last_time # File changed
-                watcher.watched_files[file] = curr_time 
+                watcher.watched_files[file] = curr_time
                 if haskey(watcher.file_changed_callback, ext)
                     watcher.file_changed_callback[ext](file)
                 end

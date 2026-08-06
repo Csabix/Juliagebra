@@ -99,14 +99,13 @@ mutable struct OpenGLData
         init!(profiler)
 
         pipeline_loader = PipelineLoader()
-        full_compile(pipeline_loader)
-        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
-            if asset_watcher !== nothing
-                watch_folder!(asset_watcher,pkgdir(@__MODULE__,"assets","shaders","src"))
-                set_file_changed_callback(asset_watcher,glsl_shader_extensions,get_glsl_update_callback(pipeline_loader))
-                set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
-                set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,get_glsl_include_update_callback(pipeline_loader))
-            end
+        compile_shaders(pipeline_loader)
+        if haskey(ENV,"AUTO_COMPILE_SHADER") && ENV["AUTO_COMPILE_SHADER"] == "true"
+            watch_folder!(asset_watcher,_shader_src_folder)
+            set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
+            update_callback = get_glsl_update_callback(pipeline_loader)
+            set_file_changed_callback(asset_watcher,glsl_shader_extensions,update_callback)
+            set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,update_callback)
         end
 
         transparent_color_combiner = create_graphics_pipeline!(pipeline_loader;

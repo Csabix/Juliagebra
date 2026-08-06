@@ -19,7 +19,7 @@ mutable struct App <: AppDNA
     graph::GeometryPlotGraph
     _scene_change::Bool
 
-    _asset_watcher::Union{Nothing,AssetWatcher}
+    _asset_watcher::AssetWatcher
     _hovered::UInt32
 
     _delta_time::Float64
@@ -42,10 +42,7 @@ mutable struct App <: AppDNA
 
         graph = GeometryPlotGraph()
 
-        asset_watcher::Union{Nothing,AssetWatcher} = nothing
-        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
-            asset_watcher = AssetWatcher()
-        end
+        asset_watcher = AssetWatcher()
         hovered::UInt32 = 0
 
         delta_time = 0.0
@@ -92,6 +89,8 @@ function setup_callbacks(self::App)::Nothing
     register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
     register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
 
+    register_callback!(event ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, Cint(GLFW.KEY_F5))
+
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
 end
@@ -123,7 +122,7 @@ function play!(self::App)
         delta_time = new_time - old_time
         old_time = new_time
         self._delta_time = delta_time
-        if self._asset_watcher !== nothing update!(self._asset_watcher,delta_time) end
+        update!(self._asset_watcher,delta_time)
         self._scene_change |= updateCam!(self,delta_time)
 
         
@@ -187,12 +186,7 @@ function update!(self::App, iconified::Bool)
             end
         end
     end
-    
-    # ? Handle commands in the command queue.
-    #handleCommands!(self)
-    # ? Schedule a PointDependent.
-    #updateGizmo!(self)
-    # ? Schedule ToggleDependents, SliderDependents, TextBoxDependents and StepperDependents.
+
     if self.graph.needs_render_count[] > 0
         for index in eachindex(self.graph.nodes)
             if (has_geom_flag(self.graph.nodes[index],NODE_UPDATE_RENDER))
@@ -203,37 +197,6 @@ function update!(self::App, iconified::Bool)
         end
     end
     update!(self._imgui,self)
-            
-    # ? Do sync! and syncAll! calls.
-    #self._scene_change |= update!(model,state)
-            
-    if !iconified
-        # ? Render scene and dock.
-        update!(self._opengl,self._cam,self._scene_change,self._hovered)
-        render!(self._imgui,self)
-        frame_end(self._opengl._profiler)
-    end
-end
-#=
-function update!(self::App, state::BuildingState, iconified::Bool)
-    model::Model = self._model
-    
-    # ? Do added! and addedAll! calls.
-    self._scene_change |= update!(model,state)
-
-    if !iconified
-        # ? Render scene and loading bar.
-        update!(self._opengl,self._cam,self._scene_change,self._hovered)
-        renderBuildingState(self._imgui,self)
-        frame_end(self._opengl._profiler)
-    end
-end
-
-function update!(self::App, state::EvalingState, iconified::Bool)
-    model::Model = self._model
-    
-    # ? Do sync! and syncAll! calls.
-    self._scene_change |= update!(model, state)
 
     if !iconified
         # ? Render scene and dock.
@@ -242,7 +205,7 @@ function update!(self::App, state::EvalingState, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
-=#
+
 function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")

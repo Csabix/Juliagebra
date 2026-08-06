@@ -26,7 +26,7 @@ mutable struct OrbitalCamera <: CameraManipulator
 end
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
-    to_aim = camera._at - camera._eye
+    to_aim = camera.at - camera.eye
     distance = Float32(norm(to_aim))
 
     u = atan(to_aim.y, to_aim.x)
@@ -52,7 +52,7 @@ function update!(self::OrbitalCamera,deltaTime,inputs::Inputs)
 
     right = Vec3F(cos(self._u+0.5π),sin(self._u+0.5π),0.0)
     up = normalize(cross(right, -lookDirection));
-    forward = normalize(cross(right, self._cam._up));
+    forward = normalize(cross(right, self._cam.up));
 
     distance = exp(self._zoom)-1.0f0
     # WASD movement
@@ -62,17 +62,19 @@ function update!(self::OrbitalCamera,deltaTime,inputs::Inputs)
 
     # Mouse movement
     eye, at = if self._move_state != _ORBITAL_LOOK
-        eye = self._cam._at - distance * lookDirection
-        at = self._cam._at
+        eye = self._cam.at - distance * lookDirection
+        at = self._cam.at
         eye, at
     else
-        at = self._cam._eye + distance * lookDirection
-        eye = self._cam._eye
+        at = self._cam.eye + distance * lookDirection
+        eye = self._cam.eye
         eye, at
     end
     
-    set_view!(self._cam,eye + d_position,at + d_position,up)
-    self._cam._view_proj = self._cam._proj * self._cam._view
+    self._cam.eye = eye + d_position
+    self._cam.at = at + d_position
+    self._cam.up = up
+    calculate_view_matrix!(self._cam)
 end
 
 _forward(cam::OrbitalCamera)::Bool = (cam._forward = 1; true)
@@ -148,6 +150,11 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
         return true
     end
 
+    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_5)) do ev
+        swap_projection!(cam._cam)
+        return true
+    end
+
 
     # --- KEYBOARD UP EVENTS ---
     register_callback!(ev -> (cam._forward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_W))
@@ -211,14 +218,14 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
             cam._u += du
             cam._v = clamp(cam._v + dv, 0.0f0, Float32(π))
         elseif cam._move_state == _ORBITAL_PAN
-            lookat = normalize(cam._cam._at - cam._cam._eye)
+            lookat = normalize(cam._cam.at - cam._cam.eye)
             right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0)
             up = normalize(cross(right, lookat))
             delta = up * dv + right * du
             delta *= (exp(cam._zoom) - 1.0f0) / 15.0f0
 
-            cam._cam._eye += delta
-            cam._cam._at += delta
+            cam._cam.eye += delta
+            cam._cam.at += delta
         end
         return cam._capture_mouse
     end
@@ -231,21 +238,26 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
         new_distance = exp(cam._zoom) - 1.0f0
         delta_distance = new_distance - old_distance
 
-        lookat = normalize(cam._cam._at - cam._cam._eye)
+        lookat = normalize(cam._cam.at - cam._cam.eye)
         right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0)
         up = normalize(cross(right, lookat))
 
-        tan_half_fov_Y = tan(deg2rad(cam._cam._fov / 2.0f0))
-        tan_half_fov_X = tan_half_fov_Y * cam._cam._aspect
+        tan_half_fov_Y = tan(deg2rad(cam._cam.fov / 2.0f0))
+        tan_half_fov_X = tan_half_fov_Y * cam._cam.aspect
         
-        x = (Float32(ev.x) * 2.0f0 - 1.0f0)
-        y = (Float32(ev.y) * 2.0f0 - 1.0f0)
+        x = Float32(ev.x / inputs.window.s_width) * 2.0f0 - 1.0f0
+        y = Float32(ev.y / inputs.window.s_height) * 2.0f0 - 1.0f0
+        if cam._move_state != _ORBITAL_NONE
+            x = 0.0f0
+            y = 0.0f0
+        end
         w = tan_half_fov_X * old_distance * (delta_distance / old_distance) * x
         h = tan_half_fov_Y * old_distance * (delta_distance / old_distance) * y
 
-        offset = right * w + up * h
-        cam._cam._at += offset
-        cam._cam._eye += offset
+        offset = -right * w + up * h
+        cam._cam.at += offset
+        cam._cam.eye += offset - lookat * delta_distance
+        if !is_perspective(cam._cam) calculate_projection_matrix!(cam._cam) end
         return true
     end
     

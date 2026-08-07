@@ -19,7 +19,7 @@ mutable struct App <: AppDNA
     graph::GeometryPlotGraph
     _scene_change::Bool
 
-    _asset_watcher::Union{Nothing,AssetWatcher}
+    _asset_watcher::AssetWatcher
     _hovered::UInt32
 
     _delta_time::Float64
@@ -42,10 +42,7 @@ mutable struct App <: AppDNA
 
         graph = GeometryPlotGraph()
 
-        asset_watcher::Union{Nothing,AssetWatcher} = nothing
-        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
-            asset_watcher = AssetWatcher()
-        end
+        asset_watcher = AssetWatcher()
         hovered::UInt32 = 0
 
         delta_time = 0.0
@@ -67,7 +64,8 @@ sceneChanged(self::App)::Nothing = (self._scene_change = true;nothing)
 function resize!(self::App, event::Event)::Bool
     resize!(self._glfw, event.width, event.height)
     resize!(self._opengl, self._glfw)
-    set_aspect!(self._cam, self._glfw.width, self._glfw.height)
+    self._cam.aspect = self._glfw.width / self._glfw.height
+    calculate_projection_matrix!(self._cam)
     return false
 end
 
@@ -92,18 +90,17 @@ function setup_callbacks(self::App)::Nothing
     register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
     register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
 
+    register_callback!(event ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, Cint(GLFW.KEY_F5))
+
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
 end
 
 function updateCam!(self::App,delta_time::Float64)::Bool
     update!(self._manipulator, delta_time, self._inputs)
-    self._opengl._camPos = self._cam._eye
-    vp,v,p = get_matrices(self._cam)
-    change = vp != self._opengl._vp
-    self._opengl._vp = vp
-    self._opengl._v  = v
-    self._opengl._p  = p
+    vp = get_matrices(self._cam)[1]
+    change = vp != self._opengl._last_vp
+    self._opengl._last_vp = vp
     return change
 end
 
@@ -123,7 +120,7 @@ function play!(self::App)
         delta_time = new_time - old_time
         old_time = new_time
         self._delta_time = delta_time
-        if self._asset_watcher !== nothing update!(self._asset_watcher,delta_time) end
+        update!(self._asset_watcher,delta_time)
         self._scene_change |= updateCam!(self,delta_time)
 
         
@@ -187,12 +184,7 @@ function update!(self::App, iconified::Bool)
             end
         end
     end
-    
-    # ? Handle commands in the command queue.
-    #handleCommands!(self)
-    # ? Schedule a PointDependent.
-    #updateGizmo!(self)
-    # ? Schedule ToggleDependents, SliderDependents, TextBoxDependents and StepperDependents.
+
     if self.graph.needs_render_count[] > 0
         for index in eachindex(self.graph.nodes)
             if (has_geom_flag(self.graph.nodes[index],NODE_UPDATE_RENDER))
@@ -203,37 +195,6 @@ function update!(self::App, iconified::Bool)
         end
     end
     update!(self._imgui,self)
-            
-    # ? Do sync! and syncAll! calls.
-    #self._scene_change |= update!(model,state)
-            
-    if !iconified
-        # ? Render scene and dock.
-        update!(self._opengl,self._cam,self._scene_change,self._hovered)
-        render!(self._imgui,self)
-        frame_end(self._opengl._profiler)
-    end
-end
-#=
-function update!(self::App, state::BuildingState, iconified::Bool)
-    model::Model = self._model
-    
-    # ? Do added! and addedAll! calls.
-    self._scene_change |= update!(model,state)
-
-    if !iconified
-        # ? Render scene and loading bar.
-        update!(self._opengl,self._cam,self._scene_change,self._hovered)
-        renderBuildingState(self._imgui,self)
-        frame_end(self._opengl._profiler)
-    end
-end
-
-function update!(self::App, state::EvalingState, iconified::Bool)
-    model::Model = self._model
-    
-    # ? Do sync! and syncAll! calls.
-    self._scene_change |= update!(model, state)
 
     if !iconified
         # ? Render scene and dock.
@@ -242,14 +203,15 @@ function update!(self::App, state::EvalingState, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
-=#
+
 function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
     
     init!(self._glfw, true)
-    set_aspect!(self._cam,self._glfw.width,self._glfw.height)
+    self._cam.aspect = self._glfw.width / self._glfw.height
+    calculate_projection_matrix!(self._cam)
     self._opengl = OpenGLData(self._glfw,self._asset_watcher)
     setup_callbacks(self)
     setup_event_handles(self._glfw,self._inputs)

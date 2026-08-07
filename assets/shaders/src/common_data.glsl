@@ -11,7 +11,7 @@ layout(std140, binding = 10) uniform UBO_Buffer {
     vec4 _at_width_u;
     vec4 _near_far_fov_hovered;
 };
-layout(std140, binding = 11) uniform Infinite_UBO_Buffer {
+layout(std140, binding = 11) uniform AABB_UBO_Buffer {
     vec4 aabb_min;
     vec4 aabb_max;
 };
@@ -52,7 +52,7 @@ float distance_from_aabb_edge(vec4 position) {
     return min(minDistance, zDiff);
 }
 int visible_in_stripes(vec4 fragPosition) {
-    if (mod(floor((fragPosition.x - fragPosition.y) / 5.0), 2.0) == 0.0) {
+    if (bool(mod(floor((fragPosition.x - fragPosition.y) / 5), 2))) {
         return 1;
     }
     else {

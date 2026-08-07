@@ -26,18 +26,12 @@ p8 = Point(3.9, 3.2, 3.0)
 segment1 = Segment(p7,p8)
 
 i1 = Intersection(segment1, plane1)
-Point([i1]) do intersection
-    return intersection[1]
-end
+Point(its -> its[1], [i1])
 i2 = Intersection(plane2, segment1)
-Point([i2]) do intersection
-    return intersection[1]
-end
+Point(its -> its[1], [i2])
 
 i3 = Intersection(plane1, plane2)
-Line([i3]) do intersection
-    return intersection[1]
-end
+Line(its -> its[1], [i3])
 
 parallelHandle = Point(0,3,3)
 parallelPlane1 = Plane(
@@ -47,21 +41,15 @@ parallelPlane1 = Plane(
 )
 
 i4 = Intersection(plane1, parallelPlane1)
-Line([i4]) do intersection
-    return intersection[1]
-end
+Line(its -> its[1], [i4])
 
 ray1 = Ray(Vec3D(3,-1,-2),Vec3D(3,-1,2);color="m")
 i5 = Intersection(plane2, ray1)
-Point([i5]) do intersection
-    return intersection[1]
-end
+Point(its -> its[1], [i5])
 
 l1 = Line(Vec3D(-5,-5,10),Vec3D(-5,-5,-10);color="b")
 i6 = Intersection(l1, plane2)
-Point([i6]) do intersection
-    return intersection[1]
-end
+Point(its -> its[1], [i6])
 
 p9  = Point(-3,-3,-2)
 p10 = Point(-5,-3,-2)
@@ -74,22 +62,16 @@ triangle2 = Triangle(p12,p13,p14;color=(.0,.0,1.0,0.9))
 
 i7 = Intersection(triangle1,triangle2)
 for i in 1:25
-    Segment([i7]) do intersection
-        return intersection[i]
-    end
+    Segment(its -> its[1], [i7])
 end
 
 i7 = Intersection(triangle1,plane2)
 for i in 1:25
-    Segment([i7]) do intersection
-        return intersection[i]
-    end
+    Segment(its -> its[1], [i7])
 end
 i8 = Intersection(plane2,triangle2)
 for i in 1:25
-    Segment([i8]) do intersection
-        return intersection[i]
-    end
+    Segment(its -> its[1], [i8])
 end
 
 

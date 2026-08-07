@@ -26,6 +26,7 @@ void main(){
         color = vec3(1.0) - color;
     }
 
+    // TODO: separate shader, see issue 197
     if (isInfinite != 0) {
         float distanceFromEdge = distance_from_aabb_edge(position_in);
         if (distanceFromEdge <= 2.0) {

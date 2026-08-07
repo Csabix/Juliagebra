@@ -7,22 +7,20 @@ const PLANE_RANGE = range(-PLANE_N_LENGTH, PLANE_N_LENGTH, 2*PLANE_N_LENGTH + 1)
 
 mutable struct Plane
     primitive::PPlane
+    handle::UInt32
 
     vertexes::FlatMatrixManager{Vec3F}
     indexes::Vector{UInt32}
     uvValues::FlatMatrix{Vec3D}
     uvNormals::FlatMatrix{Vec3D}
-    layer::Int
-
     color::UInt32
-    handle::UInt32
 
     function Plane(color::UInt32)
         vertexes = FlatMatrixManager{Vec3F}()
         indexes = Vector{UInt32}()
         uvValues = FlatMatrix{Vec3D}(length(PLANE_RANGE),length(PLANE_RANGE))
         uvNormals = FlatMatrix{Vec3D}(length(PLANE_RANGE),length(PLANE_RANGE))
-        new(PPlane(Vec3DNan,Vec3DNan),vertexes,indexes,uvValues,uvNormals,0,color,UInt32(0))
+        new(PPlane(Vec3DNan,Vec3DNan),UInt32(0),vertexes,indexes,uvValues,uvNormals,color)
     end
 end
 
@@ -151,8 +149,8 @@ function Plane(point,line,color_data::Union{Nothing,String}=nothing;
     return Plane(parents,color_data;color=color) do point,line
         dir1 = p0(line) - point
         dir2 = p1(line) - point
-        normal = cross(dir1,dir2)
-        return (point,normal)
+        n = cross(dir1,dir2)
+        return (point,normalize(n))
     end
 end
 

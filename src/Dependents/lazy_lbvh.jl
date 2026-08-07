@@ -11,16 +11,14 @@ mutable struct LazyLBVH{T <: PrimitivesOf{<:AABBPrimitive}}
     @atomic _isCacheOld::Bool
     _cacheLock::ReentrantLock
 
-    _geometry::NodeHandle
-
     # YELLOW Thread
-    function LazyLBVH{T}(geometry::Any) where {T <: PrimitivesOf{<:AABBPrimitive3D}}
+    function LazyLBVH{T}() where {T <: PrimitivesOf{<:AABBPrimitive3D}}
         iter = nothing
         lbvh = LBVHCache{3}()
         isCacheOld = false
         cacheLock = ReentrantLock()
 
-        new{T}(iter,lbvh,isCacheOld,cacheLock,geometry)
+        new{T}(iter,lbvh,isCacheOld,cacheLock)
     end
 end
 
@@ -59,7 +57,7 @@ end
 # ? ---------------------------------
 
 function LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any)
-    return add_node!(LazyLBVH{T}(geometry),[geometry]) do g
+    return add_node!(LazyLBVH{T}(),[geometry]) do g
         return PrimitivesOf(g)
     end
 end

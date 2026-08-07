@@ -10,20 +10,12 @@ mutable struct IntersectionCalculator{T}
     _intersections::Vector{T}
 
     # YELLOW Thread
-    function IntersectionCalculator{T}(geometry1::NodeHandle, geometry2::NodeHandle, maxIntersectionNum::UInt) where T
-        # ! Note that in the callback:
-        # ! - data: IntersectionCalculator{T12}
-        # ! - geometry1: PrimtiviesOf{T1<:Primitive} or LazyLBVH{PrimitivesOf{T1<:AABBPrimitive}}
-        # ! - geometry2: PrimtiviesOf{T2<:Primitive} or LazyLBVH{PrimitivesOf{T2<:AABBPrimitive}}
-
+    function IntersectionCalculator{T}(maxIntersectionNum::UInt) where T
         foundIntersectionNum = 0
         intersections = Vector{T}(undef,maxIntersectionNum)
         new(foundIntersectionNum,intersections)
     end
 end
-
-getGeometry1(self::IntersectionCalculator)::NodeHandle = return getGraphParent(self,1) #
-getGeometry2(self::IntersectionCalculator)::NodeHandle = return getGraphParent(self,2) #
 
 convert_callback_entry(self::IntersectionCalculator)::IntersectionCalculator = return self
 
@@ -110,7 +102,11 @@ end
 # ? ---------------------------------
 
 function IntersectionCalculator(T12::Type, geometry1::NodeHandle, geometry2::NodeHandle; maxIntersectionNum=25)
-    add_node!(IntersectionCalculator{T12}(geometry1,geometry2,UInt(maxIntersectionNum)),[geometry1,geometry2]) do data,g1,g2
+    # ! Note that in the callback:
+    # ! - data: IntersectionCalculator{T12}
+    # ! - geometry1: PrimtiviesOf{T1<:Primitive} or LazyLBVH{PrimitivesOf{T1<:AABBPrimitive}}
+    # ! - geometry2: PrimtiviesOf{T2<:Primitive} or LazyLBVH{PrimitivesOf{T2<:AABBPrimitive}}
+    add_node!(IntersectionCalculator{T12}(UInt(maxIntersectionNum)),[geometry1,geometry2]) do data,g1,g2
         FindIntersections(data,g1,g2)
         return nothing
     end

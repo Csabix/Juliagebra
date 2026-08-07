@@ -3,7 +3,6 @@ mutable struct ParametricSurface{Range<:AbstractRange}
     indexes::Vector{UInt32}
     uvValues::FlatMatrix{Vec3D}
     uvNormals::FlatMatrix{Vec3D}
-    layer::Int
 
     uRange::Range
     vRange::Range

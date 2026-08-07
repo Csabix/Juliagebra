@@ -1,4 +1,5 @@
 
+#region Midpoint
 _Midpoint(p::Vec3D)::Tuple{Vec3D,Integer} = (p,1)
 _Midpoint(coords::AbstractVector{Vec3D})::Tuple{Vec3D,Integer} = (sum(coords),length(coords))
 
@@ -36,10 +37,25 @@ function Midpoint(pointHandleArgs::NodeHandle...;color_style::Union{Nothing,Stri
     pointHandles = collect(pointHandleArgs)
     return Midpoint(pointHandles,color_style;color=color,style=style,size=size,axis_constraint=axis_constraint)
 end
+#endregion
+
+#region Distance
+function _Distance(point1::Point,point2::Point)::Float64
+    return Distance(point1.coord,point2.coord)
+end
+
+function Distance(coord1::Vec3D,coord2::Vec3D)::Float64
+    return hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
+end
+function Distance(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle)::Float64
+    node1 = get_element(nodeHandle1)
+    node2 = get_element(nodeHandle2)
+    return _Distance(node1,node2) # TODO: return a scalar node
+end
+#endregion
 
 
-
-export Midpoint
+export Midpoint, Distance
 
 
 

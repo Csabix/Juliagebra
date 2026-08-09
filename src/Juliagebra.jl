@@ -77,10 +77,12 @@ include("glfw_data.jl")
 include("camera.jl")
 include("camera_manipulator.jl")
 
+
+
 # ? ---------------------------------
 # ! Widgets
 # ? ---------------------------------
-
+include("Renderers/renderers.jl")
 include("Widgets/widget.jl")
 include("Widgets/opengl_widget.jl")
 include("Widgets/imgui_widget.jl")
@@ -93,22 +95,28 @@ include("Widgets/console.jl")
 include("Widgets/named_window.jl")
 include("Widgets/performance_viewer.jl")
 include("Widgets/Windows/frame_time_window.jl")
-include("Widgets/Windows/options_window.jl")
-
-include("Renderers/renderers.jl")
-include("opengl_data.jl")
 
 include("Widgets/coordinates_widget.jl")
+
+
 
 # ? ---------------------------------
 # ! Dependents
 # ? ---------------------------------
+include("Dependents/parsers.jl")
+include("styles.jl")
+include("opengl_data.jl")
 
+include("Dependents/dependent_renderer.jl")
 include("Dependents/dependents.jl")
+
+include("Dependents/dependent_functions.jl")
 
 include("Widgets/points_window.jl")
 include("Widgets/curves_window.jl")
 include("Widgets/surfaces_window.jl")
+include("Widgets/Windows/options_window.jl")
+include("Widgets/theme_editor_window.jl")
 
 include("global_dependent_optimizer.jl")
 

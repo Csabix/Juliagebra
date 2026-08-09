@@ -181,6 +181,11 @@ function play!(self::App)
     
 end
 
+
+function update_theme!(self::App,changed_theme::Theme)
+    update_styles!(self._opengl,changed_theme)
+end
+
 function update!(self::App, state::ViewingState, iconified::Bool)
     model::Model = self._model
     

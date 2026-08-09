@@ -4,8 +4,8 @@
 # ? ---------------------------------
 
 function Tetrahedra(a,b,c,d,color_data::Union{Nothing,String}=nothing;
-    color="g",
-    border_color="c",border_style="-",border_size=3.0)
+    color=nothing,
+    border_color=nothing,border_style=nothing,border_size=nothing)
 
     Triangle(a,c,b,color_data;color=color)
     Triangle(a,b,d,color_data;color=color)

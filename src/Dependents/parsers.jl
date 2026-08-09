@@ -24,9 +24,19 @@ function get_colors(c::Vector{T})::Vector{UInt32} where {T}
     return UInt32[get_color(color) for color in c]
 end
 
+function get_color(::Nothing)
+    return nothing
+end
+
+function get_colors(::Nothing)
+    return nothing
+end
+
 function get_colors(c)::Vector{UInt32}
     return UInt32[get_color(c)]
 end
+
+
 
 const _color_name::Dict{String, UInt32} = Dict(
     "red"     => get_color((0xff,0x00,0x00)),
@@ -78,11 +88,11 @@ function get_style(style::UInt8)::UInt8
     return style
 end
 
-function get_style(style)::UInt8
+function get_style(style)::Union{Nothing,UInt8}
     if haskey(_line_style, style)
         return _line_style[style]
     else
-        return SOLID
+        return nothing
     end
 end
 
@@ -102,7 +112,7 @@ function get_color_vec3f(color)::Vec3F
 end
 get_color_vec3f(color::Vec3F) = color
 
-function parse_line_colors_style(color_style::Union{Nothing,String},color,style)::Tuple{Vector{UInt32},UInt8}
+function parse_line_colors_style(color_style::Union{Nothing,String},color,style)::Tuple{Union{Nothing,Vector{UInt32}},Union{Nothing,UInt8}}
     if isnothing(color_style)
         return get_colors(color), get_style(style)
     else
@@ -128,15 +138,15 @@ function get_point_style(style::UInt8)::UInt8
     return style
 end
 
-function get_point_style(style)::UInt8
+function get_point_style(style)::Union{Nothing,UInt8}
     if haskey(_point_style, style)
         return _point_style[style]
     else
-        return POINT_NONE
+        return nothing
     end
 end
 
-function parse_point_color_style(color_style::Union{Nothing,String},color,style)::Tuple{UInt32,UInt8}
+function parse_point_color_style(color_style::Union{Nothing,String},color,style)::Tuple{Union{Nothing,UInt32},Union{Nothing,UInt8}}
     if isnothing(color_style)
         return get_color(color), get_point_style(style)
     else
@@ -145,5 +155,17 @@ function parse_point_color_style(color_style::Union{Nothing,String},color,style)
         else
             return get_color("c"), get_point_style(color_style)
         end
+    end
+end
+
+function parse_style(style)::Union{Nothing,UInt8}
+    if style isa UInt8
+        return style
+    elseif haskey(_line_style, style)
+        return get_style(style)
+    elseif haskey(_point_style, style)
+        return get_point_style(style)
+    else
+        return nothing
     end
 end

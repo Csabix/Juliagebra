@@ -6,10 +6,10 @@
 mutable struct SegmentSequenceDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
-    _colors::Vector{UInt32}
+    _colors::Union{Nothing,Vector{UInt32}}
     _break_every::Int32
-    _size::Float32
-    _style::UInt8
+    _size::Union{Nothing,Float32}
+    _style::Union{Nothing,UInt8}
 
     _values::Vector{Vec3D}
 
@@ -17,7 +17,7 @@ mutable struct SegmentSequenceDependent <: RenderedDependentDNA
     function SegmentSequenceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         break_every::Int32,
-        color::Vector{UInt32},style::UInt8,size::Float32)
+        color::Union{Nothing,Vector{UInt32}},style::Union{Nothing,UInt8},size::Union{Nothing,Float32})
         dependent = RenderedDependent(callback,dependents)
         values = Vector{Vec3F}()
         new(dependent,color,break_every,size,style,values)
@@ -99,11 +99,16 @@ mutable struct SegmentSequences <: RendererDNA{SegmentSequenceDependent}
     _renderer::Renderer{SegmentSequenceDependent}
     _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
+    _style::SegmentSequenceStyle
+
     # GREEN Thread
     function SegmentSequences(context::OpenGLData)
         renderer = Renderer{SegmentSequenceDependent}(context)
         refs = Vector{UInt32}()
-        return new(renderer, context._renderers, refs)
+
+        style = theme_style(context._theme,segmentsequence_style)
+
+        return new(renderer, context._renderers, refs,style)
     end
 end
 
@@ -126,48 +131,70 @@ function custom_interleaver(vec, insert_val::T, n) where T
     return dest
 end
 
+function unpack_style(self::SegmentSequences,segseq::SegmentSequenceDependent)
+
+    colors = isnothing(segseq._colors) ? [get_style_color(self._style)] : segseq._colors
+    
+    style = isnothing(segseq._style) ? get_style_style_line(self._style) : segseq._style
+    
+    size = isnothing(segseq._size) ? get_style_size_float(self._style) : segseq._size
+
+    return colors,style,size
+end
+
 # GREEN Thread
 function added!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
+
+    (cs,st,si) = unpack_style(self,segseq)
+
     ref = if segseq._break_every >= 2
         add_dynamic!(self._renderers.line,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(cs),length(segseq._values))),zero(UInt32),segseq._break_every),
             custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
-            segseq._size,
-            segseq._style
+            si,
+            st
         )
     else
         add_dynamic!(self._renderers.line,
             (Vec3F(coord) for coord in segseq._values),
-            Iterators.cycle(segseq._colors),
+            Iterators.cycle(cs),
             Iterators.cycle((aID,)),
-            segseq._size,
-            segseq._style
+            si,
+            st
         )
     end
     push!(self._refs, ref)
+end
+
+function update_style!(self::SegmentSequences,theme::Theme)
+    style = theme_style(theme,segmentsequence_style)
+    self._style = style
 end
 
 # GREEN Thread
 function sync!(self::SegmentSequences,segseq::SegmentSequenceDependent)
     aID = UInt32(getGraphID(segseq) + ID_LOWER_BOUND)
     ref = self._refs[getObserverID(segseq)]
+
+    (cs,st,si) = unpack_style(self,segseq)
+
     if segseq._break_every >= 2
         update_dynamic!(self._renderers.line,ref,
             collect(custom_interleaver((Vec3F(coord) for coord in segseq._values),Vec3FNan,segseq._break_every)),
-            custom_interleaver(collect(Iterators.take(Iterators.cycle(segseq._colors),length(segseq._values))),zero(UInt32),segseq._break_every),
+            custom_interleaver(collect(Iterators.take(Iterators.cycle(cs),length(segseq._values))),zero(UInt32),segseq._break_every),
             custom_interleaver(collect(Iterators.take(Iterators.cycle((aID,)),length(segseq._values))),zero(UInt32),segseq._break_every),
-            segseq._size,
-            segseq._style
+            si,
+            st
         )
     else
         update_dynamic!(self._renderers.line,ref,
             collect((Vec3F(coord) for coord in segseq._values)),
-            Iterators.cycle(segseq._colors),
+            Iterators.cycle(cs),
             Iterators.cycle([aID]),
-            segseq._size,
-            segseq._style
+            si,
+            st
         )
     end
 end
@@ -185,14 +212,18 @@ Dependent2Observer(app::AppDNA,::SegmentSequenceDependent)::SegmentSequences = g
 
 # YELLOW Thread
 function SegmentSequence(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
-    color="c",style="-",size=5.0f0)::SegmentSequenceDependent
-    (c,s) = parse_line_colors_style(color_style, color, style)
-    return Build!(SegmentSequenceDependent(callback, dependents, round(Int32,break_every), c, s, Float32(size)))
+    color=nothing,style=nothing,size=nothing)::SegmentSequenceDependent
+
+    (c,st) = parse_line_colors_style(color_style, color, style)
+
+    si = isnothing(size) ? nothing : Float32(size)
+
+    return Build!(SegmentSequenceDependent(callback, dependents, round(Int32,break_every), c, st, si))
 end
 
 # YELLOW Thread
 SegmentSequence(dependents::Vector{<:DependentDNA}=DependentDNA[],break_every=2,color_style::Union{Nothing,String}=nothing;
-    color="c",style="-",size=5.0f0)::SegmentSequenceDependent =
+    color=nothing,style=nothing,size=nothing)::SegmentSequenceDependent =
 SegmentSequence(_deps_collect, dependents, break_every, color_style, color=color, style=style, size=size)
 
 # YELLOW Thread

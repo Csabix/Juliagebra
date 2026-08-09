@@ -34,6 +34,7 @@ destroy!(points_data::PointsData) = destroy!(points_data.buffer)
 
 function add!(points_data::PointsData,coord::Vec3F,color::UInt32,style::UInt8,size::UInt8,id::UInt32)
     push!(points_data.coords,coord)
+
     prop = pack_point_property(color,style,size,id)
     push!(points_data.color_sizes, prop[1])
     push!(points_data.style_ids,   prop[2])

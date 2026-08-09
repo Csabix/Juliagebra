@@ -82,6 +82,8 @@ mutable struct OpenGLData
 
     _last_vp::Mat4T{Float32}
 
+    _theme::Theme
+
     # GREEN Thread, runs this inside Init, after this construction can begin
     function OpenGLData(window::GLFWData,asset_watcher::Union{Nothing,AssetWatcher})
         c_debug_callback = @cfunction(debug_callback, Nothing, 
@@ -93,7 +95,10 @@ mutable struct OpenGLData
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearStencil(0)
         glStencilMask(0xFF);
-        _backgroundCol = Vec3F(0.73f0,0.73f0,0.73f0)
+
+        theme = LIGHT_THEME
+
+        _backgroundCol = theme_style(theme,background_style)._color
         glClearColor(_backgroundCol[1], _backgroundCol[2], _backgroundCol[3], 1.0f0)
         glDisable(GL_DITHER);
 
@@ -199,7 +204,7 @@ mutable struct OpenGLData
         observers::Vector{RendererDNA} = RendererDNA[]
         renderers = PrimitiveRenderers(pipeline_loader,window.scale)
         
-        last_vp = mat4(1.0f0) 
+        last_vp = mat4(1.0f0)
 
         self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
@@ -207,7 +212,8 @@ mutable struct OpenGLData
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,ubo_aabb,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
-            last_vp)
+            last_vp,
+            theme)
         
         self._observers = create_dependent_observers(self)
         return self
@@ -245,6 +251,12 @@ function glCheckErrors(::OpenGLData)
             glError = glGetError()
         end
         error("OpenGL error(s) occured!")
+    end
+end
+
+function update_styles!(self::OpenGLData,theme::Theme)
+    for i in eachindex(self._observers)
+        update_style!(self._observers[i],theme)
     end
 end
 

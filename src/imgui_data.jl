@@ -60,10 +60,11 @@ mutable struct ImGuiData <: ImGuiDNA
         add!(dock,CurvesWindow(model,openglD._renderers.line))
         add!(dock,SurfacesWindow(model,openglD._renderers.triangle))
         add!(dock,FrameTime())
+        add!(dock,ThemeEditorWindow())
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())
-        push!(widgets,OptionsWidget(openglD._backgroundCol,AABB_MIN_DEFAULT,AABB_MAX_DEFAULT))
+        push!(widgets,OptionsWidget(openglD._backgroundCol,openglD._renderers.point,openglD._renderers.line,openglD._renderers.triangle,openglD._renderers.sphere,model,AABB_MIN_DEFAULT,AABB_MAX_DEFAULT))
         coordinatesWidget = CoordinatesWidget(app._opengl._renderers.gizmo)
         push!(widgets,coordinatesWidget)
         

@@ -6,11 +6,11 @@ mutable struct TriangleClusterDependent <: RenderedDependentDNA
     _dependent::RenderedDependent
     _mesh::Mesh
     _transform::Mat4T{Float64}
-    _color::UInt32
+    _color::Union{Nothing,UInt32}
     
     function TriangleClusterDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        mesh::BaseMesh,transform::Mat4T{Float64},color::UInt32
+        mesh::BaseMesh,transform::Mat4T{Float64},color::Union{Nothing,UInt32}
     )
         _mesh = Mesh(get_positions(mesh),get_indices(mesh))
         dependent = RenderedDependent(callback,dependents)
@@ -88,15 +88,24 @@ mutable struct TriangleClusters <: RendererDNA{TriangleClusterDependent}
     _renderer::Renderer{TriangleClusterDependent}
     _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
+    _style::TriangleClusterStyle
 
     function TriangleClusters(context::OpenGLData)
         renderer = Renderer{TriangleClusterDependent}(context)
         refs = Vector{UInt32}()
-        new(renderer, context._renderers, refs)
+
+        style = theme_style(context._theme,trianglecluster_style)
+
+        new(renderer, context._renderers, refs,style)
     end
 end
 
 _Renderer_(self::TriangleClusters)::Renderer = return self._renderer
+
+function unpack_style(self::TriangleClusters,cluster::TriangleClusterDependent)
+    color =  isnothing(cluster._color) ? get_style_color(self._style) : cluster._color
+    return color
+end
 
 # GREEN Thread
 function added!(self::TriangleClusters,cluster::TriangleClusterDependent)
@@ -107,13 +116,20 @@ function added!(self::TriangleClusters,cluster::TriangleClusterDependent)
         [Vec3F(cluster._mesh.positions[ind+1]) for ind in cluster._mesh.indices]
     end
 
+    c = unpack_style(self,cluster)
+
     ref = add!(
         self._renderers.triangle,
         triangulated,
         Mat4T{Float32}(cluster._transform),
-        cluster._color,
+        c,
         aID)
     push!(self._refs, ref)
+end
+
+function update_style!(self::TriangleClusters,theme::Theme)
+    style = theme_style(theme,trianglecluster_style)
+    self._style = style
 end
 
 # GREEN Thread
@@ -124,8 +140,11 @@ function sync!(self::TriangleClusters,cluster::TriangleClusterDependent)
         [Vec3F(cluster._mesh.positions[ind+1]) for ind in cluster._mesh.indices]
     end
     ref = self._refs[getObserverID(cluster)]
+
+    c = unpack_style(self,cluster)
+
     update_coords!(self._renderers.triangle,ref,triangulated)
-    update_color!(self._renderers.triangle,ref,cluster._color)
+    update_color!(self._renderers.triangle,ref,c)
     update_transform!(self._renderers.triangle,ref,cluster._transform)
 end
 
@@ -146,18 +165,18 @@ export get_positions
 
 # YELLOW Thread
 function TriangleCluster(callback::Function,mesh::BaseMesh,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-    color="g")::TriangleClusterDependent
+    color=nothing)::TriangleClusterDependent
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
     return Build!(TriangleClusterDependent(callback,dependents,mesh,dmat4(1.0),c))
 end
 
 TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                color="g") = TriangleCluster(callback,Mesh(),dependents,color_data;color=color)
+                color=nothing) = TriangleCluster(callback,Mesh(),dependents,color_data;color=color)
 
 TriangleCluster(mesh::BaseMesh,color_data::Union{Nothing,String}=nothing;
-                color="g") = TriangleCluster(()->dmat4(1.0),mesh,DependentDNA[],color_data;color=color)
+                color=nothing) = TriangleCluster(()->dmat4(1.0),mesh,DependentDNA[],color_data;color=color)
 
-function _TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}, args...; color="g")
+function _TriangleCluster(callback::Function,dependents::Vector{<:DependentDNA}, args...; color=nothing)
     mesh = Mesh()
     color_data::Union{Nothing,String}=nothing
     for arg in args

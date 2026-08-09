@@ -7,12 +7,12 @@ mutable struct SphereDependent <: RenderedDependentDNA
     _dependent::RenderedDependent
     _center::Vec3D
     _radius::Float64
-    _color::UInt32
+    _color::Union{Nothing,UInt32}
 
     # YELLOW Thread
     function SphereDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
-        color::UInt32)
+        color::Union{Nothing,UInt32})
         dependent = RenderedDependent(callback,dependents)
         center = Vec3DNan
         radius = 0.0
@@ -108,12 +108,16 @@ mutable struct Spheres <: RendererDNA{SphereDependent}
     _renderer::Renderer{SphereDependent}
     _renderers::PrimitiveRenderers
     _indexes::Vector{UInt32}
+    _style::SphereStyle
 
     # GREEN Thread
     function Spheres(context::OpenGLData)
         renderer = Renderer{SphereDependent}(context)
         indexes = Vector{UInt32}()
-        new(renderer, context._renderers, indexes)
+
+        style = theme_style(context._theme,sphere_style)
+
+        new(renderer, context._renderers, indexes,style)
     end
 end
 
@@ -122,13 +126,21 @@ _Renderer_(self::Spheres)::Renderer = return self._renderer
 # GREEN Thread
 function added!(self::Spheres,sphere::SphereDependent)
     aID = UInt32(getGraphID(sphere) + ID_LOWER_BOUND)
-    push!(self._indexes, add!(self._renderers.sphere,Vec3F(sphere._center),Float32(sphere._radius),sphere._color,aID))
+
+    color = isnothing(sphere._color) ? get_style_color(self._style) : sphere._color
+
+    push!(self._indexes, add!(self._renderers.sphere,Vec3F(sphere._center),Float32(sphere._radius),color,aID))
+end
+
+function update_style!(self::Spheres,theme::Theme)
+    style = theme_style(theme,sphere_style)
+    self._style = style
 end
 
 # GREEN Thread
 function sync!(self::Spheres,sphere::SphereDependent)
     index = self._indexes[getObserverID(sphere)]
-    update_coord_radius!(self._renderers.sphere,index,Vec3F(sphere._center),Float32(sphere._radius),sphere._color)
+    update_coord_radius!(self._renderers.sphere,index,Vec3F(sphere._center),Float32(sphere._radius))
 end
 
 function destroy!(self::Spheres) end
@@ -145,13 +157,14 @@ _get_dependent_sphere(dep) = isa(dep,Number) ? (SourceValueHolder(Float64(dep)),
 
 # YELLOW Thread
 function Sphere(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                color="b")::SphereDependent
-    c = isnothing(color_data) ? get_color(color) : get_color(color_data)
+                color=nothing)::SphereDependent
+    c = isnothing(color) ? get_color(color_data) : get_color(color)
+
     return Build!(SphereDependent(callback,dependents,c))
 end
 
 function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;
-    color="b")::SphereDependent
+    color=nothing)::SphereDependent
     call_p = function (center,p1)
         radius = norm(center - p1)
         return (center,radius)
@@ -170,7 +183,7 @@ function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;
 end
 
 function Sphere(p1,p2,p3,p4,color_data::Union{Nothing,String}=nothing;
-    color="b")::SphereDependent
+    color=nothing)::SphereDependent
     call = function (p1,p2,p3,p4)
         s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
         return s

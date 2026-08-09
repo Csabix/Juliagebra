@@ -160,6 +160,8 @@ function renderContent(self::PointsWindow, app::AppDNA)
         end
 
         CImGui.TableNextColumn()
+
+        
         new_color = color_edit3(node._color, "##pcol$id")
         if new_color !== nothing
             set_color(self._renderer, node, new_color)
@@ -167,7 +169,8 @@ function renderContent(self::PointsWindow, app::AppDNA)
 
         CImGui.TableNextColumn()
         CImGui.PushItemWidth(-1)
-        cur_idx = something(findfirst(==(node._style), _POINT_STYLE_VALUES), 1) - 1
+        cur_idx = isnothing(node._style) ? 0 :
+                something(findfirst(==(node._style), _POINT_STYLE_VALUES), 1) - 1
         style_ref = Ref(Cint(cur_idx))
         if CImGui.Combo("##pst$id", style_ref, _POINT_STYLE_LABELS, length(_POINT_STYLE_LABELS))
             set_style(self._renderer, node, _POINT_STYLE_VALUES[style_ref[] + 1])
@@ -175,7 +178,7 @@ function renderContent(self::PointsWindow, app::AppDNA)
         CImGui.PopItemWidth()
 
         CImGui.TableNextColumn()
-        size_ref = Ref(Cint(node._size))
+        size_ref = Ref(Cint(something(node._size, 25)))
         if CImGui.SliderInt("##psz$id", size_ref, 0, 255)
             set_size(self._renderer, node, UInt8(size_ref[]))
         end

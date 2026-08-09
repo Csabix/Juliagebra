@@ -15,7 +15,7 @@ end
 _get_dependent_triangle(dep::DependentDNA) = dep
 _get_dependent_triangle(dep) = SourceValueHolder(Vec3D(dep))
 
-function Triangle(a,b,c,color_data::Union{Nothing,String}=nothing;color=default)
+function Triangle(a,b,c,color_data::Union{Nothing,String}=nothing;color=nothing)
     deps = DependentDNA[
         _get_dependent_triangle(a),
         _get_dependent_triangle(b),

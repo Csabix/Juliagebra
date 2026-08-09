@@ -22,7 +22,6 @@ mutable struct OptionsWindow <: WindowDNA
     function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model)
         whitebg = false
         oBgColor = Cfloat[color[1], color[2], color[3]]
-        dBgColor = Cfloat[0.15f0,0.15f0,0.15f0]
         gizmoLength = 1.0
         gizmoThickness = 1.0
         selectedTheme= Ref(1)
@@ -36,15 +35,26 @@ getWindowName(self::OptionsWindow) = "Options"
 function _updateScene!(app::AppDNA)
     update!(getOpenGL(app), app._cam, true, UInt32(0))
 end
+
+function _setBackground(self::OptionsWindow, color::NTuple{3,Cfloat})
+
+    for i in eachindex(self._oBgColor)
+        self._oBgColor[i] = color[i]
+    end
+
+    glClearColor(color[1],color[2],color[3],1.0f0)
+end
+
 function _setBackground(self::OptionsWindow, app::AppDNA)
     if (self._whitebg[])
         glClearColor(1.0f0, 1.0f0, 1.0f0, 1.0f0)
     else
-        glClearColor(self._oBgColor[1], self._oBgColor[2], self._oBgColor[3], 1.0f0)
+       glClearColor(self._oBgColor[1],self._oBgColor[2],self._oBgColor[3],1.0f0)
     end
     # ? updates so that the background changes instantly, instead of waiting for an actual scene_change
     _updateScene!(app)
 end
+
 function _setGizmo(self::OptionsWindow, app::AppDNA)
     gizmo = app._opengl._renderers.gizmo
     gizmo.ubo_size[1] = self._gizmoLength[]
@@ -52,7 +62,128 @@ function _setGizmo(self::OptionsWindow, app::AppDNA)
     _updateScene!(app)
 end
 
+function update_imgui_theme(style::UiStyle)
+    s = get_style_style_ui(style)
 
+    if s == dark
+        CImGui.StyleColorsDark()
+    elseif s == light
+        CImGui.StyleColorsLight()
+    elseif s == classic
+        CImGui.StyleColorsClassic()
+    end
+end
+
+function unpack_style_normal3(style,node)
+    c = isnothing(node._color) ? get_style_color(style) : node._color
+    st = isnothing(node._style) ? get_style_style_point(style) : node._style
+    si = isnothing(node._size) ? get_style_size_int(style) : node._size
+    return c, st, si
+end
+
+function unpack_style_multi_color3(style,node)
+    cs = isnothing(node._colors) ? [get_style_color(style)] : node._colors
+    st = isnothing(node._style) ? get_style_style_line(style) : node._style
+    si = isnothing(node._size) ? get_style_size_float(style) : node._size
+    return cs, st, si
+end
+
+function unpack_style1(style,node)
+    c = isnothing(node._color) ? get_style_color(style) : node._color
+    return c
+end
+
+function update_point_renderer!(self::OptionsWindow,node,color,style,size)
+    ref = getObserver(node)._refs[getObserverID(node)]
+    update_colors!(self._pRend,ref,color)
+    update_styles!(self._pRend,ref,style)
+    update_sizes!(self._pRend,ref,size)
+end
+
+function update_line_renderer!(self::OptionsWindow,node::ParametricCurveDependent,color,style,size)
+    ref = getObserver(node)._refs[getObserverID(node)]
+    update_colors!(self._lRend,ref,color)
+    update_style!(self._lRend,ref,style)
+    update_size!(self._lRend,ref,size)
+end
+
+function update_line_renderer!(self::OptionsWindow,node::SegmentSequenceDependent,color,style,size)
+    ref = getObserver(node)._refs[getObserverID(node)]
+    if node._break_every >= 2
+        update_colors_dynamic!(self._lRend,ref,custom_interleaver(collect(Iterators.take(Iterators.cycle(color),length(node._values))),zero(UInt32),node._break_every))
+        update_style_dynamic!(self._lRend,ref,style)
+        update_size_dynamic!(self._lRend,ref,size)
+    else
+        update_colors_dynamic!(self._lRend,ref,Iterators.cycle(color))
+        update_style_dynamic!(self._lRend,ref,style)
+        update_size_dynamic!(self._lRend,ref,size)
+    end
+end
+
+function update_triangle_renderer!(self::OptionsWindow,node,color)
+    ref = getObserver(node)._refs[getObserverID(node)]
+    update_color!(self._tRend,ref,color)
+end
+
+function update_sphere_renderer!(self::OptionsWindow,node,color)
+    ref = getObserver(node)._indexes[getObserverID(node)]
+    update_color!(self._sRend,ref,color)
+end
+
+function update_view!(self::OptionsWindow,theme::Theme,app::AppDNA)
+    pointStyle = theme_style(theme,point_style)
+    pointSetStyle = theme_style(theme,pointset_style)
+    pointSequenceStyle = theme_style(theme,pointsequence_style)
+    sphereStyle = theme_style(theme,sphere_style)
+    parametricCurveStyle = theme_style(theme,parametriccurve_style)
+    parametricSurfaceStyle = theme_style(theme,parametricsurface_style)
+    triangleClusterStyle = theme_style(theme,trianglecluster_style)
+    segmentSequencStyle = theme_style(theme,segmentsequence_style)
+    backgroundStyle = theme_style(theme,background_style)
+    uiStyle = theme_style(theme,ui_style)
+
+    update_imgui_theme(uiStyle)
+    _setBackground(self,backgroundStyle._color)
+
+    for node in getNodes(self._model._graph)
+        if (node isa PointDependent) 
+            (c,st,si) = unpack_style_normal3(pointStyle,node)
+            
+            update_point_renderer!(self,node,c,st,si)
+
+        elseif (node isa PointSetDependent)
+            (c,st,si) = unpack_style_normal3(pointSetStyle,node)
+            
+            update_point_renderer!(self,node,c,st,si)
+
+        elseif (node isa PointSequenceDependent)
+            (c,st,si) = unpack_style_normal3(pointSequenceStyle,node)
+            
+            update_point_renderer!(self,node,c,st,si)
+
+        elseif (node isa SphereDependent)
+            c = unpack_style1(sphereStyle,node)
+            update_sphere_renderer!(self,node,c)
+
+        elseif (node isa ParametricCurveDependent)
+            (cs,st,si) = unpack_style_multi_color3(parametricCurveStyle,node)
+            update_line_renderer!(self,node,cs,st,si)
+
+        elseif (node isa ParametricSurfaceDependent)
+            c = unpack_style1(parametricSurfaceStyle,node)
+            update_triangle_renderer!(self,node,c)
+
+        elseif (node isa TriangleClusterDependent)
+            c = unpack_style1(triangleClusterStyle,node)
+            update_triangle_renderer!(self,node,c)
+
+        elseif (node isa SegmentSequenceDependent)
+            (cs,st,si) = unpack_style_multi_color3(segmentSequencStyle,node)
+            update_line_renderer!(self,node,cs,st,si)
+        end
+    end
+    _updateScene!(app)
+end
 
 function renderContent(self::OptionsWindow, app::AppDNA)
     if (CImGui.Checkbox("White background", self._whitebg))
@@ -75,30 +206,25 @@ function renderContent(self::OptionsWindow, app::AppDNA)
 
     if CImGui.BeginCombo("Theme", Themes[self._selectedTheme[]]._name)
 
-    for i in eachindex(Themes)
+        for i in eachindex(Themes)
 
-        selected = (self._selectedTheme[] == i)
+            selected = (self._selectedTheme[] == i)
 
-        if CImGui.Selectable(Themes[i]._name, selected)
+            if CImGui.Selectable(Themes[i]._name, selected)
 
-            self._selectedTheme[] = i
+                self._selectedTheme[] = i
 
-            theme = Themes[i]
+                theme = Themes[i]
 
-            update_theme!(app,theme)
+                update_theme!(app,theme)
 
-            #setStyle!(self._pRend, theme_style(theme, point_style))
-            #setStyle!(self._lRend, theme_style(theme, segmentsequence_style))
-            #setStyle!(self._tRend, theme_style(theme, trianglecluster_style))
-            #setStyle!(self._sRend, theme_style(theme, sphere_style))
+                update_view!(self,theme,app)
+            end
 
-            _updateScene!(app)
+            if selected
+                CImGui.SetItemDefaultFocus()
+            end
         end
-
-        if selected
-            CImGui.SetItemDefaultFocus()
-        end
-    end
 
         CImGui.EndCombo()
     end

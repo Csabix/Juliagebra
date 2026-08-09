@@ -75,77 +75,89 @@ function renderContent(self::CurvesWindow)
         # --- Colors Column ---
         CImGui.TableNextColumn()
         
-        num_colors = length(node._colors)
-        display_limit = 5
+        
         changed = false
 
-        # 1. Inline Color Pickers (Limited)
-        for i in 1:min(num_colors, display_limit)
-            new_color = color_edit3(node._colors[i], "##ccol$(id)_$i")
+        if isnothing(node._colors)
             
+                new_color = color_edit3(nothing, "##pcol$id")
             if new_color !== nothing
-                node._colors[i] = new_color
+                node._colors = [new_color]
+                set_color(self._renderer, node)
+            end
+        else
+            num_colors = length(node._colors)
+            display_limit = 5
+        # 1. Inline Color Pickers (Limited)
+            for i in 1:min(num_colors, display_limit)
+
+
+                new_color = color_edit3(node._colors[i], "##ccol$(id)_$i")
+                
+                if new_color !== nothing
+                    node._colors[i] = new_color
+                    changed = true
+                end
+                CImGui.SameLine()
+            end
+        
+            # 2. "More" Button for Popup
+            if num_colors > display_limit
+                if CImGui.Button("...##more$id")
+                    CImGui.OpenPopup("color_popup_$id")
+                end
+                CImGui.SameLine()
+            end
+
+            # 3. Add Color Button (+)
+            # Uses Cyan: RGB(0, 1, 1)
+            if CImGui.Button("+##add$id")
+                push!(node._colors, get_color((0,255,255)))
                 changed = true
             end
             CImGui.SameLine()
-        end
 
-        # 2. "More" Button for Popup
-        if num_colors > display_limit
-            if CImGui.Button("...##more$id")
-                CImGui.OpenPopup("color_popup_$id")
+            # 4. Remove Color Button (-)
+            # Disabled if only 1 color remains
+            if num_colors <= 1
+                CImGui.BeginDisabled()
             end
-            CImGui.SameLine()
-        end
+            if CImGui.Button("-##rem$id")
+                pop!(node._colors)
+                changed = true
+            end
+            if num_colors <= 1
+                CImGui.EndDisabled()
+            end
 
-        # 3. Add Color Button (+)
-        # Uses Cyan: RGB(0, 1, 1)
-        if CImGui.Button("+##add$id")
-            push!(node._colors, get_color((0,255,255)))
-            changed = true
-        end
-        CImGui.SameLine()
-
-        # 4. Remove Color Button (-)
-        # Disabled if only 1 color remains
-        if num_colors <= 1
-            CImGui.BeginDisabled()
-        end
-        if CImGui.Button("-##rem$id")
-            pop!(node._colors)
-            changed = true
-        end
-        if num_colors <= 1
-            CImGui.EndDisabled()
-        end
-
-        # 5. Popup logic for overflow colors
-        if CImGui.BeginPopup("color_popup_$id")
-            CImGui.Text("All Colors (Node $id)")
-            CImGui.Separator()
-            if CImGui.BeginChild("popup_scroll_$id", CImGui.ImVec2(150, 200), true)
-                for i in 1:length(node._colors) # length might have changed via buttons
-                    CImGui.Text("$i:") 
-                    CImGui.SameLine()
-                    new_color = color_edit3(node._colors[i], "##pcol$(id)_$i")
-                    if new_color !== nothing
-                        node._colors[i] = new_color
-                        changed = true
+            # 5. Popup logic for overflow colors
+            if CImGui.BeginPopup("color_popup_$id")
+                CImGui.Text("All Colors (Node $id)")
+                CImGui.Separator()
+                if CImGui.BeginChild("popup_scroll_$id", CImGui.ImVec2(150, 200), true)
+                    for i in 1:length(node._colors) # length might have changed via buttons
+                        CImGui.Text("$i:") 
+                        CImGui.SameLine()
+                        new_color = color_edit3(node._colors[i], "##pcol$(id)_$i")
+                        if new_color !== nothing
+                            node._colors[i] = new_color
+                            changed = true
+                        end
                     end
+                    CImGui.EndChild()
                 end
-                CImGui.EndChild()
+                CImGui.EndPopup()
             end
-            CImGui.EndPopup()
-        end
 
-        # Trigger updates if colors were edited, added, or removed
-        if changed
-            set_color(self._renderer,node)
+            # Trigger updates if colors were edited, added, or removed
+            if changed
+                set_color(self._renderer,node)
+            end
         end
 
         # --- Width Column ---
         CImGui.TableNextColumn()
-        w_ref = Ref(node._size)
+        w_ref = Ref(something(node._size, 5.0f0))
         if CImGui.SliderFloat("##cw$id", w_ref, 1.0f0, 20.0f0)
             node._size = w_ref[]
             set_size(self._renderer,node)
@@ -153,7 +165,7 @@ function renderContent(self::CurvesWindow)
 
         # --- Style Column ---
         CImGui.TableNextColumn()
-        cur_idx = something(findfirst(==(node._style), _CURVE_STYLE_VALUES), 1) - 1
+        cur_idx = isnothing(node._style) ? 0 : something(findfirst(==(node._style), _CURVE_STYLE_VALUES), 1) - 1
         style_ref = Ref(Cint(cur_idx))
         if CImGui.Combo("##cst$id", style_ref, _CURVE_STYLE_LABELS, length(_CURVE_STYLE_LABELS))
             node._style = _CURVE_STYLE_VALUES[style_ref[] + 1]

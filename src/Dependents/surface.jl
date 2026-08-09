@@ -13,14 +13,14 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
     _uRange::Range
     _vRange::Range
 
-    _color::UInt32
+    _color::Union{Nothing,UInt32}
 
     # YELLOW Thread
     function ParametricSurfaceDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         uRange::Range,
         vRange::Range,
-        color::UInt32,
+        color::Union{Nothing,UInt32},
         ) where {Range<:AbstractRange}
 
         rd = RenderedDependent(callback,dependents)
@@ -159,14 +159,17 @@ mutable struct ParametricSurfaceRenderer <: RendererDNA{ParametricSurfaceDepende
     _indexes::Vector{UInt32}
     _vertexes::FlatMatrixManager{Vec3F}
     _normals::FlatMatrixManager{Vec3F}
+    _style::ParametricSurfaceStyle
 
     # GREEN Thread
     function ParametricSurfaceRenderer(context::OpenGLData)
         renderer = Renderer{ParametricSurfaceDependent}(context)
         refs = Vector{UInt32}()
+
+        style = theme_style(context._theme,parametricsurface_style)
         
         new(renderer,context._renderers,refs,
-        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}())
+        Vector{UInt32}(),FlatMatrixManager{Vec3F}(),FlatMatrixManager{Vec3F}(),style)
     end
 end
 
@@ -189,14 +192,23 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
 
     aID = UInt32(getGraphID(surface) + ID_LOWER_BOUND)
     coords = get_triangulated(data(self._vertexes, surface._layer),self._vertexes,layers(self._vertexes))
+
+    color = isnothing(surface._color) ? get_style_color(self._style) : surface._color
+
     ref = add!(
         self._renderers.triangle,
         coords,
         mat4(1.0f0),
-        surface._color,
+        color,
         aID)
     push!(self._refs, ref)
 end
+
+function update_style!(self::ParametricSurfaceRenderer,theme::Theme)
+    style = theme_style(theme,parametricsurface_style)
+    self._style = style
+end
+
 
 # GREEN Thread
 function sync!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDependent)
@@ -223,8 +235,10 @@ Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceR
 function ParametricSurface(callback::Function,
                            uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
                            dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                           color=default)
-    c = isnothing(color_data) ? resolve_style(ParametricSurfaceDependent;color=color).color : get_color(color_data)
+                           color=nothing)
+
+    c = isnothing(color) ? get_color(color_data) : get_color(color)
+
     Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
 end
 

@@ -489,7 +489,7 @@ function update_style!(self::LineRenderer,ref::UInt32,style::UInt8)
     end
 
     if xor(new_reversed, old_reversed)
-        color_style_view = view(self.color_style, first:UInt32(first + N - 1))
+        color_style_view = view(self.color_style, first:last)
         reversed_value::UInt32 = UInt32(new_reversed ? 0xff : 0x00) << 24
         map!(e -> e & ~(UInt32(0xff) << 24) | reversed_value, color_style_view)
         self.updated |= _LINE_PROP_COLOR_STYLE

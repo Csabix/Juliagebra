@@ -83,7 +83,10 @@ mutable struct OpenGLData
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearStencil(0)
         glStencilMask(0xFF);
-        _backgroundCol = Vec3F(0.73f0,0.73f0,0.73f0)
+
+        theme = LIGHT_THEME
+
+        _backgroundCol = theme_style(theme,background_style)._color
         glClearColor(_backgroundCol[1], _backgroundCol[2], _backgroundCol[3], 1.0f0)
         glDisable(GL_DITHER);
 
@@ -185,8 +188,6 @@ mutable struct OpenGLData
         
         last_vp = mat4(1.0f0)
 
-        theme = LIGHT_THEME
-
         self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,observers,renderers,
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
@@ -236,7 +237,9 @@ function glCheckErrors(::OpenGLData)
 end
 
 function update_styles!(self::OpenGLData,theme::Theme)
-    update_style!(self._observers[1],theme)
+    for i in eachindex(self._observers)
+        update_style!(self._observers[i],theme)
+    end
 end
 
 function resize!(self::OpenGLData,window::GLFWData)

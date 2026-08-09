@@ -60,6 +60,7 @@ mutable struct ImGuiData <: ImGuiDNA
         add!(dock,CurvesWindow(model,openglD._renderers.line))
         add!(dock,SurfacesWindow(model,openglD._renderers.triangle))
         add!(dock,FrameTime())
+        add!(dock,ThemeEditorWindow())
 
         push!(widgets,dock)
         push!(widgets,ResetWidget())

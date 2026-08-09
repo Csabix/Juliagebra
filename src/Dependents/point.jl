@@ -63,11 +63,11 @@ Base.string(self::Points) = return "Points($(length(self._refs)))"
 function added!(self::Points,point::PointDependent)
     aID = UInt32(getGraphID(point) + ID_LOWER_BOUND)
     
-    color = isnothing(point._color) ? get_color(self._style._color) : point._color
+    color = isnothing(point._color) ? get_style_color(self._style) : point._color
     
-    style = isnothing(point._style) ? get_point_style(self._style._style) : point._style
+    style = isnothing(point._style) ? get_style_style_point(self._style) : point._style
     
-    size = isnothing(point._size) ? UInt8(round(UInt8,self._style._size)) : point._size
+    size = isnothing(point._size) ? get_style_size_int(self._style) : point._size
 
     ref = add!(self._renderers.point,Vec3F(point._coord),color,style,size,aID)
     push!(self._refs, ref)
@@ -98,11 +98,7 @@ Dependent2Observer(app::AppDNA,::PointDependent) = getDependentObservers(app)[_P
 function Point(callback::Function,dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
     color=nothing,style=nothing,size=nothing,axis_constraint=AXIS_NONE)
 
-    (c, st) = parse_point_color_style(
-        color_style,
-        color,
-        style
-    )
+    (c, st) = parse_point_color_style(color_style, color, style)
 
     si = isnothing(size) ? nothing : UInt8(round(UInt8,size))
 

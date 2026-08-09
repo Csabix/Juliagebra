@@ -55,8 +55,8 @@ function getButtonSize(text::String)
 end
 
 # ? Could microoptimize this by not creating buffers everytime if necessary
-function color_edit3(color::UInt32, label::String)::Union{UInt32,Nothing}
-    c4 = unpack_color(color)
+function color_edit3(color::Union{Nothing,UInt32}, label::String)::Union{UInt32,Nothing}
+    c4 = isnothing(color) ? unpack_color(get_color("m")) : unpack_color(color)
     col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
             CImGui.ImGuiColorEditFlags_NoLabel
@@ -66,8 +66,8 @@ function color_edit3(color::UInt32, label::String)::Union{UInt32,Nothing}
     return nothing
 end
 
-function color_edit4(color::UInt32, label::String)::Union{UInt32,Nothing}
-    c4 = unpack_color(color)
+function color_edit4(color::Union{Nothing,UInt32}, label::String)::Union{UInt32,Nothing}
+    c4 = isnothing(color) ? unpack_color(get_color("g")) : unpack_color(color)
     col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3]), Float32(c4[4])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
         CImGui.ImGuiColorEditFlags_AlphaBar     |

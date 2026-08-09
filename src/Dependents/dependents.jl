@@ -1,4 +1,3 @@
-include("parsers.jl")
 include("rendered_dependent.jl")
 include("Gui/gui_renderer.jl")
 include("Gui/gui_dependent.jl")

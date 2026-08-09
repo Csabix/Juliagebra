@@ -7,9 +7,9 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     _renderedDependent::RenderedDependent
     
     _range::AbstractRange{Float64}
-    _colors::Vector{UInt32}
-    _size::Float32
-    _style::UInt8
+    _colors::Union{Nothing,Vector{UInt32}}
+    _size::Union{Nothing,Float32}
+    _style::Union{Nothing,UInt8}
 
     _tValues::Vector{Vec3D} # ? Calculated value for each t
 
@@ -17,7 +17,7 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     function ParametricCurveDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         range::AbstractRange{Float64},
-        color::Vector{UInt32},style::UInt8,size::Float32)
+        color::Union{Nothing,Vector{UInt32}},style::Union{Nothing,UInt8},size::Union{Nothing,Float32})
         dependent = RenderedDependent(callback,dependents)
         tValues = Vector{Vec3D}(undef,length(range))
         new(dependent,range,color,size,style,tValues)
@@ -86,12 +86,16 @@ mutable struct Curves <: RendererDNA{ParametricCurveDependent}
     _renderer::Renderer{ParametricCurveDependent}
     _renderers::PrimitiveRenderers
     _refs::Vector{UInt32}
+    _style::ParametricCurveStyle
 
     # GREEN Thread
     function Curves(context::OpenGLData)
         renderer = Renderer{ParametricCurveDependent}(context)
         refs = Vector{UInt32}()
-        new(renderer, context._renderers, refs)
+
+        style = theme_style(context._theme,parametriccurve_style)
+
+        new(renderer, context._renderers, refs,style)
     end
 end
 
@@ -101,15 +105,27 @@ Base.string(self::Curves) = return "Curves[$(length(self._coords))]"
 # GREEN Thread
 function added!(self::Curves,curve::ParametricCurveDependent)
     aID = UInt32(getGraphID(curve) + ID_LOWER_BOUND)
+
+    color = isnothing(curve._colors) ? [get_style_color(self._style)] : curve._colors
+    
+    style = isnothing(curve._style) ? get_style_style_line(self._style) : curve._style
+    
+    size = isnothing(curve._size) ? get_style_size_float(self._style) : curve._size
+
     push!(self._refs,
         add!(self._renderers.line,
             curve._tValues,
-            cycle(curve._colors),
+            cycle(color),
             cycle(aID),
-            curve._size,
-            curve._style,
+            size,
+            style,
         )
     )
+end
+
+function update_style!(self::Curves,theme::Theme)
+    style = theme_style(theme,parametriccurve_style)
+    self._style = style
 end
 
 # GREEN Thread
@@ -127,14 +143,13 @@ Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getDependentObserve
 # YELLOW Thread
 function ParametricCurve(callback::Function,range::AbstractRange{Float64},
                 dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-                color=default,style=default,size=default)::ParametricCurveDependent
-    st = resolve_style(ParametricCurveDependent;
-        color=color,
-        style=style,
-        size=size
-    )
-    (c,s) = parse_line_colors_style(color_style,st.color,st.style)
-    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(st.size)))
+                color=nothing,style=nothing,size=nothing)::ParametricCurveDependent
+    
+    (c,st) = parse_line_colors_style(color_style,color,style)
+
+    si = isnothing(size) ? nothing : Float32(size)
+
+    return Build!(ParametricCurveDependent(callback,dependents,range,c,st,si))
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

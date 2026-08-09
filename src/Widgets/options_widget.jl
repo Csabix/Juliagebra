@@ -13,6 +13,8 @@ mutable struct OptionsWidget <: ImGuiWidgetDNA
 
     function OptionsWidget(bgcolor,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model)
         new(ImGuiWidget(),OptionsWindow(bgcolor,pRenderer,lRenderer,tRenderer,sRenderer,model),0,0,0,0,0)
+    function OptionsWidget(bgcolor,aabbMin,aabbMax)
+        new(ImGuiWidget(),OptionsWindow(bgcolor,aabbMin,aabbMax),0,0,0,0,0)
     end
 end
 

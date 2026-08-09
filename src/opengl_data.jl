@@ -30,6 +30,17 @@ struct UBO_Data
     _near_far_fov_hovered::Vec4F
 end
 
+# Has to be "vec4"s, otherwise two 12 bits (of the 3 floats)
+# would be smushed together, and the first float of max
+# would be in the remaining 4 bits, essentially losing that data
+struct UBO_AABB
+    min::Vec4F
+    max::Vec4F
+end
+
+const AABB_MIN_DEFAULT = [-10.0,-10.0,-10.0]
+const AABB_MAX_DEFAULT = [ 10.0, 10.0, 10.0]
+
 mutable struct OpenGLData
     _window::GLFWData
     _profiler::Profiler
@@ -60,6 +71,7 @@ mutable struct OpenGLData
     _transparentFBO::FrameBuffer
 
     _ubo::MappedBuffer{UBO_Data}
+    _ubo_aabb::MappedBuffer{UBO_AABB}
     _pixel_buffer_dist::Buffer{UVec4}
     _pixel_buffer_col::Buffer{UVec4}
     _pixel_buffer_id::Buffer{UVec2}
@@ -103,14 +115,13 @@ mutable struct OpenGLData
         init!(profiler)
 
         pipeline_loader = PipelineLoader()
-        full_compile(pipeline_loader)
-        if haskey(ENV,"JULIAGEBRA_COMPILE_SPIRV") && ENV["JULIAGEBRA_COMPILE_SPIRV"] == "true"
-            if asset_watcher !== nothing
-                watch_folder!(asset_watcher,pkgdir(@__MODULE__,"assets","shaders","src"))
-                set_file_changed_callback(asset_watcher,glsl_shader_extensions,get_glsl_update_callback(pipeline_loader))
-                set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
-                set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,get_glsl_include_update_callback(pipeline_loader))
-            end
+        compile_shaders(pipeline_loader)
+        if haskey(ENV,"AUTO_COMPILE_SHADER") && ENV["AUTO_COMPILE_SHADER"] == "true"
+            watch_folder!(asset_watcher,_shader_src_folder)
+            set_file_deleted_callback(asset_watcher,glsl_shader_extensions,get_glsl_delete_callback(pipeline_loader))
+            update_callback = get_glsl_update_callback(pipeline_loader)
+            set_file_changed_callback(asset_watcher,glsl_shader_extensions,update_callback)
+            set_file_changed_callback(asset_watcher,glsl_shader_include_extensions,update_callback)
         end
 
         transparent_color_combiner = create_graphics_pipeline!(pipeline_loader;
@@ -162,6 +173,13 @@ mutable struct OpenGLData
         ubo = MappedBuffer{UBO_Data}()
         reserve!(ubo, 1, 0)
         glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubo._id);
+        ubo_aabb = MappedBuffer{UBO_AABB}()
+        reserve!(ubo_aabb, 1, 0)
+        ubo_aabb[1] = UBO_AABB(
+            Vec4F(AABB_MIN_DEFAULT[1],AABB_MIN_DEFAULT[2],AABB_MIN_DEFAULT[3],0.0),
+            Vec4F(AABB_MAX_DEFAULT[1],AABB_MAX_DEFAULT[2],AABB_MAX_DEFAULT[3],0.0)
+        )
+        glBindBufferBase(GL_UNIFORM_BUFFER, 11, ubo_aabb._id);
 
         pixel_buffer_dist = Buffer{UVec4}()
         pixel_count = Int64(window.width * window.height)
@@ -192,7 +210,7 @@ mutable struct OpenGLData
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
-            ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
+            ubo,ubo_aabb,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
             last_vp,
             theme)

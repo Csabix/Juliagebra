@@ -62,7 +62,7 @@ function spherePos(u,v,r,center)
     y = center.y + (r + 0.1) * sin(alfa) * sin(beta)
     z = center.z + (r + 0.1) * cos(alfa)
 
-    return Vec3F(x,y,z)
+    return Vec3D(x,y,z)
 end
 
 function Base.length(::PTrianglesOfSphere) 

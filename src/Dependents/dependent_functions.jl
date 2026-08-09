@@ -9,16 +9,19 @@ const _TRIANGLE_CLUSTERS::UInt = 8
 
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
 _deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
+
 function _deps_collect_add!(vec::Vector{Vec3D},v::IntersectionCalculatorDependent)
     for i in 1:v._foundIntersectionNum
         push!(vec,v[i])
     end
 end
+
 function _deps_collect_add!(vec::Vector{Vec3D},segseq::SegmentSequenceDependent)
     for v in segseq._values
         push!(vec,v)
     end
 end
+
 function _deps_collect(deps...)
     result = Vector{Vec3D}()
     for dep in deps

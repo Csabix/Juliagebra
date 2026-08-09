@@ -18,21 +18,18 @@ mutable struct OptionsWindow <: WindowDNA
     _gizmoLength::Ref{Float32}
     _gizmoThickness::Ref{Float32}
 
-    
-    function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model)
     _aabbMin::Array{Cfloat}
     _aabbMax::Array{Cfloat}
-
-    function OptionsWindow(color,aabbMin,aabbMax)
+    
+    function OptionsWindow(color,pRenderer::PointRenderer,lRenderer::LineRenderer,tRenderer::TriangleRenderer,sRenderer::SphereRenderer,model::Model,aabbMin,aabbMax)
         whitebg = false
         oBgColor = Cfloat[color[1], color[2], color[3]]
         gizmoLength = 1.0
         gizmoThickness = 1.0
         selectedTheme= Ref(1)
-        new(Window(), whitebg, pRenderer, lRenderer, tRenderer, sRenderer, model, oBgColor,selectedTheme, gizmoLength, gizmoThickness)
         aabbMin = Cfloat[aabbMin[1],aabbMin[2],aabbMin[3]]
         aabbMax = Cfloat[aabbMax[1],aabbMax[2],aabbMax[3]]
-        new(Window(), whitebg, bgColor, gizmoLength, gizmoThickness,aabbMin,aabbMax)
+        new(Window(), whitebg, pRenderer, lRenderer, tRenderer, sRenderer, model, oBgColor,selectedTheme, gizmoLength, gizmoThickness,aabbMin,aabbMax)
     end
 end
 

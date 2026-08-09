@@ -14,6 +14,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
     _vRange::Range
 
     _color::Union{Nothing,UInt32}
+    _isInfinite::Bool
 
     # YELLOW Thread
     function ParametricSurfaceDependent(
@@ -21,7 +22,6 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: RenderedDepen
         uRange::Range,
         vRange::Range,
         color::Union{Nothing,UInt32},
-        color::UInt32;
         isInfinite::Bool = false
         ) where {Range<:AbstractRange}
 
@@ -203,7 +203,6 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
         coords,
         mat4(1.0f0),
         color,
-        surface._color,
         surface._isInfinite,
         aID)
     push!(self._refs, ref)
@@ -240,14 +239,9 @@ Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceR
 function ParametricSurface(callback::Function,
                            uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
                            dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                           color=nothing)
-
-    c = isnothing(color) ? get_color(color_data) : get_color(color)
-
-    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c))
-                           color="g",isInfinite::Bool=false)
+                           color=nothing,isInfinite::Bool=false)
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c;isInfinite=isInfinite))
+    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c,isInfinite))
 end
 
 macro ParametricSurface(callback::Expr,uRange,vRange,args...)

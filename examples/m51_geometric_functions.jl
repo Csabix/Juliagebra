@@ -45,19 +45,35 @@ Segment([p8,l1];color="c") do point,line
 end
 
 # Point-Ray
-p9 = Point(-.5,-2.5,2;color="y")
-r1 = Ray(Vec3D(0,-3,2),Vec3D(1,-3,2);color="c")
+p9 = Point(0,-2.5,2;color="y")
+r1 = Ray(Vec3D(.5,-3,2),Vec3D(1.5,-3,2);color="c")
 Segment([p9,r1];color="c") do point,line
     dist = Distance(point,line)
     return (p0(line),p0(line) + Vec3D(0,1,0) * dist)
 end
 
 # Point-Segment
-p10 = Point(-.5,-3.5,3;color="y")
-s1 = Segment(Vec3D(0,-4,3),Vec3D(1,-4,3);color="c")
+p10 = Point(.5,-3.5,3;color="y")
+s1 = Segment(Vec3D(1,-4,3),Vec3D(2,-4,3);color="c")
 Segment([p10,s1];color="c") do point,line
     dist = Distance(point,line)
     return (p0(line),p0(line) + Vec3D(0,1,0) * dist)
+end
+
+# Point-plane
+p11 = Point(1,-4.5,3;color="y")
+p1 = Plane(Vec3D(1.5,-5,3),Segment(Vec3D(10,-5,0),Vec3D(-10,-5,0);color="c");color="c")
+Segment([p11,p1];color="c") do point,plane
+    dist = Distance(point,plane)
+    return (p0(plane),p0(plane) + Vec3D(0,1,0) * dist)
+end
+
+# Point-sphere
+p12 = Point(1.5,-5.5,3;color="y")
+sphere1 = Sphere(Vec3D(2,-7,3),1.0;color="c")
+Segment([p12,sphere1];color="c") do point,sphere
+    dist = Distance(point,sphere)
+    return (Vec3D(2,-6,3),Vec3D(2,-6,3) + Vec3D(0,1,0) * dist)
 end
 
 #endregion

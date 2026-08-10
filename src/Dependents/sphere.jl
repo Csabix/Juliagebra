@@ -9,7 +9,7 @@ mutable struct Sphere
     end
 end
 
-convert_callback_entry(sphere::Sphere) = (sphere.center,sphere.radius)
+convert_callback_entry(sphere::Sphere) = sphere
 
 convert_callback_result(sphere::Sphere,cr::Tuple{Vec3D,Float64}) = (sphere.center = cr[1];sphere.radius = cr[2];sphere)
 convert_callback_result(sphere::Sphere,s::PSphere) = (sphere.center = s.c;sphere.radius = s.r;sphere)
@@ -24,6 +24,9 @@ function render_node(sphere::Sphere, renderers::Dict{DataType,Renderer}, id::UIn
     end
     return nothing
 end
+
+p0(sphere::Sphere)::Vec3D = sphere.center
+r(sphere::Sphere)::Float64 = sphere.radius
 
 # ? For Intersectable Spheres.
 const SPHERE_DETAIL = 15

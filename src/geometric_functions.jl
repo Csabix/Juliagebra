@@ -43,10 +43,17 @@ end
 function _Distance(point1::Point,point2::Point)::Float64
     return Distance(point1.coord,point2.coord)
 end
-function Distance(point::Vec3D,line::Union{Line,Ray,Segment})
-    t = dot(point - p0(line), v(line))
+
+function Distance(coord::Vec3D,line::Union{Line,Ray,Segment})
+    t = dot(coord - p0(line), v(line))
     projected = p0(line) + v(line) * ClampParameter(line,t)
-    return Distance(point,projected)
+    return Distance(coord,projected)
+end
+function Distance(coord::Vec3D,plane::Plane)
+    return abs(dot(n(plane),coord - p0(plane)))
+end
+function Distance(coord::Vec3D,sphere::Sphere)
+    return abs(Distance(coord,p0(sphere)) - r(sphere))
 end
 
 function Distance(coord1::Vec3D,coord2::Vec3D)::Float64

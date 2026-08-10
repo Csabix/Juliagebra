@@ -12,7 +12,8 @@ mutable struct ParametricCurve
     end
 end
 
-convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
+# convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
+convert_callback_entry(self::ParametricCurve)::ParametricCurve = self
 
 function convert_result(pc::ParametricCurve,v,index)
     if length(v) == 3
@@ -52,11 +53,11 @@ struct PSegmentsOfCurve <: PrimitivesOf{PSegment}
 end
 PrimitivesOf(self::ParametricCurve) = return PSegmentsOfCurve(self)
 
-Base.length(self::PSegmentsOfCurve) = (max(length(self._curve._range) - 1,0))
+Base.length(self::PSegmentsOfCurve) = (max(length(self._curve.range) - 1,0))
 
 function Base.getindex(self::PSegmentsOfCurve, index::Integer)::Union{Nothing, PSegment}
     if ((1 <= index) && (index <= length(self)))
-        return PSegment(self._curve._tValues[index], self._curve._tValues[index + 1])
+        return PSegment(self._curve.values[index], self._curve.values[index + 1])
     else
         return nothing 
     end

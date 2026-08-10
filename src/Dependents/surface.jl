@@ -3,7 +3,6 @@ mutable struct ParametricSurface{Range<:AbstractRange}
     indexes::Vector{UInt32}
     uvValues::FlatMatrix{Vec3D}
     uvNormals::FlatMatrix{Vec3D}
-    layer::Int
 
     uRange::Range
     vRange::Range
@@ -16,7 +15,7 @@ mutable struct ParametricSurface{Range<:AbstractRange}
         indexes = Vector{UInt32}()
         uvValues = FlatMatrix{Vec3D}(length(uRange),length(vRange))
         uvNormals = FlatMatrix{Vec3D}(length(uRange),length(vRange))
-        new{Range}(vertexes,indexes,uvValues,uvNormals,0,uRange,vRange,color,UInt32(0))
+        new{Range}(vertexes,indexes,uvValues,uvNormals,uRange,vRange,color,UInt32(0))
     end
 end
 
@@ -63,7 +62,7 @@ function render_node(ps::ParametricSurface, renderers::Dict{DataType,Renderer}, 
         triangulateInto!(ps.indexes,ps.vertexes,layers(ps.vertexes))
         copy!(ps.uvValues,ps.vertexes,layers(ps.vertexes))
         triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)),ps.vertexes,layers(ps.vertexes))
-        ps.handle = add!(triangle_renderer,triangles,mat4(1.0f0),ps.color,id)
+        ps.handle = add!(triangle_renderer,triangles,mat4(1.0f0),ps.color,false,id)
     else
         copy!(ps.uvValues,ps.vertexes,layers(ps.vertexes))
         triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)),ps.vertexes,layers(ps.vertexes))

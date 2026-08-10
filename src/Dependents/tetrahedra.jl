@@ -37,7 +37,7 @@ function render_node(t::Tetrahedron, renderers::Dict{DataType,Renderer}, id::UIn
     triangles = Vec3F[a,b,c,a,d,b,a,c,d,b,d,c]
     line = Vec3F[a,b,c,d,a,c,Vec3FNan,b,d]
     if t.face_handle == 0
-        t.face_handle = add!(triangle_renderer,triangles,mat4(1.0f0),t.color,id)
+        t.face_handle = add!(triangle_renderer,triangles,mat4(1.0f0),t.color,false,id)
         t.border_handle = add!(line_renderer,line,Iterators.cycle((t.border_color,)),Iterators.cycle((id,)),t.border_size,t.border_style)
     else
         update_coords!(triangle_renderer,t.face_handle,triangles)

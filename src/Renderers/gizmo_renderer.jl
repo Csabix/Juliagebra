@@ -132,14 +132,18 @@ function on_gizmo_right_click!(app)::Bool
     gizmo = app._opengl._renderers[GizmoRenderer]
     if app._hovered > 3
         axes, gizmo_position, data = on_gizmo_select(app.graph.elements[app._hovered])
-        gizmo.data = data
-        gizmo.initial_constraints = axes
-        gizmo.axes = axes
-        gizmo.position = gizmo_position
-        gizmo.move = false
-        gizmo.selected = app._hovered
-        app._scene_change = true
-        return true
+        if (axes == AXIS_NONE || gizmo_position == Vec3DNan)
+            return false
+        else
+            gizmo.data = data
+            gizmo.initial_constraints = axes
+            gizmo.axes = axes
+            gizmo.position = gizmo_position
+            gizmo.move = false
+            gizmo.selected = app._hovered
+            app._scene_change = true
+            return true
+        end
     end
     app._scene_change |= gizmo.axes != AXIS_NONE
     gizmo.data = nothing

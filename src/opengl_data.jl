@@ -30,6 +30,15 @@ struct UBO_Data
     _near_far_fov_hovered::Vec4F
 end
 
+# Vec4F instead of Vec3F, because OpenGL alignment rules
+struct UBO_AABB
+    min::Vec4F
+    max::Vec4F
+end
+
+const AABB_MIN_DEFAULT = [-10.0,-10.0,-10.0]
+const AABB_MAX_DEFAULT = [ 10.0, 10.0, 10.0]
+
 mutable struct OpenGLData
     _window::GLFWData
     _profiler::Profiler
@@ -59,6 +68,7 @@ mutable struct OpenGLData
     _transparentFBO::FrameBuffer
 
     _ubo::MappedBuffer{UBO_Data}
+    _ubo_aabb::MappedBuffer{UBO_AABB}
     _pixel_buffer_dist::Buffer{UVec4}
     _pixel_buffer_col::Buffer{UVec4}
     _pixel_buffer_id::Buffer{UVec2}
@@ -79,7 +89,8 @@ mutable struct OpenGLData
         # ! for OpenGLData to succesfully construct, a GLFWData is required, but not stored
         glClearStencil(0)
         glStencilMask(0xFF);
-        glClearColor(0.73f0,0.73f0,0.73f0,1.0f0)
+        _backgroundCol = Vec3F(0.73f0,0.73f0,0.73f0)
+        glClearColor(_backgroundCol[1], _backgroundCol[2], _backgroundCol[3], 1.0f0)
         glDisable(GL_DITHER);
 
         profiler = Profiler()
@@ -153,6 +164,13 @@ mutable struct OpenGLData
         ubo = MappedBuffer{UBO_Data}()
         reserve!(ubo, 1, 0)
         glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubo._id);
+        ubo_aabb = MappedBuffer{UBO_AABB}()
+        reserve!(ubo_aabb, 1, 0)
+        ubo_aabb[1] = UBO_AABB(
+            Vec4F(AABB_MIN_DEFAULT[1],AABB_MIN_DEFAULT[2],AABB_MIN_DEFAULT[3],0.0),
+            Vec4F(AABB_MAX_DEFAULT[1],AABB_MAX_DEFAULT[2],AABB_MAX_DEFAULT[3],0.0)
+        )
+        glBindBufferBase(GL_UNIFORM_BUFFER, 11, ubo_aabb._id);
 
         pixel_buffer_dist = Buffer{UVec4}()
         pixel_count = Int64(window.width * window.height)
@@ -181,7 +199,7 @@ mutable struct OpenGLData
             transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
-            ubo,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
+            ubo,ubo_aabb,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
             last_vp)
 

@@ -1,16 +1,12 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : require
 #include "../color_output.glsl"
+#include "./triangle_common.glsl"
 
 layout(location = 0) flat in vec4 color_in;
 layout(location = 1) flat in vec3 normal_in;
 layout(location = 2) flat in uint id_in;
 layout(location = 3) in vec4 position_in;
-layout(std140, binding = 0) uniform TriangleUniforms {
-    mat4 M;
-    mat4 MIT;
-    int isInfinite;
-};
 
 void main(){
     if (isInfinite != 0 && inside_aabb(position_in) == 0) {

@@ -30,9 +30,7 @@ struct UBO_Data
     _near_far_fov_hovered::Vec4F
 end
 
-# Has to be "vec4"s, otherwise two 12 bits (of the 3 floats)
-# would be smushed together, and the first float of max
-# would be in the remaining 4 bits, essentially losing that data
+# Vec4F instead of Vec3F, because OpenGL alignment rules
 struct UBO_AABB
     min::Vec4F
     max::Vec4F

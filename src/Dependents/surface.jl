@@ -15,7 +15,7 @@ mutable struct ParametricSurface{Range<:AbstractRange}
         indexes = Vector{UInt32}()
         uvValues = FlatMatrix{Vec3D}(length(uRange),length(vRange))
         uvNormals = FlatMatrix{Vec3D}(length(uRange),length(vRange))
-        new{Range}(vertexes,indexes,uvValues,uvNormals,0,uRange,vRange,color,UInt32(0))
+        new{Range}(vertexes,indexes,uvValues,uvNormals,uRange,vRange,color,UInt32(0))
     end
 end
 

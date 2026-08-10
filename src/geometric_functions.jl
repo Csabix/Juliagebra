@@ -25,14 +25,14 @@ end
 Midpoint(points...)::Vec3D = Midpoint(collect(points))
 
 function Midpoint(pointHandles::AbstractVector{NodeHandle},color_style::Union{Nothing,String}=nothing;
-    color="m",style=".",size=25,axis_constraint=AXIS_NONE)
+    color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
 
     return Point(pointHandles,color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do points...
         return Midpoint(collect(points))
     end
 end
 function Midpoint(pointHandleArgs::NodeHandle...;color_style::Union{Nothing,String}=nothing, # color_style must also be a named parameter here
-    color="m",style=".",size=25,axis_constraint=AXIS_NONE)
+    color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
 
     pointHandles = collect(pointHandleArgs)
     return Midpoint(pointHandles,color_style;color=color,style=style,size=size,axis_constraint=axis_constraint)
@@ -44,15 +44,13 @@ function _Distance(point1::Point,point2::Point)::Float64
     return Distance(point1.coord,point2.coord)
 end
 
-function Distance(coord::Vec3D,line::Union{Line,Ray,Segment})
-    t = dot(coord - p0(line), v(line))
-    projected = p0(line) + v(line) * ClampParameter(line,t)
-    return Distance(coord,projected)
+function Distance(coord::Vec3D,line::Union{Line,Ray,Segment})::Float64
+    return Distance(coord,ClosestPoint(coord,line))
 end
-function Distance(coord::Vec3D,plane::Plane)
+function Distance(coord::Vec3D,plane::Plane)::Float64
     return abs(dot(n(plane),coord - p0(plane)))
 end
-function Distance(coord::Vec3D,sphere::Sphere)
+function Distance(coord::Vec3D,sphere::Sphere)::Float64
     return abs(Distance(coord,p0(sphere)) - r(sphere))
 end
 
@@ -66,8 +64,54 @@ function Distance(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle)::Float64
 end
 #endregion
 
+#region Closest Point
 
-export Midpoint, Distance
+function ClosestPoint(coord::Vec3D,line::Union{Line,Ray,Segment})::Vec3D
+    t = dot(coord - p0(line), v(line))
+    projected = p0(line) + v(line) * ClampParameter(line,t)
+    return projected
+end
+function ClosestPoint(coord::Vec3D,plane::Plane)::Vec3D
+    signedDist = dot(n(plane),coord - p0(plane))
+    return coord - (n(plane) * signedDist)
+end
+function ClosestPoint(coord::Vec3D,sphere::Sphere)::Vec3D
+    dir = normalize(coord - p0(sphere))
+    if (dir === Vec3DNan) return Vec3DNan end
+    return p0(sphere) + dir * r(sphere)
+end
+
+function ClosestPoint(coord::Vec3D,coord_list::Vector{Vec3D})::Vec3D
+    if (length(coord_list) == 0) return Vec3DNan end
+
+    closest::Vec3D = coord_list[1]
+    closest_dist::Float64 = Distance(coord, coord_list[1])
+    for i in 2:length(coord_list)
+        dist = Distance(coord, coord_list[i])
+        if (dist < closest_dist)
+            closest_dist = dist
+            closest = coord_list[i]
+        end
+    end
+
+    return closest
+end
+
+function ClosestPoint(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle,color_style::Union{Nothing,String}=nothing;
+    color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
+    
+    return Point([nodeHandle1,nodeHandle2],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do point,geometry
+        return ClosestPoint(point,geometry)
+    end
+end
+
+#endregion
+
+
+
+
+
+export Midpoint, Distance, ClosestPoint
 
 
 

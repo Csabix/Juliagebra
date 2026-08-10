@@ -51,6 +51,7 @@ end
 p0(ray::Ray)::Vec3D = p0(ray.primitive)
 p1(ray::Ray)::Vec3D = p1(ray.primitive)
 v(ray::Ray)::Vec3D  = v(ray.primitive)
+ClampParameter(ray::Ray,t) = ClampParameter(ray.primitive,t)
 
 # ? ---------------------------------
 # ! Ray intersection

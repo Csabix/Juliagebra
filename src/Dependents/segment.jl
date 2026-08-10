@@ -41,6 +41,7 @@ end
 p0(segment::Segment)::Vec3D = p0(segment.primitive)
 p1(segment::Segment)::Vec3D = p1(segment.primitive)
 v(segment::Segment)::Vec3D  = v(segment.primitive)
+ClampParameter(segment::Segment,t) = ClampParameter(segment.primitive,t)
 
 # ? ---------------------------------
 # ! Segment intersection

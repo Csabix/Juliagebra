@@ -52,6 +52,7 @@ end
 p0(line::Line)::Vec3D = p0(line.primitive)
 p1(line::Line)::Vec3D = p1(line.primitive)
 v(line::Line)::Vec3D  = v(line.primitive)
+ClampParameter(line::Line,t) = ClampParameter(line.primitive,t)
 
 # ? ---------------------------------
 # ! Line intersection

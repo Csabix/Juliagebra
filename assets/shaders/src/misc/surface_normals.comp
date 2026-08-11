@@ -10,16 +10,17 @@ layout(std430, binding = 1) restrict writeonly buffer NormalBuffer {
     vec4 normals[]; 
 };
 
-uniform ivec2 uvGridSize;
+layout(location = 0) uniform ivec2 uvGridSize;
 
 void main() {
     int u = int(gl_GlobalInvocationID.x);
     int v = int(gl_GlobalInvocationID.y);
 
-    int height = uvGridSize.x;
-    int width  = uvGridSize.y;
+    int width  = uvGridSize.x;
+    int height = uvGridSize.y;
 
-    if (u >= width || v >= height) return;
+    if (u >= width || v >= height)
+        return;
 
     int u_left  = max(u - 1, 0);
     int u_right = min(u + 1, width - 1);
@@ -31,6 +32,5 @@ void main() {
     vec3 up    = positions[v_up * width + u].xyz;
     vec3 down  = positions[v_down * width + u].xyz;
 
-    uint flat_idx = v * width + u;
-    normals[flat_idx] = vec4(normalize(cross(right - left, down - up)), 0);
+    normals[v * width + u] = vec4(normalize(cross(right - left, down - up)), 0);
 }

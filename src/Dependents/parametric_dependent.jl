@@ -175,20 +175,20 @@ function eval_callbacks_gpu!(self::ParametricDependentDNA)
 
     glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
 
-    @time_cpu_begin ParametricTessellation GPU ClientFence
+    @time_cpu_begin ParametricTessellation GPU ClientWaitSync
     fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
     while true
         waitReturn = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000)
         if waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED
             break
         elseif waitReturn == GL_WAIT_FAILED
-            @time_cpu_end ParametricTessellation GPU ClientFence
+            @time_cpu_end ParametricTessellation GPU ClientWaitSync
             glDeleteSync(fence)
             return false
         end
     end
     glDeleteSync(fence)
-    @time_cpu_end ParametricTessellation GPU ClientFence
+    @time_cpu_end ParametricTessellation GPU ClientWaitSync
 
     @time_cpu_begin ParametricTessellation GPU DataProcessing
     success = handle_gpu_tess_result!(self)

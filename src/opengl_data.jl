@@ -46,7 +46,7 @@ mutable struct OpenGLData
     _highlighter::Pipeline
     _buffer_clear::Pipeline
     _grid::Pipeline
-    _surface_normals::ShaderProgram
+    _surface_normals::Pipeline
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -129,7 +129,7 @@ mutable struct OpenGLData
             vert = spv"postprocess/grid.vert",
             frag = spv"postprocess/grid.frag"
         )
-        surface_normals = ShaderProgram(["surface_normals.comp"], ["uvGridSize"])
+        surface_normals = create_compute_pipeline!(pipeline_loader, spv"misc/surface_normals.comp")
 
         depth_stencil = Texture2D(window.width,window.height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(window.width,window.height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)

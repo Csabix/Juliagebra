@@ -80,41 +80,13 @@ evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3F,u,v) = self._
 evalCallbackDpReturn(self::ParametricSurfaceDependent,value::Vec3D,u,v) = self._uvValues[u,v] = value
 evalCallbackDpReturn(self::ParametricSurfaceDependent,::Nothing,u,v) = self._uvValues[u,v] = Vec3DNan
 
-function setInlandNormal(self::ParametricSurfaceDependent,u,v)
-    uVec = self._uvValues[u+1,v  ] - self._uvValues[u-1,v  ]
-    vVec = self._uvValues[u  ,v+1] - self._uvValues[u  ,v-1]
-    self._uvNormals[u,v] = normalize(cross(uVec,vVec))
-end
-
-function setEdgeNormal(self::ParametricSurfaceDependent,u,v)
-    self._uvNormals[u,v] = Vec3F(0,0,0)
-end
-
-function setNormal(self::ParametricSurfaceDependent,u,v;
-    right=self._uvValues[u+1,v  ],
-    left =self._uvValues[u-1,v  ],
-    down =self._uvValues[u  ,v+1],
-    up   =self._uvValues[u  ,v-1])
-
-    # TODO: Clampekkel megoldva?
-    # TODO: Fuggosegi normalvektor szamitas, kicsi 0.0001 eplszilonokkal, helyben szamitva
-
-    uVec = right - left
-    vVec = down - up
-    self._uvNormals[u,v] = normalize(cross(uVec,vVec))
-end
-
 # YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricSurfaceDependent)
     eval_callbacks!(self)
 
     @time_cpu_begin ParametricTessellation UpdateNormals
-    if "--cpu-normals" in ARGS
-        update_normals_cpu!(self)
-    else
-        update_normals_gpu!(self)
-    end
+    update_normals!(self)
     @time_cpu_end ParametricTessellation UpdateNormals
 end
 
@@ -129,59 +101,7 @@ function eval_callbacks_cpu!(self::ParametricSurfaceDependent)
     end
 end
 
-function update_normals_cpu!(self::ParametricSurfaceDependent)
-    for v in 2:(height(self._uvValues)-1)
-        for u in 2:(width(self._uvValues)-1)
-            setNormal(self,u,v)
-        end
-    end
-
-    # * Upper row, (u=u;v=1)
-    for u in 2:(width(self._uvValues)-1)
-        setNormal(self,u,1,
-        up=self._uvValues[u,1])
-    end
-
-    # * Bottom row, (u=u;v=height)
-    for u in 2:(width(self._uvValues)-1)
-        setNormal(self,u,height(self._uvValues),
-        down=self._uvValues[u,height(self._uvValues)])
-    end
-
-    # * Left column, (u=1;v=v)
-    for v in 2:(height(self._uvValues)-1)
-        setNormal(self,1,v,
-        left=self._uvValues[1,v])
-    end
-
-    # * Right column, (u=width;v=v)
-    for v in 2:(height(self._uvValues)-1)
-        setNormal(self,width(self._uvValues),v,
-        right=self._uvValues[width(self._uvValues),v])
-    end
-
-    # * (1,1)
-    setNormal(self,1,1,
-        left = self._uvValues[1,1],
-        up   = self._uvValues[1,1])
-
-    # * (width,1)
-    setNormal(self,width(self._uvValues),1,
-        right = self._uvValues[width(self._uvValues),1],
-        up    = self._uvValues[width(self._uvValues),1])
-
-    # * (1,height)
-    setNormal(self,1,height(self._uvValues),
-        left  = self._uvValues[1,height(self._uvValues)],
-        down  = self._uvValues[1,height(self._uvValues)])
-
-    # * (width,height)
-    setNormal(self,width(self._uvValues),height(self._uvValues),
-        right = self._uvValues[width(self._uvValues),height(self._uvValues)],
-        down  = self._uvValues[width(self._uvValues),height(self._uvValues)])
-end
-
-function update_normals_gpu!(self::ParametricSurfaceDependent)
+function update_normals!(self::ParametricSurfaceDependent)
     h = height(self._uvValues)
     w = width(self._uvValues)
     n = h * w
@@ -212,18 +132,20 @@ function update_normals_gpu!(self::ParametricSurfaceDependent)
     end
 
     normals_shader = getOpenGL(implicitApp)._surface_normals
-    activate(normals_shader) # TODO: use SPIRV pipeline
-    glUniform2i(normals_shader.uniforms["uvGridSize"], GLint(height(self._uvValues)), GLint(width(self._uvValues)))
+    activate(normals_shader)
+
+    glUniform2i(0, GLint(width(self._uvValues)), GLint(height(self._uvValues)))
 
     bind_ssbo(dep._posBuffer, 0)
     bind_ssbo(self._normalsBuffer, 1)
 
     glDispatchCompute(div(w + 15, 16), div(h + 15, 16), 1)
-    @time_gpu_end ParametricTessellation UpdateNormals MaybeUploadAndCompute
 
     glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
 
-    @time_gpu_begin ParametricTessellation UpdateNormals ClientFence
+    @time_gpu_end ParametricTessellation UpdateNormals UploadComputeSync
+
+    @time_cpu_begin ParametricTessellation UpdateNormals ClientWaitSync
     fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
     while true
         waitReturn = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000);
@@ -231,13 +153,13 @@ function update_normals_gpu!(self::ParametricSurfaceDependent)
             break
         elseif waitReturn == GL_WAIT_FAILED
             @log "Failed to sync client after dispatching surface normal calculation compute shader" ERR
-            @time_gpu_end ParametricTessellation UpdateNormals ClientFence
+            @time_cpu_end ParametricTessellation UpdateNormals ClientWaitSync
             glDeleteSync(fence)
             return
         end
     end
     glDeleteSync(fence)
-    @time_gpu_end ParametricTessellation UpdateNormals ClientFence
+    @time_cpu_end ParametricTessellation UpdateNormals ClientWaitSync
 
     @time_cpu_begin ParametricTessellation UpdateNormals DataProcessing Download
     copyto!(dep._stagingBuffer, 1, self._normalsBuffer._mapped, 1, n)

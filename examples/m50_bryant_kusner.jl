@@ -1,19 +1,20 @@
 using Juliagebra
 using JuliaGLM
 
-TESS_RADIUS = 1000
-TESS_THETA = 1000
+# tessellation range density
+TESS_RADIUS = 500
+TESS_THETA = 750
 
 P1 = Point(-2, 0, 0)
-P2 = Point( 2, 0, 0)
+P2 = Point(2, 0, 0)
 
-angle_cpu = Stepper(0.0;label="Rotation Angle CPU")
-angle_gpu = Stepper(0.0;label="Rotation Angle GPU")
+angle_cpu = Stepper(0.0; label="Rotation Angle CPU")
+angle_gpu = Stepper(0.0; label="Rotation Angle GPU")
 
 @callback_helper function rotate_z(v::Vec3, angle::Float32)
     c = cos(angle)
     s = sin(angle)
-    
+
     return Vec3F(
         c * v.x - s * v.y,
         s * v.x + c * v.y,
@@ -58,11 +59,15 @@ end
     return vec3(g1, g2, g3) / Float32(pos_denom)
 end
 
-@ParametricSurface(range(0,1,TESS_RADIUS),range(0,2pi,TESS_THETA)) do r, theta
+# @ParametricSurface(range(0,1,TESS_RADIUS),range(0,2pi,TESS_THETA)) do r, theta
+#     return P2 + vec3(0, 0, 3) + rotate_z(bryant_kusner(Float32(r), Float32(theta)), Float32(angle_cpu))
+# end
+
+ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), [P2, angle_cpu]) do r, theta, P2, angle_cpu
     return P2 + vec3(0, 0, 3) + rotate_z(bryant_kusner(Float32(r), Float32(theta)), Float32(angle_cpu))
 end
 
-@ParametricSurface(range(0,1,TESS_RADIUS),range(0,2pi,TESS_THETA),enable_gpu_tessellation=true) do r, theta
+@ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), enable_gpu_tessellation=true)  do r, theta
     return P1 + vec3(0, 0, 3) + rotate_z(bryant_kusner(r, theta), Float32(angle_gpu))
 end
 

@@ -92,7 +92,10 @@ function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool
         v4 = dep._stagingBuffer[i]
         v3 = Vec3D(v4.x, v4.y, v4.z)
 
-        any(x -> isnan(x) || isinf(x), v3) && return false
+        if any(x -> isnan(x) || isinf(x), v3)
+            @log "Invalid value found in curve tessellation results" WARN
+            return false
+        end
 
         evalCallbackDpReturn(self, v3, i)
     end

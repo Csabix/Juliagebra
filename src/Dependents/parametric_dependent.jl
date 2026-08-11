@@ -19,9 +19,9 @@ mutable struct ParametricDependent <: RenderedDependentDNA
     _sampleCount::Int # num of vec4-s in pos buffer
     _stagingBuffer::Vector{Vec4}
 
-    function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA})
+    function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA}, sampleCount::Int = 0)
         renderedDependent = RenderedDependent(callback, dependents)
-        return new(renderedDependent, nothing, nothing, nothing, nothing, 0, Vec4[])
+        return new(renderedDependent, nothing, nothing, nothing, nothing, sampleCount, Vec4[])
     end
 
     function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA},
@@ -61,18 +61,30 @@ is_gpu_tessellated(self::ParametricDependentDNA)::Bool = _ParametricDependent_(s
 
 is_cpu_tessellated(self::DependentDNA)::Bool = !is_gpu_tessellated(self)
 
+struct ParamDepPosBufferInfo
+    _needsBuffer::Bool
+    _cpuRead::Bool
+    _cpuWrite::Bool
+end
+
+pos_buffer_info(self::ParametricDependentDNA)::ParamDepPosBufferInfo =
+    ParamDepPosBufferInfo(_ParametricDependent_(self)._tessCompShader !== nothing, true, false)
+
 function force_cpu_tessellation!(self::ParametricDependentDNA)
     dep::ParametricDependent = _ParametricDependent_(self)
 
     dep._callbackAST = nothing
     dep._dependentBindings = nothing
-    dep._sampleCount = 0
 
     dep._tessCompShader !== nothing && destroy!(dep._tessCompShader)
     dep._tessCompShader = nothing
 
-    dep._posBuffer !== nothing && destroy!(dep._posBuffer)
-    dep._posBuffer = nothing
+    if dep._posBuffer !== nothing && !pos_buffer_info(self)._needsBuffer
+        dep._sampleCount = 0
+
+        destroy!(dep._posBuffer)
+        dep._posBuffer = nothing
+    end
 end
 
 # must be invoked on opengl thread
@@ -93,14 +105,20 @@ function setup_parametric_dependent!(self::ParametricDependentDNA)
 
         if tess_shader !== nothing
             dep._tessCompShader = tess_shader
-            dep._posBuffer = MappedBuffer{Vec4}(; read = true, write = false)
-            reserve!(dep._posBuffer, dep._sampleCount, 0)
         else
             dep._callbackAST = nothing
             dep._dependentBindings = nothing
         end
 
         @time_cpu_end GPUTessSetup
+    end
+
+    pb_info = pos_buffer_info(self)
+    if pb_info._needsBuffer
+        @assert dep._sampleCount > 0 "Invalid sample count for parametric dependent that requires a position buffer"
+
+        dep._posBuffer = MappedBuffer{Vec4}(; read = pb_info._cpuRead, write = pb_info._cpuWrite)
+        reserve!(dep._posBuffer, dep._sampleCount, 0)
     end
 
     post_setup_parametric_dependent!(self)
@@ -162,6 +180,7 @@ function eval_callbacks_gpu!(self::ParametricDependentDNA)
         success = try_upload_dependent(dep._tessCompShader.uniforms[string(parent_sym)], parent_dep)
         if !success
             @time_gpu_end ParametricTessellation GPU UploadAndCompute
+            @log "Error while uploading dependencies to GPU" WARN
             return false
         end
     end
@@ -184,6 +203,7 @@ function eval_callbacks_gpu!(self::ParametricDependentDNA)
         elseif waitReturn == GL_WAIT_FAILED
             @time_cpu_end ParametricTessellation GPU ClientWaitSync
             glDeleteSync(fence)
+            @log "Error while waiting for GPU after tessellation" WARN
             return false
         end
     end

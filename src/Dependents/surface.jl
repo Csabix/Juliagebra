@@ -37,7 +37,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDep
         pd = if callback_ast !== nothing && dependent_bindings !== nothing
             ParametricDependent(callback,dependents,callback_ast,dependent_bindings,Nu*Nv)
         else
-            ParametricDependent(callback,dependents)
+            ParametricDependent(callback,dependents,Nu*Nv)
         end
         uvValues = FlatMatrix{Vec3D}(Nu,Nv)        
         uvNormals = FlatMatrix{Vec3D}(Nu,Nv)
@@ -57,6 +57,10 @@ _ParametricDependent_(self::ParametricSurfaceDependent)::ParametricDependent = r
 _RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return _ParametricDependent_(self)._renderedDependent
 Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
 
+# force surfaces to always have a position buffer, which is used for input upload for normal calculations with CPU-tessellated surfaces
+# TODO: write is only needed if the surface is CPU tessellated, but this can change during the lifetime of a dependent
+pos_buffer_info(self::ParametricSurfaceDependent) = ParamDepPosBufferInfo(true, true, true)
+
 function post_setup_parametric_dependent!(self::ParametricSurfaceDependent)
     dep::ParametricDependent = _ParametricDependent_(self)
    
@@ -66,12 +70,6 @@ function post_setup_parametric_dependent!(self::ParametricSurfaceDependent)
     
     self._normalsBuffer = MappedBuffer{Vec4}(; read = true, write = false)
     reserve!(self._normalsBuffer, n, 0)
-    
-    # force creation of position buffer so that normal calculations can always rely on it
-    if dep._callbackAST === nothing
-        dep._posBuffer = MappedBuffer{Vec4}(; read = false, write = true)
-        reserve!(dep._posBuffer, n, 0)
-    end
 end
 
 evalCallbackDpReturn(self::ParametricSurfaceDependent,value,u,v) = self._uvValues[u,v] = Vec3D(value)
@@ -111,7 +109,7 @@ function update_normals!(self::ParametricSurfaceDependent)
     @time_gpu_begin ParametricTessellation UpdateNormals MaybeUploadAndCompute
 
     if is_cpu_tessellated(self)
-        @assert dep._posBuffer !== nothing "parametric surface without out buffer (position buffer)"
+        @assert dep._posBuffer !== nothing "parametric surface without GPU position buffer"
 
         # first normal calc after GPU -> CPU fallback state
         if !dep._posBuffer._write
@@ -202,6 +200,7 @@ function handle_gpu_tess_result!(self::ParametricSurfaceDependent)::Bool
 
             if any(x -> isnan(x) || isinf(x), v3)
                 @time_cpu_end ParametricTessellation GPU DataProcessing evalCallbackDpReturn
+                @log "Invalid value found in surface tessellation results" WARN
                 return false
             end
 

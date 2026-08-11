@@ -30,6 +30,7 @@ Segment([p1,p2];color="c") do p1,p2
     dist = Distance(p1,p2)
     return (p2, p2 + Vec3D(0,-1,0) * dist)
 end
+Distance(p1,p2)
 
 # Point-Line
 p8 = Point(-.5,-1.5,1;color="y")

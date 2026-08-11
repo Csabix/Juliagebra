@@ -19,7 +19,7 @@ Midpoint(p1,p2,ps;color="y")
 p6 = Point(-1,0,0;color="b")
 p7 = Point(-2,1,0;color="b")
 Point((p0,p1) -> Midpoint(p0,p1), [p6,p7];color="y")
-Point((p0,p1) -> Midpoint([p0,p1]) * 1.1, [p6,p7];color="y")
+Point((p0,p1) -> Midpoint([p0,p1]) + Vec3D(0,0,.2), [p6,p7];color="y")
 
 #endregion
 
@@ -111,5 +111,37 @@ Perpendicular(p19,p20;color="g")
 
 #endregion
 
+#region Parallel Line
+
+p21 = Point(-13,18,3;color="y")
+p22 = Point(-15,20,4;color="g")
+p23 = Point(-15,20,0;color="g")
+s2 = Segment(p22,p23;color="g")
+# These give identical lines:
+# ParallelLine(p21,s2;color="y")
+# ParallelLine(p21,p22,p23;color="y")
+Parallel(p21,s2;color="y")
+Parallel(p21,p22,p23;color="y")
+
+#endregion
+
+#region Parallel Plane
+
+p24 = Point(-19,-3,9;color="m")
+plane2 = Plane(p24,Vec3D(-19,-3,8),Vec3D(-19,-2,9);color="m")
+p25 = Point(-18,-2,2;color="y")
+# ParallelPlane(p25,plane2;color="y")
+Parallel(p25,plane2;color="y")
+
+p26 = Point(-25,-12,8;color="m")
+p27 = Point(-25,-12,9;color="m")
+s3 = Segment(p26,p27;color="m")
+p28 = Point(-24,-11,8;color="m")
+p29 = Point(-26,-11,8;color="m")
+s4 = Segment(p29,p28;color="m")
+# ParallelPlane(s3,s4;color="y")
+Parallel(s3,s4;color="y")
+
+#endregion
 
 Juliagebra.Wait()

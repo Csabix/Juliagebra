@@ -107,7 +107,6 @@ end
 
 #endregion
 
-
 #region Perpendicular Line & Plane
 
 # Perpendicular Line
@@ -169,8 +168,55 @@ end
 
 #endregion
 
+#region Parallel Line & Plane
 
-export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular
+function ParallelLine(coord::Vec3D,line::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D}
+    return (coord,coord + v(line))
+end
+function ParallelLine(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D)::Tuple{Vec3D,Vec3D}
+    dir = coord3 - coord2
+    return (coord1,coord1 + dir)
+end
+function ParallelLine(nodeHandles::NodeHandle...;
+    color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
+    
+    return Line([nodeHandles...],color_style;color=color,style=style,size=size) do nodes...
+        return ParallelLine(nodes...)
+    end
+end
+
+function ParallelPlane(coord::Vec3D,geometry_with_normal::Union{Plane})::Tuple{Vec3D,Vec3D} # TODO: triangle, circle
+    return (coord,n(geometry_with_normal))
+end
+function ParallelPlane(line1::Union{Line,Ray,Segment},line2::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D}
+    dir1 = v(line1)
+    dir2 = v(line2)
+    normal = normalize(cross(dir1,dir2))
+    return (p0(line1),normal)
+end
+function ParallelPlane(nodeHandles::NodeHandle...;
+    color_style::Union{Nothing,String}=nothing,color="g")
+    
+    return Plane([nodeHandles...],color_style;color=color) do nodes...
+        return ParallelPlane(nodes...)
+    end
+end
+
+function Parallel(nodeHandles::NodeHandle...;
+    color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
+    
+    node1 = get_element(nodeHandles[1])
+    node2 = get_element(nodeHandles[2])
+    if (isa(node1, Union{Line,Ray,Segment}) || isa(node2, Plane))
+        return ParallelPlane(nodeHandles...;color_style=color_style,color=color)
+    else
+        return ParallelLine(nodeHandles...;color_style,color=color,style=style,size=size)
+    end
+end
+
+#endregion
+
+export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel
 
 
 

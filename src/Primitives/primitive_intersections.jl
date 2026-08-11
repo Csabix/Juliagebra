@@ -339,4 +339,17 @@ v(line::PLine)::Vec3D       = line.p1 - line.p0
 v(ray::PRay)::Vec3D         = ray.p1 - ray.p0
 v(segment::PSegment)::Vec3D = segment.p1 - segment.p0
 
-n(plane::PPlane)::Vec3D = plane.n
+n(plane::PPlane)::Vec3D       = plane.n
+n(triangle::PTriangle)::Vec3D = cross(triangle.v1 - triangle.v0,triangle.v2 - triangle.v0)
+
+function ClosestPoint(coord::Vec3D,line::Union{PLine,PRay,PSegment})::Vec3D
+    point = p0(line)
+    dir = v(line)
+    t = dot(coord - point,dir) / dot(dir,dir)
+    projected = point + dir * ClampParameter(line,t)
+    return projected
+end
+function ClosestPoint(coord::Vec3D,plane::PPlane)::Vec3D
+    signedDist = dot(n(plane),coord - p0(plane))
+    return coord - (n(plane) * signedDist)
+end

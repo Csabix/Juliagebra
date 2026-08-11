@@ -32,6 +32,14 @@ Segment([p1,p2];color="c") do p1,p2
 end
 Distance(p1,p2)
 
+p_t1 = Point(0,.3,.3;color="y")
+t1 = Triangle(Vec3D(0.3,.6,0.1),Vec3D(-.2,.2,0.1),Vec3D(.4,0,0.1);color="b")
+ClosestPoint(p_t1,t1;color="w")
+Segment([p_t1,t1];color="c") do point,triangle
+    dist = Distance(point,triangle)
+    return (Vec3D(0),Vec3D(0,0,1) * dist)
+end
+
 # Point-Line
 p8 = Point(-.5,-1.5,1;color="y")
 l1 = Line(Vec3D(0,-2,1),Vec3D(1,-2,1);color="c")

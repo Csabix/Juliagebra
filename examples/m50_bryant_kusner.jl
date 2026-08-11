@@ -1,26 +1,16 @@
 using Juliagebra
 using JuliaGLM
+using LinearAlgebra
 
 # tessellation range density
-TESS_RADIUS = 500
+TESS_RADIUS = 750
 TESS_THETA = 750
 
 P1 = Point(-2, 0, 0)
 P2 = Point(2, 0, 0)
 
-angle_cpu = Stepper(0.0; label="Rotation Angle CPU")
-angle_gpu = Stepper(0.0; label="Rotation Angle GPU")
-
-@callback_helper function rotate_z(v::Vec3, angle::Float32)
-    c = cos(angle)
-    s = sin(angle)
-
-    return Vec3F(
-        c * v.x - s * v.y,
-        s * v.x + c * v.y,
-        v.z
-    )
-end
+amplitude_cpu = Slider(0, 0, 1; label="Noise Amplitude CPU")
+amplitude_gpu = Slider(0, 0, 1; label="Noise Amplitude GPU")
 
 @callback_helper function comp_mul(x::Vec2, y::Vec2)
     _re = x.x * y.x - x.y * y.y
@@ -59,16 +49,39 @@ end
     return vec3(g1, g2, g3) / Float32(pos_denom)
 end
 
-# @ParametricSurface(range(0,1,TESS_RADIUS),range(0,2pi,TESS_THETA)) do r, theta
-#     return P2 + vec3(0, 0, 3) + rotate_z(bryant_kusner(Float32(r), Float32(theta)), Float32(angle_cpu))
-# end
+@callback_helper function noise(p::Vec3F)
+    freq = 6.0f0
 
-ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), [P2, angle_cpu]) do r, theta, P2, angle_cpu
-    return P2 + vec3(0, 0, 3) + rotate_z(bryant_kusner(Float32(r), Float32(theta)), Float32(angle_cpu))
+    val = sin(p.x * freq + p.y * 2.3f0) *
+          cos(p.y * freq + p.z * 3.1f0) *
+          sin(p.z * freq + p.x * 1.7f0)
+
+    return val
 end
 
-@ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), enable_gpu_tessellation=true)  do r, theta
-    return P1 + vec3(0, 0, 3) + rotate_z(bryant_kusner(r, theta), Float32(angle_gpu))
+@callback_helper function param_fn(r::Float32, theta::Float32, offset::Vec3F, amp::Float32)
+    eps = 0.001f0
+
+    pos = bryant_kusner(r, theta)
+    pos_dr = bryant_kusner(r + eps, theta)
+    pos_dtheta = bryant_kusner(r, theta + eps)
+
+    norm = cross(pos_dr - pos, pos_dtheta - pos)
+    norm_unit = normalize(norm)
+
+    if any(isnan.(norm_unit))
+        norm_unit = vec3(0)
+    end
+
+    return offset + vec3(0,0,3) + pos + (amp * noise(pos) * norm_unit)
+end
+
+ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), [P2, amplitude_cpu]) do r, theta, P2, amp
+    return param_fn(Float32(r), Float32(theta), Vec3F(P2), Float32(amp))
+end
+
+@ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), enable_gpu_tessellation=true) do r, theta
+    return param_fn(Float32(r), Float32(theta), Vec3F(P1), Float32(amplitude_gpu))
 end
 
 Juliagebra.Wait()

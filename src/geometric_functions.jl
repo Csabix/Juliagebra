@@ -108,8 +108,9 @@ end
 #endregion
 
 
-#region Perpendicular Line
+#region Perpendicular Line & Plane
 
+# Perpendicular Line
 function PerpendicularLine(coord::Vec3D,plane::Plane)::Tuple{Vec3D,Vec3D}
     return (coord, coord + n(plane))
 end
@@ -129,24 +130,47 @@ end
 
 function PerpendicularLine(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
-    
+
     return Line([nodeHandle1,nodeHandle2],color_style;color=color,style=style,size=size) do point,geometry
         return PerpendicularLine(point,geometry)
     end
 end
 
-#endregion
+# Perpendicular Plane
+function PerpendicularPlane(coord::Vec3D,line::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D}
+    return (coord,v(line))
+end
+function PerpendicularPlane(coord1::Vec3D,coord2::Vec3D)::Tuple{Vec3D,Vec3D}
+    return ((coord1 + coord2) / 2.0,normalize(coord2 - coord1))
+end
 
-#region Perpendicular Plane
-
-# function PerpendicularPlane()
+function PerpendicularPlane(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle,color_style::Union{Nothing,String}=nothing;
+    color="g")::NodeHandle
     
-# end
+    return Plane([nodeHandle1,nodeHandle2],color_style;color=color) do point,geometry
+        return PerpendicularPlane(point,geometry)
+    end
+end
+
+# Perpendicular
+function Perpendicular(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle,nodeHandle3::Union{NodeHandle,Nothing}=nothing,
+    color_style::Union{Nothing,String}=nothing;color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
+    
+    node1 = get_element(nodeHandle1)
+    node2 = get_element(nodeHandle2)
+    # node3 = get_element(nodeHandle3)
+
+    if (isa(node2, Plane) #=|| isa(node3, Plane) =#)
+        return PerpendicularLine(nodeHandle1,nodeHandle2,color_style;color=color,style=style,size=size)
+    else
+        return PerpendicularPlane(nodeHandle1,nodeHandle2,color_style;color=color)
+    end
+end
 
 #endregion
 
 
-export Midpoint, Distance, ClosestPoint, PerpendicularLine
+export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular
 
 
 

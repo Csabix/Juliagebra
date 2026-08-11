@@ -86,13 +86,30 @@ ClosestPoint(p13,ps2;color="w",size=30)
 #region Perpendicular Line
 
 p14 = Point(8,-4,8;color="y")
-PerpendicularLine(p14,plane1;color="g")
+# PerpendicularLine(p14,plane1;color="g")
+Perpendicular(p14,plane1;color="g")
 
 p15 = Point(12,-.5,1.5;color="y")
 PerpendicularLine(p15,l1;color="g")
+# Perpendicular(p15,l1;color="g") # prefers plane
 
 #endregion
 
+#region Perpendicular Plane
+
+p16 = Point(22,-1.5,7.5;color="y")
+p17 = Point(27,-5,6;color="g")
+p18 = Point(22,2,6;color="g")
+l2 = Ray(p18,p17;color="g")
+# PerpendicularPlane(p16,l2;color="g")
+Perpendicular(p16,l2;color="g")
+
+p19 = Point(26,24,1;color="y")
+p20 = Point(24,21,2;color="y")
+# PerpendicularPlane(p19,p20;color="g")
+Perpendicular(p19,p20;color="g")
+
+#endregion
 
 
 Juliagebra.Wait()

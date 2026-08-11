@@ -108,10 +108,45 @@ end
 #endregion
 
 
+#region Perpendicular Line
+
+function PerpendicularLine(coord::Vec3D,plane::Plane)::Tuple{Vec3D,Vec3D}
+    return (coord, coord + n(plane))
+end
+function PerpendicularLine(coord::Vec3D,line::Union{Line,Ray,Segment},plane::Union{Plane,Nothing}=nothing)::Tuple{Vec3D,Vec3D}
+    # plane_normal = Vec3D(0,0,1)
+    # plane_point = Vec3D(0)
+    # if (plane !== nothing)
+    #     plane_normal = n(plane)
+    #     plane_point = p0(plane)
+    # end
+
+    t = dot(coord - p0(line), v(line))
+    projected_to_line = p0(line) + v(line) * t
+
+    return (coord,projected_to_line)
+end
+
+function PerpendicularLine(nodeHandle1::NodeHandle,nodeHandle2::NodeHandle,color_style::Union{Nothing,String}=nothing;
+    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
+    
+    return Line([nodeHandle1,nodeHandle2],color_style;color=color,style=style,size=size) do point,geometry
+        return PerpendicularLine(point,geometry)
+    end
+end
+
+#endregion
+
+#region Perpendicular Plane
+
+# function PerpendicularPlane()
+    
+# end
+
+#endregion
 
 
-
-export Midpoint, Distance, ClosestPoint
+export Midpoint, Distance, ClosestPoint, PerpendicularLine
 
 
 

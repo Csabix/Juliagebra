@@ -329,6 +329,7 @@ ClampParameter(::PSegment,t) = clamp(t, 0.0, 1.0)
 p0(line::PLine)::Vec3D       = line.p0
 p0(ray::PRay)::Vec3D         = ray.p0
 p0(segment::PSegment)::Vec3D = segment.p0
+p0(plane::PPlane)::Vec3D     = plane.p
 
 p1(line::PLine)::Vec3D       = line.p1
 p1(ray::PRay)::Vec3D         = ray.p1
@@ -337,3 +338,5 @@ p1(segment::PSegment)::Vec3D = segment.p1
 v(line::PLine)::Vec3D       = line.p1 - line.p0
 v(ray::PRay)::Vec3D         = ray.p1 - ray.p0
 v(segment::PSegment)::Vec3D = segment.p1 - segment.p0
+
+n(plane::PPlane)::Vec3D = plane.n

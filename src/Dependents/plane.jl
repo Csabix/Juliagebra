@@ -93,8 +93,8 @@ function render_node(ps::Plane, renderers::Dict{DataType,Renderer}, id::UInt32):
     return nothing
 end
 
-p0(plane::Plane) = plane.primitive.p
-n(plane::Plane) = plane.primitive.n
+p0(plane::Plane) = p0(plane.primitive)
+n(plane::Plane) = n(plane.primitive)
 
 # ? ---------------------------------
 # ! Plane intersection

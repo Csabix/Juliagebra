@@ -83,6 +83,15 @@ ClosestPoint(p13,ps2;color="w",size=30)
 
 #endregion
 
+#region Perpendicular Line
+
+p14 = Point(8,-4,8;color="y")
+PerpendicularLine(p14,plane1;color="g")
+
+p15 = Point(12,-.5,1.5;color="y")
+PerpendicularLine(p15,l1;color="g")
+
+#endregion
 
 
 

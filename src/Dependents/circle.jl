@@ -19,13 +19,9 @@ mutable struct Circle
     end
 end
 
-convert_result(circle::Circle, result::PCircle)::PCircle           = circle.primitive = result
-convert_result(circle::Circle, result::Tuple{Vec3D,Float64,Vec3D}) = circle.primitive = PCircle(result[1],result[2],normalize(result[3]))
-convert_result(circle::Circle, ::Nothing)                          = circle.primitive = PCircle(Vec3DNan,NaN,Vec3DNan)
-
 function eval_node(circle::Circle, callback::Function, arguments::Vector{Any})::Any
     (center,radius,normal) = callback(arguments...)
-    circle.primitive = PCircle(center,radius,normal)
+    circle.primitive = PCircle(center,radius,normalize(normal))
 
     vector = Vec3D(1,0,0)
     if (dot(vector,n(circle)) > 1.0 - F64_ANGULAR_THRESHOLD)

@@ -69,6 +69,17 @@ ps2 = PointSet([Vec3D(0,4.5,0),Vec3D(.75,4.5,0),Vec3D(.5,5,0),Vec3D(-.5,4,.25)];
 p13 = Point(-.25,4.25,.25;color="y")
 ClosestPoint(p13,ps2;color="w",size=30)
 
+p_circle1 = Point(.25,6,.25;color="b")
+p_circle2 = Point(.25,6,-.25;color="b")
+Segment(p_circle1,p_circle2;color="b",style="->",size=8)
+circle1 = Circle((p1,p2) -> (p1,Distance(p1,p2),p2 - p1),[p_circle1,p_circle2];color="b")
+p_circle3 = Point(.5,5.5,.5;color="y")
+ClosestPoint(p_circle3,circle1;color="w")
+Segment([p_circle3,circle1];color="c") do point,circle
+    dist = Distance(point,circle)
+    return (p0(circle),p0(circle) + Vec3D(0,0,1) * dist)
+end
+
 # Point-Line
 p8 = Point(-.5,-1.5,1;color="y")
 l1 = Line(Vec3D(0,-2,1),Vec3D(1,-2,1);color="c")

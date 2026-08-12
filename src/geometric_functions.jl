@@ -32,11 +32,12 @@ end
 
 
 #region Distance
-Distance(coord1::Vec3D,coord2::Vec3D)::Float64                = hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
-Distance(point1::Point,point2::Point)::Float64                = Distance(point1.coord,point2.coord)
-Distance(coord::Vec3D,plane::Plane)::Float64                  = abs(dot(n(plane),coord - p0(plane)))
-Distance(coord::Vec3D,sphere::Sphere)::Float64                = abs(Distance(coord,p0(sphere)) - r(sphere))
-Distance(coord::Vec3D,geometry::Any)::Float64                 = Distance(coord,ClosestPoint(coord,geometry))
+Distance(coord1::Vec3D,coord2::Vec3D)::Float64 = hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
+Distance(point1::Point,point2::Point)::Float64 = Distance(point1.coord,point2.coord)
+Distance(coord::Vec3D,plane::Plane)::Float64   = abs(dot(n(plane),coord - p0(plane)))
+Distance(coord::Vec3D,sphere::Sphere)::Float64 = abs(Distance(coord,p0(sphere)) - r(sphere))
+Distance(coord::Vec3D,circle::Circle)::Float64 = Distance(coord,ClosestPoint(coord,circle))
+Distance(coord::Vec3D,geometry::Any)::Float64  = Distance(coord,ClosestPoint(coord,geometry))
 function Distance(nodeHandles::NodeHandle...)::Float64
     # TODO: return a scalar node
     return add_node!([nodeHandles...]) do nodes...
@@ -64,6 +65,12 @@ function ClosestPoint(coord::Vec3D,sphere::Sphere)::Vec3D # sphere primtives of:
     dir = normalize(coord - p0(sphere))
     if (dir === Vec3DNan) return Vec3DNan end
     return p0(sphere) + dir * r(sphere)
+end
+# https://www.geometrictools.com/Documentation/DistanceToCircle3.pdf
+function ClosestPoint(coord::Vec3D,circle::Circle)::Vec3D
+    centerToCoord = coord - p0(circle)
+    centerToProjected = centerToCoord - dot(n(circle),centerToCoord) * n(circle)
+    return p0(circle) + r(circle) * normalize(centerToProjected)
 end
 function ClosestPoint(coord::Vec3D,triangle::PTriangle)::Vec3D
     inTriangle = PrimitiveToPrimitiveIntersection(triangle,PLine(coord,coord + n(triangle)))
@@ -106,7 +113,7 @@ function ClosestPoint(coord::Vec3D,coord_list::Vector{Vec3D})::Vec3D
     return closest
 end
 function ClosestPoint(nodeHandles::NodeHandle...;
-    color_style::Union{Nothing,String}=nothing,color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
+    color_style::Union{Nothing,String}=nothing,color="w",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
     
     return Point([nodeHandles...],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do nodes...
         return ClosestPoint(nodes...)

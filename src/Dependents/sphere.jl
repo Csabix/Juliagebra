@@ -55,8 +55,8 @@ function Base.length(::PTrianglesOfSphere)
 end
 
 function Base.getindex(self::PTrianglesOfSphere, index::UInt)::PTriangle 
-    center = self._sphere._center
-    r = self._sphere._radius
+    center = self._sphere.center
+    r = self._sphere.radius
     
     index = index - 1    
     a = div(index,(SPHERE_DETAIL-1)*(SPHERE_DETAIL-1))

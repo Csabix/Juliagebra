@@ -28,6 +28,10 @@ x = Plane(point_on_plane,ray_on_plane;color=(.2,.2,.2,.5))
 
 sphere = Sphere((0,10,0),1;color="w")
 
+p1 = Point(.5,5.5,1;color="b")
+p2 = Point(-.5,4.5,0;color="b")
+Segment(p1,p2;color="b",style="->",size=8)
+c1 = Circle((p1,p2) -> (p1,Distance(p1,p2),p2 - p1),[p1,p2];color="b")
 
 
 Juliagebra.Wait()

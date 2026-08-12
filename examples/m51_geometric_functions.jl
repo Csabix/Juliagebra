@@ -32,12 +32,36 @@ Segment([p1,p2];color="c") do p1,p2
 end
 Distance(p1,p2)
 
+# Point-Triangle
 p_t1 = Point(0,.3,.3;color="y")
 t1 = Triangle(Vec3D(0.3,.6,0.1),Vec3D(-.2,.2,0.1),Vec3D(.4,0,0.1);color="b")
 ClosestPoint(p_t1,t1;color="w")
 Segment([p_t1,t1];color="c") do point,triangle
     dist = Distance(point,triangle)
-    return (Vec3D(0),Vec3D(0,0,1) * dist)
+    return (Vec3D(0),Vec3D(0,0,dist))
+end
+
+# Point-Curve
+p_c1 = Point(0,1.3,.3;color="y")
+c1 = ParametricCurve(range(-pi,pi,13);color="b") do t
+    offset = Vec3D(0,1.5,0)
+    return offset + Vec3D(t / 5.0,0,sin(t) / 5.0)
+end
+ClosestPoint(p_c1,c1;color="w")
+Segment([p_c1,c1];color="c") do point,curve
+    dist = Distance(point,curve)
+    return (Vec3D(0,1.7,0),Vec3D(0,1.7,dist))
+end
+
+# Point-Surface
+p_s1 = Point(0,2.3,.3;color="y")
+surface1 = ParametricSurface(range(-pi,pi,5),range(-pi,pi,5);) do u,v
+    return (u / 5, 2.5 + v / 5, (sin(u) + sin(v)) / 10)
+end
+ClosestPoint(p_s1,surface1;color="w")
+Segment([p_s1,surface1];color="c") do point,surface
+    dist = Distance(point,surface)
+    return (Vec3D(0,2,0),Vec3D(0,2,dist))
 end
 
 # Point-Line

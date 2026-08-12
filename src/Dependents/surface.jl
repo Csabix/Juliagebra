@@ -75,7 +75,7 @@ end
 struct PTrianglesOfSurface <: PrimitivesOf{PTriangle}
     _surfaceTriangleIterator::TrianglesOf
 end
-PrimitivesOf(self::ParametricSurface) = return PTrianglesOfSurface(TrianglesOf(self._uvValues))
+PrimitivesOf(self::ParametricSurface) = return PTrianglesOfSurface(TrianglesOf(self.uvValues))
 Base.length(self::PTrianglesOfSurface) = return length(self._surfaceTriangleIterator)
 Base.getindex(self::PTrianglesOfSurface, index::UInt)::PTriangle = return self._surfaceTriangleIterator[index]
 Base.iterate(self::PTrianglesOfSurface, state = (1,1,1)) = return iterate(self._surfaceTriangleIterator,state)   

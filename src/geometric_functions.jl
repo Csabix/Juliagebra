@@ -45,6 +45,8 @@ Distance(coord::Vec3D,line::Union{Line,Ray,Segment})::Float64 = Distance(coord,C
 Distance(coord::Vec3D,plane::Plane)::Float64                  = abs(dot(n(plane),coord - p0(plane)))
 Distance(coord::Vec3D,sphere::Sphere)::Float64                = abs(Distance(coord,p0(sphere)) - r(sphere))
 Distance(coord::Vec3D,triangle::TriangleCluster)::Float64     = Distance(coord,ClosestPoint(coord,triangle))
+Distance(coord::Vec3D,curve::ParametricCurve)::Float64        = Distance(coord,ClosestPoint(coord,curve))
+Distance(coord::Vec3D,surface::ParametricSurface)::Float64    = Distance(coord,ClosestPoint(coord,surface))
 function Distance(nodeHandles::NodeHandle...)::Float64
     # TODO: return a scalar node
     return add_node!([nodeHandles...]) do nodes...
@@ -76,10 +78,11 @@ end
 function ClosestPoint(coord::Vec3D,triangle_cluster::TriangleCluster)::Vec3D
     primitives = PrimitivesOf(triangle_cluster)
     
+    closest = Vec3DNan
     for triangle in primitives
         inTriangle = PrimitiveToPrimitiveIntersection(triangle,PLine(coord,coord + n(triangle)))
         if (inTriangle !== nothing)
-            return inTriangle
+            closest = ClosestPoint(coord,[closest,inTriangle])
         else
             a = PSegment(triangle.v0,triangle.v1)
             b = PSegment(triangle.v1,triangle.v2)
@@ -87,11 +90,43 @@ function ClosestPoint(coord::Vec3D,triangle_cluster::TriangleCluster)::Vec3D
             a_cp = ClosestPoint(coord,a)
             b_cp = ClosestPoint(coord,b)
             c_cp = ClosestPoint(coord,c)
-            return ClosestPoint(coord,[a_cp,b_cp,c_cp])
+            closest = ClosestPoint(coord,[closest,a_cp,b_cp,c_cp])
         end
     end
 
-    return Vec3DNan
+    return closest
+end
+function ClosestPoint(coord::Vec3D,curve::ParametricCurve)::Vec3D
+    primitives = PrimitivesOf(curve)
+
+    closest = Vec3DNan
+    for segment in primitives
+        cp = ClosestPoint(coord,segment)
+        closest = ClosestPoint(coord,[closest,cp])
+    end
+
+    return closest
+end
+function ClosestPoint(coord::Vec3D,surface::ParametricSurface)::Vec3D
+    primitives = PrimitivesOf(surface)
+
+    closest = Vec3DNan
+    for triangle in primitives
+        inTriangle = PrimitiveToPrimitiveIntersection(triangle,PLine(coord,coord + n(triangle)))
+        if (inTriangle !== nothing)
+            closest = ClosestPoint(coord,[closest,inTriangle])
+        else
+            a = PSegment(triangle.v0,triangle.v1)
+            b = PSegment(triangle.v1,triangle.v2)
+            c = PSegment(triangle.v2,triangle.v0)
+            a_cp = ClosestPoint(coord,a)
+            b_cp = ClosestPoint(coord,b)
+            c_cp = ClosestPoint(coord,c)
+            closest = ClosestPoint(coord,[closest,a_cp,b_cp,c_cp])
+        end
+    end
+
+    return closest
 end
 function ClosestPoint(coord::Vec3D,coord_list::Vector{Vec3D})::Vec3D
     if (length(coord_list) == 0) return Vec3DNan end
@@ -100,7 +135,7 @@ function ClosestPoint(coord::Vec3D,coord_list::Vector{Vec3D})::Vec3D
     closest_dist::Float64 = Distance(coord, coord_list[1])
     for i in 2:length(coord_list)
         dist = Distance(coord, coord_list[i])
-        if (dist < closest_dist)
+        if (dist < closest_dist || closest_dist === NaN)
             closest_dist = dist
             closest = coord_list[i]
         end

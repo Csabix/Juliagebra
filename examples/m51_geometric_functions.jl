@@ -64,6 +64,11 @@ Segment([p_s1,surface1];color="c") do point,surface
     return (Vec3D(0,2,0),Vec3D(0,2,dist))
 end
 
+# Point-PointSet/PointSequence
+ps2 = PointSet([Vec3D(0,4.5,0),Vec3D(.75,4.5,0),Vec3D(.5,5,0),Vec3D(-.5,4,.25)];color="b")
+p13 = Point(-.25,4.25,.25;color="y")
+ClosestPoint(p13,ps2;color="w",size=30)
+
 # Point-Line
 p8 = Point(-.5,-1.5,1;color="y")
 l1 = Line(Vec3D(0,-2,1),Vec3D(1,-2,1);color="c")
@@ -91,7 +96,7 @@ Segment([p10,s1];color="c") do point,line
     return (p0(line),p0(line) + Vec3D(0,1,0) * dist)
 end
 
-# Point-plane
+# Point-Plane
 p11 = Point(1,-4.5,3;color="y")
 plane1 = Plane(Vec3D(1.5,-5,3),Segment(Vec3D(10,-5,0),Vec3D(-10,-5,0);color="c");color="c")
 ClosestPoint(p11,plane1;color="w")
@@ -100,19 +105,14 @@ Segment([p11,plane1];color="c") do point,plane
     return (p0(plane),p0(plane) + Vec3D(0,1,0) * dist)
 end
 
-# Point-sphere
-p12 = Point(1.5,-5.5,3;color="y")
-sphere1 = Sphere(Vec3D(2,-7,3),1.0;color="c")
+# Point-Sphere
+p12 = Point(1.5,-5.5,10.5;color="y")
+sphere1 = Sphere(Vec3D(2,-7,10.5),1.0;color="c")
 ClosestPoint(p12,sphere1;color="w")
 Segment([p12,sphere1];color="c") do point,sphere
     dist = Distance(point,sphere)
     return (Vec3D(2,-6,3),Vec3D(2,-6,3) + Vec3D(0,1,0) * dist)
 end
-
-# Closet Point
-ps2 = PointSet([Vec3D(0,1.5,4),Vec3D(-.5,1.5,4),Vec3D(-.5,2,4),Vec3D(-1,1,4.25)];color="b")
-p13 = Point(-.75,1.25,4.25;color="y")
-ClosestPoint(p13,ps2;color="w",size=30)
 
 #endregion
 

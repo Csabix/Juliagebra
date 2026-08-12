@@ -5,12 +5,12 @@ _MidpointCount(p::Point)::Tuple{Vec3D,Integer} = (p.coord,1)
 _MidpointCount(coords::AbstractVector{Vec3D})::Tuple{Vec3D,Integer} = (sum(coords),length(coords))
 _MidpointCount(point_sequence::PointSequence)::Tuple{Vec3D,Integer} = _MidpointCount(point_sequence.coords)
 
-function Midpoint(points::AbstractVector)::Vec3D
+function Midpoint(nodes::Any...)::Vec3D
     sum::Vec3D = Vec3D(0.0)
     count::Integer = 0
 
-    for point in points
-        (plus_sum,plus_count) = _MidpointCount(point)
+    for node in nodes
+        (plus_sum,plus_count) = _MidpointCount(node)
         sum += plus_sum
         count += plus_count
     end
@@ -21,19 +21,12 @@ function Midpoint(points::AbstractVector)::Vec3D
         return sum / count
     end
 end
-Midpoint(points...)::Vec3D = Midpoint(collect(points))
-function Midpoint(pointHandles::AbstractVector{NodeHandle},color_style::Union{Nothing,String}=nothing;
-    color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
-
-    return Point(pointHandles,color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do points...
-        return Midpoint(collect(points))
-    end
-end
 function Midpoint(pointHandles::NodeHandle...;color_style::Union{Nothing,String}=nothing, # color_style must also be a named parameter here
     color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
 
-    pointHandles = collect(pointHandles)
-    return Midpoint(pointHandles,color_style;color=color,style=style,size=size,axis_constraint=axis_constraint)
+    return Point([pointHandles...],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do nodes...
+        return Midpoint(nodes...)
+    end
 end
 #endregion
 

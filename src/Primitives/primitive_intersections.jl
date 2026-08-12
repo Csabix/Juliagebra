@@ -317,30 +317,3 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,plane::PPlane)::Un
 end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,triangle::PTriangle)::Union{PSegment,Nothing} = PrimitiveToPrimitiveIntersection(triangle,plane)
-
-ParameterInside(::PLine,::Any)::Bool = true
-ParameterInside(::PRay,t)::Bool      = t >= 0.0
-ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
-
-ClampParameter(::PLine,t)    = t
-ClampParameter(::PRay,t)     = max(0.0, t)
-ClampParameter(::PSegment,t) = clamp(t, 0.0, 1.0)
-
-p0(line::PLine)::Vec3D       = line.p0
-p0(ray::PRay)::Vec3D         = ray.p0
-p0(segment::PSegment)::Vec3D = segment.p0
-p0(plane::PPlane)::Vec3D     = plane.p
-p0(sphere::PSphere)::Vec3D   = sphere.c
-
-p1(line::PLine)::Vec3D       = line.p1
-p1(ray::PRay)::Vec3D         = ray.p1
-p1(segment::PSegment)::Vec3D = segment.p1
-
-v(line::PLine)::Vec3D       = line.p1 - line.p0
-v(ray::PRay)::Vec3D         = ray.p1 - ray.p0
-v(segment::PSegment)::Vec3D = segment.p1 - segment.p0
-
-n(plane::PPlane)::Vec3D       = plane.n
-n(triangle::PTriangle)::Vec3D = cross(triangle.v1 - triangle.v0,triangle.v2 - triangle.v0)
-
-r(sphere::PSphere)::Float64 = sphere.r

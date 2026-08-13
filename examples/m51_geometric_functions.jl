@@ -172,10 +172,14 @@ Parallel(p21,p22,p23;color="y")
 #region Parallel Plane
 
 p24 = Point(-19,-3,9;color="m")
-plane2 = Plane(p24,Vec3D(-19,-3,8),Vec3D(-19,-2,9);color="m")
+# plane2 = Plane(p24,Vec3D(-19,-3,8),Vec3D(-19,-2,9);color="m")
+circle2 = Circle([p24];color="m") do point
+    return (Vec3D(-20,-3,9),1.0,point - Vec3D(-20,-3,9))
+end
 p25 = Point(-18,-2,2;color="y")
 # ParallelPlane(p25,plane2;color="y")
-Parallel(p25,plane2;color="y")
+# Parallel(p25,plane2;color="y")
+Parallel(p25,circle2;color="y")
 
 p26 = Point(-25,-12,8;color="m")
 p27 = Point(-25,-12,9;color="m")

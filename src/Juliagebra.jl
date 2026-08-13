@@ -175,7 +175,7 @@ function Wait()
 end
 
 include("Dependents/dependents.jl")
-include("geometric_functions.jl")
+include("Primitives/geometric_functions.jl")
 
 export plot, add_node!, get_element
 

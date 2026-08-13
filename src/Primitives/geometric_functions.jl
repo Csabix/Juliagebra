@@ -4,6 +4,7 @@ _MidpointCount(p::Vec3D)::Tuple{Vec3D,Integer} = (p,1)
 _MidpointCount(p::Point)::Tuple{Vec3D,Integer} = (p.coord,1)
 _MidpointCount(coords::AbstractVector{Vec3D})::Tuple{Vec3D,Integer} = (sum(coords),length(coords))
 _MidpointCount(point_sequence::PointSequence)::Tuple{Vec3D,Integer} = _MidpointCount(point_sequence.coords)
+_MidpointCount(point_set::PointSet)::Tuple{Vec3D,Integer}           = _MidpointCount(point_set.coords)
 
 function Midpoint(nodes::Any...)::Vec3D
     sum::Vec3D = Vec3D(0.0)
@@ -183,7 +184,7 @@ function ParallelLine(nodeHandles::NodeHandle...;
     end
 end
 
-function ParallelPlane(coord::Vec3D,geometry_with_normal::Union{Plane})::Tuple{Vec3D,Vec3D} # TODO: triangle, circle
+function ParallelPlane(coord::Vec3D,geometry_with_normal::Union{Plane,Circle})::Tuple{Vec3D,Vec3D}
     return (coord,n(geometry_with_normal))
 end
 function ParallelPlane(line1::Union{Line,Ray,Segment},line2::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D}
@@ -205,7 +206,7 @@ function Parallel(nodeHandles::NodeHandle...;
     
     node1 = get_element(nodeHandles[1])
     node2 = get_element(nodeHandles[2])
-    if (isa(node1, Union{Line,Ray,Segment}) || isa(node2, Plane))
+    if (isa(node1, Union{Line,Ray,Segment}) || isa(node2, Union{Plane,Circle}))
         return ParallelPlane(nodeHandles...;color_style=color_style,color=color)
     else
         return ParallelLine(nodeHandles...;color_style,color=color,style=style,size=size)

@@ -88,9 +88,34 @@ function setup_callbacks(self::App)::Nothing
     register_callback!(event -> on_gizmo_left_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_LEFT))
     register_callback!(event -> on_gizmo_right_click!(self), self._inputs, MOUSE_BUTTON_DOWN, Cint(GLFW.MOUSE_BUTTON_RIGHT))
     register_callback!(event -> on_gizmo_left_release!(self), self._inputs, MOUSE_BUTTON_UP,   Cint(GLFW.MOUSE_BUTTON_LEFT))
-    register_callback!(event -> on_gizmo_drag!(self, event), self._inputs, MOUSE_MOVE)
+    register_callback!(event -> begin
+        drag = on_gizmo_drag!(self, event)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, MOUSE_MOVE)
 
+    # --- KEYBOARD DOWN EVENTS ---
     register_callback!(event ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, Cint(GLFW.KEY_F5))
+    register_callback!(event -> begin
+        drag = on_gizmo_drag_axis_start!(self, AXIS_X)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_X))
+    register_callback!(event -> begin
+        drag = on_gizmo_drag_axis_start!(self, AXIS_Y)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Y))
+    register_callback!(event -> begin
+        drag = on_gizmo_drag_axis_start!(self, AXIS_Z)
+        resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
+        return drag
+    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Z))
+    
+    # --- KEYBOARD UP EVENTS ---
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, Cint(GLFW.KEY_X))
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, Cint(GLFW.KEY_Y))
+    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, Cint(GLFW.KEY_Z))
 
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
@@ -138,7 +163,6 @@ function play!(self::App)
         # ? End model state.
         #endState(model,state)
         
-        self._scene_change = false
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         GLFW.SwapBuffers(self._glfw._window)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
@@ -155,7 +179,6 @@ end
 
 function update!(self::App, iconified::Bool)
     update!(self.graph, self._delta_time, NodeHandle(4))
-    self._scene_change = true
     thread_count::Int64 = Base.Threads.nthreads()
     if thread_count == 1
         lock_read(self.graph.lck)
@@ -199,6 +222,7 @@ function update!(self::App, iconified::Bool)
     if !iconified
         # ? Render scene and dock.
         update!(self._opengl,self._cam,self._scene_change,self._hovered)
+        self._scene_change = false
         render!(self._imgui,self)
         frame_end(self._opengl._profiler)
     end

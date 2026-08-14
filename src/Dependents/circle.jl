@@ -1,4 +1,5 @@
-const CIRCLE_RESOLUTION = 32
+const CIRCLE_RESOLUTION = 1024
+const CIRCLE_RANGE = range(0,2pi,CIRCLE_RESOLUTION)
 
 # ? ---------------------------------
 # ! Circle node
@@ -14,7 +15,7 @@ mutable struct Circle
     size::Float32
 
     function Circle(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
-        values = Vector{Vec3D}(undef, CIRCLE_RESOLUTION + 1)
+        values = Vector{Vec3D}(undef, CIRCLE_RESOLUTION)
         new(PCircle(Vec3DNan,NaN,Vec3DNan), UInt32(0), values, colors, style, convert(Float32,size))
     end
 end
@@ -29,12 +30,9 @@ function eval_node(circle::Circle, callback::Function, arguments::Vector{Any})::
     end
     u = normalize(cross(n(circle),vector))
     v = normalize(cross(n(circle),u))
-
-    for i in 1:CIRCLE_RESOLUTION
-        rad = i / CIRCLE_RESOLUTION * 2pi
-        circle.values[i] = p0(circle) + cos(rad) * u * r(circle) + sin(rad) * v * r(circle)
-    end
-    circle.values[CIRCLE_RESOLUTION + 1] = circle.values[1]
+    offset = p0(circle)
+    radius = r(circle)
+    circle.values = [u * c_angle + v * s_angle for (c_angle, s_angle) in zip(cos.(CIRCLE_RANGE), sin.(CIRCLE_RANGE))] .* radius .+ [offset]
 
     return circle
 end

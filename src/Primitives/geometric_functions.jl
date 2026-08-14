@@ -25,8 +25,17 @@ end
 function Midpoint(pointHandles::NodeHandle...;color_style::Union{Nothing,String}=nothing, # color_style must also be a named parameter here
     color="m",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle
 
-    return Point([pointHandles...],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do nodes...
-        return Midpoint(nodes...)
+    nodes = map(handle -> get_element(handle), pointHandles)
+    
+    if (all(node -> isa(node, Point), nodes))
+        point_sequence = PointSequence(collect(pointHandles))
+        return Point([point_sequence],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do ps
+            return Midpoint(ps)
+        end
+    else
+        return Point([pointHandles...],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do nodes...
+            return Midpoint(nodes...)
+        end
     end
 end
 #endregion
@@ -124,13 +133,19 @@ end
 
 
 #region Perpendicular Line & Plane
-function PerpendicularLine(coord::Vec3D,plane::Plane)::Tuple{Vec3D,Vec3D}
-    return (coord,coord + n(plane))
+function PerpendicularLine(coord::Vec3D,geometry_with_normal::Union{Plane,Circle})::Tuple{Vec3D,Vec3D}
+    return (coord,coord + n(geometry_with_normal))
 end
 function PerpendicularLine(coord::Vec3D,line::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D}
     t = dot(coord - p0(line), v(line))
     projected_to_line = p0(line) + v(line) * t
     return (coord,projected_to_line)
+end
+function PerpendicularLine(line::Union{Line,Ray,Segment},coord::Vec3D)::Tuple{Vec3D,Vec3D}
+    t = dot(coord - p0(line), v(line))
+    projected_to_line = p0(line) + v(line) * t
+    perp = cross(v(line),coord - projected_to_line)
+    return (projected_to_line,projected_to_line + perp)
 end
 function PerpendicularLine(nodeHandles::NodeHandle...;
     color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
@@ -157,12 +172,15 @@ end
 function Perpendicular(nodeHandles::NodeHandle...;
     color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
     
+    node1 = get_element(nodeHandles[1])
     node2 = get_element(nodeHandles[2])
 
-    if (isa(node2, Plane))
+    if (isa(node1, Union{Line,Ray,Segment}) && isa(node2, Point) || isa(node1, Point) && isa(node2, Union{Plane,Circle}))
         return PerpendicularLine(nodeHandles...;color_style=color_style,color=color,style=style,size=size)
-    else
+    elseif (isa(node1, Point) && isa(node2, Union{Line,Ray,Segment,Point}))
         return PerpendicularPlane(nodeHandles...;color_style=color_style,color=color)
+    else
+        error("Perpendicular not implemented")
     end
 end
 #endregion
@@ -206,10 +224,13 @@ function Parallel(nodeHandles::NodeHandle...;
     
     node1 = get_element(nodeHandles[1])
     node2 = get_element(nodeHandles[2])
-    if (isa(node1, Union{Line,Ray,Segment}) || isa(node2, Union{Plane,Circle}))
+
+    if (isa(node1, Point) && isa(node2, Union{Line,Ray,Segment,Point}))
+        return ParallelLine(nodeHandles...;color_style,color=color,style=style,size=size)
+    elseif (isa(node1, Union{Line,Ray,Segment}) && isa(node2, Union{Line,Ray,Segment}) || isa(node1, Point) && isa(node2, Union{Plane,Circle}))
         return ParallelPlane(nodeHandles...;color_style=color_style,color=color)
     else
-        return ParallelLine(nodeHandles...;color_style,color=color,style=style,size=size)
+        error("Parallel not implemented")
     end
 end
 #endregion

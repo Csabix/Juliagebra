@@ -10,9 +10,7 @@ p2 = Point(1,  0,0;color="c")
 p3 = Point(1.5,0, 0)
 p4 = Point(1.5,0,.5)
 p5 = Point(  1,0,.5)
-ps = PointSequence([p3,p4,p5];color="b") do p3,p4,p5
-    return [p3,p4,p5]
-end
+ps = PointSequence([p3,p4,p5];color="b")
 
 Midpoint(p1,p2,ps;color="y")
 
@@ -136,6 +134,11 @@ Perpendicular(p14,plane1;color="g")
 p15 = Point(12,-.5,1.5;color="y")
 PerpendicularLine(p15,l1;color="g")
 # Perpendicular(p15,l1;color="g") # prefers plane
+
+p15_2 = Point(15,-.5,1.5;color="y")
+# PerpendicularLine(l1,p15_2;color="g")
+Perpendicular(l1,p15_2;color="g")
+
 
 #endregion
 

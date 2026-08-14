@@ -162,7 +162,7 @@ function add_node!(callback::Function,parents::Union{Vector{NodeHandle},Nothing}
     value = if parents === nothing
         callback()
     else
-        arguments = [get_element(handle) for handle in parents]
+        arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
         callback(arguments...)
     end
     return add!(app.graph,value,parents,callback,UInt64(0))

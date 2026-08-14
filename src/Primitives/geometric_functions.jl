@@ -43,19 +43,11 @@ end
 
 #region Distance
 Distance(coord1::Vec3D,coord2::Vec3D)::Float64 = hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
-Distance(point1::Point,point2::Point)::Float64 = Distance(point1.coord,point2.coord)
 Distance(coord::Vec3D,plane::Plane)::Float64   = abs(dot(n(plane),coord - p0(plane)))
 Distance(coord::Vec3D,sphere::Sphere)::Float64 = abs(Distance(coord,p0(sphere)) - r(sphere))
 Distance(coord::Vec3D,circle::Circle)::Float64 = Distance(coord,ClosestPoint(coord,circle))
 Distance(coord::Vec3D,geometry::Any)::Float64  = Distance(coord,ClosestPoint(coord,geometry))
-function Distance(nodeHandles::NodeHandle...)::Float64
-    # TODO: return a scalar node
-    return add_node!([nodeHandles...]) do nodes...
-        dist = Distance(nodes...)
-        println(dist)
-        return dist
-    end
-end
+Distance(nodeHandles::NodeHandle...)::NodeHandle = add_node!((nodes...) -> Distance(nodes...), [nodeHandles...])
 #endregion
 
 

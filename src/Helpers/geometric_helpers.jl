@@ -55,18 +55,28 @@ function closest_point(coord::Vec3D,circle::PCircle)::Vec3D
     centerToProjected = centerToCoord - dot(n(circle),centerToCoord) * n(circle)
     return p0(circle) + r(circle) * normalize(centerToProjected)
 end
+# https://iquilezles.org/articles/distfunctions/
 function closest_point(coord::Vec3D,triangle::PTriangle)::Vec3D
-    inTriangle = PrimitiveToPrimitiveIntersection(triangle,PLine(coord,coord + n(triangle)))
-    if (inTriangle !== nothing)
-        return inTriangle
+    ba = triangle.v1 - triangle.v0
+    pa = coord - triangle.v0
+    cb = triangle.v2 - triangle.v1
+    pb = coord - triangle.v1
+    ac = triangle.v0 - triangle.v2
+    pc = coord - triangle.v2
+    nor = normalize(cross(ba,ac))
+
+    # ? checks whether the projected point is on the plane
+    if (sign(dot(cross(ba,nor),pa)) +
+        sign(dot(cross(cb,nor),pb)) +
+        sign(dot(cross(ac,nor),pc)) >= 2.0)
+        return coord - (nor * dot(nor,pa))
     else
-        a = PSegment(triangle.v0,triangle.v1)
-        b = PSegment(triangle.v1,triangle.v2)
-        c = PSegment(triangle.v2,triangle.v0)
-        a_cp = closest_point(coord,a)
-        b_cp = closest_point(coord,b)
-        c_cp = closest_point(coord,c)
-        return closest_point(coord,[a_cp,b_cp,c_cp])
+        # ? if not, it chooses the min distance on the edges
+        return closest_point(coord,[
+            triangle.v0 + ba * clamp(dot(ba,pa) / dot(ba,ba), 0.0, 1.0),
+            triangle.v1 + cb * clamp(dot(cb,pb) / dot(cb,cb), 0.0, 1.0),
+            triangle.v2 + ac * clamp(dot(ac,pc) / dot(ac,ac), 0.0, 1.0),
+        ])
     end
 end
 function closest_point(coord::Vec3D,geometry::Any)::Vec3D

@@ -57,7 +57,7 @@ end
 # ? ---------------------------------
 
 function LazyLBVH(T::Type{<:PrimitivesOf{<:AABBPrimitive}},geometry::Any)
-    return add_node!(LazyLBVH{T}(),[geometry]) do g
+    return add_node!(LazyLBVH{T}();parents=[geometry]) do g
         return PrimitivesOf(g)
     end
 end

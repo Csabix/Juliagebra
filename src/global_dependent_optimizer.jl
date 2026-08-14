@@ -13,7 +13,7 @@ function getIntersectionPrimitiveIter!(self::GlobalNodeOptimizer,geometry::Any,:
     if (haskey(self._intersectionPrimitiveIters,geometry) && !isa(get_element(self._intersectionPrimitiveIters[geometry]), LazyLBVH))
         gvh = self._intersectionPrimitiveIters[geometry]
     else
-        gvh = add_node!(call,PrimitivesOf(get_element(geometry)),[geometry])
+        gvh = add_node!(call,PrimitivesOf(get_element(geometry));parents=[geometry])
         self._intersectionPrimitiveIters[geometry] = gvh
     end
 

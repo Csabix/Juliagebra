@@ -33,12 +33,12 @@ update(element::Any,delta_time::Float64)::Tuple{Any,Bool} = (element,false)
 convert_callback_entry(element::Any)::Any = element
 convert_callback_result(element::Any, result::Any)::Any = result
 eval_node(element::Any, callback::Function, arguments::Vector{Any})::Any = callback(arguments...)
-render_node(element::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing = nothing
+render_node(element::Any, data::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Any = nothing
 render_node_gui(element::Any)::Tuple{Any,Bool} = element, false
-edit_node(element::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Bool} = (element,false)
+edit_node(element::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Bool} = (element,false) # TODO pass render_data
 edit_node_overload(element::Any)::Bool = false
 
-on_gizmo_select(element::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_NONE, Vec3DNan, nothing) # Used gizmo axes, gizmo position, data
+on_gizmo_select(element::Any,render_data::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_NONE, Vec3DNan, nothing) # Used gizmo axes, gizmo position, data
 on_gizmo_move(element::Any, position::Vec3D, data::Any)::Tuple{Any,Any} = (element, nothing)
 
 function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vector{Any})

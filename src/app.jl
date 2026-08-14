@@ -132,7 +132,7 @@ end
 struct GizmoPlaceHolder end
 function clear!(app::App)
     clear!(app.graph)
-    for _ in 1:3 add!(app.graph,GizmoPlaceHolder(),nothing,nothing,NodeFlag(0)) end
+    for _ in 1:3 add!(app.graph,GizmoPlaceHolder(),nothing,nothing,nothing,NodeFlag(0)) end
     clear!(app._opengl)
 end
 
@@ -208,15 +208,7 @@ function update!(self::App, iconified::Bool)
         end
     end
 
-    if self.graph.needs_render_count[] > 0
-        for index in eachindex(self.graph.nodes)
-            if (has_geom_flag(self.graph.nodes[index],NODE_UPDATE_RENDER))
-                render_node(self.graph.elements[index],self._opengl._renderers,UInt32(index))
-                unset_geom_flags!(self.graph.nodes[index],NODE_UPDATE_RENDER)
-                atomic_sub!(self.graph.needs_render_count,UInt64(1))
-            end
-        end
-    end
+    render!(self.graph, self._opengl._renderers)
     update!(self._imgui,self)
 
     if !iconified

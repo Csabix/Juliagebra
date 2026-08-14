@@ -4,6 +4,7 @@ include("graph_helpers.jl")
 @kwdef struct GeometryPlotGraph
     lck::LockRW = LockRW()
     elements::Vector{Any} = Vector{Any}()
+    render_data::Vector{Any} = Vector{Any}()
     nodes::Vector{GeometryPlotNode} = Vector{GeometryPlotNode}()
     invalidate_stack::Vector{NodeHandle} = Vector{NodeHandle}()
     wait_pool::WaitPool = WaitPool()
@@ -16,14 +17,16 @@ end
 
 function clear!(graph::GeometryPlotGraph)::Nothing
     empty!(graph.elements)
+    empty!(graph.render_data)
     empty!(graph.nodes)
     return nothing
 end
 
-function add!(graph::GeometryPlotGraph, element::Any,
+function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
     parents::Union{Vector{NodeHandle},Nothing}, callback::Union{Function,Nothing}, flags::NodeFlag)::NodeHandle
 
     push!(graph.elements, element)
+    push!(graph.render_data, render_data)
     handle::NodeHandle = NodeHandle(length(graph.elements))
     node::GeometryPlotNode = GeometryPlotNode(callback, parents, flags)
     set_geom_flags!(node,NODE_UPDATE_RENDER)
@@ -159,17 +162,18 @@ function validate!(graph::GeometryPlotGraph, start::NodeHandle)::Nothing
     return nothing
 end
 
-# function render!(graph::GeometryPlotGraph, start::NodeHandle, renderers::Dict{DataType,Renderer})::Nothing
-#     nodes::Vector{GeometryPlotNode} = graph.nodes
-#     current::NodeHandle = start
-#     limit::NodeHandle = length(nodes)
-#     while current <= limit
-#         node::GeometryPlotNode = nodes[current]
-#         if node.needs_render != NODE_NO_RENDER
-#             render_node(graph.elements[node.node_h], renderers, node.node_h)
-#             node.needs_render = NODE_NO_RENDER
-#         end
-#         current += one(NodeHandle)
-#     end
-#     return nothing
-# end
+function render!(graph::GeometryPlotGraph, renderers::Dict{DataType,Renderer})::Nothing
+    nodes::Vector{GeometryPlotNode} = graph.nodes
+    elements::Vector{Any} = graph.elements
+    render_data::Vector{Any} = graph.render_data
+    if graph.needs_render_count[] > 0
+        for index in eachindex(nodes)
+            if (has_geom_flag(nodes[index],NODE_UPDATE_RENDER))
+                render_data[index] = render_node(elements[index],render_data[index],renderers,UInt32(index))
+                unset_geom_flags!(nodes[index],NODE_UPDATE_RENDER)
+                atomic_sub!(graph.needs_render_count,UInt64(1))
+            end
+        end
+    end
+    return nothing
+end

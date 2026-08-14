@@ -1,12 +1,15 @@
 mutable struct TriangleCluster
     mesh::Mesh
-    handle::UInt32
     transform::Mat4T{Float64}
-    color::UInt32
-    
-    function TriangleCluster(mesh::BaseMesh,transform::Mat4T{Float64},color::UInt32)
-        new(Mesh(get_positions(mesh),get_indices(mesh)),UInt32(0),transform,color)
+
+    function TriangleCluster(mesh::BaseMesh, transform::Mat4T{Float64})
+        new(Mesh(get_positions(mesh), get_indices(mesh)), transform)
     end
+end
+
+struct TriangleClusterDrawData
+    handle::UInt32
+    color::UInt32
 end
 
 convert_callback_entry(t::TriangleCluster)::TriangleCluster = t
@@ -57,21 +60,22 @@ function get_positions(triangles::TriangleCluster)::Vector{Vec3D}
     return isnothing(triangles.mesh.indices) ? p : unique(p)
 end
 
-function render_node(triangles::TriangleCluster, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(triangles::TriangleCluster, data::TriangleClusterDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::TriangleClusterDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
     triangulated = if isnothing(triangles.mesh.indices)
             [Vec3F(pos) for pos in triangles.mesh.positions]
         else
             [Vec3F(triangles.mesh.positions[ind+1]) for ind in triangles.mesh.indices]
         end
-    if triangles.handle == 0
-        triangles.handle = add!(triangle_renderer,triangulated,Mat4T{Float32}(triangles.transform),triangles.color,false,id)
+    if data.handle == 0
+        handle = add!(triangle_renderer, triangulated, Mat4T{Float32}(triangles.transform), data.color, false, id)
+        return TriangleClusterDrawData(handle, data.color)
     else
-        update_coords!(triangle_renderer,triangles.handle,triangulated)
-        update_color!(triangle_renderer,triangles.handle,triangles.color)
-        update_transform!(triangle_renderer,triangles.handle,triangles.transform)
+        update_coords!(triangle_renderer, data.handle, triangulated)
+        update_color!(triangle_renderer, data.handle, data.color)
+        update_transform!(triangle_renderer, data.handle, triangles.transform)
+        return data
     end
-    return nothing
 end
 
 struct PTrianglesOfTriangleCluster <: PrimitivesOf{PTriangle}
@@ -95,19 +99,21 @@ export TriangleCluster
 export get_triangles
 export get_positions
 
-function TriangleCluster(callback::Function,mesh::BaseMesh,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_data::Union{Nothing,String}=nothing;
+function TriangleCluster(callback::Function, mesh::BaseMesh, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_data::Union{Nothing,String}=nothing;
     color="g")::NodeHandle
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(callback,TriangleCluster(mesh,dmat4(1.0),c),parents)
+    draw_data = TriangleClusterDrawData(UInt32(0), c)
+    return add_node!(callback, TriangleCluster(mesh, dmat4(1.0)); draw_data=draw_data, parents=parents)
 end
 
 TriangleCluster(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_data::Union{Nothing,String}=nothing;
                 color="g")::NodeHandle = TriangleCluster(callback,Mesh(),parents,color_data;color=color)
 
-function TriangleCluster(mesh::BaseMesh,color_data::Union{Nothing,String}=nothing;
+function TriangleCluster(mesh::BaseMesh, color_data::Union{Nothing,String}=nothing;
                 color="g")::NodeHandle
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(TriangleCluster(mesh,dmat4(1.0),c))
+    draw_data = TriangleClusterDrawData(UInt32(0), c)
+    return add_node!(TriangleCluster(mesh, dmat4(1.0)); draw_data=draw_data)
 end
 
 function _TriangleCluster(callback::Function,parents::Vector{NodeHandle}, args...; color="g")

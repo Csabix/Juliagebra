@@ -1,4 +1,4 @@
-const LINE_TO_LINE_EPSILON = 0.1
+const DISTANCE_EPSILON = 0.1
 #const PLANE_TO_PLANE_EPSILON = 0.0000000001
 #const LINE_TO_PLANE_EPSILON = 0.0000000001
 const F64_LINEAR_THRESHOLD = 1E-15 # when comparing distances
@@ -12,7 +12,7 @@ function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment
     n_up = normalize(cross(v1,v2))
     
     d = abs(dot(line_segment_b.p0-line_segment_a.p0,n_up))
-    if( d > LINE_TO_LINE_EPSILON)
+    if( d > DISTANCE_EPSILON)
         return nothing
     end
 
@@ -214,7 +214,7 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
         return nothing
     end
     
-    if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= LINE_TO_LINE_EPSILON^2)
+    if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= DISTANCE_EPSILON^2)
         return (p0(line1) + v(line1) * t + p0(line2) + v(line2) * s) / 2.0
     else
         return nothing
@@ -317,3 +317,23 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,plane::PPlane)::Un
 end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,triangle::PTriangle)::Union{PSegment,Nothing} = PrimitiveToPrimitiveIntersection(triangle,plane)
+
+# function PrimitiveToPrimitiveIntersection(circle::PCircle,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+#     l = dot(v(line),n(circle))
+#     if (l == 0.0)
+#         println("parallel")
+
+#         return nothing
+#     else
+#         t = dot(p0(circle)-p0(line),n(circle)) / l
+#         projected = p0(line) + ClampParameter(line,t) * v(line)
+#         closest = closest_point(projected,circle)
+#         if (distance(projected,closest) < DISTANCE_EPSILON)
+#             return (projected + closest) / 2.0
+#         else
+#             return nothing
+#         end
+#     end
+# end
+
+# PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},circle::PCircle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(circle,line)

@@ -51,7 +51,36 @@ p0(circle::Circle)::Vec3D  = p0(circle.primitive)
 n(circle::Circle)::Vec3D   = n(circle.primitive)
 r(circle::Circle)::Float64 = r(circle.primitive)
 
-# TODO: circle intersections
+# ? ---------------------------------
+# ! Circle intersection
+# ? ---------------------------------
+
+const CIRCLE_DETAIL = 64 # TODO: remove segmentation after intersection rework
+
+struct PCircleOfCircle <: PrimitivesOf{PSegment}
+    circle::PCircle
+end
+PrimitivesOf(self::Circle) = PCircleOfCircle(self.primitive)
+
+Base.length(::PCircleOfCircle) = CIRCLE_DETAIL
+function Base.getindex(self::PCircleOfCircle, index::Integer)
+    vector = Vec3D(1,0,0)
+    if (dot(vector,n(self.circle)) > 1.0 - F64_ANGULAR_THRESHOLD)
+        vector = Vec3D(0,1,0)
+    end
+    u = normalize(cross(n(self.circle),vector))
+    v = normalize(cross(n(self.circle),u))
+    offset = p0(self.circle)
+    radius = r(self.circle)
+    
+    angle1 = index * 2pi / CIRCLE_DETAIL
+    angle2 = (index + 1) * 2pi / CIRCLE_DETAIL
+    endpoint1 = u * cos(angle1) * radius + v * sin(angle1) * radius + offset
+    endpoint2 = u * cos(angle2) * radius + v * sin(angle2) * radius + offset
+
+    return PSegment(endpoint1,endpoint2)
+end
+Base.iterate(self::PCircleOfCircle, index::Integer = 1) = index <= CIRCLE_DETAIL ? (self[index], (index + 1)) : nothing
 
 # ? ---------------------------------
 # ! Circle constructors

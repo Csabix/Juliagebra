@@ -50,7 +50,7 @@ function closest_point(coord::Vec3D,sphere::Sphere)::Vec3D
     return p0(sphere) + dir * r(sphere)
 end
 # https://www.geometrictools.com/Documentation/DistanceToCircle3.pdf
-function closest_point(coord::Vec3D,circle::Circle)::Vec3D
+function closest_point(coord::Vec3D,circle::PCircle)::Vec3D
     centerToCoord = coord - p0(circle)
     centerToProjected = centerToCoord - dot(n(circle),centerToCoord) * n(circle)
     return p0(circle) + r(circle) * normalize(centerToProjected)

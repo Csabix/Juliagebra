@@ -72,6 +72,7 @@ end
 function window_resize!(self::App, event::Event)::Bool
     screen_resize!(self._glfw, event.width, event.height)
     resize!(self._imgui, self._glfw)
+    self._scene_change = true
     return false
 end
 
@@ -208,7 +209,7 @@ function update!(self::App, iconified::Bool)
         end
     end
 
-    render!(self.graph, self._opengl._renderers)
+    self._scene_change |= render!(self.graph, self._opengl._renderers)
     update!(self._imgui,self)
 
     if !iconified

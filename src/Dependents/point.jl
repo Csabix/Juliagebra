@@ -41,30 +41,31 @@ on_gizmo_select(point::Point,data::PointDrawData)::Tuple{UInt32,Vec3D,Any} = (UI
 on_gizmo_move(point::Point, position::Vec3D, data::Any)::Tuple{Any,Any} = (point.coord = position;(point, nothing))
 
 edit_node_overload(point::Point)::Bool = true
-function edit_node(point::Point, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Bool}
+function edit_node(point::Point, data::PointDrawData, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
+    result = EDIT_NODE_NONE
     coord = point.coord
     x_ref = Ref(Cdouble(coord.x))
     y_ref = Ref(Cdouble(coord.y))
     z_ref = Ref(Cdouble(coord.z))
-    invalidate = false
     if CImGui.InputDouble("##x$handle", x_ref, 0.0, 0.0, "%.4f")
         point.coord = Vec3D(x_ref[],coord[2],coord[3])
-        invalidate = true
+        result |= EDIT_NODE_INVALIDATE
     end
     if CImGui.InputDouble("##y$handle", y_ref, 0.0, 0.0, "%.4f")
         point.coord = Vec3D(coord[1],y_ref[],coord[3])
-        invalidate = true
+        result |= EDIT_NODE_INVALIDATE
     end
     if CImGui.InputDouble("##z$handle", z_ref, 0.0, 0.0, "%.4f")
         point.coord = Vec3D(coord[1],coord[2],z_ref[])
-        invalidate = true
+        result |= EDIT_NODE_INVALIDATE
     end
-    new_color = color_edit3(point.color, "##pcol$id")
+    new_color = color_edit3(data.color, "##pcol$id")
         if new_color !== nothing
-            point.color = new_color
-            update_colors!(renderers[PointRenderer],point.handle,new_color)
+            data = PointDrawData(data.handle,new_color,data.style,data.style,data.constraints)
+            update_colors!(renderers[PointRenderer]::PointRenderer,data.handle,new_color)
+            result |= EDIT_NODE_RERENDER
         end
-    return point, invalidate
+    return point, data, result
 end
 
 function Point(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;

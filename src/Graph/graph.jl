@@ -59,6 +59,14 @@ function unset_geom_flags!(node::GeometryPlotNode, flags::NodeFlag)::NodeFlag
     return node.flags
 end
 
+function rerender!(graph::GeometryPlotGraph, handle::NodeHandle)::Nothing
+    if !has_geom_flag(graph.nodes[handle], NODE_UPDATE_RENDER)
+        set_geom_flags!(graph.nodes[handle], NODE_UPDATE_RENDER)
+        Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+    end
+    return nothing
+end
+
 function invalidate!(graph::GeometryPlotGraph, handle::NodeHandle)::Nothing
     current::NodeHandle = handle
     nodes::Vector{GeometryPlotNode} = graph.nodes
@@ -73,8 +81,10 @@ function invalidate!(graph::GeometryPlotGraph, handle::NodeHandle)::Nothing
                 @atomic :monotonic node.state = NODE_INVALID
                 Threads.atomic_add!(graph.invalid_count,UInt64(1))
             else
-                set_geom_flags!(graph.nodes[current], NODE_UPDATE_RENDER)
-                Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+                if !has_geom_flag(nodes[current], NODE_UPDATE_RENDER)
+                    set_geom_flags!(nodes[current], NODE_UPDATE_RENDER)
+                    Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+                end
             end
         end
         if isempty(invalidate_stack)
@@ -162,7 +172,7 @@ function validate!(graph::GeometryPlotGraph, start::NodeHandle)::Nothing
     return nothing
 end
 
-function render!(graph::GeometryPlotGraph, renderers::Dict{DataType,Renderer})::Nothing
+function render!(graph::GeometryPlotGraph, renderers::Dict{DataType,Renderer})::Bool
     nodes::Vector{GeometryPlotNode} = graph.nodes
     elements::Vector{Any} = graph.elements
     render_data::Vector{Any} = graph.render_data
@@ -174,6 +184,7 @@ function render!(graph::GeometryPlotGraph, renderers::Dict{DataType,Renderer})::
                 atomic_sub!(graph.needs_render_count,UInt64(1))
             end
         end
+        return true
     end
-    return nothing
+    return false
 end

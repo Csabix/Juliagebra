@@ -35,7 +35,11 @@ convert_callback_result(element::Any, result::Any)::Any = result
 eval_node(element::Any, callback::Function, arguments::Vector{Any})::Any = callback(arguments...)
 render_node(element::Any, data::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Any = nothing
 render_node_gui(element::Any)::Tuple{Any,Bool} = element, false
-edit_node(element::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Bool} = (element,false) # TODO pass render_data
+
+const EDIT_NODE_NONE::Int = 0
+const EDIT_NODE_RERENDER::Int = 1
+const EDIT_NODE_INVALIDATE::Int = 2
+edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = (element,render_data,EDIT_NODE_NONE)
 edit_node_overload(element::Any)::Bool = false
 
 on_gizmo_select(element::Any,render_data::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_NONE, Vec3DNan, nothing) # Used gizmo axes, gizmo position, data

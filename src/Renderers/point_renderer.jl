@@ -275,9 +275,9 @@ function update_styles_dynamic!(self::PointRenderer,ref::UInt32,styles)
     self.updates[ref] |= _POINT_PROP_STYLE_ID
 end
 
-function pre_draw!(self::PointRenderer, ::Camera, ::GLFWData)::Bool
+function pre_draw!(self::PointRenderer, ::Camera, ::GLFWData)::Nothing
     foreach(added_all!,self.points)
-    all(u -> u == _POINT_PROP_NONE, self.updates) && return false
+    all(u -> u == _POINT_PROP_NONE, self.updates) && return nothing
     
     wait(self.points[1].buffer[1])
     for i in 1:length(self.points)
@@ -286,7 +286,7 @@ function pre_draw!(self::PointRenderer, ::Camera, ::GLFWData)::Bool
         end
         self.updates[i] = _POINT_PROP_NONE
     end
-    return true
+    return nothing
 end
 
 function draw_opaque!(self::PointRenderer, ::Camera, ::GLFWData)::Nothing

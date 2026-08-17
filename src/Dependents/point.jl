@@ -71,7 +71,7 @@ end
 function Point(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
     color="m", style=".", size=25, axis_constraint=AXIS_NONE)::NodeHandle
     (c, s) = parse_point_color_style(color_style, color, style)
-    return add_node!(callback;draw_data=PointDrawData(zero(UInt32),c,s,round(UInt8, size),UInt8(axis_constraint)),parents=parents)
+    return add_node!(callback,Point();draw_data=PointDrawData(zero(UInt32),c,s,round(UInt8, size),UInt8(axis_constraint)),parents=parents)
 end
 
 function Point(x::Real, y::Real, z::Real, color_style::Union{Nothing,String}=nothing;

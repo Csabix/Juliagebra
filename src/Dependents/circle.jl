@@ -86,11 +86,37 @@ Base.iterate(self::PCircleOfCircle, index::Integer = 1) = index <= CIRCLE_DETAIL
 # ! Circle constructors
 # ? ---------------------------------
 
+_get_parent_circle(parent::NodeHandle) = parent
+_get_parent_circle(parent::Number) = add_node!(parent)
+_get_parent_circle(parent) = add_node!(Vec3D(parent))
+
 function Circle(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
     (c,s) = parse_line_colors_style(color_style,color,style)
     return add_node!(callback,Circle(c,s,size),parents)
 end
+
+function Circle(center,radius,normal,color_style::Union{Nothing,String}=nothing;
+    color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
+    
+    parents = [
+        _get_parent_circle(center),
+        _get_parent_circle(radius),
+        _get_parent_circle(normal),
+    ]
+
+    if (isa(get_element(parents[3]), Union{Line,Ray,Segment}))
+        return Circle(parents,color_style;color=color,style=style,size=size) do center,radius,line
+            return (center,radius,v(line))
+        end
+    else
+        return Circle(parents,color_style;color=color,style=style,size=size) do center,radius,normal
+            return (center,radius,normal)
+        end
+    end
+end
+
+
 
 export Circle

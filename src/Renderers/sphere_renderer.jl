@@ -140,7 +140,7 @@ end
 
 function draw_transparent!(self::SphereRenderer,cam::Camera,window::GLFWData)::Nothing
     if isempty(self.center_radius_transparent) return nothing end
-    
+    glDisable(GL_CULL_FACE)
     bind_ssbo(self.center_radius_buffer_transparent,0)
     bind_ssbo(self.color_id_buffer_transparent,1)
 
@@ -151,6 +151,6 @@ function draw_transparent!(self::SphereRenderer,cam::Camera,window::GLFWData)::N
     glDrawArrays(GL_TRIANGLES,0,length(self.center_radius_transparent) * 6)
     @time_gpu_end Renderer Sphere Transparent
     lock(self.center_radius_buffer_transparent)
-
+    glEnable(GL_CULL_FACE)
     return nothing
 end

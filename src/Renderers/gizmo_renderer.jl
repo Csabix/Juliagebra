@@ -225,7 +225,7 @@ end
 function on_gizmo_right_click!(app)::Bool
     gizmo::GizmoRenderer = app._opengl._renderers[GizmoRenderer]
     if app._hovered > 3
-        axes, gizmo_position, data = on_gizmo_select(app.graph.elements[app._hovered])
+        axes, gizmo_position, data = on_gizmo_select(app.graph.elements[app._hovered],app.graph.render_data[app._hovered])
         if (axes == AXIS_NONE || gizmo_position == Vec3DNan)
             return false
         else

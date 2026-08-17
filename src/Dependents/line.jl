@@ -7,17 +7,19 @@ const LINE_RANGE = range(-LINE_N_LENGTH, LINE_N_LENGTH, 2*LINE_N_LENGTH + 1)
 
 mutable struct Line
     primitive::PLine
-    handle::NodeHandle
-    
-    values::Vector{Vec3D}
+    values::Vector{Vec3D} # TODO remove
+
+    function Line()
+        values = Vector{Vec3D}(undef, length(LINE_RANGE))
+        new(PLine(Vec3DNan, Vec3DNan), values)
+    end
+end
+
+struct LineDrawData
+    handle::UInt32
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
-
-    function Line(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
-        values = Vector{Vec3D}(undef, length(LINE_RANGE))
-        new(PLine(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, convert(Float32,size))
-    end
 end
 
 # convert_callback_entry(line::Line)::Tuple{Vec3D,Vec3D} = (line.primitive.p0, line.primitive.p1)
@@ -39,14 +41,15 @@ function eval_node(line::Line, callback::Function, arguments::Vector{Any})::Any
     return line
 end
 
-function render_node(line::Line, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(line::Line, data::LineDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::LineDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if line.handle == 0
-        line.handle = add!(line_renderer,line.values,Iterators.cycle(line.colors),Iterators.cycle(id),line.size,line.style)
+    if data.handle == 0
+        handle = add!(line_renderer, line.values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+        return LineDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer,line.handle,line.values)
+        update_coords!(line_renderer, data.handle, line.values)
+        return data
     end
-    return nothing
 end
 
 p0(line::Line)::Vec3D = p0(line.primitive)
@@ -73,10 +76,11 @@ Base.iterate(self::PLineOfLine, index::Integer = 1) = index == 1 ? (self.line, (
 _get_parent_line(parent::NodeHandle) = parent
 _get_parent_line(parent) = add_node!(Vec3D(parent))
 
-function Line(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(callback, Line(c,s,size), parents)
+function Line(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
+    color="g", style="-", size::Union{AbstractFloat,Integer}=3.0f0)
+    (c, s) = parse_line_colors_style(color_style, color, style)
+    draw_data = LineDrawData(UInt32(0), c, s, convert(Float32, size))
+    return add_node!(callback, Line(); draw_data=draw_data, parents=parents)
 end
 
 function Line(p0,p1,color_style::Union{Nothing,String}=nothing;

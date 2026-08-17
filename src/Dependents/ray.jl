@@ -6,17 +6,19 @@ const RAY_RANGE = range(0, LINE_N_LENGTH, LINE_N_LENGTH + 1)
 
 mutable struct Ray
     primitive::PRay
-    handle::NodeHandle
-    
-    values::Vector{Vec3D}
+    values::Vector{Vec3D} # TODO remove
+
+    function Ray()
+        values = Vector{Vec3D}(undef, length(RAY_RANGE))
+        new(PRay(Vec3DNan, Vec3DNan), values)
+    end
+end
+
+struct RayDrawData
+    handle::UInt32
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
-
-    function Ray(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
-        values = Vector{Vec3D}(undef, length(RAY_RANGE))
-        new(PRay(Vec3DNan,Vec3DNan), UInt32(0), values, colors, style, convert(Float32,size))
-    end
 end
 
 # convert_callback_entry(ray::Ray)::Tuple{Vec3D,Vec3D} = (ray.primitive.p0, ray.primitive.p1)
@@ -38,14 +40,15 @@ function eval_node(ray::Ray, callback::Function, arguments::Vector{Any})::Any
     return ray
 end
 
-function render_node(ray::Ray, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(ray::Ray, data::RayDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::RayDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if ray.handle == 0
-        ray.handle = add!(line_renderer,ray.values,Iterators.cycle(ray.colors),Iterators.cycle(id),ray.size,ray.style)
+    if data.handle == 0
+        handle = add!(line_renderer, ray.values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+        return RayDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer,ray.handle,ray.values)
+        update_coords!(line_renderer, data.handle, ray.values)
+        return data
     end
-    return nothing
 end
 
 p0(ray::Ray)::Vec3D = p0(ray.primitive)
@@ -72,10 +75,11 @@ Base.iterate(self::PRayOfRay, index::Integer = 1) = index == 1 ? (self.ray, (ind
 _get_parent_ray(parent::NodeHandle) = parent
 _get_parent_ray(parent) = add_node!(Vec3D(parent))
 
-function Ray(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-    color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(callback, Ray(c,s,size), parents)
+function Ray(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
+    color="g", style="-", size::Union{AbstractFloat,Integer}=3.0f0)
+    (c, s) = parse_line_colors_style(color_style, color, style)
+    draw_data = RayDrawData(UInt32(0), c, s, convert(Float32, size))
+    return add_node!(callback, Ray(); draw_data=draw_data, parents=parents)
 end
 
 function Ray(p0,p1,color_style::Union{Nothing,String}=nothing;

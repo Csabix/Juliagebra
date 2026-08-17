@@ -7,21 +7,23 @@ const PLANE_RANGE = range(-PLANE_N_LENGTH, PLANE_N_LENGTH, 2*PLANE_N_LENGTH + 1)
 
 mutable struct Plane
     primitive::PPlane
-    handle::UInt32
+    vertexes::FlatMatrixManager{Vec3F} # TODO remove
+    indexes::Vector{UInt32} # TODO remove
+    uvValues::FlatMatrix{Vec3D} # TODO remove
+    uvNormals::FlatMatrix{Vec3D} # TODO remove
 
-    vertexes::FlatMatrixManager{Vec3F}
-    indexes::Vector{UInt32}
-    uvValues::FlatMatrix{Vec3D}
-    uvNormals::FlatMatrix{Vec3D}
-    color::UInt32
-
-    function Plane(color::UInt32)
+    function Plane()
         vertexes = FlatMatrixManager{Vec3F}()
         indexes = Vector{UInt32}()
-        uvValues = FlatMatrix{Vec3D}(length(PLANE_RANGE),length(PLANE_RANGE))
-        uvNormals = FlatMatrix{Vec3D}(length(PLANE_RANGE),length(PLANE_RANGE))
-        new(PPlane(Vec3DNan,Vec3DNan),UInt32(0),vertexes,indexes,uvValues,uvNormals,color)
+        uvValues = FlatMatrix{Vec3D}(length(PLANE_RANGE), length(PLANE_RANGE))
+        uvNormals = FlatMatrix{Vec3D}(length(PLANE_RANGE), length(PLANE_RANGE))
+        new(PPlane(Vec3DNan, Vec3DNan), vertexes, indexes, uvValues, uvNormals)
     end
+end
+
+struct PlaneDrawData
+    handle::UInt32
+    color::UInt32
 end
 
 function convert_result(plane::Plane,u_idx,v_idx,uf,vf)
@@ -75,22 +77,23 @@ function eval_node(plane::Plane, callback::Function, arguments::Vector{Any})::An
     return plane
 end
 
-function render_node(ps::Plane, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(ps::Plane, pdata::PlaneDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::PlaneDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
-    if ps.handle == 0
+    if pdata.handle == 0
         width = length(PLANE_RANGE)
         height = length(PLANE_RANGE)
-        initMatrix(ps.vertexes,width,height,Vec3FNan)
-        triangulateInto!(ps.indexes,ps.vertexes,layers(ps.vertexes))
-        copy!(ps.uvValues,ps.vertexes,layers(ps.vertexes))
-        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)),ps.vertexes,layers(ps.vertexes))
-        ps.handle = add!(triangle_renderer,triangles,mat4(1.0f0),ps.color,true,id)
+        initMatrix(ps.vertexes, width, height, Vec3FNan)
+        triangulateInto!(ps.indexes, ps.vertexes, layers(ps.vertexes))
+        copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
+        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
+        handle = add!(triangle_renderer, triangles, mat4(1.0f0), pdata.color, true, id)
+        return PlaneDrawData(handle, pdata.color)
     else
-        copy!(ps.uvValues,ps.vertexes,layers(ps.vertexes))
-        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)),ps.vertexes,layers(ps.vertexes))
-        update_coords!(triangle_renderer,ps.handle,triangles)
+        copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
+        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
+        update_coords!(triangle_renderer, pdata.handle, triangles)
+        return pdata
     end
-    return nothing
 end
 
 p0(plane::Plane)::Vec3D = p0(plane.primitive)
@@ -115,10 +118,10 @@ Base.iterate(self::PPlaneOfPlane, index::Integer = 1) = index == 1 ? (self.ray, 
 _get_parent_plane(parent::NodeHandle) = parent
 _get_parent_plane(parent) = add_node!(Vec3D(parent))
 
-function Plane(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,
-    color_data::Union{Nothing,String}=nothing;color="g")::NodeHandle
+function Plane(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,
+    color_data::Union{Nothing,String}=nothing; color="g")::NodeHandle
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(callback,Plane(c),parents)
+    return add_node!(callback, Plane(); draw_data=PlaneDrawData(UInt32(0), c), parents=parents)
 end
 
 function Plane(p0,p1,p2,color_data::Union{Nothing,String}=nothing;

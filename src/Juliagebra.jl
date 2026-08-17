@@ -143,21 +143,13 @@ function get_element(handle::NodeHandle)::Any
     return app.graph.elements[handle]
 end
 
-function add_node!(element::Any,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
+function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing)
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,element,parents,nothing,UInt64(0))
+    return add!(app.graph,element,draw_data,parents,callback,UInt64(0))
 end
-
-function add_node!(callback::Function,element::Any,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
-    plot()
-    global implicitApp
-    app::App = implicitApp::App
-    return add!(app.graph,element,parents,callback,UInt64(0))
-end
-
-function add_node!(callback::Function,parents::Union{Vector{NodeHandle},Nothing} = nothing)::NodeHandle
+function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing)
     plot()
     global implicitApp
     app::App = implicitApp::App
@@ -167,7 +159,13 @@ function add_node!(callback::Function,parents::Union{Vector{NodeHandle},Nothing}
         arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
         callback(arguments...)
     end
-    return add!(app.graph,value,parents,callback,UInt64(0))
+    return add!(app.graph,value,draw_data,parents,callback,UInt64(0))
+end
+function add_node!(element::Any;draw_data::Any=nothing)
+    plot()
+    global implicitApp
+    app::App = implicitApp::App
+    return add!(app.graph,element,draw_data,nothing,nothing,UInt64(0))
 end
 
 function Wait()

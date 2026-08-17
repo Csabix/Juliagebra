@@ -1,13 +1,16 @@
 mutable struct PointSequence
     coords::Vector{Vec3D}
+
+    function PointSequence()
+        new(Vector{Vec3D}())
+    end
+end
+
+struct PointSequenceDrawData
     handle::UInt32
     color::UInt32
     style::UInt8
     size::UInt8
-
-    function PointSequence(color::UInt32,style::UInt8,size::UInt8)
-        new(Vector{Vec3D}(),UInt32(0),color,style,size)
-    end
 end
 
 convert_callback_entry(ps::PointSequence)::Vector{Vec3D} = ps.coords
@@ -18,33 +21,35 @@ convert_callback_result(ps::PointSequence,coords::Vector{<:Tuple}) = (ps.coords 
 convert_callback_result(ps::PointSequence,coords::Vector{<:AbstractVector}) = (ps.coords = [Vec3D(coord...) for coord in coords];ps)
 convert_callback_result(ps::PointSequence,::Nothing) = (ps.coords = Vec3D[];ps)
 
-function render_node(ps::PointSequence, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(ps::PointSequence, data::PointSequenceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::PointSequenceDrawData
     point_renderer::PointRenderer = renderers[PointRenderer]
-    if ps.handle == 0
-        ps.handle = add_dynamic!(point_renderer,
+    if data.handle == 0
+        handle = add_dynamic!(point_renderer,
             (Vec3F(coord) for coord in ps.coords),
-            Iterators.cycle([ps.color]),
-            Iterators.cycle([ps.style]),
-            Iterators.cycle([UInt8(ps.size)]),
+            Iterators.cycle([data.color]),
+            Iterators.cycle([data.style]),
+            Iterators.cycle([UInt8(data.size)]),
             Iterators.cycle([id]))
+        return PointSequenceDrawData(handle, data.color, data.style, data.size)
     else
-        update_dyncamic!(point_renderer,ps.handle,
+        update_dyncamic!(point_renderer, data.handle,
             (Vec3F(coord) for coord in ps.coords),
-            Iterators.cycle([ps.color]),
-            Iterators.cycle([ps.style]),
-            Iterators.cycle([UInt8(ps.size)]),
+            Iterators.cycle([data.color]),
+            Iterators.cycle([data.style]),
+            Iterators.cycle([UInt8(data.size)]),
             Iterators.cycle([id]))
+        return data
     end
-    return nothing
 end
 
-function PointSequence(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-    color="m",style=".",size=25)::NodeHandle
-    (c,s) = parse_point_color_style(color_style,color,style)
-    return add_node!(callback,PointSequence(c,s,round(UInt8,size)),parents)
+function PointSequence(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
+    color="m", style=".", size=25)::NodeHandle
+    (c, s) = parse_point_color_style(color_style, color, style)
+    draw_data = PointSequenceDrawData(UInt32(0), c, s, round(UInt8, size))
+    return add_node!(callback, PointSequence(); draw_data=draw_data, parents=parents)
 end
 
-PointSequence(parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
+PointSequence(parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="m",style=".",size=25)::NodeHandle =
 PointSequence(_deps_collect,parents,color_style;color=color,style=style,size=size)
 

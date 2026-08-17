@@ -134,6 +134,6 @@ end
 #endregion
 
 function project_to_line(coord::Vec3D,line::Union{Line,Ray,Segment})::Vec3D
-    t = dot(coord - p0(line), v(line))
+    t = dot(coord - p0(line), v(line)) / dot(v(line),v(line))
     return p0(line) + v(line) * t
 end

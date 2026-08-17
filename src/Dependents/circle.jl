@@ -96,27 +96,97 @@ function Circle(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=no
     (c,s) = parse_line_colors_style(color_style,color,style)
     return add_node!(callback,Circle(c,s,size),parents)
 end
-
-function Circle(center,radius,normal,color_style::Union{Nothing,String}=nothing;
+function Circle(data1,data2,data3=nothing,color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
-    parents = [
-        _get_parent_circle(center),
-        _get_parent_circle(radius),
-        _get_parent_circle(normal),
+    parents = NodeHandle[
+        _get_parent_circle(data1),
+        _get_parent_circle(data2),
     ]
+    if (data3 !== nothing)
+        push!(parents, _get_parent_circle(data3))
+    end
 
-    if (isa(get_element(parents[3]), Union{Line,Ray,Segment}))
-        return Circle(parents,color_style;color=color,style=style,size=size) do center,radius,line
-            return (center,radius,v(line))
-        end
+    node1 = get_element(parents[1])
+    node2 = get_element(parents[2])
+    node3 = data3 !== nothing ? get_element(parents[3]) : nothing
+
+    create_circle(node1,node2,node3,parents,
+        color_style;color=color,style=style,size=size)
+end
+
+function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},::Union{Point,Vec3D},
+    parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
+    color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
+    
+    # https://en.wikipedia.org/wiki/Circumcircle#Cartesian_coordinates_from_cross-_and_dot-products
+    return Circle(parents,color_style;color=color,style=style,size=size) do p1,p2,p3
+        p12 = p1 - p2
+        p13 = p1 - p3
+        p23 = p2 - p3
+        normal = cross(p12,p23)
+        if (norm(normal) < F64_LINEAR_THRESHOLD) return (Vec3DNan,NaN,Vec3DNan) end
+
+        divisor = 2 * dot(normal,normal)
+        alpha = dot(p23,p23) * dot(p12,p13)   / divisor
+        beta  = dot(p13,p13) * dot(-p12,p23)  / divisor
+        gamma = dot(p12,p12) * dot(-p13,-p23) / divisor
+        center = p1 * alpha + p2 * beta + p3 * gamma
+
+        radius = norm(p12) * norm(p23) * norm(p13) / (2 * norm(normal))
+
+        return (center,radius,normal)
+    end
+end
+function create_circle(::Union{Line,Ray,Segment},::Union{Point,Vec3D},::Nothing,
+    parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
+    color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
+    
+    return Circle(parents,color_style;color=color,style=style,size=size) do line,point
+        projected = project_to_line(point,line)
+        radius = distance(point,projected)
+        return (projected,radius,v(line))
+    end
+end
+function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{Plane,Nothing},
+    parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
+    color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
+    
+    if (plane !== nothing)
+        return Circle((c,p,plane) -> _circle_callback_2_coords_1_plane(c,p,plane),
+            parents,color_style;color=color,style=style,size=size)
     else
-        return Circle(parents,color_style;color=color,style=style,size=size) do center,radius,normal
-            return (center,radius,normal)
-        end
+        return Circle((c,p) -> _circle_callback_2_coords_1_plane(c,p),
+            parents,color_style;color=color,style=style,size=size)
+    end
+end
+function create_circle(::Union{Point,Vec3D},::Number,plane::Union{Plane,Nothing},
+    parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
+    color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
+    
+    if (plane !== nothing)
+        return Circle((c,n,plane) -> _circle_callback_1_coord_1_scalar_1_plane(c,n,plane),
+            parents,color_style;color=color,style=style,size=size)
+    else
+        return Circle((c,n) -> _circle_callback_1_coord_1_scalar_1_plane(c,n),
+            parents,color_style;color=color,style=style,size=size)
     end
 end
 
+function _circle_callback_2_coords_1_plane(center::Vec3D,point::Vec3D,plane::Union{Plane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
+    if (plane !== nothing)
+        normal = n(plane)
+    else
+        normal = n(DefaultPlane)
+    end
+    dist = dot(normal,point - center)
+    point_on_plane = point - dist * normal
+    if (abs(dist) > DISTANCE_EPSILON) @log("Point of circle isn't on the circle's given plane!", WARN) end
+    return (center,distance(center,point_on_plane),normal)
+end
+function _circle_callback_1_coord_1_scalar_1_plane(center::Vec3D,radius::Float64,plane::Union{Plane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
+    return (center,radius,plane !== nothing ? normal = n(plane) : normal = n(DefaultPlane))
+end
 
 
 export Circle

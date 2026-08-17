@@ -318,22 +318,3 @@ end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,triangle::PTriangle)::Union{PSegment,Nothing} = PrimitiveToPrimitiveIntersection(triangle,plane)
 
-# function PrimitiveToPrimitiveIntersection(circle::PCircle,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
-#     l = dot(v(line),n(circle))
-#     if (l == 0.0)
-#         println("parallel")
-
-#         return nothing
-#     else
-#         t = dot(p0(circle)-p0(line),n(circle)) / l
-#         projected = p0(line) + ClampParameter(line,t) * v(line)
-#         closest = closest_point(projected,circle)
-#         if (distance(projected,closest) < DISTANCE_EPSILON)
-#             return (projected + closest) / 2.0
-#         else
-#             return nothing
-#         end
-#     end
-# end
-
-# PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},circle::PCircle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(circle,line)

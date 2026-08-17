@@ -1,12 +1,15 @@
 mutable struct Sphere
     center::Vec3D
     radius::Float64
-    color::UInt32
-    handle::UInt32
 
-    function Sphere(center::Vec3D,radius::Float64,color::UInt32)
-        return new(center,radius,color,UInt32(0))
+    function Sphere(center::Vec3D=Vec3DNan, radius::Float64=NaN64)
+        return new(center, radius)
     end
+end
+
+struct SphereDrawData
+    handle::UInt32
+    color::UInt32
 end
 
 convert_callback_entry(sphere::Sphere) = (sphere.center,sphere.radius)
@@ -15,14 +18,15 @@ convert_callback_result(sphere::Sphere,cr::Tuple{Vec3D,Float64}) = (sphere.cente
 convert_callback_result(sphere::Sphere,s::PSphere) = (sphere.center = s.c;sphere.radius = s.r;sphere)
 convert_callback_result(sphere::Sphere,::Nothing) = (sphere.center = Vec3DNan;sphere)
 
-function render_node(sphere::Sphere, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(sphere::Sphere, data::SphereDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SphereDrawData
     sphere_renderer::SphereRenderer = renderers[SphereRenderer]
-    if sphere.handle == 0
-        sphere.handle = add!(sphere_renderer,Vec3F(sphere.center),Float32(sphere.radius),sphere.color,id)
+    if data.handle == 0
+        handle = add!(sphere_renderer, Vec3F(sphere.center), Float32(sphere.radius), data.color, id)
+        return SphereDrawData(handle, data.color)
     else
-        update_coord_radius!(sphere_renderer,sphere.handle,Vec3F(sphere.center),Float32(sphere.radius),sphere.color)
+        update_coord_radius!(sphere_renderer, data.handle, Vec3F(sphere.center), Float32(sphere.radius), data.color)
+        return data
     end
-    return nothing
 end
 
 # ? For Intersectable Spheres.
@@ -86,10 +90,10 @@ _get_parent_sphere(parent::NodeHandle) = parent, isa(convert_callback_entry(get_
 _get_parent_sphere(parent) = isa(convert_callback_entry(parent),Number) ? (add_node!(Float64(parent)), true) : (add_node!(Vec3D(parent)), false)
 
 # YELLOW Thread
-function Sphere(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_data::Union{Nothing,String}=nothing;
+function Sphere(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_data::Union{Nothing,String}=nothing;
                 color="b")::NodeHandle
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(callback,Sphere(Vec3DNan,NaN64,c),parents)
+    return add_node!(callback, Sphere(); draw_data=SphereDrawData(UInt32(0), c), parents=parents)
 end
 
 function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;

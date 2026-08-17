@@ -106,7 +106,7 @@ function IntersectionCalculator(T12::Type, geometry1::NodeHandle, geometry2::Nod
     # ! - data: IntersectionCalculator{T12}
     # ! - geometry1: PrimtiviesOf{T1<:Primitive} or LazyLBVH{PrimitivesOf{T1<:AABBPrimitive}}
     # ! - geometry2: PrimtiviesOf{T2<:Primitive} or LazyLBVH{PrimitivesOf{T2<:AABBPrimitive}}
-    add_node!(IntersectionCalculator{T12}(UInt(maxIntersectionNum)),[geometry1,geometry2]) do data,g1,g2
+    add_node!(IntersectionCalculator{T12}(UInt(maxIntersectionNum));parents=[geometry1,geometry2]) do data,g1,g2
         FindIntersections(data,g1,g2)
         return nothing
     end

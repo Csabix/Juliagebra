@@ -1,15 +1,18 @@
 mutable struct ParametricCurve
     range::AbstractRange{Float64}
     values::Vector{Vec3D}
-    colors::Vector{UInt32}
-    size::Float32
-    style::UInt8
-    handle::UInt32
 
-    function ParametricCurve(range::AbstractRange{Float64},color::Vector{UInt32},style::UInt8,size::Float32)
-        values = Vector{Vec3D}(undef,length(range))
-        new(range,values,color,size,style,UInt32(0))
+    function ParametricCurve(range::AbstractRange{Float64})
+        values = Vector{Vec3D}(undef, length(range))
+        new(range, values)
     end
+end
+
+struct ParametricCurveDrawData
+    handle::UInt32
+    colors::Vector{UInt32}
+    style::UInt8
+    size::Float32
 end
 
 # convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
@@ -37,14 +40,15 @@ function eval_node(element::ParametricCurve, callback::Function, arguments::Vect
     return element
 end
 
-function render_node(pc::ParametricCurve, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if pc.handle == 0
-        pc.handle = add!(line_renderer,pc.values,Iterators.cycle(pc.colors),Iterators.cycle(id),pc.size,pc.style)
+    if data.handle == 0
+        handle = add!(line_renderer, pc.values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+        return ParametricCurveDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer,pc.handle,pc.values)
+        update_coords!(line_renderer, data.handle, pc.values)
+        return data
     end
-    return nothing
 end
 
 # ? For Intersectable ParametricCurves.
@@ -71,11 +75,12 @@ function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
     end
 end
 
-function ParametricCurve(callback::Function,range::AbstractRange{Float64},
-                parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
-                color="c",style="-",size=5.0f0)::NodeHandle
-    (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(callback,ParametricCurve(range,c,s,Float32(size)),parents)
+function ParametricCurve(callback::Function, range::AbstractRange{Float64},
+                parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
+                color="c", style="-", size=5.0f0)::NodeHandle
+    (c, s) = parse_line_colors_style(color_style, color, style)
+    draw_data = ParametricCurveDrawData(UInt32(0), c, s, Float32(size))
+    return add_node!(callback, ParametricCurve(range); draw_data=draw_data, parents=parents)
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

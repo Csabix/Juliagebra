@@ -9,9 +9,9 @@ end
 _Window_(property_window::PropertyWindow)::Window = property_window.window
 getWindowName(property_window::PropertyWindow) = "Node Properties"
 
-const DEFAULT_EDIT_NODE_METHOD = which(edit_node, Tuple{Any, Dict{DataType,Renderer}, NodeHandle})
 function renderContent(property_window::PropertyWindow)
     elements::Vector{Any} = property_window.graph.elements
+    render_data::Vector{Any} = property_window.graph.render_data
     names::Vector{String} = [string(typeof(e)) for e in elements]
     sorted_indices = sortperm(names)
 
@@ -20,10 +20,6 @@ function renderContent(property_window::PropertyWindow)
 
     for i in sorted_indices
         element = elements[i]
-        #current_method = which(edit_node, Tuple{typeof(element), typeof(property_window.renderers), NodeHandle})
-        #if current_method == DEFAULT_EDIT_NODE_METHOD
-        #    continue
-        #end
         if !edit_node_overload(element) continue end
 
         element_type_name = names[i]
@@ -36,10 +32,11 @@ function renderContent(property_window::PropertyWindow)
         end
         if is_tree_open
             CImGui.PushID(i)
-            new_element, invalidate = edit_node(element, property_window.renderers, NodeHandle(i))
-            elements[i] = new_element
-            if invalidate 
+            elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
+            if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
                 invalidate!(property_window.graph, NodeHandle(i)) 
+            elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
+                rerender!(property_window.graph, NodeHandle(i))
             end
             CImGui.PopID()
         end

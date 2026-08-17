@@ -7,17 +7,19 @@ const CIRCLE_RANGE = range(0,2pi,CIRCLE_RESOLUTION)
 
 mutable struct Circle
     primitive::PCircle
-    handle::UInt32
-    
     values::Vector{Vec3D}
+
+    function Circle()
+        values = Vector{Vec3D}(undef, CIRCLE_RESOLUTION)
+        new(PCircle(Vec3DNan,NaN,Vec3DNan), values)
+    end
+end
+
+mutable struct CircleDrawData
+    handle::UInt32
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
-
-    function Circle(colors::Vector{UInt32},style::UInt8,size::Union{AbstractFloat,Integer})
-        values = Vector{Vec3D}(undef, CIRCLE_RESOLUTION)
-        new(PCircle(Vec3DNan,NaN,Vec3DNan), UInt32(0), values, colors, style, convert(Float32,size))
-    end
 end
 
 function eval_node(circle::Circle, callback::Function, arguments::Vector{Any})::Any
@@ -37,14 +39,14 @@ function eval_node(circle::Circle, callback::Function, arguments::Vector{Any})::
     return circle
 end
 
-function render_node(circle::Circle, renderers::Dict{DataType,Renderer}, id::UInt32)::Nothing
+function render_node(circle::Circle, data::CircleDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::CircleDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if circle.handle == 0
-        circle.handle = add!(line_renderer,circle.values,Iterators.cycle(circle.colors),Iterators.cycle(id),circle.size,circle.style)
+    if data.handle == 0
+        data.handle = add!(line_renderer,circle.values,Iterators.cycle(data.colors),Iterators.cycle(id),data.size,data.style)
     else
-        update_coords!(line_renderer,circle.handle,circle.values)
+        update_coords!(line_renderer,data.handle,circle.values)
     end
-    return nothing
+    return data
 end
 
 p0(circle::Circle)::Vec3D  = p0(circle.primitive)
@@ -94,7 +96,8 @@ function Circle(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=no
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return add_node!(callback,Circle(c,s,size),parents)
+    draw_data = CircleDrawData(UInt32(0),c,s,convert(Float32,size))
+    return add_node!(callback,Circle();draw_data=draw_data,parents=parents)
 end
 function Circle(data1,data2,data3=nothing,color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)

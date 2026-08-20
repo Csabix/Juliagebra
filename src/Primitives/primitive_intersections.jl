@@ -1,4 +1,4 @@
-const LINE_TO_LINE_EPSILON = 0.1
+const DISTANCE_EPSILON = 1E-8
 #const PLANE_TO_PLANE_EPSILON = 0.0000000001
 #const LINE_TO_PLANE_EPSILON = 0.0000000001
 const F64_LINEAR_THRESHOLD = 1E-15 # when comparing distances
@@ -12,7 +12,7 @@ function PrimitiveToPrimitiveIntersection(line_segment_a::PSegment, line_segment
     n_up = normalize(cross(v1,v2))
     
     d = abs(dot(line_segment_b.p0-line_segment_a.p0,n_up))
-    if( d > LINE_TO_LINE_EPSILON)
+    if( d > DISTANCE_EPSILON)
         return nothing
     end
 
@@ -208,20 +208,20 @@ function Seg2SegSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64
     return (d2,t,s)
 end
 
-function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line2::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(line1::LinePrimitive,line2::LinePrimitive)::Union{Vec3D,Nothing}
     (d2,t,s) = Seg2SegSqDistParams(p0(line1), v(line1), p0(line2), v(line2))
     if (d2 === NaN || t === NaN || s === NaN)
         return nothing
     end
     
-    if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= LINE_TO_LINE_EPSILON^2)
+    if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= DISTANCE_EPSILON)
         return (p0(line1) + v(line1) * t + p0(line2) + v(line2) * s) / 2.0
     else
         return nothing
     end
 end
 
-function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::LinePrimitive)::Union{Vec3D,Nothing}
     p = p0(line)
     dir = v(line)
 
@@ -250,9 +250,9 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,
     end
 end
 
-PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},triangle::PTriangle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(triangle,line)
+PrimitiveToPrimitiveIntersection(line::LinePrimitive,triangle::PTriangle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(triangle,line)
 
-function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(plane::PPlane,line::LinePrimitive)::Union{Vec3D,Nothing}
     l = dot(v(line),plane.n)
     if (l == 0.0)
         return nothing
@@ -266,7 +266,7 @@ function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,P
     end
 end
 
-PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},plane::PPlane)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(plane,line)
+PrimitiveToPrimitiveIntersection(line::LinePrimitive,plane::PPlane)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(plane,line)
 
 function EdgePlaneIntersection(signed_dist1::Float64,signed_dist2::Float64,vert1::Vec3D,vert2::Vec3D)::Vec3D
     # ? true if they're on different sides
@@ -318,18 +318,3 @@ end
 
 PrimitiveToPrimitiveIntersection(plane::PPlane,triangle::PTriangle)::Union{PSegment,Nothing} = PrimitiveToPrimitiveIntersection(triangle,plane)
 
-ParameterInside(::PLine,::Any)::Bool = true
-ParameterInside(::PRay,t)::Bool      = t >= 0.0
-ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
-
-p0(line::PLine)::Vec3D       = line.p0
-p0(ray::PRay)::Vec3D         = ray.p0
-p0(segment::PSegment)::Vec3D = segment.p0
-
-p1(line::PLine)::Vec3D       = line.p1
-p1(ray::PRay)::Vec3D         = ray.p1
-p1(segment::PSegment)::Vec3D = segment.p1
-
-v(line::PLine)::Vec3D       = line.p1 - line.p0
-v(ray::PRay)::Vec3D         = ray.p1 - ray.p0
-v(segment::PSegment)::Vec3D = segment.p1 - segment.p0

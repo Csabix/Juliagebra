@@ -4,16 +4,6 @@ const RAY_RANGE = range(0, LINE_N_LENGTH, LINE_N_LENGTH + 1)
 # ! Ray node
 # ? ---------------------------------
 
-mutable struct Ray
-    primitive::PRay
-    values::Vector{Vec3D} # TODO remove
-
-    function Ray()
-        values = Vector{Vec3D}(undef, length(RAY_RANGE))
-        new(PRay(Vec3DNan, Vec3DNan), values)
-    end
-end
-
 struct RayDrawData
     handle::UInt32
     colors::Vector{UInt32}
@@ -21,39 +11,25 @@ struct RayDrawData
     size::Float32
 end
 
-# convert_callback_entry(ray::Ray)::Tuple{Vec3D,Vec3D} = (ray.primitive.p0, ray.primitive.p1)
-convert_callback_entry(ray::Ray)::Ray = ray
+convert_callback_result(::PRay, result::PRay)               = result
+convert_callback_result(::PRay, result::Tuple{Vec3D,Vec3D}) = PRay(result[1],result[2])
+convert_callback_result(::PRay, ::Nothing)                  = PRay(Vec3DNan,Vec3DNan)
 
-convert_result(ray::Ray, result::PRay)               = ray.primitive = result
-convert_result(ray::Ray, result::Tuple{Vec3D,Vec3D}) = ray.primitive = PRay(result[1],result[2])
-convert_result(ray::Ray, ::Nothing)                  = ray.primitive = PRay(Vec3DNan,Vec3DNan)
-
-function eval_node(ray::Ray, callback::Function, arguments::Vector{Any})::Any
-    convert_result(ray, callback(arguments...))
-
-    for index in eachindex(RAY_RANGE)
-        t = RAY_RANGE[index]
-        p = ray.primitive.p0
-        v = normalize(ray.primitive.p1 - p)
-        ray.values[index] = p + v * sign(t) * 4^abs(t)
-    end
-    return ray
-end
-
-function render_node(ray::Ray, data::RayDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::RayDrawData
+function render_node(ray::PRay, data::RayDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::RayDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
+
+    p = ray.p0
+    v = normalize(ray.p1 - p)
+    values = [p + v * sign(t) * 4^abs(t) for t in RAY_RANGE]
+
     if data.handle == 0
-        handle = add!(line_renderer, ray.values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+        handle = add!(line_renderer, values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
         return RayDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer, data.handle, ray.values)
+        update_coords!(line_renderer, data.handle, values)
         return data
     end
 end
-
-p0(ray::Ray)::Vec3D = p0(ray.primitive)
-p1(ray::Ray)::Vec3D = p1(ray.primitive)
-v(ray::Ray)::Vec3D  = v(ray.primitive)
 
 # ? ---------------------------------
 # ! Ray intersection
@@ -62,7 +38,7 @@ v(ray::Ray)::Vec3D  = v(ray.primitive)
 struct PRayOfRay <: PrimitivesOf{PRay}
     ray::PRay
 end
-PrimitivesOf(self::Ray) = PRayOfRay(self.primitive)
+PrimitivesOf(self::PRay) = PRayOfRay(self)
 
 Base.length(self::PRayOfRay) = 1
 Base.iterate(self::PRayOfRay, index::Integer = 1) = index == 1 ? (self.ray, (index + 1)) : nothing
@@ -78,7 +54,7 @@ function Ray(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=noth
     color="g", style="-", size::Union{AbstractFloat,Integer}=3.0f0)
     (c, s) = parse_line_colors_style(color_style, color, style)
     draw_data = RayDrawData(UInt32(0), c, s, convert(Float32, size))
-    return add_node!(callback, Ray(); draw_data=draw_data, parents=parents)
+    return add_node!(callback, PRay(Vec3DNan,Vec3DNan); draw_data=draw_data, parents=parents)
 end
 
 function Ray(p0,p1,color_style::Union{Nothing,String}=nothing;
@@ -103,4 +79,3 @@ function Ray(line,color_style::Union{Nothing,String}=nothing;
 end
 
 export Ray
-export p0,p1,v

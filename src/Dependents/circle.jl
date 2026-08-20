@@ -13,7 +13,7 @@ mutable struct CircleDrawData
 end
 
 convert_callback_result(::PCircle, result::PCircle)                    = result
-convert_callback_result(::PCircle, result::Tuple{Vec3D,Float64,Vec3D}) = PCircle(result[1],result[2],result[3])
+convert_callback_result(::PCircle, result::Tuple{Vec3D,Float64,Vec3D}) = PCircle(result[1],result[2],normalize(result[3]))
 convert_callback_result(::PCircle, ::Nothing)                          = PCircle(Vec3DNan,NaN64,Vec3DNan)
 
 function render_node(circle::PCircle, data::CircleDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::CircleDrawData
@@ -117,7 +117,7 @@ function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},::Union{Point,V
 
         radius = norm(p12) * norm(p23) * norm(p13) / (2 * norm(normal))
 
-        return (center,radius,normal)
+        return (center,radius,normalize(normal))
     end
 end
 function create_circle(::LinePrimitive,::Union{Point,Vec3D},::Nothing,
@@ -127,7 +127,7 @@ function create_circle(::LinePrimitive,::Union{Point,Vec3D},::Nothing,
     return Circle(parents,color_style;color=color,style=style,size=size) do line,point
         projected = project_to_line(point,line)
         radius = distance(point,projected)
-        return (projected,radius,v(line))
+        return (projected,radius,normalize(v(line)))
     end
 end
 function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{PPlane,Nothing},
@@ -167,7 +167,7 @@ function _circle_callback_2_coords_1_plane(center::Vec3D,point::Vec3D,plane::Uni
     return (center,distance(center,point_on_plane),normal)
 end
 function _circle_callback_1_coord_1_scalar_1_plane(center::Vec3D,radius::Float64,plane::Union{PPlane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
-    return (center,radius,plane !== nothing ? normal = n(plane) : normal = n(DefaultPlane))
+    return (center,radius,normalize(plane !== nothing ? n(plane) : n(DefaultPlane)))
 end
 
 

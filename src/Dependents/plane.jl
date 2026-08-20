@@ -11,7 +11,7 @@ struct PlaneDrawData
 end
 
 convert_callback_result(::PPlane, result::PPlane)             = result
-convert_callback_result(::PPlane, result::Tuple{Vec3D,Vec3D}) = PPlane(result[1],result[2])
+convert_callback_result(::PPlane, result::Tuple{Vec3D,Vec3D}) = PPlane(result[1],normalize(result[2]))
 convert_callback_result(::PPlane, ::Nothing)                  = PPlane(Vec3DNan,Vec3DNan)
 
 function convert_result(::PPlane,uf::Number,vf::Number,origin::Vec3D,dir1::Vec3D,dir2::Vec3D)

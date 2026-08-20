@@ -117,7 +117,7 @@ function perpendicular_line(line::LinePrimitive,coord::Vec3D)::Tuple{Vec3D,Vec3D
 end
 
 perpendicular_plane(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,v(line))
-perpendicular_plane(coord1::Vec3D,coord2::Vec3D)::Tuple{Vec3D,Vec3D} = ((coord1 + coord2) / 2.0,normalize(coord2 - coord1))
+perpendicular_plane(coord1::Vec3D,coord2::Vec3D)::Tuple{Vec3D,Vec3D} = (coord1,normalize(coord2 - coord1))
 #endregion
 
 #region Parallel Line & Plane

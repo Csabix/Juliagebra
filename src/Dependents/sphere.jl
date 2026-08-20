@@ -1,44 +1,32 @@
-mutable struct Sphere
-    center::Vec3D
-    radius::Float64
 
-    function Sphere(center::Vec3D=Vec3DNan, radius::Float64=NaN64)
-        return new(center, radius)
-    end
-end
 
 struct SphereDrawData
     handle::UInt32
     color::UInt32
 end
 
-convert_callback_entry(sphere::Sphere) = sphere
+convert_callback_result(::PSphere, result::PSphere)              = result
+convert_callback_result(::PSphere, result::Tuple{Vec3D,Float64}) = PSphere(result[1],result[2])
+convert_callback_result(::PSphere, ::Nothing)                    = PSphere(Vec3DNan,NaN64)
 
-convert_callback_result(sphere::Sphere,cr::Tuple{Vec3D,Float64}) = (sphere.center = cr[1];sphere.radius = cr[2];sphere)
-convert_callback_result(sphere::Sphere,s::PSphere) = (sphere.center = s.c;sphere.radius = s.r;sphere)
-convert_callback_result(sphere::Sphere,::Nothing) = (sphere.center = Vec3DNan;sphere)
-
-function render_node(sphere::Sphere, data::SphereDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SphereDrawData
+function render_node(sphere::PSphere, data::SphereDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SphereDrawData
     sphere_renderer::SphereRenderer = renderers[SphereRenderer]
     if data.handle == 0
-        handle = add!(sphere_renderer, Vec3F(sphere.center), Float32(sphere.radius), data.color, id)
+        handle = add!(sphere_renderer, Vec3F(sphere.c), Float32(sphere.r), data.color, id)
         return SphereDrawData(handle, data.color)
     else
-        update_coord_radius!(sphere_renderer, data.handle, Vec3F(sphere.center), Float32(sphere.radius), data.color)
+        update_coord_radius!(sphere_renderer, data.handle, Vec3F(sphere.c), Float32(sphere.r), data.color)
         return data
     end
 end
-
-p0(sphere::Sphere)::Vec3D = sphere.center
-r(sphere::Sphere)::Float64 = sphere.radius
 
 # ? For Intersectable Spheres.
 const SPHERE_DETAIL = 15
 
 struct PTrianglesOfSphere <: PrimitivesOf{PTriangle}
-    _sphere::Sphere
+    sphere::PSphere
 end
-PrimitivesOf(self::Sphere) = return PTrianglesOfSphere(self)
+PrimitivesOf(self::PSphere) = return PTrianglesOfSphere(self)
 
 function spherePos(u,v,r,center)
     alfa = Float64(u-1) / Float64(SPHERE_DETAIL-1)
@@ -59,8 +47,8 @@ function Base.length(::PTrianglesOfSphere)
 end
 
 function Base.getindex(self::PTrianglesOfSphere, index::UInt)::PTriangle 
-    center = self._sphere.center
-    r = self._sphere.radius
+    center = p0(self.sphere)
+    radius = r(self.sphere)
     
     index = index - 1    
     a = div(index,(SPHERE_DETAIL-1)*(SPHERE_DETAIL-1))
@@ -68,12 +56,12 @@ function Base.getindex(self::PTrianglesOfSphere, index::UInt)::PTriangle
     if (a == 0)
         u = div(index,SPHERE_DETAIL-1) + 1
         v = mod(index,SPHERE_DETAIL-1) + 1
-        return PTriangle(spherePos(u,v,r,center),spherePos(u+1,v,r,center),spherePos(u+1,v+1,r,center))
+        return PTriangle(spherePos(u,v,radius,center),spherePos(u+1,v,radius,center),spherePos(u+1,v+1,radius,center))
     elseif (a == 1)
         index = index - (SPHERE_DETAIL-1)*(SPHERE_DETAIL-1)
         u = div(index,SPHERE_DETAIL-1) + 1
         v = mod(index,SPHERE_DETAIL-1) + 1
-        return PTriangle(spherePos(u,v,r,center),spherePos(u,v+1,r,center),spherePos(u+1,v+1,r,center))
+        return PTriangle(spherePos(u,v,radius,center),spherePos(u,v+1,radius,center),spherePos(u+1,v+1,radius,center))
     else
         error("$(index) is invalid state!")
     end
@@ -96,7 +84,7 @@ _get_parent_sphere(parent) = isa(convert_callback_entry(parent),Number) ? (add_n
 function Sphere(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_data::Union{Nothing,String}=nothing;
                 color="b")::NodeHandle
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(callback, Sphere(); draw_data=SphereDrawData(UInt32(0), c), parents=parents)
+    return add_node!(callback, PSphere(Vec3DNan,NaN64); draw_data=SphereDrawData(UInt32(0), c), parents=parents)
 end
 
 function Sphere(center,radius_or_p1,color_data::Union{Nothing,String}=nothing;

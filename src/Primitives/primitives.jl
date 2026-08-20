@@ -94,6 +94,7 @@ Base.convert(::Type{PCircle},::Nothing)::PCircle = return PCircle(Vec3DNan,NaN64
 
 
 
+const LinePrimitive = Union{PLine,PRay,PSegment}
 const DefaultPlane::PPlane = PPlane(Vec3D(0),Vec3D(0,0,1))
 
 ParameterInside(::PLine,::Any)::Bool = true
@@ -126,3 +127,4 @@ n(circle::PCircle)::Vec3D     = circle.n
 r(sphere::PSphere)::Float64 = sphere.r
 r(circle::PCircle)::Float64 = circle.r
 
+export p0,p1,v,n,r,ParameterInside,ClampParameter

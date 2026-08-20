@@ -208,7 +208,7 @@ function Seg2SegSqDistParams(p::Vec3D,v::Vec3D,q::Vec3D,w::Vec3D)::Tuple{Float64
     return (d2,t,s)
 end
 
-function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line2::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(line1::LinePrimitive,line2::LinePrimitive)::Union{Vec3D,Nothing}
     (d2,t,s) = Seg2SegSqDistParams(p0(line1), v(line1), p0(line2), v(line2))
     if (d2 === NaN || t === NaN || s === NaN)
         return nothing
@@ -221,7 +221,7 @@ function PrimitiveToPrimitiveIntersection(line1::Union{PLine,PRay,PSegment},line
     end
 end
 
-function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::LinePrimitive)::Union{Vec3D,Nothing}
     p = p0(line)
     dir = v(line)
 
@@ -250,9 +250,9 @@ function PrimitiveToPrimitiveIntersection(triangle::PTriangle,line::Union{PLine,
     end
 end
 
-PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},triangle::PTriangle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(triangle,line)
+PrimitiveToPrimitiveIntersection(line::LinePrimitive,triangle::PTriangle)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(triangle,line)
 
-function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,PSegment})::Union{Vec3D,Nothing}
+function PrimitiveToPrimitiveIntersection(plane::PPlane,line::LinePrimitive)::Union{Vec3D,Nothing}
     l = dot(v(line),plane.n)
     if (l == 0.0)
         return nothing
@@ -266,7 +266,7 @@ function PrimitiveToPrimitiveIntersection(plane::PPlane,line::Union{PLine,PRay,P
     end
 end
 
-PrimitiveToPrimitiveIntersection(line::Union{PLine,PRay,PSegment},plane::PPlane)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(plane,line)
+PrimitiveToPrimitiveIntersection(line::LinePrimitive,plane::PPlane)::Union{Vec3D,Nothing} = PrimitiveToPrimitiveIntersection(plane,line)
 
 function EdgePlaneIntersection(signed_dist1::Float64,signed_dist2::Float64,vert1::Vec3D,vert2::Vec3D)::Vec3D
     # ? true if they're on different sides

@@ -5,16 +5,6 @@ const CIRCLE_RANGE = range(0,2pi,CIRCLE_RESOLUTION)
 # ! Circle node
 # ? ---------------------------------
 
-mutable struct Circle
-    primitive::PCircle
-    values::Vector{Vec3D}
-
-    function Circle()
-        values = Vector{Vec3D}(undef, CIRCLE_RESOLUTION)
-        new(PCircle(Vec3DNan,NaN,Vec3DNan), values)
-    end
-end
-
 mutable struct CircleDrawData
     handle::UInt32
     colors::Vector{UInt32}
@@ -22,36 +12,26 @@ mutable struct CircleDrawData
     size::Float32
 end
 
-function eval_node(circle::Circle, callback::Function, arguments::Vector{Any})::Any
-    (center,radius,normal) = callback(arguments...)
-    circle.primitive = PCircle(center,radius,normalize(normal))
+convert_callback_result(::PCircle, result::PCircle)                    = result
+convert_callback_result(::PCircle, result::Tuple{Vec3D,Float64,Vec3D}) = PCircle(result[1],result[2],result[3])
+convert_callback_result(::PCircle, ::Nothing)                          = PCircle(Vec3DNan,NaN64,Vec3DNan)
 
-    vector = Vec3D(1,0,0)
-    if (dot(vector,n(circle)) > 1.0 - F64_ANGULAR_THRESHOLD)
-        vector = Vec3D(0,1,0)
-    end
-    u = normalize(cross(n(circle),vector))
+function render_node(circle::PCircle, data::CircleDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::CircleDrawData
+    line_renderer::LineRenderer = renderers[LineRenderer]
+
+    u = normalize(perpendicular_vector(n(circle)))
     v = normalize(cross(n(circle),u))
     offset = p0(circle)
     radius = r(circle)
-    circle.values = [u * c_angle + v * s_angle for (c_angle, s_angle) in zip(cos.(CIRCLE_RANGE), sin.(CIRCLE_RANGE))] .* radius .+ [offset]
+    values = [u * c_angle + v * s_angle for (c_angle, s_angle) in zip(cos.(CIRCLE_RANGE), sin.(CIRCLE_RANGE))] .* radius .+ [offset]
 
-    return circle
-end
-
-function render_node(circle::Circle, data::CircleDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::CircleDrawData
-    line_renderer::LineRenderer = renderers[LineRenderer]
     if data.handle == 0
-        data.handle = add!(line_renderer,circle.values,Iterators.cycle(data.colors),Iterators.cycle(id),data.size,data.style)
+        data.handle = add!(line_renderer,values,Iterators.cycle(data.colors),Iterators.cycle(id),data.size,data.style)
     else
-        update_coords!(line_renderer,data.handle,circle.values)
+        update_coords!(line_renderer,data.handle,values)
     end
     return data
 end
-
-p0(circle::Circle)::Vec3D  = p0(circle.primitive)
-n(circle::Circle)::Vec3D   = n(circle.primitive)
-r(circle::Circle)::Float64 = r(circle.primitive)
 
 # ? ---------------------------------
 # ! Circle intersection
@@ -64,14 +44,10 @@ struct PCircleOfCircle <: PrimitivesOf{PSegment}
     u::Vec3D
     v::Vec3D
 end
-function PrimitivesOf(self::Circle)::PCircleOfCircle
-    vector = Vec3D(1,0,0)
-    if (dot(vector,n(self)) > 1.0 - F64_ANGULAR_THRESHOLD)
-        vector = Vec3D(0,1,0)
-    end
-    u = normalize(cross(n(self),vector))
+function PrimitivesOf(self::PCircle)::PCircleOfCircle
+    u = normalize(perpendicular_vector(n(self)))
     v = normalize(cross(n(self),u))
-    return PCircleOfCircle(self.primitive,u,v)
+    return PCircleOfCircle(self,u,v)
 end
 
 Base.length(::PCircleOfCircle) = CIRCLE_SEGMENTATION_DETAIL
@@ -100,7 +76,7 @@ function Circle(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=no
     
     (c,s) = parse_line_colors_style(color_style,color,style)
     draw_data = CircleDrawData(UInt32(0),c,s,convert(Float32,size))
-    return add_node!(callback,Circle();draw_data=draw_data,parents=parents)
+    return add_node!(callback,PCircle(Vec3DNan,NaN64,Vec3DNan);draw_data=draw_data,parents=parents)
 end
 function Circle(data1,data2,data3=nothing,color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
@@ -144,7 +120,7 @@ function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},::Union{Point,V
         return (center,radius,normal)
     end
 end
-function create_circle(::Union{Line,Ray,Segment},::Union{Point,Vec3D},::Nothing,
+function create_circle(::LinePrimitive,::Union{Point,Vec3D},::Nothing,
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
@@ -154,7 +130,7 @@ function create_circle(::Union{Line,Ray,Segment},::Union{Point,Vec3D},::Nothing,
         return (projected,radius,v(line))
     end
 end
-function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{Plane,Nothing},
+function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{PPlane,Nothing},
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
@@ -166,7 +142,7 @@ function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{Pl
             parents,color_style;color=color,style=style,size=size)
     end
 end
-function create_circle(::Union{Point,Vec3D},::Number,plane::Union{Plane,Nothing},
+function create_circle(::Union{Point,Vec3D},::Number,plane::Union{PPlane,Nothing},
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
@@ -179,7 +155,7 @@ function create_circle(::Union{Point,Vec3D},::Number,plane::Union{Plane,Nothing}
     end
 end
 
-function _circle_callback_2_coords_1_plane(center::Vec3D,point::Vec3D,plane::Union{Plane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
+function _circle_callback_2_coords_1_plane(center::Vec3D,point::Vec3D,plane::Union{PPlane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
     if (plane !== nothing)
         normal = n(plane)
     else
@@ -190,7 +166,7 @@ function _circle_callback_2_coords_1_plane(center::Vec3D,point::Vec3D,plane::Uni
     if (abs(dist) > DISTANCE_EPSILON) @log("Point of circle isn't on the circle's given plane!", WARN) end
     return (center,distance(center,point_on_plane),normal)
 end
-function _circle_callback_1_coord_1_scalar_1_plane(center::Vec3D,radius::Float64,plane::Union{Plane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
+function _circle_callback_1_coord_1_scalar_1_plane(center::Vec3D,radius::Float64,plane::Union{PPlane,Nothing}=nothing)::Tuple{Vec3D,Float64,Vec3D}
     return (center,radius,plane !== nothing ? normal = n(plane) : normal = n(DefaultPlane))
 end
 

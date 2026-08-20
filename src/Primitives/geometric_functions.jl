@@ -36,9 +36,9 @@ function Perpendicular(handles::NodeHandle...;
     node1 = get_element(handles[1])
     node2 = get_element(handles[2])
 
-    if (isa(node1, Union{Line,Ray,Segment}) && isa(node2, Point) || isa(node1, Point) && isa(node2, Union{Plane,Circle}))
+    if (isa(node1, LinePrimitive) && isa(node2, Point) || isa(node1, Point) && isa(node2, Union{PPlane,PCircle}))
         return PerpendicularLine(handles...;color_style=color_style,color=color,style=style,size=size)
-    elseif (isa(node1, Point) && isa(node2, Union{Line,Ray,Segment,Point}))
+    elseif (isa(node1, Point) && isa(node2, Union{PLine,PRay,PSegment,Point}))
         return PerpendicularPlane(handles...;color_style=color_style,color=color)
     else
         error("Perpendicular not implemented")
@@ -58,9 +58,9 @@ function Parallel(handles::NodeHandle...;
     node1 = get_element(handles[1])
     node2 = get_element(handles[2])
 
-    if (isa(node1, Point) && isa(node2, Union{Line,Ray,Segment,Point}))
+    if (isa(node1, Point) && isa(node2, Union{PLine,PRay,PSegment,Point}))
         return ParallelLine(handles...;color_style,color=color,style=style,size=size)
-    elseif (isa(node1, Union{Line,Ray,Segment}) && isa(node2, Union{Line,Ray,Segment}) || isa(node1, Point) && isa(node2, Union{Plane,Circle}))
+    elseif (isa(node1, LinePrimitive) && isa(node2, LinePrimitive) || isa(node1, Point) && isa(node2, Union{PPlane,PCircle}))
         return ParallelPlane(handles...;color_style=color_style,color=color)
     else
         error("Parallel not implemented")

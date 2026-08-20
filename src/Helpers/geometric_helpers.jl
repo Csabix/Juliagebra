@@ -26,14 +26,14 @@ end
 
 #region Distance
 distance(coord1::Vec3D,coord2::Vec3D)::Float64 = hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
-distance(coord::Vec3D,plane::Plane)::Float64   = abs(dot(n(plane),coord - p0(plane)))
-distance(coord::Vec3D,sphere::Sphere)::Float64 = abs(distance(coord,p0(sphere)) - r(sphere))
-distance(coord::Vec3D,circle::Circle)::Float64 = distance(coord,closest_point(coord,circle))
+distance(coord::Vec3D,plane::PPlane)::Float64   = abs(dot(n(plane),coord - p0(plane)))
+distance(coord::Vec3D,sphere::PSphere)::Float64 = abs(distance(coord,p0(sphere)) - r(sphere))
+distance(coord::Vec3D,circle::PCircle)::Float64 = distance(coord,closest_point(coord,circle))
 distance(coord::Vec3D,geometry::Any)::Float64  = distance(coord,closest_point(coord,geometry))
 #endregion
 
 #region Closest Point
-function closest_point(coord::Vec3D,line::Union{PLine,PRay,PSegment})::Vec3D
+function closest_point(coord::Vec3D,line::LinePrimitive)::Vec3D
     point = p0(line)
     dir = v(line)
     t = dot(coord - point,dir) / dot(dir,dir)
@@ -44,7 +44,7 @@ function closest_point(coord::Vec3D,plane::PPlane)::Vec3D
     signedDist = dot(n(plane),coord - p0(plane))
     return coord - (n(plane) * signedDist)
 end
-function closest_point(coord::Vec3D,sphere::Sphere)::Vec3D
+function closest_point(coord::Vec3D,sphere::PSphere)::Vec3D
     dir = normalize(coord - p0(sphere))
     if (dir === Vec3DNan) return Vec3DNan end
     return p0(sphere) + dir * r(sphere)
@@ -108,24 +108,24 @@ end
 #endregion
 
 #region Perpendicular Line & Plane
-perpendicular_line(coord::Vec3D,geometry_with_normal::Union{Plane,Circle})::Tuple{Vec3D,Vec3D} = (coord,coord + n(geometry_with_normal))
-perpendicular_line(coord::Vec3D,line::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D} = (coord,project_to_line(coord,line))
-function perpendicular_line(line::Union{Line,Ray,Segment},coord::Vec3D)::Tuple{Vec3D,Vec3D}
+perpendicular_line(coord::Vec3D,geometry_with_normal::Union{PPlane,PCircle})::Tuple{Vec3D,Vec3D} = (coord,coord + n(geometry_with_normal))
+perpendicular_line(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,project_to_line(coord,line))
+function perpendicular_line(line::LinePrimitive,coord::Vec3D)::Tuple{Vec3D,Vec3D}
     projected_to_line = project_to_line(coord,line)
     perp = cross(v(line),coord - projected_to_line)
     return (projected_to_line,projected_to_line + perp)
 end
 
-perpendicular_plane(coord::Vec3D,line::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D} = (coord,v(line))
+perpendicular_plane(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,v(line))
 perpendicular_plane(coord1::Vec3D,coord2::Vec3D)::Tuple{Vec3D,Vec3D} = ((coord1 + coord2) / 2.0,normalize(coord2 - coord1))
 #endregion
 
 #region Parallel Line & Plane
-parallel_line(coord::Vec3D,line::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D} = (coord,coord + v(line))
+parallel_line(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,coord + v(line))
 parallel_line(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D)::Tuple{Vec3D,Vec3D} = (coord1,coord1 + coord3 - coord2)
 
-parallel_plane(coord::Vec3D,geometry_with_normal::Union{Plane,Circle})::Tuple{Vec3D,Vec3D} = (coord,n(geometry_with_normal))
-function parallel_plane(line1::Union{Line,Ray,Segment},line2::Union{Line,Ray,Segment})::Tuple{Vec3D,Vec3D}
+parallel_plane(coord::Vec3D,geometry_with_normal::Union{PPlane,PCircle})::Tuple{Vec3D,Vec3D} = (coord,n(geometry_with_normal))
+function parallel_plane(line1::LinePrimitive,line2::LinePrimitive)::Tuple{Vec3D,Vec3D}
     dir1 = v(line1)
     dir2 = v(line2)
     normal = normalize(cross(dir1,dir2))
@@ -133,7 +133,21 @@ function parallel_plane(line1::Union{Line,Ray,Segment},line2::Union{Line,Ray,Seg
 end
 #endregion
 
-function project_to_line(coord::Vec3D,line::Union{Line,Ray,Segment})::Vec3D
+"""
+Returns the coordinates of given coord projected onto an infinite line defined by given line.
+"""
+function project_to_line(coord::Vec3D,line::LinePrimitive)::Vec3D
     t = dot(coord - p0(line), v(line)) / dot(v(line),v(line))
     return p0(line) + v(line) * t
+end
+
+"""
+Returns a non-normalized vector that is perpendicular to given v and otherwise has an arbitrary direction.
+"""
+function perpendicular_vector(v::T) where T <: Union{Vec3D,Vec3F}
+    vector = T(1,0,0)
+    if (dot(vector,v) > 1.0 - F64_ANGULAR_THRESHOLD)
+        vector = T(0,1,0)
+    end
+    return cross(vector,v)
 end

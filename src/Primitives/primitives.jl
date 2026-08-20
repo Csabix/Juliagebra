@@ -101,9 +101,9 @@ ParameterInside(::PLine,::Any)::Bool = true
 ParameterInside(::PRay,t)::Bool      = t >= 0.0
 ParameterInside(::PSegment,t)::Bool  = t >= 0.0 && t <= 1.0
 
-ClampParameter(::PLine,t)    = t
-ClampParameter(::PRay,t)     = max(0.0, t)
-ClampParameter(::PSegment,t) = clamp(t, 0.0, 1.0)
+ClampParameter(::PLine,t::Float64)    = t
+ClampParameter(::PRay,t::Float64)     = max(0.0, t)
+ClampParameter(::PSegment,t::Float64) = clamp(t, 0.0, 1.0)
 
 p0(line::PLine)::Vec3D       = line.p0
 p0(ray::PRay)::Vec3D         = ray.p0

@@ -1,4 +1,4 @@
-const DISTANCE_EPSILON = 0.1
+const DISTANCE_EPSILON = 1E-8
 #const PLANE_TO_PLANE_EPSILON = 0.0000000001
 #const LINE_TO_PLANE_EPSILON = 0.0000000001
 const F64_LINEAR_THRESHOLD = 1E-15 # when comparing distances
@@ -214,7 +214,7 @@ function PrimitiveToPrimitiveIntersection(line1::LinePrimitive,line2::LinePrimit
         return nothing
     end
     
-    if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= DISTANCE_EPSILON^2)
+    if (ParameterInside(line1, t) && ParameterInside(line2, s) && d2 <= DISTANCE_EPSILON)
         return (p0(line1) + v(line1) * t + p0(line2) + v(line2) * s) / 2.0
     else
         return nothing

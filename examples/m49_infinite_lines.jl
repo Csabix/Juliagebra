@@ -29,8 +29,8 @@ Point(its -> its[1], [i2])
 i3 = Intersection(l1, l2)
 Point(its -> its[1], [i3])
 
-p7 = Point(-1.0,2.4,-0.6)
-p8 = Point(2.0,4.3,0.0)
+p7 = Point(-1.0,2.40082,-0.5881)
+p8 = Point(2.0,4.3,-0.00317593)
 ray1 = Ray([p7,p8];color="m") do p0,p1
     return (p0,p1)
 end

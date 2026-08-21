@@ -95,6 +95,7 @@ Base.convert(::Type{PCircle},::Nothing)::PCircle = return PCircle(Vec3DNan,NaN64
 
 
 const LinePrimitive = Union{PLine,PRay,PSegment}
+const PrimitiveWithNormal = Union{PTriangle,PPlane,PCircle}
 const DefaultPlane::PPlane = PPlane(Vec3D(0),Vec3D(0,0,1))
 
 ParameterInside(::PLine,::Any)::Bool = true

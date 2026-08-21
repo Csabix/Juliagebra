@@ -47,7 +47,7 @@ function closest_point(coord::Vec3D,plane::PPlane)::Vec3D
     return coord - (n(plane) * signedDist)
 end
 closest_point(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Vec3D =
-    closest_point(coord1,ThreePointsOnPPlane(coord2,coord3,coord4))
+    closest_point(coord1,three_points_on_PPlane(coord2,coord3,coord4))
 function closest_point(coord::Vec3D,sphere::PSphere)::Vec3D
     dir = normalize(coord - p0(sphere))
     if (dir === Vec3DNan) return Vec3DNan end
@@ -112,7 +112,7 @@ end
 #endregion
 
 #region Perpendicular Line & Plane
-perpendicular_line(coord::Vec3D,geometry_with_normal::Union{PPlane,PCircle})::Tuple{Vec3D,Vec3D} = (coord,coord + n(geometry_with_normal))
+perpendicular_line(coord::Vec3D,geometry_with_normal::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} = (coord,coord + n(geometry_with_normal))
 perpendicular_line(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,project_to_line(coord,line))
 function perpendicular_line(line::LinePrimitive,coord::Vec3D)::Tuple{Vec3D,Vec3D}
     projected_to_line = project_to_line(coord,line)
@@ -128,7 +128,7 @@ perpendicular_plane(coord1::Vec3D,coord2::Vec3D)::Tuple{Vec3D,Vec3D} = (coord1,n
 parallel_line(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,coord + v(line))
 parallel_line(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D)::Tuple{Vec3D,Vec3D} = (coord1,coord1 + coord3 - coord2)
 
-parallel_plane(coord::Vec3D,geometry_with_normal::Union{PPlane,PCircle})::Tuple{Vec3D,Vec3D} = (coord,n(geometry_with_normal))
+parallel_plane(coord::Vec3D,geometry_with_normal::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} = (coord,n(geometry_with_normal))
 function parallel_plane(line1::LinePrimitive,line2::LinePrimitive)::Tuple{Vec3D,Vec3D}
     dir1 = v(line1)
     dir2 = v(line2)
@@ -159,11 +159,11 @@ end
 """
 Returns a plane on the given point with the normalized addition vector of the normals of the two given geometries.
 """
-angle_bisector_plane_plus(coord::Vec3D,plane1::Union{PPlane,PTriangle},plane2::Union{PPlane,PTriangle})::Tuple{Vec3D,Vec3D} =
+angle_bisector_plane_plus(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
     (coord,normalize(n(plane1) + n(plane2)))
 
 """
 Returns a plane on the given point with the normalized subtraction vector of the normals of the two given geometries.
 """
-angle_bisector_plane_minus(coord::Vec3D,plane1::Union{PPlane,PTriangle},plane2::Union{PPlane,PTriangle})::Tuple{Vec3D,Vec3D} =
+angle_bisector_plane_minus(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
     (coord,normalize(n(plane1) - n(plane2)))

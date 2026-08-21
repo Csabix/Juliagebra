@@ -36,7 +36,7 @@ function Perpendicular(handles::NodeHandle...;
     node1 = get_element(handles[1])
     node2 = get_element(handles[2])
 
-    if (isa(node1, LinePrimitive) && isa(node2, Point) || isa(node1, Point) && isa(node2, Union{PPlane,PCircle}))
+    if (isa(node1, LinePrimitive) && isa(node2, Point) || isa(node1, Point) && isa(node2, PrimitiveWithNormal))
         return PerpendicularLine(handles...;color_style=color_style,color=color,style=style,size=size)
     elseif (isa(node1, Point) && isa(node2, Union{PLine,PRay,PSegment,Point}))
         return PerpendicularPlane(handles...;color_style=color_style,color=color)
@@ -60,7 +60,7 @@ function Parallel(handles::NodeHandle...;
 
     if (isa(node1, Point) && isa(node2, Union{PLine,PRay,PSegment,Point}))
         return ParallelLine(handles...;color_style,color=color,style=style,size=size)
-    elseif (isa(node1, LinePrimitive) && isa(node2, LinePrimitive) || isa(node1, Point) && isa(node2, Union{PPlane,PCircle}))
+    elseif (isa(node1, LinePrimitive) && isa(node2, LinePrimitive) || isa(node1, Point) && isa(node2, PrimitiveWithNormal))
         return ParallelPlane(handles...;color_style=color_style,color=color)
     else
         error("Parallel not implemented")

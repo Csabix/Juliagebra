@@ -41,8 +41,7 @@ AD_perp_plane = Perpendicular(AD_mid,D; color=invisible)
 it2 = Intersection(circumscribed_line,AD_perp_plane)
 circumscribed_center = Point(it -> it[1],[it2]; color="g")
 
-circumscribed_radius = Distance(A,circumscribed_center)
-circumscribed = Sphere(circumscribed_center,circumscribed_radius; color=green_trans)
+circumscribed = Sphere(circumscribed_center,A; color=green_trans)
 
 Segment(circumscribed_center,A; color=green, size=3)
 Segment(circumscribed_center,B; color=green, size=3)
@@ -62,8 +61,7 @@ inscribed_line = Line(it -> it[1],[it3]; size=0)
 it4 = Intersection(inscribed_line,ACD_CBD_plane)
 inscribed_center = Point(it -> it[1],[it4]; color="b")
 
-inscribed_radius = Distance(inscribed_center,A,B,C)
-inscribed_sphere = Sphere(inscribed_center,inscribed_radius; color=blue_trans)
+inscribed_sphere = Sphere(inscribed_center,ClosestPoint(inscribed_center,A,B,C); color=blue_trans)
 
 Segment(inscribed_center,ClosestPoint(inscribed_center,ABC; color=blue, size=20); color=blue, size=3)
 Segment(inscribed_center,ClosestPoint(inscribed_center,ADB; color=blue, size=20); color=blue, size=3)

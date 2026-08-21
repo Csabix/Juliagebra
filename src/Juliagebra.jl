@@ -116,8 +116,6 @@ include("Widgets/Windows/property_window.jl")
 
 include("imgui_data.jl")
 
-#include("App/starter.jl")
-#include("App/commander.jl")
 include("app.jl")
 
 function plot()::Nothing
@@ -172,6 +170,12 @@ function Wait()
     global _task
     if _task === nothing return end
     wait(_task)
+end
+
+function Base.show(io::IO, handle::NodeHandle)
+    global implicitApp
+    app::App = implicitApp::App
+    Base.show(io, app.graph.elements[handle.value])
 end
 
 include("Dependents/dependents.jl")

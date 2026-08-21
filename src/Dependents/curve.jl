@@ -9,7 +9,7 @@ mutable struct ParametricCurve
 end
 
 struct ParametricCurveDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
@@ -42,11 +42,11 @@ end
 
 function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if data.handle == 0
-        handle = add!(line_renderer, pc.values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+    if is_null(data.handle)
+        handle = add!(line_renderer, pc.values, data.colors, [id], data.style, data.size)
         return ParametricCurveDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer, data.handle, pc.values)
+        @inbounds update_coords!(line_renderer, data.handle, pc.values)
         return data
     end
 end
@@ -79,7 +79,7 @@ function ParametricCurve(callback::Function, range::AbstractRange{Float64},
                 parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
                 color="c", style="-", size=5.0f0)::NodeHandle
     (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = ParametricCurveDrawData(UInt32(0), c, s, Float32(size))
+    draw_data = ParametricCurveDrawData(LineHandle(), c, s, Float32(size))
     return add_node!(callback, ParametricCurve(range); draw_data=draw_data, parents=parents)
 end
 

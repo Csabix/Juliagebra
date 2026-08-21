@@ -6,7 +6,7 @@ const LINE_RANGE = range(-LINE_N_LENGTH, LINE_N_LENGTH, 2*LINE_N_LENGTH + 1)
 # ? ---------------------------------
 
 struct LineDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
@@ -23,11 +23,11 @@ function render_node(line::PLine, data::LineDrawData, renderers::Dict{DataType,R
     v = normalize(line.p1 - p)
     values = [p + v * sign(t) * 4^abs(t) for t in LINE_RANGE]
 
-    if data.handle == 0
-        handle = add!(line_renderer, values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+    if is_null(data.handle)
+        handle = add!(line_renderer, values, data.colors, [id], data.style, data.size)
         return LineDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer, data.handle, values)
+        @inbounds update_coords!(line_renderer, data.handle, values)
         return data
     end
 end
@@ -54,7 +54,7 @@ _get_parent_line(parent) = add_node!(Vec3D(parent))
 function Line(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
     color="g", style="-", size::Union{AbstractFloat,Integer}=3.0f0)
     (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = LineDrawData(UInt32(0), c, s, convert(Float32, size))
+    draw_data = LineDrawData(LineHandle(), c, s, convert(Float32, size))
     return add_node!(callback, PLine(Vec3DNan,Vec3DNan); draw_data=draw_data, parents=parents)
 end
 

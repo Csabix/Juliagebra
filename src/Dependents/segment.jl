@@ -4,7 +4,7 @@
 # ? ---------------------------------
 
 struct SegmentDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
@@ -17,11 +17,11 @@ convert_callback_result(::PSegment, ::Nothing)                  = PSegment(Vec3D
 function render_node(segment::PSegment, data::SegmentDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SegmentDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
     values = [segment.p0, segment.p1]
-    if data.handle == 0
-        handle = add!(line_renderer, values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+    if is_null(data.handle)
+        handle = add!(line_renderer, values, data.colors, [id], data.style, data.size)
         return SegmentDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer, data.handle, values)
+        @inbounds update_coords!(line_renderer, data.handle, values)
         return data
     end
 end
@@ -48,7 +48,7 @@ _get_parent_segment(parent) = add_node!(Vec3D(parent))
 function Segment(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
     color="c", style="-", size::Union{AbstractFloat,Integer}=5.0f0)
     (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = SegmentDrawData(UInt32(0), c, s, convert(Float32, size))
+    draw_data = SegmentDrawData(LineHandle(), c, s, convert(Float32, size))
     return add_node!(callback, PSegment(Vec3DNan,Vec3DNan); draw_data=draw_data, parents=parents)
 end
 

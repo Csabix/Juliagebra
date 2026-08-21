@@ -115,8 +115,7 @@ vec4 get_normal_depth(vec4 pos_rad_begin, vec4 pos_rad_end) {
     return vec4(normal,depth);
 }
 
-layout(constant_id = 0) const int PATTERN_GROUP = 0; // 0 OPAQUE 1, 1 BEHIND OPAQUE
-layout(constant_id = 1) const int PATTERN_TYPE = 0;  // 0: SOLID, 1: DASHED, 2: DOTTED, 3: WAVE, 4: DASH_DOT, 5: ARROW
+layout(constant_id = 0) const int PATTERN_GROUP = 0; // 0 OPAQUE, 1 BEHIND OPAQUE
 
 float sdCircle(vec2 p, float r) {
     return length(p) - r;
@@ -138,12 +137,12 @@ float rounding(vec4 segment_SDF) {
     return p.x - segment_SDF.z;
 }
 
-float pattern(vec4 segment_SDF,float total_distance) {
+float pattern(vec4 segment_SDF, float total_distance, uint pattern_type) {
     const float lenX = segment_SDF.z;
     float result;
     // OPAQUE
     if (PATTERN_GROUP == 0) {
-        switch(PATTERN_TYPE) {
+        switch(pattern_type) {
             case 0: // SOLID
                 result = abs(segment_SDF.x) - lenX;
                 break;
@@ -170,7 +169,7 @@ float pattern(vec4 segment_SDF,float total_distance) {
                 break;
         }
     } else { // BEHIND OPAQUE
-        switch(PATTERN_TYPE) {
+        switch(pattern_type) {
             case 0: // SOLID
                 float d2 = abs(segment_SDF.x) - lenX;
                 result = max(d2, mod(total_distance + lenX, lenX * 5.0) - lenX * 4.0);

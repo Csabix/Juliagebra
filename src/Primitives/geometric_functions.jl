@@ -5,7 +5,7 @@ function Midpoint(pointHandles::NodeHandle...;color_style::Union{Nothing,String}
     nodes = map(handle -> get_element(handle), pointHandles)
     
     if (all(node -> isa(node, Point), nodes))
-        point_sequence = PointSequence(collect(pointHandles))
+        point_sequence = PointSequence(collect(pointHandles);size=20)
         return Point([point_sequence],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do ps
             return midpoint(ps)
         end

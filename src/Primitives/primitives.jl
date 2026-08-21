@@ -121,7 +121,7 @@ v(ray::PRay)::Vec3D         = ray.p1 - ray.p0
 v(segment::PSegment)::Vec3D = segment.p1 - segment.p0
 
 n(plane::PPlane)::Vec3D       = plane.n
-n(triangle::PTriangle)::Vec3D = cross(triangle.v1 - triangle.v0,triangle.v2 - triangle.v0)
+n(triangle::PTriangle)::Vec3D = normalize(cross(triangle.v1 - triangle.v0,triangle.v2 - triangle.v0))
 n(circle::PCircle)::Vec3D     = circle.n
 
 r(sphere::PSphere)::Float64 = sphere.r

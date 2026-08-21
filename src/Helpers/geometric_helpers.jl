@@ -30,6 +30,7 @@ distance(coord::Vec3D,plane::PPlane)::Float64   = abs(dot(n(plane),coord - p0(pl
 distance(coord::Vec3D,sphere::PSphere)::Float64 = abs(distance(coord,p0(sphere)) - r(sphere))
 distance(coord::Vec3D,circle::PCircle)::Float64 = distance(coord,closest_point(coord,circle))
 distance(coord::Vec3D,geometry::Any)::Float64  = distance(coord,closest_point(coord,geometry))
+distance(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Float64 = distance(coord1,PPlane(coord2,coord3,coord4))
 #endregion
 
 #region Closest Point
@@ -104,6 +105,12 @@ function closest_point(coord::Vec3D,coord_list::Vector{Vec3D})::Vec3D
     end
 
     return closest
+end
+function closest_point(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Vec3D
+    dir1 = coord2 - coord3
+    dir2 = coord2 - coord4
+    normal = cross(dir1,dir2)
+    return closest_point(coord1,PPlane(coord2,normalize(normal)))
 end
 #endregion
 

@@ -138,3 +138,7 @@ end
 
 export TriangleCluster
 export @TriangleCluster
+
+n(triangle::TriangleCluster) = n(PTriangle(triangle.mesh.positions[1],triangle.mesh.positions[2],triangle.mesh.positions[3]))
+
+export n

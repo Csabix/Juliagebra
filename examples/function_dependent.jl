@@ -1,14 +1,23 @@
 using Juliagebra
 using JuliaGLM
 
-f1 = CreateFunction(range(0,1), range(0,2)) do t,s
-    return t * 2 + s
+f1 = CreateFunction([(0.0,1.0),(-2.0,0.0)]) do a,b
+    return a + b + sin(a * pi)
 end
 
 p1 = Point(0,0,1)
-Plane([f1,p1]) do func,point
-    value = func(point.z)
-    return (Vec3D(0,0,value),Vec3D(0,0,1))
+# Line([f1,p1]) do func,point
+#     value = func(point.z, point.x)
+#     println("$(typeof(value)): $value")
+#     return (Vec3D(0,0,0),Vec3D(1,0,value))
+# end
+for i in -5:5, j in -5:5
+    Point([f1]) do func
+        x = i / 5.0
+        y = j / 5.0
+        value = func(x, y)
+        return (x,y,value)
+    end
 end
 
 

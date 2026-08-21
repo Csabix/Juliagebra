@@ -40,10 +40,7 @@ p2 = Point(-1,0,0)
 line1 = Line(p1,p2;color="b")
 it1 = Intersection(circle1,line1;maxIntersectionNum=2)
 it1 = Intersection(circle1,line1)
-Point(it -> it[1],[it1])
-Point(it -> it[2],[it1])
-Point(it -> it[3],[it1])
-Point(it -> it[4],[it1])
+PointSequence([it1[1],it1[2],it1[3],it1[4]]) # Ideally passing it1 would be enough, if it were implemented, but this is good for showcase
 
 # Circle(Vec3D(4,8,-1),1.0,plane)
 Circle(Vec3D(4,8,-1),1.0,plane) # no plane given: uses default plane (XY))

@@ -17,6 +17,10 @@ mutable struct IntersectionCalculator{T}
     end
 end
 
+function Base.getindex(calc::IntersectionCalculator{T}, index::Int)::T where T
+    return calc._intersections[index]
+end
+
 convert_callback_entry(self::IntersectionCalculator)::IntersectionCalculator = return self
 
 convert_callback_result(::IntersectionCalculator,::Nothing) = return nothing

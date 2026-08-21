@@ -21,7 +21,9 @@ include("ray.jl")
 include("plane.jl")
 include("circle.jl")
 include("scalar.jl")
+include("node_indexer.jl")
 
+_deps_collect_add!(vec::Vector{Vec3D},::Nothing) = nothing
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)
 _deps_collect_add!(vec::Vector{Vec3D},v::Vector) = append!(vec,v)
 #function _deps_collect_add!(vec::Vector{Vec3D},v::IntersectionCalculator)

@@ -58,7 +58,7 @@ triangle1 = Triangle(p9,p10,p11;color="b")
 p12 = Point(-3,-2,1)
 p13 = Point(-5,-4,1)
 p14 = Point(-2,-4,1)
-triangle2 = Triangle(p12,p13,p14;color=(.0,.0,1.0,0.9))
+triangle2 = Triangle(p12,p13,p14;color="b")
 
 i7 = Intersection(triangle1,triangle2)
 for i in 1:25

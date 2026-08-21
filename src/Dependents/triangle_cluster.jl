@@ -146,9 +146,3 @@ end
 
 export TriangleCluster
 export @TriangleCluster
-
-# TODO: remove after triangle node is added
-n(triangle::TriangleCluster) = n(first_triangle(triangle))
-first_triangle(triangle::TriangleCluster) = PrimitivesOf(triangle)[1]
-
-export n

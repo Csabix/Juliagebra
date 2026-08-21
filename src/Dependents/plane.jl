@@ -72,6 +72,7 @@ _get_parent_plane(parent) = add_node!(Vec3D(parent))
 
 function Plane(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,
     color_data::Union{Nothing,String}=nothing; color="g")::NodeHandle
+    
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
     return add_node!(callback, PPlane(Vec3DNan,Vec3DNan); draw_data=PlaneDrawData(UInt32(0), c), parents=parents)
 end

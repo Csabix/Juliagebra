@@ -25,12 +25,13 @@ end
 #endregion
 
 #region Distance
-distance(coord1::Vec3D,coord2::Vec3D)::Float64 = hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
+distance(coord1::Vec3D,coord2::Vec3D)::Float64  = hypot(coord1.x - coord2.x, coord1.y - coord2.y, coord1.z - coord2.z)
 distance(coord::Vec3D,plane::PPlane)::Float64   = abs(dot(n(plane),coord - p0(plane)))
 distance(coord::Vec3D,sphere::PSphere)::Float64 = abs(distance(coord,p0(sphere)) - r(sphere))
 distance(coord::Vec3D,circle::PCircle)::Float64 = distance(coord,closest_point(coord,circle))
-distance(coord::Vec3D,geometry::Any)::Float64  = distance(coord,closest_point(coord,geometry))
-distance(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Float64 = distance(coord1,PPlane(coord2,coord3,coord4))
+distance(coord::Vec3D,geometry::Any)::Float64   = distance(coord,closest_point(coord,geometry))
+distance(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Float64 =
+    distance(coord1,closest_point(coord1,coord2,coord3,coord4))
 #endregion
 
 #region Closest Point
@@ -45,6 +46,8 @@ function closest_point(coord::Vec3D,plane::PPlane)::Vec3D
     signedDist = dot(n(plane),coord - p0(plane))
     return coord - (n(plane) * signedDist)
 end
+closest_point(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Vec3D =
+    closest_point(coord1,ThreePointsOnPPlane(coord2,coord3,coord4))
 function closest_point(coord::Vec3D,sphere::PSphere)::Vec3D
     dir = normalize(coord - p0(sphere))
     if (dir === Vec3DNan) return Vec3DNan end
@@ -80,6 +83,7 @@ function closest_point(coord::Vec3D,triangle::PTriangle)::Vec3D
         ])
     end
 end
+closest_point(coord::Vec3D,triangle_cluster::TriangleCluster)::Vec3D = closest_point(coord,first_triangle(triangle_cluster))
 function closest_point(coord::Vec3D,geometry::Any)::Vec3D
     primitives = PrimitivesOf(geometry)
 
@@ -105,12 +109,6 @@ function closest_point(coord::Vec3D,coord_list::Vector{Vec3D})::Vec3D
     end
 
     return closest
-end
-function closest_point(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D,coord4::Vec3D)::Vec3D
-    dir1 = coord2 - coord3
-    dir2 = coord2 - coord4
-    normal = cross(dir1,dir2)
-    return closest_point(coord1,PPlane(coord2,normalize(normal)))
 end
 #endregion
 

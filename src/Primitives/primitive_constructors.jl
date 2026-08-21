@@ -1,5 +1,4 @@
 
-
 function SameDistancePPlane(p1::Vec3D,p2::Vec3D)::PPlane
     plane_n = p2 - p1
     plane_c = ((p2 - p1) / 2.0) + p1
@@ -25,4 +24,11 @@ function FourPointOnPSphere(p1::Vec3D,p2::Vec3D,p3::Vec3D,p4::Vec3D)::Union{PSph
     r = norm(p1 - c)
 
     return PSphere(c,r)
+end
+
+function ThreePointsOnPPlane(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D)
+    dir1 = coord2 - coord1
+    dir2 = coord3 - coord1
+    normal = cross(dir1,dir2)
+    return PPlane(coord1,normalize(normal))
 end

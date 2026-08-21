@@ -86,10 +86,7 @@ function Plane(p0,p1,p2,color_data::Union{Nothing,String}=nothing;
     ]
 
     return Plane(parents,color_data;color=color) do p0,p1,p2
-        dir1 = p1 - p0
-        dir2 = p2 - p0
-        n = cross(dir1,dir2)
-        return (p0,normalize(n))
+        return ThreePointsOnPPlane(p0,p1,p2)
     end
 end
 

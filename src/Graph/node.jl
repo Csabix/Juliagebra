@@ -1,4 +1,3 @@
-const NodeHandle::DataType = UInt32
 const NodeState::DataType = UInt64
 const NodeFlag::DataType = UInt64
 

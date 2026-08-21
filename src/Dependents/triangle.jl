@@ -40,27 +40,46 @@ Base.iterate(self::PTriangleOfTriangle, index::Integer = 1) = index == 1 ? (self
 # ! Triangle constructors
 # ? ---------------------------------
 
-_get_parent_triangle(parent::NodeHandle) = parent
-_get_parent_triangle(parent) = add_node!(Vec3D(parent))
+_get_parent_triangle(parent::NodeHandle,::Bool) = parent
+# _get_parent_triangle(parent,create_vertex::Bool=false;color="g") =
+#     create_vertex ? Point(p -> p,[parent];color=color,size=50) : add_node!(Vec3D(parent))
+_get_parent_triangle(parent,::Bool) = add_node!(Vec3D(parent))
 
-function Triangle(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,
-    color_data::Union{Nothing,String}=nothing;color="g")::NodeHandle
+function Triangle(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,color_data::Union{Nothing,String}=nothing;
+    face::Bool=true,edges::Bool=false,vertices::Bool=false,color="g")::NodeHandle
 
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
     return add_node!(callback, PTriangle(Vec3DNan,Vec3DNan,Vec3DNan); draw_data=TriangleDrawData(UInt32(0), c), parents=parents)
 end
 
-function Triangle(a,b,c,color_data::Union{Nothing,String}=nothing;color="g")::NodeHandle
+function Triangle(A,B,C,color_data::Union{Nothing,String}=nothing;
+    face::Bool=true,edges::Bool=false,vertices::Bool=false,color="g")
 
     parents = NodeHandle[
-        _get_parent_triangle(a),
-        _get_parent_triangle(b),
-        _get_parent_triangle(c),
+        _get_parent_triangle(A,vertices),
+        _get_parent_triangle(B,vertices),
+        _get_parent_triangle(C,vertices),
     ]
 
-    return Triangle(parents,color_data;color=color) do v0,v1,v2
-        return (v0,v1,v2)
+    result = Any[]
+    if (face)
+        ABC = Triangle(parents,color_data;color=color,face=face,edges=edges,vertices=vertices) do v0,v1,v2
+            return (v0,v1,v2)
+        end
+        push!(result, ABC)
     end
+
+    if (edges)
+        AB = Segment(A,B; color=color)
+        BC = Segment(B,C; color=color)
+        CA = Segment(C,A; color=color)
+        push!(result, (AB,BC,CA))
+    end
+    if (vertices)
+        push!(result, Tuple(parents))
+    end
+
+    return length(result) == 1 ? result[1] : Tuple(result)
 end
 
 export Triangle

@@ -156,3 +156,8 @@ function perpendicular_vector(v::T) where T <: Union{Vec3D,Vec3F}
     end
     return cross(vector,v)
 end
+
+angle_bisector_plane_plus(coord::Vec3D,plane1::Union{PPlane,TriangleCluster},plane2::Union{PPlane,TriangleCluster})::Tuple{Vec3D,Vec3D} =
+    (coord,normalize(n(plane1) + n(plane2)))
+angle_bisector_plane_minus(coord::Vec3D,plane1::Union{PPlane,TriangleCluster},plane2::Union{PPlane,TriangleCluster})::Tuple{Vec3D,Vec3D} =
+    (coord,normalize(n(plane1) - n(plane2)))

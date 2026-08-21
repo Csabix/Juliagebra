@@ -28,7 +28,7 @@ PerpendicularLine(handles::NodeHandle...;color_style::Union{Nothing,String}=noth
     Line((nodes...) -> perpendicular_line(nodes...),[handles...],color_style;color=color,style=style,size=size)
 
 PerpendicularPlane(handles::NodeHandle...;color_style::Union{Nothing,String}=nothing,color="g")::NodeHandle =
-    Plane((node...) -> perpendicular_plane(node...),[handles...],color_style;color=color)
+    Plane((nodes...) -> perpendicular_plane(nodes...),[handles...],color_style;color=color)
 
 function Perpendicular(handles::NodeHandle...;
     color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle
@@ -68,6 +68,16 @@ function Parallel(handles::NodeHandle...;
 end
 
 
+function AngleBisectorPlane(handles::NodeHandle...;between_same_facing_dir::Bool=true,
+    color_style::Union{Nothing,String}=nothing,color="g")
+    
+    return between_same_facing_dir ?
+        Plane((nodes...) -> angle_bisector_plane_minus(nodes...),[handles...],color_style;color=color) :
+        Plane((nodes...) -> angle_bisector_plane_plus(nodes...),[handles...],color_style;color=color)
+end
 
-export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel
+
+
+export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
+    AngleBisectorPlane
 

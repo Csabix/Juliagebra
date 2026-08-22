@@ -29,11 +29,12 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
     push!(graph.render_data, render_data)
     handle::NodeHandle = NodeHandle(UInt32(length(graph.elements)))
     node::GeometryPlotNode = GeometryPlotNode(callback, parents, flags)
-    set_geom_flags!(node,NODE_UPDATE_RENDER)
-    push!(graph.nodes, node)
     
-    if (callback === nothing) Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+    if (callback === nothing)
+        Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+        set_geom_flags!(node,NODE_UPDATE_RENDER)
     else Threads.atomic_add!(graph.invalid_count,UInt64(1)) end
+    push!(graph.nodes, node)
     if parents !== nothing
         parents_vec::Vector{NodeHandle} = parents::Vector{NodeHandle}
         for parent_h::NodeHandle in parents_vec

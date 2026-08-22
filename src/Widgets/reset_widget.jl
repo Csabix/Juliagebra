@@ -46,7 +46,7 @@ function render(self::ResetWidget, app::AppDNA)
 
     # ? Reset button
     if (CImGui.Button("\uE863",buttonSize))
-        putInternal!(getCommander(app),EmptySceneCommand())
+        app._need_clear = true
     end
 
     CImGui.PopFont()

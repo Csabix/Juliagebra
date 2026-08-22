@@ -1,4 +1,5 @@
-const _indexer_cache = Dict{Tuple{UInt32,Int},NodeHandle}() # TODO clearing
+const _indexer_cache = Dict{Tuple{UInt32,Int},NodeHandle}()
+on_window_clear(() -> empty!(_indexer_cache))
 
 struct NodeIndexer
     ref::Base.RefArray{Any, Vector{Any}, Nothing}

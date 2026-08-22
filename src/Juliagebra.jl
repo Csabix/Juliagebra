@@ -173,11 +173,13 @@ function Wait()
 end
 
 function Base.show(io::IO, handle::NodeHandle)
-    global implicitApp
-    app::App = implicitApp::App
-    print(io,"NodeHandle(value=$(handle.value),")
-    Base.show(io, app.graph.elements[handle.value])
-    print(io,")")
+    if implicitApp !== nothing && checkbounds(Bool, implicitApp.graph.elements, handle.value)
+        print(io, "NodeHandle(value=$(handle.value),")
+        show(io, implicitApp.graph.elements[handle.value])
+        print(io, ")")
+    else
+        print(io, "NodeHandle(value=$(handle.value),INVALID LOCATION)")
+    end
 end
 
 include("Dependents/dependents.jl")

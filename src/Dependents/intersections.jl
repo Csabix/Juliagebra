@@ -17,10 +17,6 @@ mutable struct IntersectionCalculator{T}
     end
 end
 
-function Base.getindex(calc::IntersectionCalculator{T}, index::Int)::T where T
-    return calc._intersections[index]
-end
-
 convert_callback_entry(self::IntersectionCalculator)::IntersectionCalculator = return self
 
 convert_callback_result(::IntersectionCalculator,::Nothing) = return nothing
@@ -100,6 +96,8 @@ function Base.getindex(self::IntersectionCalculator{T}, idx = 1)::Union{T,Nothin
         return nothing
     end
 end
+
+Base.checkbounds(Bool,::IntersectionCalculator,I...) = true
 
 # ? ---------------------------------
 # ! IntersectionCalculator(T)

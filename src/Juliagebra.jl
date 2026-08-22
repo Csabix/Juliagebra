@@ -175,7 +175,9 @@ end
 function Base.show(io::IO, handle::NodeHandle)
     global implicitApp
     app::App = implicitApp::App
+    print(io,"NodeHandle(value=$(handle.value),")
     Base.show(io, app.graph.elements[handle.value])
+    print(io,")")
 end
 
 include("Dependents/dependents.jl")

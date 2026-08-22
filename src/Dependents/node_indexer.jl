@@ -8,7 +8,11 @@ end
 
 convert_callback_entry(indexer::NodeIndexer)::Any = convert_callback_entry(indexer.ref[][indexer.index])
 convert_callback_result(indexer::NodeIndexer, ::Nothing)::NodeIndexer = indexer
-Base.show(io::IO, indexer::NodeIndexer) = Base.show(io,indexer.ref[][indexer.index])
+function Base.show(io::IO, indexer::NodeIndexer)
+    print(io, "NodeIndexer(index=$(indexer.index),")
+    Base.show(io,indexer.ref[][indexer.index])
+    print(io, ")")
+end
 
 _empty_indexer_func(::Any) = nothing # Hack for now
 function Base.getindex(handle::NodeHandle,index::Int)::NodeHandle

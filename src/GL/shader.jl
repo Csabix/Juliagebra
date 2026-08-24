@@ -27,6 +27,10 @@ end
 destroy!(self::ShaderProgram) = (self.id!=0 && glDeleteProgram(self.id))
 activate(self::ShaderProgram) = glUseProgram(self.id)
 
+# used by transpiled shaders where uniforms may be optimized out by the GLSL compiler
+# (-1 acts as a no-op location in glUniform* calls)
+maybe_uniform_loc(self::ShaderProgram,name::String)::GLint = get(self.uniforms, name, GLint(-1))
+
 function uniform(self::ShaderProgram,name::String,data)::Nothing
     if self.id == GLuint(0) return nothing end
     if !haskey(self.uniforms,name)

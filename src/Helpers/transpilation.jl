@@ -6,34 +6,6 @@ const GPU_TESS_POS_ARR = :JG_TESS_POS_ARRAY
 const GPU_TESS_CB = :JG_TESS_CALLBACK
 const GPU_TESS_ID = :JG_TESS_ID
 
-#=
-given a user-provided f : Params -> dependent_bindings -> Vec3 fn we roughly generate:
-
-uniform DepTy1 dep1;
-uniform DepTy2 dep2;
-
-<uniforms for params (geometry specific)>
-
-uniform uint n;                         // n ≡ JG_TESS_N
-
-layout(std430) (...) buffer PosBuffer   // PosBuffer ≡ JG_TESS_POS_BUFFER
-{
-    vec3 pos_arr[];                    // pos_arr ≡ JG_TESS_POS_ARRAY
-};
-
-vec3 f(uint id) {                       // f ≡ JG_TESS_CALLBACK
-    ...
-}
-
-void main() {
-    uint id = gl_GlobalInvocations.x;   // id ≡ JG_TESS_ID
-    if (id >= n)
-        return;
-
-    pos_arr[id + 1u] = f(id); // +1 to counteract transpiler's automatic -1 added for indexing conversion
-}
-=#
-
 _parse_curly(T::DataType)::Union{Expr,Symbol} = 
         isempty(T.parameters) ? nameof(T) : Expr(:curly, nameof(T), _parse_curly.(T.parameters)...)
 
@@ -74,7 +46,7 @@ function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::
     for (sym, dep) in dependent_bindings
         glsl_t = get_glsl_representation(typeof(dep))
         if glsl_t == Nothing
-            dbg && @log "couldn't get GLSL reperesentation for dependent type: $(typeof(dep))" INFO
+            dbg && @log "couldn't get GLSL representation for dependent type: $(typeof(dep))" INFO
         end
 
         glsl_t_expr = _parse_curly(glsl_t)

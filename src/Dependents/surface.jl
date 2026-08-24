@@ -57,9 +57,13 @@ _ParametricDependent_(self::ParametricSurfaceDependent)::ParametricDependent = r
 _RenderedDependent_(self::ParametricSurfaceDependent)::RenderedDependent = return _ParametricDependent_(self)._renderedDependent
 Base.string(self::ParametricSurfaceDependent) = return "ParametricSurface"
 
-# force surfaces to always have a position buffer, which is used for input upload for normal calculations with CPU-tessellated surfaces
-# TODO: write is only needed if the surface is CPU tessellated, but this can change during the lifetime of a dependent
-pos_buffer_info(self::ParametricSurfaceDependent) = ParamDepPosBufferInfo(true, true, true)
+# surfaces always need a position buffer for normal calculation
+# CPU tess: write-only (pos data is uploaded before normal calculation, but never read)
+# GPU tess: read-only (pos data is read back to the CPU, but calculated on the GPU)
+function pos_buffer_info(self::ParametricSurfaceDependent)::ParamDepPosBufferInfo
+    is_gpu = is_gpu_tessellated(self)
+    return ParamDepPosBufferInfo(true, is_gpu, !is_gpu)
+end
 
 function post_setup_parametric_dependent!(self::ParametricSurfaceDependent)
     dep::ParametricDependent = _ParametricDependent_(self)
@@ -141,7 +145,7 @@ function update_normals!(self::ParametricSurfaceDependent)
 
     glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
 
-    @time_gpu_end ParametricTessellation UpdateNormals UploadComputeSync
+    @time_gpu_end ParametricTessellation UpdateNormals MaybeUploadAndCompute
 
     @time_cpu_begin ParametricTessellation UpdateNormals ClientWaitSync
     fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
@@ -179,9 +183,9 @@ function pre_gpu_tess!(self::ParametricSurfaceDependent)
     @assert (self._uRange isa StepRange || self._uRange isa StepRangeLen) &&
             (self._vRange isa StepRange || self._vRange isa StepRangeLen) "GPU tessellation currently only supports StepRanges"
 
-    glUniform1ui(shader.uniforms[GPU_TESS_N_STR], GLuint(width(self._uvValues) * height(self._uvValues)))
-    glUniform2i(shader.uniforms[GPU_TESS_UV_GRID_SIZE_STR], GLint(height(self._uvValues)), GLint(width(self._uvValues)))
-    glUniform4f(shader.uniforms[GPU_TESS_UV_RANGE_STR], first(self._uRange), step(self._uRange), first(self._vRange), step(self._vRange))
+    glUniform1ui(maybe_uniform_loc(shader, GPU_TESS_N_STR), GLuint(width(self._uvValues) * height(self._uvValues)))
+    glUniform2i(maybe_uniform_loc(shader, GPU_TESS_UV_GRID_SIZE_STR), GLint(height(self._uvValues)), GLint(width(self._uvValues)))
+    glUniform4f(maybe_uniform_loc(shader, GPU_TESS_UV_RANGE_STR), first(self._uRange), step(self._uRange), first(self._vRange), step(self._vRange))
 end
 
 function handle_gpu_tess_result!(self::ParametricSurfaceDependent)::Bool

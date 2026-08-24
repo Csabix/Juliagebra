@@ -177,7 +177,7 @@ function eval_callbacks_gpu!(self::ParametricDependentDNA)
     pre_gpu_tess!(self)
 
     for (parent_sym, parent_dep) in dep._dependentBindings
-        success = try_upload_dependent(dep._tessCompShader.uniforms[string(parent_sym)], parent_dep)
+        success = try_upload_dependent(maybe_uniform_loc(dep._tessCompShader, string(parent_sym)), parent_dep)
         if !success
             @time_gpu_end ParametricTessellation GPU UploadAndCompute
             @log "Error while uploading dependencies to GPU" WARN

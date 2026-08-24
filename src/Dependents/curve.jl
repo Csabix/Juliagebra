@@ -76,8 +76,8 @@ function pre_gpu_tess!(self::ParametricCurveDependent)
 
     # currently assumes uniformly spaced tessellation params (which AbstractRange-s are)
     # this minimizes required CPU -> GPU upload, but can be changed later to stream non-uniform distributions
-    glUniform1ui(shader.uniforms[GPU_TESS_N_STR], GLuint(length(self._range)))
-    glUniform2f(shader.uniforms[GPU_TESS_T_RANGE_STR], first(self._range), step(self._range))
+    glUniform1ui(maybe_uniform_loc(shader, GPU_TESS_N_STR), GLuint(length(self._range)))
+    glUniform2f(maybe_uniform_loc(shader, GPU_TESS_T_RANGE_STR), first(self._range), step(self._range))
 end
 
 function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool

@@ -38,6 +38,22 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
             end
             ImPlot.EndPlot()
         end
+    elseif (func.input_count == 2 && func.output_count == 1) # TODO: 1..3
+
+        domain_start_u = func.domain[1][1]
+        domain_end_u = func.domain[1][2]
+        domain_start_v = func.domain[2][1]
+        domain_end_v = func.domain[2][2]
+        xs = collect(range(domain_start_u,domain_end_u,10))
+        ys = collect(range(domain_start_v,domain_end_v,10))
+        zs = [@invokelatest func.callback(u,v) for u in xs, v in ys]
+
+        ImPlot.SetNextAxesLimits(domain_start_u,domain_end_u,domain_start_v,domain_end_v,CImGui.ImGuiCond_Once)
+        if (ImPlot.BeginPlot("Image", "u", "v"))
+            ImPlot.PushColormap(ImPlot.ImPlotColormap_Spectral)
+            ImPlot.PlotHeatmap("f(u,v)", zs, 10, 10)
+            ImPlot.EndPlot()
+        end
     end
 
     return (func,nothing,EDIT_NODE_NONE)

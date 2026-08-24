@@ -8,13 +8,10 @@ struct WaitPool
     end
 end
 
-function _wait_pool_condition(pool::WaitPool, handle::NodeHandle)::Threads.Condition
-    index = (handle % UInt(32)) + UInt32(1)
-    return pool.conditions[index]
-end
+_wait_pool_condition(pool::WaitPool, index::Int)::Threads.Condition = pool.conditions[mod1(index,32)]
 
-function Base.wait(pool::WaitPool, node::GeometryPlotNode, handle::NodeHandle, wait_value::NodeState)::Nothing
-    c = _wait_pool_condition(pool, handle)
+function Base.wait(pool::WaitPool, node::GeometryPlotNode, index::Int, wait_value::NodeState)::Nothing
+    c = _wait_pool_condition(pool, index)
     lock(c)
     try
         while (@atomic :monotonic node.state) == wait_value
@@ -26,8 +23,8 @@ function Base.wait(pool::WaitPool, node::GeometryPlotNode, handle::NodeHandle, w
     return nothing
 end
 
-function Base.notify(pool::WaitPool, handle::NodeHandle)::Nothing
-    c = _wait_pool_condition(pool, handle)
+function Base.notify(pool::WaitPool, index::Int)::Nothing
+    c = _wait_pool_condition(pool, index)
     lock(c)
     try
         notify(c)

@@ -7,8 +7,17 @@ mutable struct GLFWData
     s_height::Int32
     scale::Float32
 
+    # For non-blocking backbuffer swap
+    _swap_request::Base.Event
+    _swap_done::Base.Event
+    _swap_task::Any
+    _closing::Bool
+
     function GLFWData(name::String,inital_width::Int32,inital_height::Int32)
-        return new(name,GLFW.Window(C_NULL),0,0,inital_width,inital_height,0.0f0)
+        return new(
+            name,GLFW.Window(C_NULL),0,0,inital_width,inital_height,0.0f0,
+            Base.Event(true),Base.Event(true),nothing,false
+        )
     end
 end
 
@@ -92,12 +101,15 @@ function init!(w::GLFWData,debug::Bool)::Nothing
     w.width = buffer_w
     w.height = buffer_h
     w.scale = x_scale
+
+    start_swap_thread!(w)
     return nothing
 end
 
 is_open(window::GLFWData) = return window._window.handle != C_NULL
 
 function deinit!(w::GLFWData)
+    stop_swap_thread!(w)
     GLFW.DestroyWindow(w._window)
     w._window   = GLFW.Window(C_NULL)
     w.width     = Int32(0)
@@ -110,8 +122,56 @@ get_shouldclose(w::GLFWData)::Bool = GLFW.WindowShouldClose(w._window)
 set_shouldclose(w::GLFWData,should_close::Bool)::Nothing = (GLFW.SetWindowShouldClose(w._window,should_close); nothing)
 get_resolution(w::GLFWData)::Tuple{Int32,Int32} = tuple(w.width,w.height)
 
-swap_buffers(w::GLFWData)::Nothing = GLFW.SwapBuffers(w._window)
 poll_events(::GLFWData)::Nothing = GLFW.PollEvents()
+
+function _swap_loop(w::GLFWData)::Nothing
+    window = w._window
+    while true
+        wait(w._swap_request)
+        if w._closing
+            return nothing
+        end
+        GLFW.MakeContextCurrent(window)
+        GLFW.SwapBuffers(window)
+        GLFW.MakeContextCurrent(GLFW.Window(C_NULL))
+        notify(w._swap_done)
+    end
+end
+
+function start_swap_thread!(w::GLFWData)::Nothing
+    w._closing = false
+    if Base.Threads.nthreads() > 1
+        swap_tid = 2
+        w._swap_task = ThreadPinning.@spawnat swap_tid _swap_loop(w)
+    else
+        w._swap_task = Base.Threads.@spawn _swap_loop(w)
+    end
+    errormonitor(w._swap_task)
+    return nothing
+end
+
+function stop_swap_thread!(w::GLFWData)::Nothing
+    if w._swap_task === nothing
+        return nothing
+    end
+    w._closing = true
+    notify(w._swap_request)
+    wait(w._swap_task)
+    w._swap_task = nothing
+    return nothing
+end
+
+function swap_buffers(w::GLFWData,blocking=false)::Nothing
+    if blocking
+        GLFW.SwapBuffers(w._window)
+        return nothing
+    end
+    GLFW.MakeContextCurrent(GLFW.Window(C_NULL))
+    notify(w._swap_request)
+    wait(w._swap_done)
+    GLFW.MakeContextCurrent(w._window)
+    return nothing
+end
 
 function resize!(w::GLFWData, width::Cint, height::Cint)::Bool
     w.width = Int32(width)

@@ -32,3 +32,8 @@ function getIntersectionPrimitiveIter!(self::GlobalNodeOptimizer,geometry::Any,T
 
     return llbvh
 end
+
+function clear!(optimizer::GlobalNodeOptimizer)::Nothing
+    empty!(optimizer._intersectionPrimitiveIters)
+    return nothing
+end

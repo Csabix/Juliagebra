@@ -4,6 +4,9 @@
 # ! App
 # ? ---------------------------------
 
+const _on_window_clear_callbacks = Vector{Function}() # Zero argument functions
+on_window_clear(f::Function) = push!(_on_window_clear_callbacks,f)
+
 mutable struct App <: AppDNA
     _glfw::GLFWData
     _inputs::Inputs
@@ -18,6 +21,7 @@ mutable struct App <: AppDNA
 
     graph::GeometryPlotGraph
     _scene_change::Bool
+    _need_clear::Bool
 
     _asset_watcher::AssetWatcher
     _hovered::UInt32
@@ -51,7 +55,7 @@ mutable struct App <: AppDNA
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,graph,false,asset_watcher,hovered,delta_time,vsync_state)
+            optimizer,graph,false,false,asset_watcher,hovered,delta_time,vsync_state)
     end
 end
 
@@ -132,9 +136,12 @@ end
 
 struct GizmoPlaceHolder end
 function clear!(app::App)
+    for f in _on_window_clear_callbacks f() end
     clear!(app.graph)
     for _ in 1:3 add!(app.graph,GizmoPlaceHolder(),nothing,nothing,nothing,NodeFlag(0)) end
     clear!(app._opengl)
+    clear!(app._optimizer)
+    app._need_clear = false
 end
 
 function play!(self::App)
@@ -165,9 +172,10 @@ function play!(self::App)
         #endState(model,state)
         
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
-        GLFW.SwapBuffers(self._glfw._window)
+        swap_buffers(self._glfw)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
         poll_events(self._glfw)
+        self._need_clear && clear!(self)
     end
     destroy!(self)
     
@@ -238,6 +246,7 @@ function init!(self::App)
 end
 
 function destroy!(self::App)
+    for f in _on_window_clear_callbacks f() end
     if !is_open(self._glfw)
         error("No window created, thus, can't destroy!")
     end

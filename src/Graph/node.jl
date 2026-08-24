@@ -1,4 +1,6 @@
-const NodeHandle::DataType = UInt32
+struct NodeHandle value::UInt32 end
+Base.to_index(handle::NodeHandle)::Int = Int(handle.value)
+
 const NodeState::DataType = UInt64
 const NodeFlag::DataType = UInt64
 

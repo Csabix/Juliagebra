@@ -201,7 +201,7 @@ function _move_gizmo!(app, gizmo::GizmoRenderer, mouseX, mouseY)::Bool
 
     if gizmo.selected > 3
         app.graph.elements[gizmo.selected], gizmo.data = on_gizmo_move(app.graph.elements[gizmo.selected],gizmo.position,gizmo.data)
-        invalidate!(app.graph,gizmo.selected)
+        invalidate!(app.graph,NodeHandle(gizmo.selected))
         app._scene_change = true
     end
     return true

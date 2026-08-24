@@ -29,10 +29,6 @@ restrict writeonly layout(std430, binding = 7) buffer SegmentEndBufferOut {
 	vec4 end_pos_rad[];
 };
 
-layout(std140, binding = 8) uniform LineUniforms {
-    uint offset;
-};
-
 vec2 OctWrap(vec2 v) {
     return (1.0 - abs(v)) * sign(v);
 }
@@ -46,17 +42,16 @@ vec2 Encode(vec3 n) {
 
 void main() {
 	const uint i = gl_GlobalInvocationID.x;
-    const uint out_i = i + offset;
     if (i + 3u >= in_position_widths.length()) return;
-    const uint output_i = out_i * 5u;
+    const uint output_i = i * 5u;
 	vec4 A4 = vec4(in_position_widths[i   ].xyz, 1.0);
     vec4 B4 = vec4(in_position_widths[i+1u].xyz, 1.0);
     const float width_pixel = in_position_widths[i+1u].w;
     vec4 C4 = vec4(in_position_widths[i+2u].xyz, 1.0);
     vec4 D4 = vec4(in_position_widths[i+3u].xyz, 1.0);
 
-    begin_pos_rad[out_i].xyz = B4.xyz;
-    end_pos_rad[out_i].xyz = C4.xyz;
+    begin_pos_rad[i].xyz = B4.xyz;
+    end_pos_rad[i].xyz = C4.xyz;
 
     A4 = VP * A4;
     B4 = VP * B4;
@@ -64,8 +59,8 @@ void main() {
     D4 = VP * D4;
 
     float radius_conversion = 2.0 / P[0][0] * width_pixel / width();
-    begin_pos_rad[out_i].w = B4.w * radius_conversion;
-    end_pos_rad[out_i].w = C4.w * radius_conversion;
+    begin_pos_rad[i].w = B4.w * radius_conversion;
+    end_pos_rad[i].w = C4.w * radius_conversion;
 
     // Clipping
     if (B4.z + B4.w < 0.0 && C4.z + C4.w < 0.0) {
@@ -105,7 +100,7 @@ void main() {
         }
     }
 
-    out_color[out_i] = uvec2(packUnorm4x8(vec4(color_B,1.0)),packUnorm4x8(vec4(color_C,1.0)));
+    out_color[i] = uvec2(packUnorm4x8(vec4(color_B,1.0)),packUnorm4x8(vec4(color_C,1.0)));
 
     t0 = B4.z + B4.w;
     t1 = A4.z + A4.w;
@@ -221,12 +216,11 @@ void main() {
     
     
     vec2 length_conversion = 2.0 / WH * width_pixel;
-    float reverse = unpackUnorm4x8(in_color_types[i+2u]).a != 0.0 ? -1.0 : 1.0;
-    out_position_distances[output_i]    = vec4(fma(length_conversion,begin_right_offset,B4.xy), B4.z, reverse * (distace_B + sdf_begin.x));
-    out_position_distances[output_i+1u] = vec4(fma(length_conversion,begin_left_offset ,B4.xy), B4.z, reverse * (distace_B + sdf_begin.y));
-    out_position_distances[output_i+2u] = vec4(fma(length_conversion,end_right_offset  ,C4.xy), C4.z, reverse * (distace_B + sdf_end.x));
-    out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_left_offset   ,C4.xy), C4.z, reverse * (distace_B + sdf_end.y));
-    out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_third_offset  ,C4.xy), C4.z, reverse * (distace_B + sdf_end.z));
+    out_position_distances[output_i]    = vec4(fma(length_conversion,begin_right_offset,B4.xy), B4.z, (distace_B + sdf_begin.x));
+    out_position_distances[output_i+1u] = vec4(fma(length_conversion,begin_left_offset ,B4.xy), B4.z, (distace_B + sdf_begin.y));
+    out_position_distances[output_i+2u] = vec4(fma(length_conversion,end_right_offset  ,C4.xy), C4.z, (distace_B + sdf_end.x));
+    out_position_distances[output_i+3u] = vec4(fma(length_conversion,end_left_offset   ,C4.xy), C4.z, (distace_B + sdf_end.y));
+    out_position_distances[output_i+4u] = vec4(fma(length_conversion,end_third_offset  ,C4.xy), C4.z, (distace_B + sdf_end.z));
 
     out_sdf[output_i]    = vec4( width_pixel,   sdf_begin.x,width_pixel,l_CB);
     out_sdf[output_i+1u] = vec4(-width_pixel,   sdf_begin.y,width_pixel,l_CB);

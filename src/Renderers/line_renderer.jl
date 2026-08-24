@@ -136,7 +136,7 @@ mutable struct LineRenderer <: Renderer
         shaders_behind_opaque = Vector{Pipeline}()
         shaders_transparent = Vector{Pipeline}()
 
-        for i in 0:(_LINE_STYLE_COUNT - 1)
+        for i in 0:(_LINE_STYLE_COUNT - 2)
             push!(shaders_opaque, create_graphics_pipeline!(loader;
                 vert = spv"renderers/line/line.vert",
                 frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(i))])
@@ -150,6 +150,18 @@ mutable struct LineRenderer <: Renderer
                 frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(i))])
             ))
         end
+        push!(shaders_opaque, create_graphics_pipeline!(loader;
+            vert = (spv"renderers/line/line.vert",Tuple{GLuint,GLuint}[(0, reinterpret(GLuint, -1.0f0))]),
+            frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(ARROW-1))])
+        ))
+        push!(shaders_behind_opaque, create_graphics_pipeline!(loader;
+            vert = (spv"renderers/line/line.vert",Tuple{GLuint,GLuint}[(0, reinterpret(GLuint, -1.0f0))]),
+            frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 1), (1, GLuint(ARROW-1))])
+        ))
+        push!(shaders_transparent, create_graphics_pipeline!(loader;
+            vert = (spv"renderers/line/line.vert",Tuple{GLuint,GLuint}[(0, reinterpret(GLuint, -1.0f0))]),
+            frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(ARROW-1))])
+        ))
 
         return new(
             emptyVAO,
@@ -267,8 +279,6 @@ function _unplace_line!(self::LineRenderer, handle_value::UInt32)::Tuple{Vector{
         @inbounds group.colors[line_index]    = group.colors[last_index]
         @inbounds group.handles[line_index]   = group.handles[last_index]
         @inbounds group.widths[line_index]    = group.widths[last_index]
-
-        # Update handle_map entry of the line moved to this slot
         moved_handle = group.handles[line_index]
         @inbounds self.handle_map[moved_handle] = (group_index_u, UInt32(line_index))
     end

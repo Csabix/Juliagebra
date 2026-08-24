@@ -2,6 +2,8 @@
 #extension GL_GOOGLE_include_directive : require
 #include "../../common_data.glsl"
 
+layout(constant_id = 0) const float REVERSED = 1.0;
+
 // Input SSBOs
 restrict readonly layout(std430, binding = 0) buffer DistanceBufferIn {
     float in_distances[];
@@ -13,23 +15,12 @@ restrict readonly layout(std430, binding = 2) buffer PositionWidthBufferIn {
     vec4 in_position_widths[];
 };
 
-// Layout of in_color_types[i]:
-//   bit  31     : reversed flag (flips the sign of the pattern distance)
-//   bits 30..24 : line style, 0 == separator / unused, 1..6 == SOLID..ARROW
-//   bits 23..0  : packed RGB
-#define LINE_REVERSED_BIT 0x80000000u
-#define LINE_STYLE_MASK   0x7Fu
-
 // Outputs to Fragment Shader
 noperspective layout(location = 0) out vec4 segment_SDF_field_out;
 noperspective layout(location = 1) out vec3 color_out;
 noperspective layout(location = 2) out float total_distance_out;
 flat          layout(location = 3) out vec4 begin_pos_rad_out;
 flat          layout(location = 4) out vec4 end_pos_rad_out;
-// Style is forwarded to the fragment shader so one pipeline can draw every
-// style, instead of one specialised pipeline per style with the lines sorted
-// into per-style batches on the CPU.
-flat          layout(location = 5) out uint style_out;
 
 vec2 OctWrap(vec2 v) {
     return (1.0 - abs(v)) * sign(v);
@@ -54,15 +45,10 @@ float get_plane_dist(vec4 p, int plane_idx) {
 }
 
 void main() {
-    // gl_BaseInstance replaces the per-draw uniform offset the compute-shader
-    // version needed: the base instance is the index of the first arena entry
-    // of the range being drawn, so a group buffer can be drawn at any offset
-    // without rebinding a UBO.
     const uint i = uint(gl_BaseInstance + gl_InstanceID);
     const uint vert_idx = uint(gl_VertexID);
 
     if (i + 3u >= in_position_widths.length()) {
-        style_out = 0u;
         gl_Position = vec4(0.0 / 0.0);
         return;
     }
@@ -91,13 +77,8 @@ void main() {
         C4 = vec4(0.0 / 0.0);
     }
 
-    // C is always a real point of the segment's line (i is the leading
-    // separator slot), so its packed word carries this line's style.
-    const uint color_style_C = in_color_types[i+2u];
-    style_out = (color_style_C >> 24) & LINE_STYLE_MASK;
-
     vec3 color_B = unpackUnorm4x8(in_color_types[i+1u]).xyz;
-    vec3 color_C = unpackUnorm4x8(color_style_C).xyz;
+    vec3 color_C = unpackUnorm4x8(in_color_types[i+2u]).xyz;
     float distace_B = in_distances[i+1u];
     float distace_C = in_distances[i+2u];
 
@@ -278,9 +259,6 @@ void main() {
     }
 
     vec2 length_conversion = 2.0 / WH * width_pixel;
-    // Must be a bit test, not `unpackUnorm4x8(...).a != 0.0`: the top byte now
-    // also holds the style, so any styled line would read back as reversed.
-    float reverse = (color_style_C & LINE_REVERSED_BIT) != 0u ? -1.0 : 1.0;
 
     // Select vertex-specific output based on gl_VertexID [0..4]
     vec2 pos_offset;
@@ -327,5 +305,5 @@ void main() {
 
     vec2 pos_xy = fma(length_conversion, pos_offset, base_pos);
     gl_Position = vec4(pos_xy, base_z, 1.0);
-    total_distance_out = reverse * (distace_B + sdf_begin_end_x);
+    total_distance_out = REVERSED * (distace_B + sdf_begin_end_x);
 }

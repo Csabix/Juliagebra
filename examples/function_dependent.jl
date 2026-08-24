@@ -21,4 +21,7 @@ for i in -5:5, j in -5:5
 end
 
 
+f2 = CreateFunction(t -> sin(t),[(0.0,2pi)]; output_count=1)
+
+
 Juliagebra.Wait()

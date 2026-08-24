@@ -38,7 +38,6 @@ circle1 = Circle(segment_normal,p_radius;color="w")
 p1 = Point(2,0, .5)
 p2 = Point(-1,0,0)
 line1 = Line(p1,p2;color="b")
-it1 = Intersection(circle1,line1;maxIntersectionNum=2)
 it1 = Intersection(circle1,line1)
 PointSequence([it1[1],it1[2],it1[3],it1[4]])
 

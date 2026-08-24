@@ -11,6 +11,7 @@ struct SegmentDrawData
 end
 
 convert_callback_result(::PSegment, result::PSegment)           = result
+convert_callback_result(::PSegment, result::LinePrimitive)      = PSegment(p0(result),p1(result))
 convert_callback_result(::PSegment, result::Tuple{Vec3D,Vec3D}) = PSegment(result[1],result[2])
 convert_callback_result(::PSegment, ::Nothing)                  = PSegment(Vec3DNan,Vec3DNan)
 
@@ -68,9 +69,7 @@ end
 function Segment(line,color_style::Union{Nothing,String}=nothing;
     color="c",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
-    return Segment([_get_parent_segment(line)],color_style;color=color,style=style,size=size) do line
-        return (p0(line),p1(line))
-    end
+    return Segment(l -> l,[_get_parent_segment(line)],color_style;color=color,style=style,size=size)
 end
 
 export Segment

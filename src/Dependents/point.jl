@@ -86,6 +86,11 @@ function Point(x::Real, y::Real, color_style::Union{Nothing,String}=nothing;
     return add_node!(Point(Vec3D(x, y, 0.0));draw_data=PointDrawData(zero(UInt32),c,s,round(UInt8, size),UInt8(axis_constraint)))
 end
 
+function Point(point::NodeHandle, color_style::Union{Nothing,String}=nothing;
+    color="m", style=".", size=25, axis_constraint=AXIS_X|AXIS_Y)::NodeHandle
+    return Point(coord -> coord,[point],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint)
+end
+
 macro Point(callback::Expr, args...)
     (positional_args, kw_args) = _parse_macro_arguments((:color_style,), (:color, :style, :size, :axis_constraint), args...)
     callback = _validate_callback_expr(callback, 0)

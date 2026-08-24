@@ -25,14 +25,12 @@ AB_perp_plane = Perpendicular(AB_mid,B; color=invisible)
 AC_mid = Midpoint(AC; size=0)
 AC_perp_plane = Perpendicular(AC_mid,C; color=invisible)
 
-it1 = Intersection(AB_perp_plane,AC_perp_plane)
-circumscribed_line = Line(it -> it[1],[it1]; size=0)
+circumscribed_line = Line(Intersection(AB_perp_plane,AC_perp_plane)[1]; size=0)
 
 AD_mid = Midpoint(AD; color="c",size=5)
 AD_perp_plane = Perpendicular(AD_mid,D; color=invisible)
 
-it2 = Intersection(circumscribed_line,AD_perp_plane)
-circumscribed_center = Point(it -> it[1],[it2]; color="g")
+circumscribed_center = Point(Intersection(circumscribed_line,AD_perp_plane)[1]; color="g")
 
 circumscribed = Sphere(circumscribed_center,A; color=green_trans)
 
@@ -48,11 +46,9 @@ ABC_ADB_plane = AngleBisectorPlane(A,ABC,ADB; color=invisible)
 ABC_BDC_plane = AngleBisectorPlane(B,ABC,BDC; color=invisible)
 ACD_BDC_plane = AngleBisectorPlane(C,ACD,BDC; color=invisible)
 
-it3 = Intersection(ABC_ADB_plane,ABC_BDC_plane)
-inscribed_line = Line(it -> it[1],[it3]; size=0)
+inscribed_line = Line(Intersection(ABC_ADB_plane,ABC_BDC_plane)[1]; size=0)
 
-it4 = Intersection(inscribed_line,ACD_BDC_plane)
-inscribed_center = Point(it -> it[1],[it4]; color="b")
+inscribed_center = Point(Intersection(inscribed_line,ACD_BDC_plane)[1]; color="b")
 
 inscribed_sphere = Sphere(inscribed_center,ClosestPoint(inscribed_center,A,B,C); color=blue_trans)
 

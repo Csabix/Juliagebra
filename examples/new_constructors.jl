@@ -58,9 +58,7 @@ p6 = Point(-4,8.5,-1;color="y")
 p7 = Point(-4.5,7.5,-1;color="y")
 Circle(p5,p6,p7;color="y")
 
-tri_p1 = Point( 1,-5,1)
-tri_p2 = Point( 0,-5,0)
-tri_p3 = Vec3D(-2,-6,0)
-((AB, BC, CA), (A, B, C)) = Triangle(tri_p1,tri_p2,tri_p3;face=false,edges=true,vertices=true,color="w")
+(A,B,C) = Triangle(Point(0,-5,0),Point(1,-5,1),Vec3D(-2,-6,0);node=false,vertices=true,color="w")
+Midpoint(A,B,C)
 
 Juliagebra.Wait()

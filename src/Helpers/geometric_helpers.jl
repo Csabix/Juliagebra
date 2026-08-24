@@ -5,6 +5,7 @@ midpoint_count(p::Point)::Tuple{Vec3D,Integer} = (p.coord,1)
 midpoint_count(coords::AbstractVector{Vec3D})::Tuple{Vec3D,Integer} = (sum(coords),length(coords))
 midpoint_count(point_sequence::PointSequence)::Tuple{Vec3D,Integer} = midpoint_count(point_sequence.coords)
 midpoint_count(point_set::PointSet)::Tuple{Vec3D,Integer}           = midpoint_count(point_set.coords)
+midpoint_count(segment::PSegment)::Tuple{Vec3D,Integer}             = (p0(segment) + p1(segment),2)
 
 function midpoint(nodes::Any...)::Vec3D
     sum::Vec3D = Vec3D(0.0)

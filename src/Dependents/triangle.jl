@@ -40,46 +40,50 @@ Base.iterate(self::PTriangleOfTriangle, index::Integer = 1) = index == 1 ? (self
 # ! Triangle constructors
 # ? ---------------------------------
 
-_get_parent_triangle(parent::NodeHandle,::Bool) = parent
-# _get_parent_triangle(parent,create_vertex::Bool=false;color="g") =
-#     create_vertex ? Point(p -> p,[parent];color=color,size=50) : add_node!(Vec3D(parent))
-_get_parent_triangle(parent,::Bool) = add_node!(Vec3D(parent))
+_get_parent_triangle(parent::NodeHandle) = parent
+_get_parent_triangle(parent) = add_node!(Vec3D(parent))
 
+"""
+Order of additional returned nodes: (triangle, (AB,BC,CA), (A,B,C))
+"""
 function Triangle(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,color_data::Union{Nothing,String}=nothing;
-    face::Bool=true,edges::Bool=false,vertices::Bool=false,color="g")::NodeHandle
+    node=node,edges=edges,vertices=vertices,color="g")
 
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    return add_node!(callback, PTriangle(Vec3DNan,Vec3DNan,Vec3DNan); draw_data=TriangleDrawData(UInt32(0), c), parents=parents)
-end
-
-function Triangle(A,B,C,color_data::Union{Nothing,String}=nothing;
-    face::Bool=true,edges::Bool=false,vertices::Bool=false,color="g")
-
-    parents = NodeHandle[
-        _get_parent_triangle(A,vertices),
-        _get_parent_triangle(B,vertices),
-        _get_parent_triangle(C,vertices),
-    ]
+    triangle = add_node!(callback, PTriangle(Vec3DNan,Vec3DNan,Vec3DNan); draw_data=TriangleDrawData(UInt32(0), c), parents=parents)
 
     result = Any[]
-    if (face)
-        ABC = Triangle(parents,color_data;color=color,face=face,edges=edges,vertices=vertices) do v0,v1,v2
-            return (v0,v1,v2)
-        end
-        push!(result, ABC)
+    if (node)
+        push!(result, triangle)
     end
-
     if (edges)
-        AB = Segment(A,B; color=color)
-        BC = Segment(B,C; color=color)
-        CA = Segment(C,A; color=color)
+        AB = Segment(t -> (t.v0,t.v1),[triangle]; color=color)
+        BC = Segment(t -> (t.v1,t.v2),[triangle]; color=color)
+        CA = Segment(t -> (t.v2,t.v0),[triangle]; color=color)
         push!(result, (AB,BC,CA))
     end
     if (vertices)
-        push!(result, Tuple(parents))
+        A = add_node!(t -> t.v0,Vec3DNan; parents=[triangle])
+        B = add_node!(t -> t.v1,Vec3DNan; parents=[triangle])
+        C = add_node!(t -> t.v2,Vec3DNan; parents=[triangle])
+        push!(result, (A,B,C))
     end
 
     return length(result) == 1 ? result[1] : Tuple(result)
+end
+
+function Triangle(A,B,C,color_data::Union{Nothing,String}=nothing;
+    node::Bool=true,edges::Bool=false,vertices::Bool=false,color="g")
+
+    parents = NodeHandle[
+        _get_parent_triangle(A),
+        _get_parent_triangle(B),
+        _get_parent_triangle(C),
+    ]
+
+    return Triangle(parents,color_data;color=color,node=node,edges=edges,vertices=vertices) do v0,v1,v2
+        return (v0,v1,v2)
+    end
 end
 
 export Triangle

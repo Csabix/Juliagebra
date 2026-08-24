@@ -22,6 +22,7 @@ end
 
 
 f2 = CreateFunction(t -> sin(t),[(0.0,2pi)]; output_count=1)
+f3 = CreateFunction(t -> (sin(t),cos(t),t),[(0.0,2pi)]; output_count=3)
 
 
 Juliagebra.Wait()

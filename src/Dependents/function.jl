@@ -16,23 +16,28 @@ convert_callback_result(func::Func, ::Any) = func
 edit_node_overload(func::Func)::Bool = true
 function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
 
-    # println("called: $(func.input_count), $(func.output_count)")
+    if (func.input_count == 1 && func.output_count > 0)
 
-    if (func.input_count == 1 && func.output_count == 1)
-
-        # println(methods(func.callback))
         domain_start = func.domain[1][1]
         domain_end = func.domain[1][2]
         xs = collect(range(domain_start,domain_end,1000))
         ys = [@invokelatest func.callback(t) for t in xs]
-        # data = [func.callback(i / 1000 * (domain_end - domain_start)) for t in 1:1000]
+        min_y = minimum(Iterators.flatten(ys))
+        max_y = maximum(Iterators.flatten(ys))
 
-        ImPlot.SetNextAxesLimits(func.domain[1][1],func.domain[1][2],-1.0,1.0,CImGui.ImGuiCond_Once)
-        if (ImPlot.BeginPlot("f:R->R", "x", "y"))
-            ImPlot.PlotLine("f(x)", xs, ys)
-            ImPlot.EndPlot()
+        label = if (func.input_count == 1 && func.output_count == 1)
+            "f:R->R"
+        else
+            "f:R->R^$(func.output_count)"
         end
 
+        ImPlot.SetNextAxesLimits(domain_start,domain_end,min_y,max_y,CImGui.ImGuiCond_Once)
+        if (ImPlot.BeginPlot(label, "x", "y"))
+            for n in 1:func.output_count
+                ImPlot.PlotLine(func.output_count == 1 ? "f(x)" : "f(x)[$n]", xs, [y[n] for y in ys])
+            end
+            ImPlot.EndPlot()
+        end
     end
 
     return (func,nothing,EDIT_NODE_NONE)

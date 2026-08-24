@@ -1,17 +1,15 @@
-const SOLID::UInt8    = 0
-const DASHED::UInt8   = 1
-const DOTTED::UInt8   = 2
-const WAVE::UInt8     = 3
-const DASH_DOT::UInt8 = 4
-const ARROW::UInt8    = 5
-const ARROW_REVERSED::UInt8 = ARROW | (one(UInt8) << 7)
+const SOLID::UInt8          = 1
+const DASHED::UInt8         = 2
+const DOTTED::UInt8         = 3
+const WAVE::UInt8           = 4
+const DASH_DOT::UInt8       = 5
+const ARROW::UInt8          = 6
+const ARROW_REVERSED::UInt8 = 7
+const _LINE_STYLE_COUNT     = 7
 
 export SOLID, DASHED, DOTTED, WAVE, DASH_DOT, ARROW, ARROW_REVERSED
 
-const _LINE_REVERSED_MASK::UInt8  = one(UInt8) << 7
-const _LINE_STYLE_MASK::UInt8     = ~_LINE_REVERSED_MASK
-const _LINE_COLOR_MASK::UInt32    = ~(UInt32(0xff) << 24)
-
+const _LINE_COLOR_MASK::UInt32 = ~(UInt32(0xff) << 24)
 const _LINE_GROUP_MIN_CAPACITY::Int = 1 << 13
 
 @inline function pack_color_style(color::UInt32, style::UInt8)::UInt32
@@ -37,9 +35,10 @@ export LineHandle
 # ? ---------------------------------
 
 mutable struct LineGroup
+    style::UInt8
     positions::Vector{Vector{Vec3F}}
     colors::Vector{Vector{UInt32}}
-    styles::Vector{UInt8}
+    handles::Vector{UInt32}
     widths::Vector{Float32}
 
     capacity::Int
@@ -47,10 +46,10 @@ mutable struct LineGroup
     dirty::Bool
 
     position_buffer::MappedBuffer{Vec4F}      # xyz + width
-    color_style_buffer::MappedBuffer{UInt32}  # reversed + style + rgb
+    color_style_buffer::MappedBuffer{UInt32}  # style + rgb
     distance_buffer::MappedBuffer{Float32}    # screen space distance along the line
 
-    function LineGroup(needed::Int)
+    function LineGroup(style::UInt8, needed::Int)
         capacity = max(_LINE_GROUP_MIN_CAPACITY, needed + 1)
         position_buffer    = MappedBuffer{Vec4F}()
         color_style_buffer = MappedBuffer{UInt32}()
@@ -60,8 +59,9 @@ mutable struct LineGroup
         reserve!(distance_buffer, capacity, 0)
         position_buffer[1] = Vec4FNan
         return new(
+            style,
             Vector{Vector{Vec3F}}(), Vector{Vector{UInt32}}(),
-            Vector{UInt8}(), Vector{Float32}(),
+            Vector{UInt32}(), Vector{Float32}(),
             capacity, 1, true,
             position_buffer, color_style_buffer, distance_buffer)
     end
@@ -88,10 +88,10 @@ function _flush_group!(self::LineGroup)::Nothing
     distances[1] = 0.0f0
     index = 2
 
+    style = self.style
     @inbounds for line in eachindex(self.positions)
         points = self.positions[line]
         colors = self.colors[line]
-        style = self.styles[line]
         width = self.widths[line]
         color_count = length(colors)
         color_index = 1
@@ -120,9 +120,9 @@ end
 mutable struct LineRenderer <: Renderer
     emptyVAO::VertexArray
 
-    shader_opaque::Pipeline
-    shader_behind_opaque::Pipeline
-    shader_transparent::Pipeline
+    shaders_opaque::Vector{Pipeline}
+    shaders_behind_opaque::Vector{Pipeline}
+    shaders_transparent::Vector{Pipeline}
 
     pool::Vector{Union{Nothing,LineGroup}}
     handle_map::Vector{Tuple{UInt32,UInt32}} # handle -> (group index, index within group)
@@ -132,24 +132,32 @@ mutable struct LineRenderer <: Renderer
     function LineRenderer(loader::PipelineLoader)
         emptyVAO = VertexArray()
 
-        shader_opaque = create_graphics_pipeline!(loader;
-            vert = spv"renderers/line/line.vert",
-            frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 0)])
-        )
-        shader_behind_opaque = create_graphics_pipeline!(loader;
-            vert = spv"renderers/line/line.vert",
-            frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 1)])
-        )
-        shader_transparent = create_graphics_pipeline!(loader;
-            vert = spv"renderers/line/line.vert",
-            frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0)])
-        )
+        shaders_opaque = Vector{Pipeline}()
+        shaders_behind_opaque = Vector{Pipeline}()
+        shaders_transparent = Vector{Pipeline}()
 
-        return new(emptyVAO,
-            shader_opaque, shader_behind_opaque, shader_transparent,
+        for i in 0:(_LINE_STYLE_COUNT - 1)
+            push!(shaders_opaque, create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(i))])
+            ))
+            push!(shaders_behind_opaque, create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 1), (1, GLuint(i))])
+            ))
+            push!(shaders_transparent, create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(i))])
+            ))
+        end
+
+        return new(
+            emptyVAO,
+            shaders_opaque, shaders_behind_opaque, shaders_transparent,
             Vector{Union{Nothing,LineGroup}}(),
             Vector{Tuple{UInt32,UInt32}}(),
-            Vector{UInt32}())
+            Vector{UInt32}()
+        )
     end
 end
 
@@ -200,17 +208,17 @@ Base.@propagate_inbounds function _resolve_line(self::LineRenderer, handle::Line
     return (Int(group_index), Int(line_index))
 end
 
-# First group with room, otherwise a new one sized to fit.
-function _find_group!(self::LineRenderer, needed::Int)::Int
+# First group matching style with room, otherwise a new one sized to fit.
+function _find_group!(self::LineRenderer, style::UInt8, needed::Int)::Int
     for index in eachindex(self.pool)
         @inbounds group = self.pool[index]
         group === nothing && continue
-        if group.used + needed <= group.capacity
+        if group.style == style && group.used + needed <= group.capacity
             return index
         end
     end
 
-    group = LineGroup(needed)
+    group = LineGroup(style, needed)
     slot = findfirst(isnothing, self.pool)
     if slot === nothing
         push!(self.pool, group)
@@ -224,12 +232,12 @@ function _place_line!(self::LineRenderer, handle_value::UInt32,
                     points::Vector{Vec3F}, colors::Vector{UInt32},
                     style::UInt8, width::Float32)::Nothing
     needed = length(points) + 1 # Point count + trailing NaN
-    group_index = _find_group!(self, needed)
+    group_index = _find_group!(self, style, needed)
     @inbounds group::LineGroup = self.pool[group_index]::LineGroup
 
     push!(group.positions, points)
     push!(group.colors, colors)
-    push!(group.styles, style)
+    push!(group.handles, handle_value)
     push!(group.widths, width)
 
     group.used += needed
@@ -248,7 +256,7 @@ function _unplace_line!(self::LineRenderer, handle_value::UInt32)::Tuple{Vector{
 
     points = group.positions[line_index]
     colors = group.colors[line_index]
-    style  = group.styles[line_index]
+    style  = group.style
     width  = group.widths[line_index]
 
     group.used -= length(points) + 1
@@ -257,13 +265,17 @@ function _unplace_line!(self::LineRenderer, handle_value::UInt32)::Tuple{Vector{
     if line_index != last_index
         @inbounds group.positions[line_index] = group.positions[last_index]
         @inbounds group.colors[line_index]    = group.colors[last_index]
-        @inbounds group.styles[line_index]    = group.styles[last_index]
+        @inbounds group.handles[line_index]   = group.handles[last_index]
         @inbounds group.widths[line_index]    = group.widths[last_index]
+
+        # Update handle_map entry of the line moved to this slot
+        moved_handle = group.handles[line_index]
+        @inbounds self.handle_map[moved_handle] = (group_index_u, UInt32(line_index))
     end
 
     pop!(group.positions)
     pop!(group.colors)
-    pop!(group.styles)
+    pop!(group.handles)
     pop!(group.widths)
 
     group.dirty = true
@@ -367,8 +379,7 @@ Base.@propagate_inbounds function update_coords!(self::LineRenderer, handle::Lin
         return nothing
     end
 
-    # Does not fit any more: detach, resize, and re-place through the normal
-    # allocation path. The handle survives, the line may land in another group.
+    # Does not fit any more: detach, resize, and re-place through normal allocation path.
     (old_points, colors, style, width) = _unplace_line!(self, handle.value)
     Base.resize!(old_points, length(coords))
     copyto!(old_points, coords)
@@ -419,8 +430,11 @@ end
 Base.@propagate_inbounds function update_style!(self::LineRenderer, handle::LineHandle, style::UInt8)::Nothing
     (group_index, line_index) = _resolve_line(self, handle)
     group = self.pool[group_index]::LineGroup
-    group.styles[line_index] = style
-    group.dirty = true
+    group.style == style && return nothing
+
+    # Relocate line to a group matching the target style
+    (points, colors, _, width) = _unplace_line!(self, handle.value)
+    _place_line!(self, handle.value, points, colors, style, width)
     return nothing
 end
 
@@ -537,18 +551,30 @@ function pre_draw!(self::LineRenderer, cam::Camera, window::GLFWData)::Nothing
     return nothing
 end
 
-function _draw_groups!(self::LineRenderer, shader::Pipeline)::Nothing
+function _draw_groups!(self::LineRenderer, shaders::Vector{Pipeline})::Nothing
     activate(self.emptyVAO)
-    activate(shader)
-    for group_or_nothing in self.pool
-        group_or_nothing === nothing && continue
-        group::LineGroup = group_or_nothing
-        instances = _instance_count(group)
-        instances <= 0 && continue
-        bind_ssbo(group.distance_buffer, 0)
-        bind_ssbo(group.color_style_buffer, 1)
-        bind_ssbo(group.position_buffer, 2)
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, instances, 0)
+    for style_idx in 1:_LINE_STYLE_COUNT
+        shader = shaders[style_idx]
+        shader_activated = false
+
+        for group_or_nothing in self.pool
+            group_or_nothing === nothing && continue
+            group::LineGroup = group_or_nothing
+            group.style == UInt8(style_idx) || continue
+
+            instances = _instance_count(group)
+            instances <= 0 && continue
+
+            if !shader_activated
+                activate(shader)
+                shader_activated = true
+            end
+
+            bind_ssbo(group.distance_buffer, 0)
+            bind_ssbo(group.color_style_buffer, 1)
+            bind_ssbo(group.position_buffer, 2)
+            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, instances, 0)
+        end
     end
     return nothing
 end
@@ -556,7 +582,7 @@ end
 function draw_opaque!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
     _has_drawable(self) || return nothing
     @time_gpu_begin Renderer Line Opaque
-    _draw_groups!(self, self.shader_opaque)
+    _draw_groups!(self, self.shaders_opaque)
     @time_gpu_end Renderer Line Opaque
     return nothing
 end
@@ -571,7 +597,7 @@ function draw_behind_opaque!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
     glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
 
     @time_gpu_begin Renderer Line Behind-Opaque
-    _draw_groups!(self, self.shader_behind_opaque)
+    _draw_groups!(self, self.shaders_behind_opaque)
     @time_gpu_end Renderer Line Behind-Opaque
 
     glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
@@ -584,7 +610,7 @@ function draw_transparent!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
     _has_drawable(self) || return nothing
 
     @time_gpu_begin Renderer Line Transparent
-    _draw_groups!(self, self.shader_transparent)
+    _draw_groups!(self, self.shaders_transparent)
     @time_gpu_end Renderer Line Transparent
 
     for group_or_nothing in self.pool

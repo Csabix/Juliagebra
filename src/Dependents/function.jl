@@ -33,6 +33,7 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
 
         ImPlot.SetNextAxesLimits(domain_start,domain_end,min_y,max_y,CImGui.ImGuiCond_Once)
         if (ImPlot.BeginPlot(label, "x", "y"))
+            ImPlot.PushColormap(ImPlotColormap_Juliagebra)
             for n in 1:func.output_count
                 ImPlot.PlotLine(func.output_count == 1 ? "f(x)" : "f(x)[$n]", xs, [y[n] for y in ys])
             end

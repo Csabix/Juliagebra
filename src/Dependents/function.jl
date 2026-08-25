@@ -10,20 +10,27 @@ struct Func
     end
 end
 
+struct FuncDrawData
+    graph_resolution::Integer
+    graph_colors::Union{ImPlot.ImPlotColormap_,String}
+end
+
 convert_callback_entry(func::Func)::Function = func.callback
 convert_callback_result(func::Func, ::Any) = func
 
-const FUNC_GRAPH_RESOLUTION::Integer = 1000
-const FUNC_HEATMAP_RESOLUTION::Integer = 100
+# Necessary, otherwise data is rewritten to nothing
+render_node(::Any,data::Any,::Dict{DataType,Renderer},::UInt32)::Any = data
 
 edit_node_overload(func::Func)::Bool = true
-function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
+function edit_node(func::Func,data::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
+
+    if (data === nothing) return (func,data,EDIT_NODE_NONE) end
 
     if (func.input_count == 1 && func.output_count > 0)
 
         domain_start = func.domain[1][1]
         domain_end = func.domain[1][2]
-        xs = collect(range(domain_start,domain_end,FUNC_GRAPH_RESOLUTION))
+        xs = collect(range(domain_start,domain_end,data.graph_resolution))
         ys = [@invokelatest func.callback(t) for t in xs]
         min_y = minimum(Iterators.flatten(ys))
         max_y = maximum(Iterators.flatten(ys))
@@ -36,7 +43,7 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
 
         ImPlot.SetNextAxesLimits(domain_start,domain_end,min_y,max_y,CImGui.ImGuiCond_Once)
         if (ImPlot.BeginPlot(label, "x", "y"))
-            ImPlot.PushColormap(ImPlotColormap_Juliagebra)
+            ImPlot.PushColormap(data.graph_colors)
             for n in 1:func.output_count
                 ImPlot.PlotLine(func.output_count == 1 ? "f(x)" : "f(x)[$n]", xs, [y[n] for y in ys])
             end
@@ -48,21 +55,28 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
         domain_end_u = func.domain[1][2]
         domain_start_v = func.domain[2][1]
         domain_end_v = func.domain[2][2]
-        xs = collect(range(domain_start_u,domain_end_u,FUNC_HEATMAP_RESOLUTION))
-        ys = collect(range(domain_start_v,domain_end_v,FUNC_HEATMAP_RESOLUTION))
+        xs = collect(range(domain_start_u,domain_end_u,data.graph_resolution))
+        ys = collect(range(domain_start_v,domain_end_v,data.graph_resolution))
         zs = [@invokelatest func.callback(u,v) for u in xs, v in ys]
 
         ImPlot.SetNextAxesLimits(domain_start_u,domain_end_u,domain_start_v,domain_end_v,CImGui.ImGuiCond_Once)
         if (ImPlot.BeginPlot("f:R^2->R", "u", "v"))
-            ImPlot.PushColormap(ImPlot.ImPlotColormap_Spectral)
-            ImPlot.PlotHeatmap("f(u,v)", zs, FUNC_HEATMAP_RESOLUTION, FUNC_HEATMAP_RESOLUTION;
+            ImPlot.PushColormap(data.graph_colors)
+            ImPlot.PlotHeatmap("f(u,v)", zs, data.graph_resolution, data.graph_resolution;
                 label_fmt="", bounds_min=ImPlotPoint(domain_start_u,domain_start_v), bounds_max=ImPlotPoint(domain_end_u,domain_end_v))
             ImPlot.EndPlot()
         end
     end
 
-    return (func,nothing,EDIT_NODE_NONE)
+    return (func,data,EDIT_NODE_NONE)
 end
+
+# ? ---------------------------------
+# ! Func constructors
+# ? ---------------------------------
+
+const FUNC_GRAPH_RESOLUTION::Integer = 1000
+const FUNC_HEATMAP_RESOLUTION::Integer = 100
 
 function CreateFunction(callback::Function,inputs::Vector{Tuple{Float64,Float64}},parents::Vector{NodeHandle}=NodeHandle[];
     output_count::Union{Integer,Nothing}=nothing)
@@ -75,10 +89,13 @@ function CreateFunction(callback::Function,inputs::Vector{Tuple{Float64,Float64}
 
     func = Func(callback,inputs,output_count,parents)
 
-    return add_node!(func)
+    draw_data = FuncDrawData(FUNC_GRAPH_RESOLUTION,ImPlotColormap_Juliagebra)
+    if (func.input_count == 2 && func.output_count == 1)
+        draw_data = FuncDrawData(FUNC_HEATMAP_RESOLUTION,ImPlot.ImPlotColormap_Spectral)
+    end
+
+    return add_node!(func; draw_data=draw_data)
 end
-
-
 
 
 

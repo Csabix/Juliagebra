@@ -116,8 +116,6 @@ include("Widgets/Windows/property_window.jl")
 
 include("imgui_data.jl")
 
-#include("App/starter.jl")
-#include("App/commander.jl")
 include("app.jl")
 
 function plot()::Nothing
@@ -172,6 +170,16 @@ function Wait()
     global _task
     if _task === nothing return end
     wait(_task)
+end
+
+function Base.show(io::IO, handle::NodeHandle)
+    if implicitApp !== nothing && checkbounds(Bool, implicitApp.graph.elements, handle.value)
+        print(io, "NodeHandle(value=$(handle.value),")
+        show(io, implicitApp.graph.elements[handle.value])
+        print(io, ")")
+    else
+        print(io, "NodeHandle(value=$(handle.value),INVALID LOCATION)")
+    end
 end
 
 include("Dependents/dependents.jl")

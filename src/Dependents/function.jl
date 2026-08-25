@@ -19,7 +19,7 @@ convert_callback_entry(func::Func)::Function = func.callback
 convert_callback_result(func::Func, ::Any) = func
 
 # Necessary, otherwise data is rewritten to nothing
-render_node(::Any,data::Any,::Dict{DataType,Renderer},::UInt32)::Any = data
+render_node(::Func,data::Any,::Dict{DataType,Renderer},::UInt32)::Any = data
 
 edit_node_overload(func::Func)::Bool = true
 function edit_node(func::Func,data::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}

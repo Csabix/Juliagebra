@@ -55,6 +55,11 @@ p6 = Point(-4,8.5,-1;color="y")
 p7 = Point(-4.5,7.5,-1;color="y")
 Circle(p5,p6,p7;color="y")
 
+base = Scalar(10; label="Base number")
+mult = Slider(-1.0,1,2.0f0; label="Multiplier")
+offset = Scalar(1.0f0)
+Scalar((a,b,c) -> a * b + c,[base,mult,offset];label="Multiplied & offset")
+
 
 
 Juliagebra.Wait()

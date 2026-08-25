@@ -17,7 +17,8 @@ function Midpoint(pointHandles::NodeHandle...;color_style::Union{Nothing,String}
 end
 
 
-Distance(handles::NodeHandle...)::NodeHandle = add_node!((nodes...) -> distance(nodes...); parents = [handles...])
+Distance(handles::NodeHandle...;label="Distance")::NodeHandle =
+    add_node!((nodes...) -> distance(nodes...); parents = [handles...],draw_data=ScalarData(label))
 
 
 ClosestPoint(handles::NodeHandle...;color_style::Union{Nothing,String}=nothing,color="w",style=".",size=25,axis_constraint=AXIS_NONE)::NodeHandle =

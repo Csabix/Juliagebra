@@ -23,7 +23,7 @@ Midpoint(p6,p7;color="y")
 #region Distance & Closest Point
 
 # Point-Point
-d1 = Distance(p1,p2)
+d1 = Distance(p1,p2; label="Point-Point distance")
 Segment([p1,p2,d1];color="c") do p1,p2,dist
     return (p2, p2 + Vec3D(0,-1,0) * dist)
 end
@@ -32,7 +32,7 @@ end
 p_t1 = Point(0,.3,.3;color="y")
 t1 = Triangle(Vec3D(0.3,.6,0.1),Vec3D(-.2,.2,0.1),Vec3D(.4,0,0.1);color="b")
 ClosestPoint(p_t1,t1;color="w")
-d2 = Distance(p_t1,t1)
+d2 = Distance(p_t1,t1; label="Point-Triangle distance")
 Segment([p_t1,t1,d2];color="c") do point,triangle,dist
     return (Vec3D(0),Vec3D(0,0,dist))
 end
@@ -44,7 +44,7 @@ c1 = ParametricCurve(range(-pi,pi,13);color="b") do t
     return offset + Vec3D(t / 5.0,0,sin(t) / 5.0)
 end
 ClosestPoint(p_c1,c1;color="w")
-d3 = Distance(p_c1,c1)
+d3 = Distance(p_c1,c1; label="Point-Curve distance")
 Segment([p_c1,c1,d3];color="c") do point,curve,dist
     return (Vec3D(0,1.7,0),Vec3D(0,1.7,dist))
 end
@@ -55,7 +55,7 @@ surface1 = ParametricSurface(range(-pi,pi,5),range(-pi,pi,5);) do u,v
     return (u / 5, 2.5 + v / 5, (sin(u) + sin(v)) / 10)
 end
 ClosestPoint(p_s1,surface1;color="w")
-d4 = Distance(p_s1,surface1)
+d4 = Distance(p_s1,surface1; label="Point-Surface distance")
 Segment([p_s1,surface1,d4];color="c") do point,surface,dist
     return (Vec3D(0,2,0),Vec3D(0,2,dist))
 end
@@ -68,11 +68,11 @@ ClosestPoint(p13,ps2;color="w",size=30)
 p_circle1 = Point(.25,6,.25;color="b")
 p_circle2 = Point(.25,6,-.25;color="b")
 Segment(p_circle1,p_circle2;color="b",style="->",size=8)
-d5 = Distance(p_circle1,p_circle2)
+d5 = Distance(p_circle1,p_circle2; label="Point-PointSet distance")
 circle1 = Circle((p1,p2,dist) -> (p1,dist,p2 - p1),[p_circle1,p_circle2,d5];color="b")
 p_circle3 = Point(.5,5.5,.5;color="y")
 ClosestPoint(p_circle3,circle1;color="w")
-d6 = Distance(p_circle3,circle1)
+d6 = Distance(p_circle3,circle1; label="Point-PointSequence distance")
 Segment([p_circle3,circle1,d6];color="c") do point,circle,dist
     return (p0(circle),p0(circle) + Vec3D(0,0,1) * dist)
 end
@@ -81,7 +81,7 @@ end
 p8 = Point(-.5,-1.5,1;color="y")
 l1 = Line(Vec3D(0,-2,1),Vec3D(1,-2,1);color="c")
 ClosestPoint(p8,l1;color="w")
-d7 = Distance(p8,l1)
+d7 = Distance(p8,l1; label="Point-Line distance")
 Segment([p8,l1,d7];color="c") do point,line,dist
     return (p0(line),p0(line) + Vec3D(0,1,0) * dist)
 end
@@ -90,7 +90,7 @@ end
 p9 = Point(0,-2.5,2;color="y")
 r1 = Ray(Vec3D(.5,-3,2),Vec3D(1.5,-3,2);color="c")
 ClosestPoint(p9,r1;color="w")
-d8 = Distance(p9,r1)
+d8 = Distance(p9,r1; label="Point-Ray distance")
 Segment([p9,r1,d8];color="c") do point,line,dist
     return (p0(line),p0(line) + Vec3D(0,1,0) * dist)
 end
@@ -99,7 +99,7 @@ end
 p10 = Point(.5,-3.5,3;color="y")
 s1 = Segment(Vec3D(1,-4,3),Vec3D(2,-4,3);color="c")
 ClosestPoint(p10,s1;color="w")
-d9 = Distance(p10,s1)
+d9 = Distance(p10,s1; label="Point-Segment distance")
 Segment([p10,s1,d9];color="c") do point,line,dist
     return (p0(line),p0(line) + Vec3D(0,1,0) * dist)
 end
@@ -108,7 +108,7 @@ end
 p11 = Point(1,-4.5,3;color="y")
 plane1 = Plane(Vec3D(1.5,-5,3),Segment(Vec3D(10,-5,0),Vec3D(-10,-5,0);color="c");color="c")
 ClosestPoint(p11,plane1;color="w")
-d10 = Distance(p11,plane1)
+d10 = Distance(p11,plane1; label="Point-Plane distance")
 Segment([p11,plane1,d10];color="c") do point,plane,dist
     return (p0(plane),p0(plane) + Vec3D(0,1,0) * dist)
 end
@@ -117,7 +117,7 @@ end
 p12 = Point(1.5,-5.5,10.5;color="y")
 sphere1 = Sphere(Vec3D(2,-7,10.5),1.0;color="c")
 ClosestPoint(p12,sphere1;color="w")
-d11 = Distance(p12,sphere1)
+d11 = Distance(p12,sphere1; label="Point-Sphere distance")
 Segment([p12,sphere1,d11];color="c") do point,sphere,dist
     return (Vec3D(2,-6,3),Vec3D(2,-6,3) + Vec3D(0,1,0) * dist)
 end

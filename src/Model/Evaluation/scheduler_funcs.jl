@@ -27,6 +27,8 @@ function _graph_evaluation!(self::Scheduler, model::Model, ::SingleFrameSingleTh
     start_evaluation!(self, model)
     # ? Modell task shall complete Worker0.
     processUntilClosed!(getWorkers(model)[0], model)
+    # ? Read GPU tessellation work back into the corresponding CPU structures. 
+    _resolve_pending_tessellations!()
     # ? Worker0 forwards work to Internal Queue.
     process_w0_avail!(getSynchronizer(model), model)
 end

@@ -55,7 +55,12 @@ function setEntryNodes(self::DependentDNA)
     end
 end
 
-beforeNodeEval(self::DependentDNA) = setEntryNodes(self)
+function beforeNodeEval(self::DependentDNA)
+    setEntryNodes(self)
+    if !isempty(implicitApp._pending_tessellations) && any(is_pending_tessellation, getGraphParents(self))
+        _resolve_pending_tessellations!()
+    end
+end
 onNodeEval(self::DependentDNA) = error("Missing \"onNodeEval\" for subclass of DependentDNA")
 afterNodeEval(self::DependentDNA) = nothing
 

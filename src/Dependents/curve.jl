@@ -80,26 +80,29 @@ function pre_gpu_tess!(self::ParametricCurveDependent)
     glUniform2f(maybe_uniform_loc(shader, GPU_TESS_T_RANGE_STR), first(self._range), step(self._range))
 end
 
-function handle_gpu_tess_result!(self::ParametricCurveDependent)::Bool
+dispatch_gpu_tess(self::ParametricCurveDependent)::Bool = dispatch_gpu_tess_compute(self)
+
+function resolve_gpu_tess!(self::ParametricCurveDependent)::Bool
     dep::ParametricDependent = _ParametricDependent_(self)
 
-    @time_cpu_begin ParametricTessellation GPU DataProcessing Download
+    @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing Download
     copyto!(dep._stagingBuffer, 1, dep._posBuffer._mapped, 1, dep._sampleCount)
-    @time_cpu_end ParametricTessellation GPU DataProcessing Download
+    @time_cpu_end ParametricTessellation GPU Resolve DataProcessing Download
 
-    @time_cpu_begin ParametricTessellation GPU DataProcessing evalCallbackDpReturn
+    @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
     for i in eachindex(dep._stagingBuffer)
         v4 = dep._stagingBuffer[i]
         v3 = Vec3D(v4.x, v4.y, v4.z)
 
         if any(x -> isnan(x) || isinf(x), v3)
+            @time_cpu_end ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
             @log "Invalid value found in curve tessellation results" WARN
             return false
         end
 
         evalCallbackDpReturn(self, v3, i)
     end
-    @time_cpu_end ParametricTessellation GPU DataProcessing evalCallbackDpReturn
+    @time_cpu_end ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
 
     return true
 end

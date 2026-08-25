@@ -1,9 +1,16 @@
 const GPU_TESS_LOCAL_SIZE = 256
 const GPU_TESS_POS_BINDING_IDX = 0
 const GPU_TESS_DEBUG_ARG = "--debug-gpu-tess"
+const GPU_TESS_SYNC_TIMEOUT_NS = 1_000_000
 
 get_glsl_representation(::Type{T}) where {T<:DependentDNA} = Nothing
 try_upload_dependent(uniform::GLint, dep::DependentDNA)::Bool = return false
+
+module TessellationState
+    # Pending - GPU work has been dispatched but not yet synchronized
+    # Done - GPU calculated results have been read back into the proper CPU structures
+    @enum TessellationStateValue Pending Done
+end
 
 # ? ---------------------------------
 # ! ParametricDependentDNA
@@ -18,10 +25,12 @@ mutable struct ParametricDependent <: RenderedDependentDNA
     _posBuffer::Union{MappedBuffer{Vec4},Nothing}
     _sampleCount::Int # num of vec4-s in pos buffer
     _stagingBuffer::Vector{Vec4}
+    _tess_state::TessellationState.TessellationStateValue
 
     function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA}, sampleCount::Int = 0)
         renderedDependent = RenderedDependent(callback, dependents)
-        return new(renderedDependent, nothing, nothing, nothing, nothing, sampleCount, Vec4[])
+        return new(renderedDependent, nothing, nothing, nothing, nothing, sampleCount, Vec4[],
+                   TessellationState.Done)
     end
 
     function ParametricDependent(callback::Function, dependents::Vector{<:DependentDNA},
@@ -30,8 +39,14 @@ mutable struct ParametricDependent <: RenderedDependentDNA
         renderedDependent = RenderedDependent(callback, dependents)
 
         return new(renderedDependent, callbackAST, dependentBindings, nothing,
-                   nothing, sampleCount, Vector{Vec4}(undef, sampleCount))
+                   nothing, sampleCount, Vector{Vec4}(undef, sampleCount), TessellationState.Done)
     end
+end
+
+struct ParamDepPosBufferInfo
+    _needsBuffer::Bool
+    _cpuRead::Bool
+    _cpuWrite::Bool
 end
 
 _ParametricDependent_(self::ParametricDependentDNA)::ParametricDependent = error("Missing \"_ParametricDependent_\" func for instance of ParametricDependentDNA")
@@ -47,6 +62,8 @@ function node_start!(self::ParametricDependentDNA)
 
     beforeNodeEval(self)
     onNodeEval(self)
+    # force resolve dependents on first tessellation
+    _resolve_pending_tessellations!()
     afterNodeEval(self)
 end
 
@@ -56,16 +73,24 @@ function is_valid_parametric_dependent(self::ParametricDependentDNA)::Bool
     return all(isnothing, gpu_props) || !any(isnothing, gpu_props)
 end
 
-is_gpu_tessellated(self::DependentDNA)::Bool = false
+is_gpu_tessellated(::DependentDNA)::Bool = false
 is_gpu_tessellated(self::ParametricDependentDNA)::Bool = _ParametricDependent_(self)._tessCompShader !== nothing
 
 is_cpu_tessellated(self::DependentDNA)::Bool = !is_gpu_tessellated(self)
 
-struct ParamDepPosBufferInfo
-    _needsBuffer::Bool
-    _cpuRead::Bool
-    _cpuWrite::Bool
+function mark_pending!(self::ParametricDependentDNA)
+    global implicitApp
+    dep::ParametricDependent = _ParametricDependent_(self)
+    
+    dep._tess_state = TessellationState.Pending
+    push!(implicitApp._pending_tessellations, self)
+
+    implicitApp._tessellation_fence != C_NULL && glDeleteSync(implicitApp._tessellation_fence)
+    implicitApp._tessellation_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
 end
+
+is_pending_tessellation(::DependentDNA)::Bool = false
+is_pending_tessellation(self::ParametricDependentDNA)::Bool = _ParametricDependent_(self)._tess_state == TessellationState.Pending
 
 pos_buffer_info(self::ParametricDependentDNA)::ParamDepPosBufferInfo =
     ParamDepPosBufferInfo(_ParametricDependent_(self)._tessCompShader !== nothing, true, false)
@@ -132,12 +157,6 @@ post_setup_parametric_dependent!(self::ParametricDependentDNA) = nothing
 # called before the tessellation shader is dispatched, can be used for uniform uploads and such
 pre_gpu_tess!(::ParametricDependentDNA) = nothing
 
-# Should update `self` according to the data read back from the GPU after tessellation
-# This should be (mostly) equivalent to how the CPU tessellation updates the dependent
-# _posBuffer has been updated and sync-d by the time this function is invoked
-# False return value indicates failures and forces fallback to CPU tessellation
-handle_gpu_tess_result!(self::ParametricDependentDNA)::Bool = error("Missing func handle_gpu_tess_result! func for instance of ParametricDependentDNA")
-
 function eval_callbacks!(self::ParametricDependentDNA)
     @assert is_valid_parametric_dependent(self) "eval_callbacks! called with uninitialized or otherwise invalid parametric dependent"
 
@@ -148,9 +167,9 @@ function eval_callbacks!(self::ParametricDependentDNA)
         return
     end
 
-    @time_cpu_begin ParametricTessellation GPU
+    @time_cpu_begin ParametricTessellation GPU Dispatch
     success = eval_callbacks_gpu!(self)
-    @time_cpu_end ParametricTessellation GPU
+    @time_cpu_end ParametricTessellation GPU Dispatch
 
     success && return
 
@@ -168,18 +187,48 @@ end
 # should handle the entire CPU-side tessellation pipeline, including the updating of `self`
 eval_callbacks_cpu!(self::ParametricDependentDNA) = error("Missing eval_callbacks_cpu! func for instance of ParametricDependentDNA")
 
-function eval_callbacks_gpu!(self::ParametricDependentDNA)
-    dep::ParametricDependent = _ParametricDependent_(self)
+# first dispatch in batch starts batch-level timer, must be called before dispatching
+# returns whether this call started the batch
+function try_begin_tess_batch!()::Bool
+    global implicitApp
 
+    isempty(implicitApp._pending_tessellations) || return false
+
+    @time_gpu_begin ParametricTessellation GPU Dispatch UploadAndCompute
+
+    return true
+end
+
+function eval_callbacks_gpu!(self::ParametricDependentDNA)::Bool
+    batch_start = try_begin_tess_batch!()
+
+    if !dispatch_gpu_tess(self)
+        batch_start && @time_gpu_end ParametricTessellation GPU Dispatch UploadAndCompute
+        return false
+    end
+
+    mark_pending!(self)
+
+    return true
+end
+
+# dispatch GPU work
+dispatch_gpu_tess(::ParametricDependentDNA)::Bool = error("Missing func dispatch_gpu_tess func for instance of ParametricDependentDNA")
+
+# wait for and process GPU calculated data
+resolve_gpu_tess!(::ParametricDependentDNA)::Bool = error("Missing func resolve_gpu_tess! func for instance of ParametricDependentDNA")
+
+# Helper for dispatch_gpu_tess implementations
+function dispatch_gpu_tess_compute(self::ParametricDependentDNA)::Bool
+    dep::ParametricDependent = _ParametricDependent_(self)
+    
     activate(dep._tessCompShader)
 
-    @time_gpu_begin ParametricTessellation GPU UploadAndCompute
     pre_gpu_tess!(self)
 
     for (parent_sym, parent_dep) in dep._dependentBindings
         success = try_upload_dependent(maybe_uniform_loc(dep._tessCompShader, string(parent_sym)), parent_dep)
         if !success
-            @time_gpu_end ParametricTessellation GPU UploadAndCompute
             @log "Error while uploading dependencies to GPU" WARN
             return false
         end
@@ -190,29 +239,72 @@ function eval_callbacks_gpu!(self::ParametricDependentDNA)
     num_wg = div(dep._sampleCount + GPU_TESS_LOCAL_SIZE - 1, GPU_TESS_LOCAL_SIZE)
 
     glDispatchCompute(num_wg, 1, 1)
-    @time_gpu_end ParametricTessellation GPU UploadAndCompute
 
-    glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
+    return true
+end
 
-    @time_cpu_begin ParametricTessellation GPU ClientWaitSync
-    fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    while true
-        waitReturn = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000)
-        if waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED
+function _tess_client_sync()::Bool
+    global implicitApp
+    fence = implicitApp._tessellation_fence
+
+    fence == C_NULL && return true
+
+    wait_success = true
+    while wait_success
+        wait_return = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GPU_TESS_SYNC_TIMEOUT_NS)
+        if wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED
             break
-        elseif waitReturn == GL_WAIT_FAILED
-            @time_cpu_end ParametricTessellation GPU ClientWaitSync
-            glDeleteSync(fence)
-            @log "Error while waiting for GPU after tessellation" WARN
-            return false
+        elseif wait_return == GL_WAIT_FAILED
+            @log "Error while synchronizing with the GPU during tessellation" WARN
+            wait_success = false
+            break
         end
     end
+
     glDeleteSync(fence)
-    @time_cpu_end ParametricTessellation GPU ClientWaitSync
+    implicitApp._tessellation_fence = C_NULL
 
-    @time_cpu_begin ParametricTessellation GPU DataProcessing
-    success = handle_gpu_tess_result!(self)
-    @time_cpu_end ParametricTessellation GPU DataProcessing
+    return wait_success
+end
 
-    return success
+function _resolve_pending_tessellations!()
+    global implicitApp
+    pending = implicitApp._pending_tessellations
+
+    isempty(pending) && return
+
+    # closes the timer started by the batch's first dispatch
+    @time_gpu_end ParametricTessellation GPU Dispatch UploadAndCompute
+
+    # shouldn't be needed since buffers are mapped coherently
+    # glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
+
+    @time_cpu_begin ParametricTessellation GPU Resolve
+
+    @time_cpu_begin ParametricTessellation GPU Resolve ClientWaitSync
+    synced = _tess_client_sync()
+    @time_cpu_end ParametricTessellation GPU Resolve ClientWaitSync
+
+    @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing
+    
+    # uses indexing because CPU fallback may submit additional GPU work, which are resolved in the next batch
+    num_pending = length(pending)
+    for i in 1:num_pending
+        self = pending[i]
+        _ParametricDependent_(self)._tess_state = TessellationState.Done
+        
+        if synced
+            resolved = resolve_gpu_tess!(self)
+            resolved && continue
+        end
+
+        # sync or data processing failed for a dependent
+        force_cpu_tessellation!(self)
+        onNodeEval(self)
+    end
+    deleteat!(pending, 1:num_pending)
+
+    @time_cpu_end ParametricTessellation GPU Resolve DataProcessing
+
+    @time_cpu_end ParametricTessellation GPU Resolve
 end

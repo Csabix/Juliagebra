@@ -87,9 +87,40 @@ evalCallbackDpReturn(self::ParametricSurfaceDependent,::Nothing,u,v) = self._uvV
 function onNodeEval(self::ParametricSurfaceDependent)
     eval_callbacks!(self)
 
-    @time_cpu_begin ParametricTessellation UpdateNormals
-    update_normals!(self)
-    @time_cpu_end ParametricTessellation UpdateNormals
+    # extra setup and dispatch required for CPU tessellated surfaces
+    # before GPU normal calculation can occur
+    if is_cpu_tessellated(self)
+        dep = _ParametricDependent_(self)
+
+        h = height(self._uvValues)
+        w = width(self._uvValues)
+        n = h * w
+
+        # first normal calc after GPU -> CPU fallback state
+        if !dep._posBuffer._write
+            dep._posBuffer._write = true
+            dep._posBuffer._read = false
+            reserve!(dep._posBuffer, n, 0)
+        end
+
+        @time_cpu_begin ParametricTessellation GPU Dispatch UploadPositions
+        i = 1
+        for v in 1:h
+            for u in 1:w
+                dep._stagingBuffer[i] = Vec4F(self._uvValues[u, v], 0)
+                i += 1
+            end
+        end
+
+        copyto!(dep._posBuffer, dep._stagingBuffer)
+        @time_cpu_end ParametricTessellation GPU Dispatch UploadPositions
+
+        # may need to start the batch (benchmark-wise) if no other GPU tessellated dependents have been eval-ed yet
+        try_begin_tess_batch!()
+
+        dispatch_normals(self)
+        mark_pending!(self)
+    end
 end
 
 function eval_callbacks_cpu!(self::ParametricSurfaceDependent)
@@ -103,38 +134,13 @@ function eval_callbacks_cpu!(self::ParametricSurfaceDependent)
     end
 end
 
-function update_normals!(self::ParametricSurfaceDependent)
+function dispatch_normals(self::ParametricSurfaceDependent)
     h = height(self._uvValues)
     w = width(self._uvValues)
-    n = h * w
 
     dep::ParametricDependent = _ParametricDependent_(self)
 
-    @time_gpu_begin ParametricTessellation UpdateNormals MaybeUploadAndCompute
-
-    if is_cpu_tessellated(self)
-        @assert dep._posBuffer !== nothing "parametric surface without GPU position buffer"
-
-        # first normal calc after GPU -> CPU fallback state
-        if !dep._posBuffer._write
-            dep._posBuffer._write = true
-            dep._posBuffer._read = false
-            reserve!(dep._posBuffer, n, 0)
-        end
-
-        i = 1
-        for v in 1:h
-            for u in 1:w
-                dep._stagingBuffer[i] = Vec4F(self._uvValues[u, v], 0)
-                i += 1
-            end
-        end
-
-        copyto!(dep._posBuffer, dep._stagingBuffer)
-    end
-
-    normals_shader = getOpenGL(implicitApp)._surface_normals
-    activate(normals_shader)
+    activate(getOpenGL(implicitApp)._surface_normals)
 
     glUniform2i(0, GLint(width(self._uvValues)), GLint(height(self._uvValues)))
 
@@ -142,37 +148,25 @@ function update_normals!(self::ParametricSurfaceDependent)
     bind_ssbo(self._normalsBuffer, 1)
 
     glDispatchCompute(div(w + 15, 16), div(h + 15, 16), 1)
+end
 
-    glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT)
-
-    @time_gpu_end ParametricTessellation UpdateNormals MaybeUploadAndCompute
-
-    @time_cpu_begin ParametricTessellation UpdateNormals ClientWaitSync
-    fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-    while true
-        waitReturn = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000);
-        if waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED
-            break
-        elseif waitReturn == GL_WAIT_FAILED
-            @log "Failed to sync client after dispatching surface normal calculation compute shader" ERR
-            @time_cpu_end ParametricTessellation UpdateNormals ClientWaitSync
-            glDeleteSync(fence)
-            return
-        end
-    end
-    glDeleteSync(fence)
-    @time_cpu_end ParametricTessellation UpdateNormals ClientWaitSync
-
-    @time_cpu_begin ParametricTessellation UpdateNormals DataProcessing Download
+function resolve_normals!(self::ParametricSurfaceDependent)
+    dep::ParametricDependent = _ParametricDependent_(self)
+    
+    h = height(self._uvValues)
+    w = width(self._uvValues)
+    n = h * w
+    
+    @time_cpu_begin ParametricTessellation GPU Resolve UpdateNormals Download
     copyto!(dep._stagingBuffer, 1, self._normalsBuffer._mapped, 1, n)
-    @time_cpu_end ParametricTessellation UpdateNormals DataProcessing Download
+    @time_cpu_end ParametricTessellation GPU Resolve UpdateNormals Download
 
-    @time_cpu_begin ParametricTessellation UpdateNormals DataProcessing Update
+    @time_cpu_begin ParametricTessellation GPU Resolve UpdateNormals Update
     for v in 1:h, u in 1:w
         v4 = dep._stagingBuffer[(v - 1) * w + u]
         self._uvNormals[u, v] = Vec3D(v4.x, v4.y, v4.z)
     end
-    @time_cpu_end ParametricTessellation UpdateNormals DataProcessing Update
+    @time_cpu_end ParametricTessellation GPU Resolve UpdateNormals Update
 end
 
 # ? methods for GPU tessellation
@@ -188,35 +182,47 @@ function pre_gpu_tess!(self::ParametricSurfaceDependent)
     glUniform4f(maybe_uniform_loc(shader, GPU_TESS_UV_RANGE_STR), first(self._uRange), step(self._uRange), first(self._vRange), step(self._vRange))
 end
 
-function handle_gpu_tess_result!(self::ParametricSurfaceDependent)::Bool
-    dep::ParametricDependent = _ParametricDependent_(self)
+function dispatch_gpu_tess(self::ParametricSurfaceDependent)::Bool
+    dispatch_gpu_tess_compute(self) || return false
 
-    @time_cpu_begin ParametricTessellation GPU DataProcessing Download
-    copyto!(dep._stagingBuffer, 1, dep._posBuffer._mapped, 1, dep._sampleCount)
-    @time_cpu_end ParametricTessellation GPU DataProcessing Download
-
-    @time_cpu_begin ParametricTessellation GPU DataProcessing evalCallbackDpReturn
-    i::Int = 1
-    for v in 1:height(self._uvValues)
-        for u in 1:width(self._uvValues)
-            v4 = dep._stagingBuffer[i]
-            v3 = Vec3F(v4.x, v4.y, v4.z)
-
-            if any(x -> isnan(x) || isinf(x), v3)
-                @time_cpu_end ParametricTessellation GPU DataProcessing evalCallbackDpReturn
-                @log "Invalid value found in surface tessellation results" WARN
-                return false
-            end
-
-            evalCallbackDpReturn(self, v3, u, v)
-
-            i += 1
-        end
-    end
-    @time_cpu_end ParametricTessellation GPU DataProcessing evalCallbackDpReturn
-
-    # sync before gpu-side normal calculation
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+
+    dispatch_normals(self)
+    
+    return true
+end
+
+function resolve_gpu_tess!(self::ParametricSurfaceDependent)::Bool
+    dep::ParametricDependent = _ParametricDependent_(self)
+    
+    # ? this function is also called by CPU tessellated surfaces for normal readback
+    if is_gpu_tessellated(self)
+        @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing Download
+        copyto!(dep._stagingBuffer, 1, dep._posBuffer._mapped, 1, dep._sampleCount)
+        @time_cpu_end ParametricTessellation GPU Resolve DataProcessing Download
+
+        @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
+        i::Int = 1
+        for v in 1:height(self._uvValues)
+            for u in 1:width(self._uvValues)
+                v4 = dep._stagingBuffer[i]
+                v3 = Vec3F(v4.x, v4.y, v4.z)
+
+                if any(x -> isnan(x) || isinf(x), v3)
+                    @time_cpu_end ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
+                    @log "Invalid value found in surface tessellation results" WARN
+                    return false
+                end
+
+                evalCallbackDpReturn(self, v3, u, v)
+
+                i += 1
+            end
+        end
+        @time_cpu_end ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
+    end
+
+    resolve_normals!(self)
 
     return true
 end

@@ -13,6 +13,9 @@ end
 convert_callback_entry(func::Func)::Function = func.callback
 convert_callback_result(func::Func, ::Any) = func
 
+const FUNC_GRAPH_RESOLUTION::Integer = 1000
+const FUNC_HEATMAP_RESOLUTION::Integer = 100
+
 edit_node_overload(func::Func)::Bool = true
 function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
 
@@ -20,7 +23,7 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
 
         domain_start = func.domain[1][1]
         domain_end = func.domain[1][2]
-        xs = collect(range(domain_start,domain_end,1000))
+        xs = collect(range(domain_start,domain_end,FUNC_GRAPH_RESOLUTION))
         ys = [@invokelatest func.callback(t) for t in xs]
         min_y = minimum(Iterators.flatten(ys))
         max_y = maximum(Iterators.flatten(ys))
@@ -39,20 +42,21 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
             end
             ImPlot.EndPlot()
         end
-    elseif (func.input_count == 2 && func.output_count == 1) # TODO: 1..3
+    elseif (func.input_count == 2 && func.output_count == 1)
 
         domain_start_u = func.domain[1][1]
         domain_end_u = func.domain[1][2]
         domain_start_v = func.domain[2][1]
         domain_end_v = func.domain[2][2]
-        xs = collect(range(domain_start_u,domain_end_u,10))
-        ys = collect(range(domain_start_v,domain_end_v,10))
+        xs = collect(range(domain_start_u,domain_end_u,FUNC_HEATMAP_RESOLUTION))
+        ys = collect(range(domain_start_v,domain_end_v,FUNC_HEATMAP_RESOLUTION))
         zs = [@invokelatest func.callback(u,v) for u in xs, v in ys]
 
         ImPlot.SetNextAxesLimits(domain_start_u,domain_end_u,domain_start_v,domain_end_v,CImGui.ImGuiCond_Once)
-        if (ImPlot.BeginPlot("Image", "u", "v"))
+        if (ImPlot.BeginPlot("f:R^2->R", "u", "v"))
             ImPlot.PushColormap(ImPlot.ImPlotColormap_Spectral)
-            ImPlot.PlotHeatmap("f(u,v)", zs, 10, 10)
+            ImPlot.PlotHeatmap("f(u,v)", zs, FUNC_HEATMAP_RESOLUTION, FUNC_HEATMAP_RESOLUTION;
+                label_fmt="", bounds_min=ImPlotPoint(domain_start_u,domain_start_v), bounds_max=ImPlotPoint(domain_end_u,domain_end_v))
             ImPlot.EndPlot()
         end
     end
@@ -60,9 +64,6 @@ function edit_node(func::Func,::Any,::Dict{DataType,Renderer},::NodeHandle)::Tup
     return (func,nothing,EDIT_NODE_NONE)
 end
 
-# inputs: 2×d -> d amount of intervals
-# eg. [p1,p2,p3] × [0.0; 1.0]   = [(p1, 0.0),(p1, 1.0),(p2, 0.0),(p2, 1.0),(p3, 0.0),(p3, 1.0)]       if step is 1.0
-#       -> [(0,0,0),(1,1,1),(0,0,0),(2,2,2),(0,0,0),(3,3,3)]
 function CreateFunction(callback::Function,inputs::Vector{Tuple{Float64,Float64}},parents::Vector{NodeHandle}=NodeHandle[];
     output_count::Union{Integer,Nothing}=nothing)
 
@@ -77,4 +78,8 @@ function CreateFunction(callback::Function,inputs::Vector{Tuple{Float64,Float64}
     return add_node!(func)
 end
 
-export CreateFunction
+
+
+
+
+export CreateFunction#, Curve

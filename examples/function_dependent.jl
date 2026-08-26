@@ -14,8 +14,8 @@ for i in -5:5, j in -5:5
     end
 end
 
-f2 = CreateFunction(t -> sin(t),[(0.0,2pi)]; output_count=1)
-f3 = CreateFunction(t -> (sin(t),cos(t),t / 4.0),[(0.0,2pi)]; output_count=3)
+f2 = CreateFunction(t -> sin(t),[(0.0,2pi)]) # ; output_count=1
+f3 = CreateFunction(t -> (sin(t),cos(t),t / 4.0),[(0.0,2pi)]) # ; output_count=3
 
 p1 = Point(0,3,-1)
 ParametricCurve(range(0,4pi,100),[f3,p1]) do t,func,point
@@ -35,6 +35,12 @@ for index in 1:10
 end
 
 ParametricCurve((t,func) -> evaluate(func,t),range(0,1.0,100),[f]; color="w")
+
+struct NoLengthType text::String end
+
+f4 = CreateFunction([(0,1)]) do t
+    return NoLengthType("Text returned.")
+end
 
 
 Juliagebra.Wait()

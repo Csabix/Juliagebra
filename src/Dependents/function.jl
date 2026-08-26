@@ -4,9 +4,10 @@ struct Func
     domain::Vector{Tuple{Float64,Float64}}
     input_count::Int
     output_count::Int
+    output_type::Type
     parents::Vector{NodeHandle}
-    function Func(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,parents::Vector{NodeHandle})
-        new(callback,domain,length(domain),output_count,parents)
+    function Func(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,output_type::Type,parents::Vector{NodeHandle})
+        new(callback,domain,length(domain),output_count,output_type,parents)
     end
 end
 
@@ -69,6 +70,8 @@ function edit_node(func::Func,data::Any,::Dict{DataType,Renderer},::NodeHandle):
     return (func,data,EDIT_NODE_NONE)
 end
 
+_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
+
 get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
 evaluate(func::Func, args...) = func.callback(args..., get_func_parents(func.parents)...)
 export evaluate
@@ -84,17 +87,22 @@ function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parent
     output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
 
     inputs = [(Float64(input[1]),Float64(input[2])) for input in inputs]
+    default_values = [(a + b) / 2.0 for (a,b) in inputs]
+    default_result = callback(default_values..., get_func_parents(parents)...)
+    outT = typeof(default_result)
     if (output_count === nothing)
-        default_values = [(a + b) / 2.0 for (a,b) in inputs]
-        default_result = callback(default_values..., get_func_parents(parents)...)
-        output_count = length(default_result)
+        output_count = hasmethod(length, Tuple{outT}) ? length(default_result) : 1
     end
 
-    func = Func(callback,inputs,output_count,parents)
+    func = Func(callback,inputs,output_count,outT,parents)
 
-    draw_data = FuncDrawData(FUNC_GRAPH_RESOLUTION,ImPlotColormap_Juliagebra)
-    if (func.input_count == 2 && func.output_count == 1)
-        draw_data = FuncDrawData(FUNC_HEATMAP_RESOLUTION,ImPlot.ImPlotColormap_Spectral)
+    draw_data = nothing
+    if (_can_be_graphed(outT))
+        if (func.input_count == 1 && func.output_count > 0)
+            draw_data = FuncDrawData(FUNC_GRAPH_RESOLUTION,ImPlotColormap_Juliagebra)
+        elseif (func.input_count == 2 && func.output_count == 1)
+            draw_data = FuncDrawData(FUNC_HEATMAP_RESOLUTION,ImPlot.ImPlotColormap_Spectral)
+        end
     end
 
     return add_node!(func; draw_data=draw_data, parents=parents)
@@ -102,4 +110,4 @@ end
 
 
 
-export CreateFunction#, Curve
+export CreateFunction

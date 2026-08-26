@@ -35,7 +35,7 @@ update(element::Any,delta_time::Float64)::Tuple{Any,Bool} = (element,false)
 convert_callback_entry(element::Any)::Any = element
 convert_callback_result(element::Any, result::Any)::Any = result
 eval_node(element::Any, callback::Function, arguments::Vector{Any})::Any = callback(arguments...)
-render_node(element::Any, data::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Any = nothing
+render_node(element::Any, data::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Any = data
 render_node_gui(element::Any)::Tuple{Any,Bool} = element, false
 
 const EDIT_NODE_NONE::Int = 0

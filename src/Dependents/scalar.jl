@@ -3,8 +3,6 @@ struct ScalarData
     label::String
 end
 
-render_node(::Real,data::Any,::Dict{DataType,Renderer},::UInt32)::Any = data
-
 edit_node_overload(scalar::Real)::Bool = true
 function edit_node(scalar::Real,data::ScalarData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
     text = "$(data.label)"

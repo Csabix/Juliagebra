@@ -2,24 +2,21 @@
 struct Func
     callback::Function
     domain::Vector{Tuple{Float64,Float64}}
-    input_count::Integer
-    output_count::Integer
+    input_count::Int
+    output_count::Int
     parents::Vector{NodeHandle}
-    function Func(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Integer,parents::Vector{NodeHandle})
+    function Func(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,parents::Vector{NodeHandle})
         new(callback,domain,length(domain),output_count,parents)
     end
 end
 
 struct FuncDrawData
-    graph_resolution::Integer
+    graph_resolution::Int
     graph_colors::Union{ImPlot.ImPlotColormap_,String}
 end
 
 convert_callback_entry(func::Func)::Function = func.callback
 convert_callback_result(func::Func, ::Any) = func
-
-# Necessary, otherwise data is rewritten to nothing
-render_node(::Func,data::Any,::Dict{DataType,Renderer},::UInt32)::Any = data
 
 edit_node_overload(func::Func)::Bool = true
 function edit_node(func::Func,data::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
@@ -75,11 +72,11 @@ end
 # ! Func constructors
 # ? ---------------------------------
 
-const FUNC_GRAPH_RESOLUTION::Integer = 1000
-const FUNC_HEATMAP_RESOLUTION::Integer = 100
+const FUNC_GRAPH_RESOLUTION::Int = 1000
+const FUNC_HEATMAP_RESOLUTION::Int = 100
 
 function CreateFunction(callback::Function,inputs::Vector{Tuple{Float64,Float64}},parents::Vector{NodeHandle}=NodeHandle[];
-    output_count::Union{Integer,Nothing}=nothing)
+    output_count::Union{Int,Nothing}=nothing)
 
     if (output_count === nothing)
         default_values = [(a + b) / 2.0 for (a,b) in inputs]

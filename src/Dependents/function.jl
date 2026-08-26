@@ -11,7 +11,8 @@ struct Func
     end
 end
 
-struct FuncDrawData
+abstract type GraphDrawData end
+struct FuncDrawData <: GraphDrawData
     graph_resolution::Int
     graph_colors::Union{ImPlot.ImPlotColormap_,String}
 end
@@ -21,9 +22,9 @@ convert_callback_entry(func::Func) = func
 convert_callback_result(func::Func, ::Any) = func
 
 edit_node_overload(func::Func)::Bool = true
-function edit_node(func::Func,data::Any,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
+function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
 
-    if (data === nothing) return (func,data,EDIT_NODE_NONE) end
+    # if (data === nothing) return (func,data,EDIT_NODE_NONE) end
 
     if (func.input_count == 1 && func.output_count > 0)
 
@@ -87,8 +88,8 @@ export evaluate
 const FUNC_GRAPH_RESOLUTION::Int = 1000
 const FUNC_HEATMAP_RESOLUTION::Int = 100
 
-function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[];
-    output_count::Union{Int,Nothing}=nothing,line::Bool=false) where {T<:Real,S<:Real}
+function _create_func(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[];
+    output_count::Union{Int,Nothing}=nothing)::Tuple{Func,Union{FuncDrawData,Nothing}} where {T<:Real,S<:Real}
 
     inputs = [(Float64(input[1]),Float64(input[2])) for input in inputs]
     default_values = [(a + b) / 2.0 for (a,b) in inputs]
@@ -101,7 +102,7 @@ function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parent
     func = Func(callback,inputs,output_count,outT,parents)
 
     draw_data = nothing
-    if (_can_be_graphed(outT))
+    if (_can_be_graphed(func.output_type))
         if (func.input_count == 1 && func.output_count > 0)
             draw_data = FuncDrawData(FUNC_GRAPH_RESOLUTION,ImPlotColormap_Juliagebra)
         elseif (func.input_count == 2 && func.output_count == 1)
@@ -109,14 +110,60 @@ function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parent
         end
     end
 
-    if (line)
-        (c, s) = parse_line_colors_style(nothing, "m", "-")
-        draw_data = LineDrawData(UInt32(0), c, s, convert(Float32, 6.0f0))
-    end
+    return (func,draw_data)
+end
+
+function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[];
+    output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
+
+    (func,draw_data) = _create_func(callback,inputs,parents;output_count=output_count)
 
     return add_node!(func; draw_data=draw_data, parents=parents)
 end
 
 
 
-export CreateFunction
+# TODO: place inside curve.jl
+
+struct CurveDrawData <: GraphDrawData
+    graph_resolution::Int
+    graph_colors::Union{ImPlot.ImPlotColormap_,String}
+    
+    handle::UInt32
+    colors::Vector{UInt32}
+    style::UInt8
+    size::Float32
+    
+    function CurveDrawData(graph_draw_data::GraphDrawData,handle::UInt32,colors::Vector{UInt32},style::UInt8,size::Float32)
+        new(graph_draw_data.graph_resolution,graph_draw_data.graph_colors,handle,colors,style,size)
+    end
+end
+
+function render_node(func::Func, data::CurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::CurveDrawData
+    line_renderer::LineRenderer = renderers[LineRenderer]
+
+    values = [@invokelatest evaluate(func, i) for i in range(func.domain[1][1],func.domain[1][2],100)]
+
+    if data.handle == 0
+        handle = add!(line_renderer, values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+        return CurveDrawData(FuncDrawData(data.graph_resolution, data.graph_colors), handle, data.colors, data.style, data.size)
+    else
+        update_coords!(line_renderer, data.handle, values)
+        return data
+    end
+end
+
+function ParametricCurve(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[],
+    color_style::Union{Nothing,String}=nothing;color="c", style="-", size=5.0f0,
+    output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
+
+    (func,draw_data) = _create_func(callback,inputs,parents;output_count=output_count)
+
+    (c, s) = parse_line_colors_style(color_style, color, style)
+    draw_data = CurveDrawData(draw_data, UInt32(0), c, s, convert(Float32, size))
+
+    return add_node!(func; draw_data=draw_data, parents=parents)
+end
+
+
+export CreateFunction,ParametricCurve

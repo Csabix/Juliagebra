@@ -25,7 +25,7 @@ end
 b0 = Point(3,0,0)
 b1 = Point(2.5,1,.2)
 
-f = CreateFunction([(0.0,1.0)],[b0,b1]) do t, bb0, bb1
+f = ParametricCurve([(0.0,1.0)],[b0,b1]) do t, bb0, bb1
    return bb0 * (1-t)^2 + bb1 * t^2
 end
 for index in 1:10
@@ -34,7 +34,7 @@ for index in 1:10
     end
 end
 
-ParametricCurve((t,func) -> evaluate(func,t),range(0,1.0,100),[f]; color="w")
+# ParametricCurve((t,func) -> evaluate(func,t),range(0,1.0,100),[f]; color="w")
 
 struct NoLengthType text::String end
 

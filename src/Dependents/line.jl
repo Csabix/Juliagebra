@@ -13,6 +13,7 @@ struct LineDrawData
 end
 
 convert_callback_result(::PLine, result::PLine)              = result
+convert_callback_result(::PLine, result::LinePrimitive)      = PLine(p0(result),p1(result))
 convert_callback_result(::PLine, result::Tuple{Vec3D,Vec3D}) = PLine(result[1],result[2])
 convert_callback_result(::PLine, ::Nothing)                  = PLine(Vec3DNan,Vec3DNan)
 
@@ -74,9 +75,7 @@ end
 function Line(line,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
 
-    return Line([_get_parent_line(line)],color_style;color=color,style=style,size=size) do line
-        return (p0(line),p1(line))
-    end
+    return Line(l -> l,[_get_parent_line(line)],color_style;color=color,style=style,size=size)
 end
 
 export Line

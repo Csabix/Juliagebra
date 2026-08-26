@@ -72,6 +72,7 @@ _get_parent_plane(parent) = add_node!(Vec3D(parent))
 
 function Plane(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,
     color_data::Union{Nothing,String}=nothing; color="g")::NodeHandle
+    
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
     return add_node!(callback, PPlane(Vec3DNan,Vec3DNan); draw_data=PlaneDrawData(UInt32(0), c), parents=parents)
 end
@@ -86,10 +87,7 @@ function Plane(p0,p1,p2,color_data::Union{Nothing,String}=nothing;
     ]
 
     return Plane(parents,color_data;color=color) do p0,p1,p2
-        dir1 = p1 - p0
-        dir2 = p2 - p0
-        n = cross(dir1,dir2)
-        return (p0,normalize(n))
+        return three_points_on_PPlane(p0,p1,p2)
     end
 end
 

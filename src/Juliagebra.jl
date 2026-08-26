@@ -159,11 +159,11 @@ function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vect
     end
     return add!(app.graph,value,draw_data,parents,callback,UInt64(0))
 end
-function add_node!(element::Any;draw_data::Any=nothing)
+function add_node!(element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing)
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,element,draw_data,nothing,nothing,UInt64(0))
+    return add!(app.graph,element,draw_data,parents,nothing,UInt64(0))
 end
 
 function Wait()

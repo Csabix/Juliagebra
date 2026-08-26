@@ -70,6 +70,10 @@ function edit_node(func::Func,data::Any,::Dict{DataType,Renderer},::NodeHandle):
     return (func,data,EDIT_NODE_NONE)
 end
 
+function node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle)
+    return Scalar((f,n) -> evaluate(f,n),[funcHandle,nodeHandle])
+end
+
 _can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
 
 get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
@@ -84,7 +88,7 @@ const FUNC_GRAPH_RESOLUTION::Int = 1000
 const FUNC_HEATMAP_RESOLUTION::Int = 100
 
 function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[];
-    output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
+    output_count::Union{Int,Nothing}=nothing,line::Bool=false) where {T<:Real,S<:Real}
 
     inputs = [(Float64(input[1]),Float64(input[2])) for input in inputs]
     default_values = [(a + b) / 2.0 for (a,b) in inputs]
@@ -103,6 +107,11 @@ function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parent
         elseif (func.input_count == 2 && func.output_count == 1)
             draw_data = FuncDrawData(FUNC_HEATMAP_RESOLUTION,ImPlot.ImPlotColormap_Spectral)
         end
+    end
+
+    if (line)
+        (c, s) = parse_line_colors_style(nothing, "m", "-")
+        draw_data = LineDrawData(UInt32(0), c, s, convert(Float32, 6.0f0))
     end
 
     return add_node!(func; draw_data=draw_data, parents=parents)

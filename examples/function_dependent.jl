@@ -42,5 +42,8 @@ f4 = CreateFunction([(0,1)]) do t
     return NoLengthType("Text returned.")
 end
 
+slider = Slider(0, 1, 2; label="Value")
+f5 = CreateFunction(t -> sin(t), [(0.0,2pi)])
+scalar = f5(slider)
 
 Juliagebra.Wait()

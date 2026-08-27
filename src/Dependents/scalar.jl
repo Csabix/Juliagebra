@@ -4,12 +4,13 @@ struct ScalarData
 end
 
 edit_node_overload(scalar::Real)::Bool = true
+edit_node_name(::Real) = "Scalar"
 function edit_node(scalar::Real,data::ScalarData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
     text = "$(data.label)"
     if (length(data.label) > 0)
         text *= ": "
     end
-    text *= "$(round(scalar;digits=4))"
+    text *= isa(scalar, Integer) ? string(scalar) : "$(round(scalar;digits=4))"
     
     CImGui.Text(text)
     return (scalar,data,EDIT_NODE_NONE)

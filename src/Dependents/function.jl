@@ -3,16 +3,18 @@
 # ! Func node
 # ? ---------------------------------
 
-struct Func
+mutable struct Func{outT}
     callback::Function
     domain::Vector{Tuple{Float64,Float64}}
     input_count::Int
     output_count::Int
-    output_type::Type
     parents::Vector{NodeHandle}
+
+    value_changed::Bool
+    values::Any
     
-    function Func(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,output_type::Type,parents::Vector{NodeHandle})
-        new(callback,domain,length(domain),output_count,output_type,parents)
+    function Func{T}(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,parents::Vector{NodeHandle}) where T
+        new{T}(callback,domain,length(domain),output_count,parents,true,nothing)
     end
 end
 
@@ -25,7 +27,13 @@ end
 convert_callback_entry(func::Func) = func
 convert_callback_result(func::Func, ::Any) = func
 
-edit_node_overload(func::Func)::Bool = true
+function eval_node(element::Func, callback::Function, ::Vector{Any})::Any
+    callback(element)
+    return element
+end
+
+edit_node_overload(::Func{T}) where T = _can_be_graphed(T)::Bool
+edit_node_name(::Func)::String = "Function"
 function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
 
     if (func.input_count == 1 && func.output_count > 0)
@@ -33,9 +41,11 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
         domain_start = func.domain[1][1]
         domain_end = func.domain[1][2]
         xs = collect(range(domain_start,domain_end,data.graph_resolution))
-        ys = [@invokelatest evaluate(func,t) for t in xs]
-        min_y = minimum(Iterators.flatten(ys))
-        max_y = maximum(Iterators.flatten(ys))
+        if (func.value_changed)
+            _calc_graph_values!(func,data)
+        end
+        min_y = minimum(Iterators.flatten(func.values))
+        max_y = maximum(Iterators.flatten(func.values))
 
         label = if (func.input_count == 1 && func.output_count == 1)
             "f:R->R"
@@ -47,7 +57,7 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
         if (ImPlot.BeginPlot(label, "x", "y"))
             ImPlot.PushColormap(data.graph_colors)
             for n in 1:func.output_count
-                ImPlot.PlotLine(func.output_count == 1 ? "f(x)" : "f(x)[$n]", xs, [y[n] for y in ys])
+                ImPlot.PlotLine(func.output_count == 1 ? "f(x)" : "f(x)[$n]", xs, [y[n] for y in func.values])
             end
             ImPlot.EndPlot()
         end
@@ -57,14 +67,14 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
         domain_end_u = func.domain[1][2]
         domain_start_v = func.domain[2][1]
         domain_end_v = func.domain[2][2]
-        xs = collect(range(domain_start_u,domain_end_u,data.graph_resolution))
-        ys = collect(range(domain_start_v,domain_end_v,data.graph_resolution))
-        zs = [@invokelatest evaluate(func,u,v) for u in xs, v in ys]
+        if (func.value_changed)
+            _calc_graph_values!(func,data)
+        end
 
         ImPlot.SetNextAxesLimits(domain_start_u,domain_end_u,domain_start_v,domain_end_v,CImGui.ImGuiCond_Once)
         if (ImPlot.BeginPlot("f:R^2->R", "u", "v"))
             ImPlot.PushColormap(data.graph_colors)
-            ImPlot.PlotHeatmap("f(u,v)", zs, data.graph_resolution, data.graph_resolution;
+            ImPlot.PlotHeatmap("f(u,v)", func.values, data.graph_resolution, data.graph_resolution;
                 label_fmt="", bounds_min=ImPlotPoint(domain_start_u,domain_start_v), bounds_max=ImPlotPoint(domain_end_u,domain_end_v))
             ImPlot.EndPlot()
         end
@@ -73,10 +83,28 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
     return (func,data,EDIT_NODE_NONE)
 end
 
+function _calc_graph_values!(func::Func,data::GraphDrawData)
+    if (func.input_count == 1 && func.output_count > 0)
+        domain_start = func.domain[1][1]
+        domain_end = func.domain[1][2]
+        xs = collect(range(domain_start,domain_end,data.graph_resolution))
+        func.values = [@invokelatest evaluate(func,t) for t in xs]
+    elseif (func.input_count == 2 && func.output_count == 1)
+        domain_start_u = func.domain[1][1]
+        domain_end_u = func.domain[1][2]
+        domain_start_v = func.domain[2][1]
+        domain_end_v = func.domain[2][2]
+        xs = collect(range(domain_start_u,domain_end_u,data.graph_resolution))
+        ys = collect(range(domain_start_v,domain_end_v,data.graph_resolution))
+        func.values = [@invokelatest evaluate(func,u,v) for u in xs, v in ys]
+    end
+    func.value_changed = false
+end
+
 node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle) = Scalar((f,n) -> evaluate(f,n),[funcHandle,nodeHandle])
 
-get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
-evaluate(func::Func, args...) = func.callback(args..., get_func_parents(func.parents)...)
+_get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
+evaluate(func::Func, args...) = func.callback(args..., _get_func_parents(func.parents)...)
 export evaluate
 
 # ? ---------------------------------
@@ -88,22 +116,24 @@ const FUNC_HEATMAP_RESOLUTION::Int = 100
 
 _can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
 
-function _create_func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Vector{NodeHandle}=NodeHandle[];
+function _create_func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing;
     output_count::Union{Int,Nothing}=nothing)::Tuple{Func,Union{FuncDrawData,Nothing}} where {T<:Real,S<:Real}
 
     if (isa(inputs, Tuple)) inputs = [inputs] end
+    if (parents === nothing) parents = NodeHandle[] end
+
     inputs = [(Float64(input[1]),Float64(input[2])) for input in inputs]
     default_values = [(a + b) / 2.0 for (a,b) in inputs]
-    default_result = callback(default_values..., get_func_parents(parents)...)
+    default_result = callback(default_values..., _get_func_parents(parents)...)
     outT = typeof(default_result)
     if (output_count === nothing)
         output_count = hasmethod(length, Tuple{outT}) ? length(default_result) : 1
     end
 
-    func = Func(callback,inputs,output_count,outT,parents)
+    func = Func{outT}(callback,inputs,output_count,parents)
 
     draw_data = nothing
-    if (_can_be_graphed(func.output_type))
+    if (_can_be_graphed(outT))
         if (func.input_count == 1 && func.output_count > 0)
             draw_data = FuncDrawData(FUNC_GRAPH_RESOLUTION,ImPlotColormap_Juliagebra)
         elseif (func.input_count == 2 && func.output_count == 1)
@@ -113,8 +143,18 @@ function _create_func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tup
 
     return (func,draw_data)
 end
+function _create_func_node(func::Func{T},draw_data::Any,parents::Union{Vector{NodeHandle},Nothing}=nothing)::NodeHandle where T
 
-function CreateFunction(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Vector{NodeHandle}=NodeHandle[];
+    if (_can_be_graphed(T))
+        return add_node!(func; draw_data=draw_data, parents=parents) do self
+            self.value_changed = true
+        end
+    else
+        return add_node!(func; draw_data=draw_data, parents=parents)
+    end
+end
+
+function CreateFunction(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing;
     output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
 
     (func,draw_data) = _create_func(callback,inputs,parents;output_count=output_count)
@@ -154,7 +194,7 @@ function render_node(func::Func, data::CurveDrawData, renderers::Dict{DataType,R
     end
 end
 
-function ParametricCurve(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Vector{NodeHandle}=NodeHandle[],
+function ParametricCurve(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing,
     color_style::Union{Nothing,String}=nothing;color="c", style="-", size=5.0f0,
     output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
 
@@ -163,7 +203,7 @@ function ParametricCurve(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{
     (c, s) = parse_line_colors_style(color_style, color, style)
     draw_data = CurveDrawData(draw_data, UInt32(0), c, s, convert(Float32, size))
 
-    return add_node!(func; draw_data=draw_data, parents=parents)
+    return _create_func_node(func,draw_data,parents)
 end
 
 

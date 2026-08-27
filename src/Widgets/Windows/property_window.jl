@@ -12,7 +12,7 @@ getWindowName(property_window::PropertyWindow) = "Node Properties"
 function renderContent(property_window::PropertyWindow)
     elements::Vector{Any} = property_window.graph.elements
     render_data::Vector{Any} = property_window.graph.render_data
-    names::Vector{String} = [string(typeof(e)) for e in elements]
+    names::Vector{String} = [edit_node_name(e) for e in elements]
     sorted_indices = sortperm(names)
 
     current_type = ""

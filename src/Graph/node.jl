@@ -43,6 +43,7 @@ const EDIT_NODE_RERENDER::Int = 1
 const EDIT_NODE_INVALIDATE::Int = 2
 edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = (element,render_data,EDIT_NODE_NONE)
 edit_node_overload(element::Any)::Bool = false
+edit_node_name(element::Any)::String = string(typeof(element))
 
 on_gizmo_select(element::Any,render_data::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_NONE, Vec3DNan, nothing) # Used gizmo axes, gizmo position, data
 on_gizmo_move(element::Any, position::Vec3D, data::Any)::Tuple{Any,Any} = (element, nothing)

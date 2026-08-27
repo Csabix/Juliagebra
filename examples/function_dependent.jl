@@ -1,7 +1,7 @@
 using Juliagebra
 using JuliaGLM
 
-f1 = CreateFunction([(0.0,1),(-2.0,0.0)]) do a,b
+f1 = CreateFunction([(0.0,1),(-2,0.0)]) do a,b
     return a + b + sin(a * pi)
 end
 
@@ -25,6 +25,7 @@ end
 b0 = Point(3,0,0)
 b1 = Point(2.5,1,.2)
 
+# ParametricCurve((t,func) -> evaluate(func,t),range(0,1.0,100),[f]; color="w")
 f = ParametricCurve((0.0,1.0),[b0,b1]) do t, bb0, bb1
    return bb0 * (1-t)^2 + bb1 * t^2
 end
@@ -34,16 +35,13 @@ for index in 1:10
     end
 end
 
-# ParametricCurve((t,func) -> evaluate(func,t),range(0,1.0,100),[f]; color="w")
-
 struct NoLengthType text::String end
-
 f4 = CreateFunction([(0,1)]) do t
     return NoLengthType("Text returned.")
 end
 
 slider = Slider(0, 1, 2; label="Value")
-f5 = CreateFunction(t -> sin(t), [(0.0,2pi)])
+f5 = CreateFunction(t -> t, [(0.0,2pi)])
 scalar = f5(slider)
 
 

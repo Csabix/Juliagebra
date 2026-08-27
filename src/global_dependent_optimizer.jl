@@ -10,7 +10,7 @@ end
 function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::DependentDNA,T::Type{<:Primitive},call::Function)
     local gvh::GenericValueHolderDependent
     
-    if (haskey(self._intersectionPrimitiveIters,geometry))
+    if (haskey(self._intersectionPrimitiveIters,geometry) && isa(self._intersectionPrimitiveIters[geometry], GenericValueHolderDependent))
         gvh = self._intersectionPrimitiveIters[geometry]
     else
         gvh = GenericValueHolder(call,PrimitivesOf{T},[geometry])
@@ -23,7 +23,7 @@ end
 function getIntersectionPrimitiveIter!(self::GlobalDependentOptimizer,geometry::DependentDNA,T::Type{<:AABBPrimitive})::LazyLBVHDependent{PrimitivesOf{T}}
     local llbvh::LazyLBVHDependent{PrimitivesOf{T}}
     
-    if (haskey(self._intersectionPrimitiveIters,geometry))
+    if (haskey(self._intersectionPrimitiveIters,geometry) && isa(self._intersectionPrimitiveIters[geometry], LazyLBVHDependent))
         llbvh = self._intersectionPrimitiveIters[geometry]
     else
         llbvh = LazyLBVH(PrimitivesOf{T},geometry)

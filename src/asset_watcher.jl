@@ -89,6 +89,11 @@ function _update_watched_files!(watcher::AssetWatcher)::Nothing
 end
 
 function update!(watcher::AssetWatcher,delta_time::Float64)::Nothing
+    length(watcher.file_added_callback) == 0 &&
+    length(watcher.file_changed_callback) == 0 &&
+    length(watcher.file_deleted_callback) == 0 &&
+    return nothing
+    
     watcher.accum_s += delta_time
     num_files = max(1, length(watcher.watched_files))
     time_per_file = _ASSET_WATCHER_CHECK_EVERY_S / Float64(num_files)

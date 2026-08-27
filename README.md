@@ -61,7 +61,7 @@ Highly suggested steps for creating a Dependent:
 1. Create a file for it in the [src/Dependents/](src/Dependents/) folder.
 2. Include the created file in [Juliagebra.jl](src/Juliagebra.jl) below the **Dependents** section.
 3. Additional helper files should go in the [src/Helpers/](src/Helpers/) folder.
-4. Helper files can be included in [Juliagebra.jl](src/Juliagebra.jl) below the **Helpers** section, or dierctly above the dependent's include, if nothing else uses it.
+4. Helper files can be included in [Juliagebra.jl](src/Juliagebra.jl) below the **Helpers** section, or directly above the dependent's include, if nothing else uses it.
 5. Create a **Plan**.
 6. Create a **Dependent**.
 7. If needed create a **Renderer**.

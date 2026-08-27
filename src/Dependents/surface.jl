@@ -19,6 +19,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDep
     _vRange::Range
 
     _color::UInt32
+    _isInfinite::Bool
 
     _normalsBuffer::Union{MappedBuffer{Vec4},Nothing}
 
@@ -29,7 +30,8 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDep
         vRange::Range,
         color::UInt32,
         callback_ast::Union{Expr,Nothing},
-        dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing}
+        dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing};
+        isInfinite::Bool = false
         ) where {Range<:AbstractRange}
 
         Nu = length(uRange)
@@ -49,6 +51,7 @@ mutable struct ParametricSurfaceDependent{Range<:AbstractRange} <: ParametricDep
             uRange,
             vRange,
             color,
+            isInfinite,
             nothing)
     end
 end
@@ -315,6 +318,7 @@ function added!(self::ParametricSurfaceRenderer,surface::ParametricSurfaceDepend
         coords,
         mat4(1.0f0),
         surface._color,
+        surface._isInfinite,
         aID)
     push!(self._refs, ref)
 end
@@ -344,14 +348,14 @@ Dependent2Observer(app::AppDNA,::ParametricSurfaceDependent)::ParametricSurfaceR
 function ParametricSurface(callback::Function,
                            uRange=range(0.0,1.0,50),vRange=range(0.0,1.0,50),
                            dependents::Vector{<:DependentDNA}=DependentDNA[],color_data::Union{Nothing,String}=nothing;
-                           color="g", enable_gpu_tessellation::Bool=false,
+                           color="g", isInfinite::Bool=false, enable_gpu_tessellation::Bool=false,
                            callback_ast::Union{Expr,Nothing}=nothing,dependent_bindings::Union{Dict{Symbol,<:DependentDNA},Nothing}=nothing)
     if !enable_gpu_tessellation
         callback_ast = nothing
         dependent_bindings = nothing
     end
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)
-    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c,callback_ast,dependent_bindings))
+    Build!(ParametricSurfaceDependent(callback,dependents,uRange,vRange,c,callback_ast,dependent_bindings;isInfinite))
 end
 
 macro ParametricSurface(callback::Expr,uRange,vRange,args...)

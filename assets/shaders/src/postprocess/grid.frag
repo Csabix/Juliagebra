@@ -1,5 +1,6 @@
 #version 460 core
 #extension GL_GOOGLE_include_directive : require
+#define RAY
 #include "../common_data.glsl"
 
 layout(location = 0) out vec4 color_out;
@@ -29,42 +30,19 @@ vec4 grid(vec3 position, float scale) {
     return color;
 }
 
-float computeLinearDepth(float clip_space_depth) {
-    const float NEAR = znear();
-    const float FAR  = zfar();
-    return ((FAR * NEAR) / (NEAR - FAR)) / (clip_space_depth - (FAR / (FAR - NEAR)));
-}
-
-vec3 rayDirection() {
-    vec3 right    = vec3(V[0][0], V[1][0], V[2][0]);
-    vec3 up       = vec3(V[0][1], V[1][1], V[2][1]);
-    vec3 backward = vec3(V[0][2], V[1][2], V[2][2]);
-
-    float focal_length = -1.0 / tan(fov() * 0.5);
-    vec2 screen_uv = (gl_FragCoord.xy / resolution()) * 2.0 - 1.0; 
-    screen_uv.x *= aspect();
-
-    return normalize(screen_uv.x  * right + 
-                     screen_uv.y  * up + 
-                     focal_length * backward);
-}
-
 void main() {
     const ivec2 coords = ivec2(gl_FragCoord.xy);
 
     vec3 ray_dir = rayDirection();
-    float t = -eye().z / ray_dir.z;
-    vec3 frag_position = eye() + t * ray_dir;
+    float t = -rayOrigin().z / ray_dir.z;
+    vec3 frag_position = rayOrigin() + t * ray_dir;
     
     float depth = texelFetch(depthTex, coords, 0).x;
     float depth_lin = computeLinearDepth(depth);
-    vec3 view_forward = normalize(at() - eye());
+    vec3 view_forward = -vec3(V[0][2], V[1][2], V[2][2]);
     float grid_view_z = t * dot(ray_dir, view_forward);
 
-    bool hit_in_front_of_camera = t > 0.0;
-    bool hit_in_render_distance = grid_view_z <= zfar() && grid_view_z < depth_lin;
-    bool outside_render_distance = depth == 1.0;
-    if (!hit_in_front_of_camera || !hit_in_render_distance || !outside_render_distance){
+    if (t < 0.0 || grid_view_z > zfar() || grid_view_z > depth_lin) {
         discard;
     }
 

@@ -14,8 +14,8 @@ for i in -5:5, j in -5:5
     end
 end
 
-f2 = CreateFunction(t -> sin(t),[(0.0,2pi)]) # ; output_count=1
-f3 = CreateFunction(t -> (sin(t),cos(t),t / 4.0),[(0.0,2pi)]) # ; output_count=3
+f2 = CreateFunction(t -> sin(t),(0.0,2pi); output_count=1)
+f3 = CreateFunction(t -> (sin(t),cos(t),t / 4.0),(0.0,2pi); output_count=3)
 
 p1 = Point(0,3,-1)
 ParametricCurve(range(0,4pi,100),[f3,p1]) do t,func,point
@@ -25,7 +25,7 @@ end
 b0 = Point(3,0,0)
 b1 = Point(2.5,1,.2)
 
-f = ParametricCurve([(0.0,1.0)],[b0,b1]) do t, bb0, bb1
+f = ParametricCurve((0.0,1.0),[b0,b1]) do t, bb0, bb1
    return bb0 * (1-t)^2 + bb1 * t^2
 end
 for index in 1:10
@@ -45,5 +45,7 @@ end
 slider = Slider(0, 1, 2; label="Value")
 f5 = CreateFunction(t -> sin(t), [(0.0,2pi)])
 scalar = f5(slider)
+
+
 
 Juliagebra.Wait()

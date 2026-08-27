@@ -1,4 +1,8 @@
 
+# ? ---------------------------------
+# ! Func node
+# ? ---------------------------------
+
 struct Func
     callback::Function
     domain::Vector{Tuple{Float64,Float64}}
@@ -6,6 +10,7 @@ struct Func
     output_count::Int
     output_type::Type
     parents::Vector{NodeHandle}
+    
     function Func(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,output_type::Type,parents::Vector{NodeHandle})
         new(callback,domain,length(domain),output_count,output_type,parents)
     end
@@ -17,14 +22,11 @@ struct FuncDrawData <: GraphDrawData
     graph_colors::Union{ImPlot.ImPlotColormap_,String}
 end
 
-# convert_callback_entry(func::Func)::Function = func.callback
 convert_callback_entry(func::Func) = func
 convert_callback_result(func::Func, ::Any) = func
 
 edit_node_overload(func::Func)::Bool = true
 function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
-
-    # if (data === nothing) return (func,data,EDIT_NODE_NONE) end
 
     if (func.input_count == 1 && func.output_count > 0)
 
@@ -71,11 +73,7 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
     return (func,data,EDIT_NODE_NONE)
 end
 
-function node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle)
-    return Scalar((f,n) -> evaluate(f,n),[funcHandle,nodeHandle])
-end
-
-_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
+node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle) = Scalar((f,n) -> evaluate(f,n),[funcHandle,nodeHandle])
 
 get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
 evaluate(func::Func, args...) = func.callback(args..., get_func_parents(func.parents)...)
@@ -88,9 +86,12 @@ export evaluate
 const FUNC_GRAPH_RESOLUTION::Int = 1000
 const FUNC_HEATMAP_RESOLUTION::Int = 100
 
-function _create_func(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[];
+_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
+
+function _create_func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Vector{NodeHandle}=NodeHandle[];
     output_count::Union{Int,Nothing}=nothing)::Tuple{Func,Union{FuncDrawData,Nothing}} where {T<:Real,S<:Real}
 
+    if (isa(inputs, Tuple)) inputs = [inputs] end
     inputs = [(Float64(input[1]),Float64(input[2])) for input in inputs]
     default_values = [(a + b) / 2.0 for (a,b) in inputs]
     default_result = callback(default_values..., get_func_parents(parents)...)
@@ -113,7 +114,7 @@ function _create_func(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents:
     return (func,draw_data)
 end
 
-function CreateFunction(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[];
+function CreateFunction(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Vector{NodeHandle}=NodeHandle[];
     output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
 
     (func,draw_data) = _create_func(callback,inputs,parents;output_count=output_count)
@@ -153,7 +154,7 @@ function render_node(func::Func, data::CurveDrawData, renderers::Dict{DataType,R
     end
 end
 
-function ParametricCurve(callback::Function,inputs::Vector{Tuple{<:T,<:S}},parents::Vector{NodeHandle}=NodeHandle[],
+function ParametricCurve(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Vector{NodeHandle}=NodeHandle[],
     color_style::Union{Nothing,String}=nothing;color="c", style="-", size=5.0f0,
     output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
 

@@ -10,7 +10,7 @@ layout(location = 2) flat in uint id_in;
 layout(location = 3) in vec4 position_in;
 
 void main(){
-    if (isInfinite != 0 && inside_aabb(position_in) == 0) {
+    if (isInfinite != 0 && inside_aabb(position_in) == 0 || color_in.a == 0.0) {
         discard;
     }
 

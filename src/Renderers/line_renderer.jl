@@ -49,38 +49,21 @@ mutable struct LineGroup
     color_style_buffer::MappedBuffer{UInt32}  # style + rgb
     distance_buffer::MappedBuffer{Float32}    # screen space distance along the line
 
-    position_distance_out::Buffer{Vec4F}
-    color_out::Buffer{UVec2}
-    begin_pos_rad_out::Buffer{Vec4F}
-    sdf_out::Buffer{Vec4F}
-    end_pos_rad_out::Buffer{Vec4F}
-
     function LineGroup(style::UInt8, needed::Int)
         capacity = max(_LINE_GROUP_MIN_CAPACITY, needed + 1)
         position_buffer    = MappedBuffer{Vec4F}()
         color_style_buffer = MappedBuffer{UInt32}()
         distance_buffer    = MappedBuffer{Float32}()
-        position_distance_out =  Buffer{Vec4F}()
-        color_out =  Buffer{UVec2}()
-        begin_pos_rad_out =  Buffer{Vec4F}()
-        sdf_out =  Buffer{Vec4F}()
-        end_pos_rad_out =  Buffer{Vec4F}()
         reserve!(position_buffer, capacity, 0)
         reserve!(color_style_buffer, capacity, 0)
         reserve!(distance_buffer, capacity, 0)
-        reserve!(position_distance_out,5*(capacity-3),0)
-        reserve!(color_out,capacity-3,0)
-        reserve!(begin_pos_rad_out,capacity-3,0)
-        reserve!(sdf_out,5*(capacity-3),0)
-        reserve!(end_pos_rad_out,capacity-3,0)
         position_buffer[1] = Vec4FNan
         return new(
             style,
             Vector{Vector{Vec3F}}(), Vector{Vector{UInt32}}(),
             Vector{UInt32}(), Vector{Float32}(),
             capacity, 1, true,
-            position_buffer, color_style_buffer, distance_buffer,
-            position_distance_out,color_out,begin_pos_rad_out,sdf_out,end_pos_rad_out)
+            position_buffer, color_style_buffer, distance_buffer)
     end
 end
 
@@ -90,11 +73,6 @@ function _destroy_group!(self::LineGroup)::Nothing
     destroy!(self.position_buffer)
     destroy!(self.color_style_buffer)
     destroy!(self.distance_buffer)
-    destroy!(self.position_distance_out)
-    destroy!(self.color_out)
-    destroy!(self.begin_pos_rad_out)
-    destroy!(self.sdf_out)
-    destroy!(self.end_pos_rad_out)
     return nothing
 end
 
@@ -132,12 +110,6 @@ function _flush_group!(self::LineGroup)::Nothing
 
     self.used = index - 1
     self.dirty = false
-    # NaN out rest in invocation group, because I dont want to pass shader position count
-    limit = min(cld(self.used,32) * 32, index <= self.capacity)
-    while index <= limit
-        positions[index] = Vec4FNan
-        index += 1
-    end
     return nothing
 end
 
@@ -148,12 +120,9 @@ end
 mutable struct LineRenderer <: Renderer
     emptyVAO::VertexArray
 
-    shader_predraw::Pipeline
     shaders_opaque::Vector{Pipeline}
     shaders_behind_opaque::Vector{Pipeline}
     shaders_transparent::Vector{Pipeline}
-    
-    gpu_gpu_sync::GLsync
 
     pool::Vector{Union{Nothing,LineGroup}}
     handle_map::Vector{Tuple{UInt32,UInt32}} # handle -> (group index, index within group)
@@ -163,7 +132,6 @@ mutable struct LineRenderer <: Renderer
     function LineRenderer(loader::PipelineLoader)
         emptyVAO = VertexArray()
 
-        shader_predraw = create_compute_pipeline!(loader,spv"renderers/line/line.comp")
         shaders_opaque = Vector{Pipeline}()
         shaders_behind_opaque = Vector{Pipeline}()
         shaders_transparent = Vector{Pipeline}()
@@ -195,12 +163,9 @@ mutable struct LineRenderer <: Renderer
             frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(ARROW-1))])
         ))
 
-        gpu_gpu_sync::GLsync = C_NULL
-
         return new(
             emptyVAO,
-            shader_predraw, shaders_opaque, shaders_behind_opaque, shaders_transparent,
-            gpu_gpu_sync,
+            shaders_opaque, shaders_behind_opaque, shaders_transparent,
             Vector{Union{Nothing,LineGroup}}(),
             Vector{Tuple{UInt32,UInt32}}(),
             Vector{UInt32}()
@@ -487,6 +452,20 @@ end
 # ! Distances
 # ? ---------------------------------
 
+@inline function _plane_dist(p::Vec4F, plane::Int)::Float32
+    if plane == 1
+        return p[3] + p[4]
+    elseif plane == 2
+        return p[1] + p[4]
+    elseif plane == 3
+        return p[4] - p[1]
+    elseif plane == 4
+        return p[2] + p[4]
+    else
+        return p[4] - p[2]
+    end
+end
+
 @inline function _screen_segment_dist(c1::Vec3F, c2::Vec3F, vp::Mat4, wh::Vec2F)::Float32
     if isnan(c1[1]) || isnan(c2[1])
         return NaN32
@@ -495,19 +474,19 @@ end
     a = vp * Vec4F(c1[1], c1[2], c1[3], 1.0f0)
     b = vp * Vec4F(c2[1], c2[2], c2[3], 1.0f0)
 
-    t0 = a[3] + a[4]
-    t1 = b[3] + b[4]
+    for plane in 1:5
+        da = _plane_dist(a, plane)
+        db = _plane_dist(b, plane)
 
-    if t0 < 0.0f0 && t1 < 0.0f0
-        return NaN32
-    end
-
-    if t0 < 0.0f0
-        tt = t0 / (t0 - t1)
-        a = @. a * (1.0f0 - tt) + b * tt
-    elseif t1 < 0.0f0
-        tt = t1 / (t1 - t0)
-        b = @. b * (1.0f0 - tt) + a * tt
+        if da < 0.0f0 && db < 0.0f0
+            return NaN32
+        elseif da < 0.0f0
+            tt = da / (da - db)
+            a = @. a * (1.0f0 - tt) + b * tt
+        elseif db < 0.0f0
+            tt = db / (db - da)
+            b = @. b * (1.0f0 - tt) + a * tt
+        end
     end
 
     (a[4] <= 0.0f0 || b[4] <= 0.0f0) && return NaN32
@@ -593,25 +572,6 @@ function pre_draw!(self::LineRenderer, cam::Camera, window::GLFWData)::Nothing
     (vp, v, p) = get_matrices(cam)
     _calc_distances!(self, vp, Vec2F(window.width, window.height))
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
-
-    activate(self.shader_predraw)
-    @time_gpu_begin Renderer Line Pre_Draw
-    for group_or_nothing in self.pool
-        group_or_nothing === nothing && continue
-        group::LineGroup = group_or_nothing
-        bind_ssbo(group.distance_buffer,0)
-        bind_ssbo(group.color_style_buffer,1)
-        bind_ssbo(group.position_buffer,2)
-        bind_ssbo(group.position_distance_out,3)
-        bind_ssbo(group.color_out,4)
-        bind_ssbo(group.begin_pos_rad_out,5)
-        bind_ssbo(group.sdf_out,6)
-        bind_ssbo(group.end_pos_rad_out,7)
-
-        glDispatchCompute(cld(group.used,32),1,1);
-    end
-    @time_gpu_end Renderer Line Pre_Draw
-    self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
     return nothing
 end
 
@@ -634,11 +594,9 @@ function _draw_groups!(self::LineRenderer, shaders::Vector{Pipeline})::Nothing
                 shader_activated = true
             end
 
-            bind_ssbo(group.position_distance_out,0)
-            bind_ssbo(group.color_out,1)
-            bind_ssbo(group.begin_pos_rad_out,2)
-            bind_ssbo(group.sdf_out,3)
-            bind_ssbo(group.end_pos_rad_out,4)
+            bind_ssbo(group.distance_buffer, 0)
+            bind_ssbo(group.color_style_buffer, 1)
+            bind_ssbo(group.position_buffer, 2)
             glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, instances, 0)
         end
     end
@@ -647,8 +605,6 @@ end
 
 function draw_opaque!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
     _has_drawable(self) || return nothing
-    glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
-    glDeleteSync(self.gpu_gpu_sync);
     @time_gpu_begin Renderer Line Opaque
     _draw_groups!(self, self.shaders_opaque)
     @time_gpu_end Renderer Line Opaque

@@ -69,12 +69,12 @@ function Parallel(handles::NodeHandle...;
 end
 
 
-function AngleBisectorPlane(handles::NodeHandle...;between_same_facing_dir::Bool=true,
+function AngleBisectorPlane(handles::NodeHandle...;external::Bool=false,
     color_style::Union{Nothing,String}=nothing,color="g")
     
-    return between_same_facing_dir ?
-        Plane((nodes...) -> angle_bisector_plane_minus(nodes...),[handles...],color_style;color=color) :
-        Plane((nodes...) -> angle_bisector_plane_plus(nodes...),[handles...],color_style;color=color)
+    return external ?
+        Plane((nodes...) -> angle_bisector_plane_external(nodes...),[handles...],color_style;color=color) :
+        Plane((nodes...) -> angle_bisector_plane_internal(nodes...),[handles...],color_style;color=color)
 end
 
 

@@ -160,11 +160,11 @@ end
 """
 Returns a plane on the given point with the normalized addition vector of the normals of the two given geometries.
 """
-angle_bisector_plane_plus(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
+angle_bisector_plane_internal(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
     (coord,normalize(n(plane1) + n(plane2)))
 
 """
 Returns a plane on the given point with the normalized subtraction vector of the normals of the two given geometries.
 """
-angle_bisector_plane_minus(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
+angle_bisector_plane_external(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
     (coord,normalize(n(plane1) - n(plane2)))

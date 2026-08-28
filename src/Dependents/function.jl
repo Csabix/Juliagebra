@@ -163,7 +163,7 @@ function _create_func_node(func::Func{T},draw_data::Any,parents::Union{Vector{No
     end
 end
 
-function CreateFunction(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing;
+function Func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing;
     output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
 
     (func,draw_data) = _create_func(callback,inputs,parents;output_count=output_count)
@@ -171,49 +171,4 @@ function CreateFunction(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{T
     return add_node!(func; draw_data=draw_data, parents=parents)
 end
 
-
-
-# TODO: place inside curve.jl
-
-struct CurveDrawData <: GraphDrawData
-    graph_resolution::Int
-    graph_colors::Union{ImPlot.ImPlotColormap_,String}
-    
-    handle::UInt32
-    colors::Vector{UInt32}
-    style::UInt8
-    size::Float32
-    
-    function CurveDrawData(graph_draw_data::GraphDrawData,handle::UInt32,colors::Vector{UInt32},style::UInt8,size::Float32)
-        new(graph_draw_data.graph_resolution,graph_draw_data.graph_colors,handle,colors,style,size)
-    end
-end
-
-function render_node(func::Func, data::CurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::CurveDrawData
-    line_renderer::LineRenderer = renderers[LineRenderer]
-
-    values = [@invokelatest evaluate(func, i) for i in range(func.domain[1][1],func.domain[1][2],100)]
-
-    if data.handle == 0
-        handle = add!(line_renderer, values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
-        return CurveDrawData(FuncDrawData(data.graph_resolution, data.graph_colors), handle, data.colors, data.style, data.size)
-    else
-        update_coords!(line_renderer, data.handle, values)
-        return data
-    end
-end
-
-function ParametricCurve(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing,
-    color_style::Union{Nothing,String}=nothing;color="c", style="-", size=5.0f0,
-    output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
-
-    (func,draw_data) = _create_func(callback,inputs,parents;output_count=output_count)
-
-    (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = CurveDrawData(draw_data, UInt32(0), c, s, convert(Float32, size))
-
-    return _create_func_node(func,draw_data,parents)
-end
-
-
-export CreateFunction,ParametricCurve,CallableFunc
+export Func,CallableFunc

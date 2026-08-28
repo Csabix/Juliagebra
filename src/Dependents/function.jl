@@ -24,7 +24,17 @@ struct FuncDrawData <: GraphDrawData
     graph_colors::Union{ImPlot.ImPlotColormap_,String}
 end
 
-convert_callback_entry(func::Func) = func
+struct CallableFunc
+    callback::Function
+    domain::Vector{Tuple{Float64,Float64}}
+    input_count::Int
+    output_count::Int
+end
+
+(callable_func::CallableFunc)(args...) = callable_func.callback(args...)
+
+convert_callback_entry(func::Func)::CallableFunc =
+    CallableFunc((args...) -> evaluate(func, args...),func.domain,func.input_count,func.output_count)
 convert_callback_result(func::Func, ::Any) = func
 
 function eval_node(element::Func, callback::Function, ::Vector{Any})::Any
@@ -101,11 +111,10 @@ function _calc_graph_values!(func::Func,data::GraphDrawData)
     func.value_changed = false
 end
 
-node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle) = Scalar((f,n) -> evaluate(f,n),[funcHandle,nodeHandle])
+node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle) = Scalar((f,n) -> f(n),[funcHandle,nodeHandle])
 
 _get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
 evaluate(func::Func, args...) = func.callback(args..., _get_func_parents(func.parents)...)
-export evaluate
 
 # ? ---------------------------------
 # ! Func constructors
@@ -207,4 +216,4 @@ function ParametricCurve(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{
 end
 
 
-export CreateFunction,ParametricCurve
+export CreateFunction,ParametricCurve,CallableFunc

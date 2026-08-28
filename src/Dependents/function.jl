@@ -58,14 +58,8 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
         min_y = minimum(Iterators.flatten(func.values))
         max_y = maximum(Iterators.flatten(func.values))
 
-        label = if (func.input_count == 1 && func.output_count == 1)
-            "f:R->R"
-        else
-            "f:R->R^$(func.output_count)"
-        end
-
         ImPlot.SetNextAxesLimits(domain_start,domain_end,min_y,max_y,CImGui.ImGuiCond_Once)
-        if (ImPlot.BeginPlot(label, "x", "y"))
+        if (ImPlot.BeginPlot(_get_func_label(func), "x", "y"))
             ImPlot.PushColormap(data.graph_colors)
             for n in 1:func.output_count
                 ImPlot.PlotLine(func.output_count == 1 ? "f(x)" : "f(x)[$n]", xs, [y[n] for y in func.values])
@@ -83,7 +77,7 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
         end
 
         ImPlot.SetNextAxesLimits(domain_start_u,domain_end_u,domain_start_v,domain_end_v,CImGui.ImGuiCond_Once)
-        if (ImPlot.BeginPlot("f:R^2->R", "u", "v"))
+        if (ImPlot.BeginPlot(_get_func_label(func), "u", "v"))
             ImPlot.PushColormap(data.graph_colors)
             ImPlot.PlotHeatmap("f(u,v)", func.values, data.graph_resolution, data.graph_resolution;
                 label_fmt="", bounds_min=ImPlotPoint(domain_start_u,domain_start_v), bounds_max=ImPlotPoint(domain_end_u,domain_end_v))
@@ -92,6 +86,24 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
     end
 
     return (func,data,EDIT_NODE_NONE)
+end
+
+function _get_func_label(func::Func)::String
+    if (func.input_count == 1)
+        if (func.output_count == 1)
+            "f:R->R"
+        else
+            "f:R->R^$(func.output_count)"
+        end
+    elseif (func.input_count > 1)
+        if (func.output_count == 1)
+            "f:R^$(func.input_count)->R"
+        else
+            "f:R^$(func.input_count)->R^$(func.output_count)"
+        end
+    else
+        return "function"
+    end
 end
 
 function _calc_graph_values!(func::Func,data::GraphDrawData)
@@ -112,14 +124,26 @@ function _calc_graph_values!(func::Func,data::GraphDrawData)
     func.value_changed = false
 end
 
-node_called(::Func,::Any,funcHandle::NodeHandle,nodeHandle::NodeHandle) = Scalar((f,n) -> f(n),[funcHandle,nodeHandle])
-
 _get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
 evaluate(func::Func, args...) = func.callback(args..., _get_func_parents(func.parents)...)
 
 # ? ---------------------------------
 # ! Func constructors
 # ? ---------------------------------
+
+function (func::Func)(funcHandle::NodeHandle,args...)
+    parents = [funcHandle, get_parent_nodes(args...)...]
+    if (func.output_count == 1)
+        return Scalar((f,nodes...) -> f(nodes...),parents; label="$(_get_func_label(func)) result")
+    elseif (func.output_count == 2)
+        return Point(parents) do f,nodes...
+            result = f(nodes...)
+            return (result[1],result[2],0)
+        end
+    elseif (func.output_count == 3)
+        return Point((f,nodes...) -> f(nodes...),parents)
+    end
+end
 
 const FUNC_GRAPH_RESOLUTION::Int = 1000
 const FUNC_HEATMAP_RESOLUTION::Int = 100

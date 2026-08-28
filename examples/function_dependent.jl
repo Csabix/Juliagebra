@@ -32,9 +32,7 @@ f = ParametricCurve((0.0,1.0),[b0,b1]; resolution=10,node=false,func=true) do t,
    return bb0 * (1-t)^2 + bb1 * t^2
 end
 for index in 1:10
-    Point([f]; color="w") do func
-        return func(index/11)
-    end
+    f(index/11)
 end
 
 struct NoLengthType text::String end
@@ -42,9 +40,16 @@ f4 = Func([(0,1)]) do t
     return NoLengthType("Text returned.")
 end
 
-slider = Slider(0, 1, 2; label="Value")
-f5 = Func(t -> t, [(0.0,2pi)])
+slider = Slider(0, 1, 12; label="Value")
+f5 = Func(t -> t * 2, [(0.0,2pi)])
 scalar = f5(slider)
+point3d = f3(slider)
+f6 = Func(t -> (t - 10,t - 5),(-1,1))
+point2d = f6(slider)
+
+scalar_const = f5(.67)
+point3d_const = f3(pi)
+point3d_2params = f1(.4,-1.1)
 
 
 

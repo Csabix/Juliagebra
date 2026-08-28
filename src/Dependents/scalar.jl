@@ -24,6 +24,8 @@ end
 # ! Scalar constructors
 # ? ---------------------------------
 
+get_parent_node(parent::Real)::NodeHandle = add_node!(parent)
+
 function Scalar end
 
 function Scalar(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing;label::Union{String,Nothing}=nothing)::NodeHandle

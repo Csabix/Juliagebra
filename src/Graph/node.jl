@@ -58,8 +58,9 @@ function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vect
     return convert_callback_result(element, callback_result)
 end
 
-(handle0::NodeHandle)(handles::NodeHandle...) =
-    node_called(get_element(handle0), [get_element(handle) for handle in handles]..., handle0, handles...)
+get_parent_node(parent::NodeHandle)::NodeHandle = parent
+get_parent_nodes(parents::Any...)::Vector{NodeHandle} = [get_parent_node(parent) for parent in parents]
+(handle::NodeHandle)(args::Any...) = get_element(handle)(handle, args...)
 
 export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload
 export on_gizmo_select, on_gizmo_move

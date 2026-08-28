@@ -3,7 +3,7 @@
 # ! Func node
 # ? ---------------------------------
 
-mutable struct Func{outT}
+mutable struct Func{outT,Storage}
     callback::Function
     domain::Vector{Tuple{Float64,Float64}}
     input_count::Int
@@ -11,10 +11,11 @@ mutable struct Func{outT}
     parents::Vector{NodeHandle}
 
     value_changed::Bool
-    values::Any
-    
+    values::Union{Storage,Nothing}
+
     function Func{T}(callback::Function,domain::Vector{Tuple{Float64,Float64}},output_count::Int,parents::Vector{NodeHandle}) where T
-        new{T}(callback,domain,length(domain),output_count,parents,true,nothing)
+        dimension = length(domain)
+        new{T,Array{T,dimension}}(callback,domain,dimension,output_count,parents,true,nothing)
     end
 end
 

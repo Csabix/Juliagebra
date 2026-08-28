@@ -1,6 +1,10 @@
 
 struct ScalarData
     label::String
+
+    function ScalarData(label::Union{String,Nothing})
+        new(label !== nothing ? label : "")
+    end
 end
 
 edit_node_overload(scalar::Real)::Bool = true
@@ -20,16 +24,14 @@ end
 # ! Scalar constructors
 # ? ---------------------------------
 
-_get_scalar_draw_data(label::Union{String,Nothing}) = label !== nothing ? ScalarData(label) : ScalarData("")
-
 function Scalar end
 
 function Scalar(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing;label::Union{String,Nothing}=nothing)::NodeHandle
-    return add_node!(callback; parents=parents,draw_data=_get_scalar_draw_data(label))
+    return add_node!(callback; parents=parents,draw_data=ScalarData(label))
 end
 
 function Scalar(n::Real;label::Union{String,Nothing}=nothing)
-    return add_node!(n; draw_data=_get_scalar_draw_data(label))
+    return add_node!(n; draw_data=ScalarData(label))
 end
 
 export Scalar

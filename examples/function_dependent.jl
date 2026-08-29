@@ -1,6 +1,6 @@
 using Juliagebra
 using JuliaGLM
-
+#=
 f1 = Func([(0.0,1),(-2,0.0)]) do a,b
     return a + b + sin(a * pi)
 end
@@ -50,6 +50,14 @@ point2d = f6(slider)
 scalar_const = f5(.67)
 point3d_const = f3(pi)
 point3d_2params = f1(.4,-1.1)
+# =#
+
+
+f6 = Func((-1.5,1.5)) do t
+    return t^3 - t
+end
+
+(f6_curve, f6_1st, f6_2nd) = Curve(f6)
 
 
 

@@ -168,3 +168,8 @@ Returns a plane on the given point with the normalized subtraction vector of the
 """
 angle_bisector_plane_external(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
     (coord,normalize(n(plane1) - n(plane2)))
+
+
+derive_num(f,x::Float64,h::Float64)    = (f(x + h) - f(x - h)) / 2h
+derive2nd_num(f,x::Float64,h::Float64) = (f(x + 2h) - 2*f(x) + f(x - 2h)) / 4h^2
+# export derive_num,derive2nd_num

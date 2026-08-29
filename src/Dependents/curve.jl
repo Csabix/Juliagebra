@@ -133,3 +133,29 @@ end
 
 export ParametricCurve
 export @ParametricCurve
+
+# ------------------------------
+
+# struct Curve
+#     func::Func
+#     derivative_1st::Func
+#     derivative_2nd::Func
+# end
+
+function Curve(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)
+    curve_func::Func = get_element(curve_func_handle)
+    if (derivative_1st_handle === nothing)
+        derivative_1st_handle = Func(curve_func.domain, [curve_func_handle]) do t,func
+            return derive_num(func, t, .0001)
+        end
+    end
+    if (derivative_2nd_handle === nothing)
+        derivative_2nd_handle = Func(curve_func.domain, [curve_func_handle]) do t,func
+            return derive2nd_num(func, t, .0001)
+        end
+    end
+    
+    return (curve_func_handle, derivative_1st_handle, derivative_2nd_handle)
+end
+
+export Curve

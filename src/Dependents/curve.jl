@@ -90,5 +90,46 @@ macro ParametricCurve(callback::Expr,range,args...)
                                 positional_args, kw_args, (cb, deps) -> (cb, range, deps))
 end
 
+function ParametricCurve(func_handle::NodeHandle,
+    color_style::Union{Nothing,String}=nothing; resolution::Int=100, color="c", style="-", size=5.0f0)::NodeHandle
+
+    func_node = get_element(func_handle)
+
+    return ParametricCurve(range(func_node.domain[1][1],func_node.domain[1][2],resolution), [func_handle],
+        color_style; color=color, style=style, size=size) do t,func
+        return func(t)
+    end
+end
+function ParametricCurve(callback::Function, func_handle::NodeHandle, parents::Union{Vector{NodeHandle},Nothing}=nothing,
+    color_style::Union{Nothing,String}=nothing; resolution::Int=100, color="c", style="-", size=5.0f0)::NodeHandle
+
+    func_node = get_element(func_handle)
+    parents = parents === nothing ? [func_handle] : [func_handle, parents...]
+
+    return ParametricCurve(range(func_node.domain[1][1],func_node.domain[1][2],resolution), parents,
+        color_style; color=color, style=style, size=size) do t,func,args...
+        return callback(func(t),args...)
+    end
+end
+function ParametricCurve(callback::Function, inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}}, parents::Union{Vector{NodeHandle},Nothing}=nothing,
+    color_style::Union{Nothing,String}=nothing; resolution::Int=100, color="c", style="-", size=5.0f0, node::Bool=true, func::Bool=false,
+    output_count::Union{Int,Nothing}=nothing) where {T<:Real,S<:Real}
+
+    (func_node, func_draw_data) = _create_func(callback,inputs, parents; output_count=output_count)
+    func_handle = _create_func_node(func_node, func_draw_data, parents)
+
+    parametric_curve = ParametricCurve(func_handle, color_style; color=color ,style=style, size=size, resolution=resolution)
+
+    result = Any[]
+    if (node)
+        push!(result, parametric_curve)
+    end
+    if (func)
+        push!(result, func_handle)
+    end
+
+    return length(result) == 1 ? result[1] : Tuple(result)
+end
+
 export ParametricCurve
 export @ParametricCurve

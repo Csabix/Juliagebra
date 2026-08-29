@@ -42,9 +42,9 @@ Segment(circumscribed_center,D; color=green, size=3)
 
 
 #region Inscribed sphere
-ABC_ADB_plane = AngleBisectorPlane(A,ABC,ADB; color=invisible)
-ABC_BDC_plane = AngleBisectorPlane(B,ABC,BDC; color=invisible)
-ACD_BDC_plane = AngleBisectorPlane(C,ACD,BDC; color=invisible)
+ABC_ADB_plane = AngleBisectorPlane(A,ABC,ADB; color=invisible,external=true)
+ABC_BDC_plane = AngleBisectorPlane(B,ABC,BDC; color=invisible,external=true)
+ACD_BDC_plane = AngleBisectorPlane(C,ACD,BDC; color=invisible,external=true)
 
 inscribed_line = Line(Intersection(ABC_ADB_plane,ABC_BDC_plane)[1]; size=0)
 

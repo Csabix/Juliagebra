@@ -14,7 +14,7 @@ convert_callback_result(::PPlane, result::PPlane)             = result
 convert_callback_result(::PPlane, result::Tuple{Vec3D,Vec3D}) = PPlane(result[1],normalize(result[2]))
 convert_callback_result(::PPlane, ::Nothing)                  = PPlane(Vec3DNan,Vec3DNan)
 
-function convert_result(::PPlane,uf::Number,vf::Number,origin::Vec3D,dir1::Vec3D,dir2::Vec3D)
+function convert_result(::PPlane,uf::Real,vf::Real,origin::Vec3D,dir1::Vec3D,dir2::Vec3D)
     u = sign(uf) * 10^abs(uf)
     v = sign(vf) * 10^abs(vf)
     return origin + (dir1 * v + dir2 * u)
@@ -70,7 +70,7 @@ Base.iterate(self::PPlaneOfPlane, index::Integer = 1) = index == 1 ? (self.ray, 
 _get_parent_plane(parent::NodeHandle) = parent
 _get_parent_plane(parent) = add_node!(Vec3D(parent))
 
-function Plane(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing,
+function Plane(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,
     color_data::Union{Nothing,String}=nothing; color="g")::NodeHandle
     
     c = isnothing(color_data) ? get_color(color) : get_color(color_data)

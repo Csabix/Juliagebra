@@ -68,7 +68,7 @@ Base.iterate(self::PCircleOfCircle, index::Integer = 1) = index <= CIRCLE_SEGMEN
 # ? ---------------------------------
 
 _get_parent_circle(parent::NodeHandle) = parent
-_get_parent_circle(parent::Number) = add_node!(parent)
+_get_parent_circle(parent::Real) = add_node!(parent)
 _get_parent_circle(parent) = add_node!(Vec3D(parent))
 
 function Circle(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=nothing,color_style::Union{Nothing,String}=nothing;
@@ -142,7 +142,7 @@ function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{PP
             parents,color_style;color=color,style=style,size=size)
     end
 end
-function create_circle(::Union{Point,Vec3D},::Number,plane::Union{PPlane,Nothing},
+function create_circle(::Union{Point,Vec3D},::Real,plane::Union{PPlane,Nothing},
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     

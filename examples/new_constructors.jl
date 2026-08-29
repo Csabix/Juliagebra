@@ -57,4 +57,9 @@ Circle(p5,p6,p7;color="y")
 (A,B,C) = Triangle(Point(0,-5,0),Point(1,-5,1),Vec3D(-2,-6,0);node=false,vertices=true,color="w")
 Midpoint(A,B,C)
 
+base = Scalar(10; label="Base number")
+mult = Slider(-1.0,1,2.0f0; label="Multiplier")
+offset = Scalar(1.0f0)
+Scalar((a,b,c) -> a * b + c,[base,mult,offset];label="Multiplied & offset")
+
 Juliagebra.Wait()

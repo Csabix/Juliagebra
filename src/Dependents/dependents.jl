@@ -21,6 +21,7 @@ include("ray.jl")
 include("plane.jl")
 include("circle.jl")
 include("scalar.jl")
+include("function.jl")
 include("node_indexer.jl")
 
 _deps_collect_add!(vec::Vector{Vec3D},::Nothing) = nothing

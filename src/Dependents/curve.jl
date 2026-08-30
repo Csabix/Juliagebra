@@ -146,16 +146,18 @@ function Curve(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeH
     curve_func::Func = get_element(curve_func_handle)
     if (derivative_1st_handle === nothing)
         derivative_1st_handle = Func(curve_func.domain, [curve_func_handle]) do t,func
-            return derive_num(func, t, .0001)
+            t = clamp(t, curve_func.domain[1][1] + DIFF_H, curve_func.domain[1][2] - DIFF_H)
+            return derive_num(func, t)
         end
     end
     if (derivative_2nd_handle === nothing)
         derivative_2nd_handle = Func(curve_func.domain, [curve_func_handle]) do t,func
-            return derive2nd_num(func, t, .0001)
+            t = clamp(t, curve_func.domain[1][1] + DIFF_H, curve_func.domain[1][2] - DIFF_H)
+            return derive2nd_num(func, t)
         end
     end
-    
-    return (curve_func_handle, derivative_1st_handle, derivative_2nd_handle)
+
+    return curve_func_handle
 end
 
 export Curve

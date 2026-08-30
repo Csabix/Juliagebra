@@ -57,8 +57,7 @@ f6 = Func((-1.5,1.5)) do t
     return t^3 - t
 end
 
-(f6_curve, f6_1st, f6_2nd) = Curve(f6)
-
+f6_curve = Curve(f6)
 
 
 Juliagebra.Wait()

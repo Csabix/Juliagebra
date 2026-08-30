@@ -1,0 +1,36 @@
+#version 460 core
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std430, binding = 0) restrict readonly buffer PositionBuffer {
+    vec4 positions[];
+};
+
+layout(std430, binding = 1) restrict writeonly buffer NormalBuffer {
+    vec4 normals[]; 
+};
+
+layout(location = 0) uniform ivec2 uvGridSize;
+
+void main() {
+    int u = int(gl_GlobalInvocationID.x);
+    int v = int(gl_GlobalInvocationID.y);
+
+    int width  = uvGridSize.x;
+    int height = uvGridSize.y;
+
+    if (u >= width || v >= height)
+        return;
+
+    int u_left  = max(u - 1, 0);
+    int u_right = min(u + 1, width - 1);
+    int v_up    = max(v - 1, 0);
+    int v_down  = min(v + 1, height - 1);
+
+    vec3 left  = positions[v * width + u_left].xyz;
+    vec3 right = positions[v * width + u_right].xyz;
+    vec3 up    = positions[v_up * width + u].xyz;
+    vec3 down  = positions[v_down * width + u].xyz;
+
+    normals[v * width + u] = vec4(normalize(cross(right - left, down - up)), 0);
+}

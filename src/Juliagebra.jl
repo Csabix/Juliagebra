@@ -18,7 +18,8 @@ using DataStructures
 using ThreadPinning
 using BitFlags
 #pinthreads(:cores)
-import MacroTools
+using MacroTools
+using ShaderTranspiler
 
 include("profiling.jl")
 include("performance_metrics.jl")
@@ -105,6 +106,8 @@ include("Widgets/coordinates_widget.jl")
 # ? ---------------------------------
 
 include("Dependents/dependents.jl")
+
+include("Helpers/transpilation.jl") # ! needs dependents for type conversions
 
 include("Widgets/points_window.jl")
 include("Widgets/curves_window.jl")

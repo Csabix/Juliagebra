@@ -1,10 +1,13 @@
+# identifiers used in generated tessellation shaders
+const GPU_TESS_T_RANGE = :JG_TESS_T_RANGE
+const GPU_TESS_T_RANGE_STR = string(GPU_TESS_T_RANGE)
 
 # ? ---------------------------------
 # ! ParametricCurveDependent
 # ? ---------------------------------
 
-mutable struct ParametricCurveDependent <: RenderedDependentDNA
-    _renderedDependent::RenderedDependent
+mutable struct ParametricCurveDependent <: ParametricDependentDNA
+    _parametricDependent::ParametricDependent
     
     _range::AbstractRange{Float64}
     _colors::Vector{UInt32}
@@ -17,21 +20,32 @@ mutable struct ParametricCurveDependent <: RenderedDependentDNA
     function ParametricCurveDependent(
         callback::Function,dependents::Vector{<:DependentDNA},
         range::AbstractRange{Float64},
-        color::Vector{UInt32},style::UInt8,size::Float32)
-        dependent = RenderedDependent(callback,dependents)
-        tValues = Vector{Vec3D}(undef,length(range))
+        color::Vector{UInt32},style::UInt8,size::Float32,
+        callback_ast::Union{Expr,Nothing},dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing})
+        N = length(range)
+        dependent = if callback_ast === nothing || dependent_bindings === nothing
+            ParametricDependent(callback,dependents)
+        else
+            ParametricDependent(callback,dependents,callback_ast,dependent_bindings,N)
+        end
+        tValues = Vector{Vec3D}(undef,N)
         new(dependent,range,color,size,style,tValues)
     end
 end
 
-Base.string(self::ParametricCurveDependent)::String =  return "ParametricCurve: $(length(self._range))"
-_RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return self._renderedDependent
+Base.string(self::ParametricCurveDependent)::String = return "ParametricCurve: $(length(self._range))"
+_ParametricDependent_(self::ParametricCurveDependent)::ParametricDependent = return self._parametricDependent
+_RenderedDependent_(self::ParametricCurveDependent)::RenderedDependent = return _ParametricDependent_(self)._renderedDependent
 
 Base.eltype(dependent::ParametricCurveDependent)::DataType = Vector{Vec3D}
 
 # YELLOW Thread
 # RED Thread
 function onNodeEval(self::ParametricCurveDependent)
+    eval_callbacks!(self)
+end
+
+function eval_callbacks_cpu!(self::ParametricCurveDependent)
     for index in 1:length(self._range)
         evalCallbackDp(self; callbackParams = self._range[index], returnParams = (index))
     end
@@ -51,6 +65,72 @@ evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec3F,index)             
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec2D,index)              = self._tValues[index] = Vec3D(v[1],v[2],0.0)
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Vec2F,index)              = self._tValues[index] = Vec3D(v[1],v[2],0.0)
 evalCallbackDpReturn(self::ParametricCurveDependent,v::Nothing,index)            = self._tValues[index] = Vec3DNan
+
+# ? methods for GPU tessellation
+
+function pre_gpu_tess!(self::ParametricCurveDependent)
+    shader = _ParametricDependent_(self)._tessCompShader
+    @assert shader !== nothing "GPU tessellation pipeline invoked on CPU-tessellated parametric dependent"
+    @assert self._range isa StepRange || self._range isa StepRangeLen "GPU tessellation currently only supports StepRanges"
+
+
+    # currently assumes uniformly spaced tessellation params (which AbstractRange-s are)
+    # this minimizes required CPU -> GPU upload, but can be changed later to stream non-uniform distributions
+    glUniform1ui(maybe_uniform_loc(shader, GPU_TESS_N_STR), GLuint(length(self._range)))
+    glUniform2f(maybe_uniform_loc(shader, GPU_TESS_T_RANGE_STR), first(self._range), step(self._range))
+end
+
+dispatch_gpu_tess(self::ParametricCurveDependent)::Bool = dispatch_gpu_tess_compute(self)
+
+function resolve_gpu_tess!(self::ParametricCurveDependent)::Bool
+    dep::ParametricDependent = _ParametricDependent_(self)
+
+    @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing Download
+    copyto!(dep._stagingBuffer, 1, dep._posBuffer._mapped, 1, dep._sampleCount)
+    @time_cpu_end ParametricTessellation GPU Resolve DataProcessing Download
+
+    @time_cpu_begin ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
+    for i in eachindex(dep._stagingBuffer)
+        v4 = dep._stagingBuffer[i]
+        v3 = Vec3D(v4.x, v4.y, v4.z)
+
+        if any(x -> isnan(x) || isinf(x), v3)
+            @time_cpu_end ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
+            @log "Invalid value found in curve tessellation results" WARN
+            return false
+        end
+
+        evalCallbackDpReturn(self, v3, i)
+    end
+    @time_cpu_end ParametricTessellation GPU Resolve DataProcessing evalCallbackDpReturn
+
+    return true
+end
+
+function try_transpile_tess_shader(self::ParametricCurveDependent)::Union{ShaderProgram,Nothing}
+    @time_cpu_begin GPUTessSetup CodeGen CurveWrapperCodeGen
+
+    dep::ParametricDependent = _ParametricDependent_(self)
+    fn_data = splitdef(dep._callbackAST)
+
+    if isempty(get(fn_data, :args, []))
+        @log "cannot transpile zero argument function as a parametric curve callback" WARN
+        return nothing
+    end
+
+    t_varname = namify(fn_data[:args][1]) # first argument is the parameter (t)
+    popat!(fn_data[:args], 1)
+
+    # add code for calculating the t parameter GPU-side, assuming uniform spacing
+    pushfirst!(fn_data[:body].args, :(
+        $t_varname = $GPU_TESS_T_RANGE[:x] + Float32($GPU_TESS_ID) * $GPU_TESS_T_RANGE[:y]
+    ))
+
+    dep._callbackAST = combinedef(fn_data)
+    @time_cpu_end GPUTessSetup CodeGen CurveWrapperCodeGen
+
+    return try_transpile_tess_shader_base(dep._callbackAST, dep._dependentBindings, [(GPU_TESS_T_RANGE_STR, Vec2)])
+end
 
 # ? For Intersectable ParametricCurves.
 
@@ -127,16 +207,22 @@ Dependent2Observer(app::AppDNA,::ParametricCurveDependent) = getDependentObserve
 # YELLOW Thread
 function ParametricCurve(callback::Function,range::AbstractRange{Float64},
                 dependents::Vector{<:DependentDNA}=DependentDNA[],color_style::Union{Nothing,String}=nothing;
-                color="c",style="-",size=5.0f0)::ParametricCurveDependent
+                color="c",style="-",size=5.0f0,
+                enable_gpu_tessellation::Bool=false,callback_ast::Union{Expr,Nothing}=nothing,
+                dependent_bindings::Union{Dict{Symbol, <:DependentDNA},Nothing}=nothing)::ParametricCurveDependent
+    if !enable_gpu_tessellation
+        callback_ast = nothing
+        dependent_bindings = nothing
+    end 
     (c,s) = parse_line_colors_style(color_style,color,style)
-    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size)))
+    return Build!(ParametricCurveDependent(callback,dependents,range,c,s,Float32(size),callback_ast,dependent_bindings))
 end
 
 macro ParametricCurve(callback::Expr,range,args...)
-    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size), args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size, :enable_gpu_tessellation), args...)
     callback = _validate_callback_expr(callback, 1)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve,
-                                positional_args, kw_args, (cb, deps) -> (cb, range, deps))
+                                positional_args, kw_args, (cb, deps) -> (cb, range, deps), true)
 end
 
 export ParametricCurve

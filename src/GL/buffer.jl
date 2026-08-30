@@ -22,11 +22,16 @@ mutable struct MappedBuffer{T} <: BufferBase{T}
     _mapped::Vector{T}
     _sync::GLsync
 
-    function MappedBuffer{T}() where {T}
+    # these control GL_MAP_WRITE_BIT/GL_MAP_READ_BIT usage in MappedBuffer methods
+    _write::Bool
+    _read::Bool
+
+    function MappedBuffer{T}(; write::Bool = true, read::Bool = false) where {T}
         @assert isbitstype(T) "OpenGL requires bitstypes."
+        @assert write || read "OpenGL requires buffer mappings to be either readable, writeable or both."
         id = Ref{GLuint}()
         glCreateBuffers(1, id)
-        new{T}(id[], 0, Vector{T}(), C_NULL)
+        new{T}(id[], 0, Vector{T}(), C_NULL, write, read)
     end
 end
 
@@ -96,18 +101,18 @@ end
 # ? ---------------------------------
 
 @inline function reserve!(self::MappedBuffer{T}, count::Int, flags)::Bool where {T}
-    new_storage = _reserve!(self, count, GLbitfield(flags) | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    new_storage = _reserve!(self, count, GLbitfield(flags) | _map_flags(self))
     if new_storage
-        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), _map_flags(self))
         self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     end
     return new_storage
 end
 
 @inline function upload!(self::MappedBuffer{T}, data::AbstractVector{T}, flags)::Bool where {T}
-    new_storage = _upload!(self, data, GLbitfield(flags) | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    new_storage = _upload!(self, data, GLbitfield(flags) | _map_flags(self))
     if new_storage
-        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), _map_flags(self))
         self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     end
     return new_storage
@@ -117,15 +122,49 @@ end
     if length(data) == 0 return false end
     glUnmapBuffer(self._id)
     glNamedBufferSubData(self._id, 0, length(data) * sizeof(T), data)
-    ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), _map_flags(self))
     self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     return false
 end
 
+@inline function data(self::MappedBuffer{T}, out_vec=Vector{T}())::Vector{T} where {T}
+    N = length(self)
+    Base.resize!(out_vec, N)
+    if N == 0 return out_vec end
+
+    if !self._read
+        glGetNamedBufferSubData(self._id, 0, N * sizeof(T), out_vec)
+    else
+        copyto!(out_vec, 1, self._mapped, 1, N)
+    end
+
+    return out_vec
+end
+
+@inline function data(self::MappedBuffer{T}, count::Int, offset::Int, out_vec=Vector{T}())::Vector{T} where {T}
+    @assert count <= length(self)
+    Base.resize!(out_vec, count)
+    if count == 0 return out_vec end
+
+    if !self._read
+        glGetNamedBufferSubData(self._id, offset * sizeof(T), count * sizeof(T), out_vec)
+    else
+        copyto!(out_vec, 1, self._mapped, offset + 1, count)
+    end
+
+    return out_vec
+end
+
 function Base.setindex!(self::MappedBuffer{T}, value, index::Int) where {T}
+    @assert self._write "trying to setindex! into MappedBuffer with non-writeable mapping"
     val_converted = convert(T, value)
     self._mapped[index] = val_converted
     return self
+end
+
+function Base.getindex(self::MappedBuffer{T}, index::Int)::T where {T}
+    @assert self._read "trying to getindex from MappedBuffer with non-readable mapping"
+    return self._mapped[index]
 end
 
 function Base.lock(self::MappedBuffer)
@@ -147,6 +186,7 @@ function Base.wait(self::MappedBuffer)
 end
 
 function Base.copyto!(dest::MappedBuffer, src)
+    @assert dest._write "trying to copy data to MappedBuffer with non-writeable mapping"
     copyto!(dest._mapped, src)
     return dest
 end
@@ -250,4 +290,11 @@ end
     glNamedBufferStorage(self._id, bytes, data, flags)
     self._size = bytes
     return true
+end
+
+@inline function _map_flags(self::MappedBuffer{T})::GLbitfield where {T}
+    bits = GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
+    self._read  && (bits |= GL_MAP_READ_BIT)
+    self._write && (bits |= GL_MAP_WRITE_BIT)
+    return bits
 end

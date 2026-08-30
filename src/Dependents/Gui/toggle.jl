@@ -33,6 +33,12 @@ evalCallbackDpEntry(self::ToggleDependent)::Bool = return self._state
 evalCallbackDpReturn(self::ToggleDependent, val::Bool) = self._state = val
 evalCallbackDpReturn(self::ToggleDependent, ::Nothing) = return nothing
 
+get_glsl_representation(::Type{ToggleDependent}) = Bool
+function try_upload_dependent(uniform::GLint, t::ToggleDependent)::Bool
+    glUniform1i(uniform, GLint(t._state))
+    return true
+end
+
 # ? ---------------------------------
 # ! ToggleRenderer
 # ? ---------------------------------

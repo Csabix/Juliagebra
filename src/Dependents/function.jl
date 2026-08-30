@@ -30,12 +30,15 @@ struct CallableFunc
     domain::Vector{Tuple{Float64,Float64}}
     input_count::Int
     output_count::Int
+
+    function CallableFunc(func::Func)
+        new((args...) -> evaluate(func, args...),func.domain,func.input_count,func.output_count)
+    end
 end
 
 (callable_func::CallableFunc)(args...) = callable_func.callback(args...)
 
-convert_callback_entry(func::Func)::CallableFunc =
-    CallableFunc((args...) -> evaluate(func, args...),func.domain,func.input_count,func.output_count)
+convert_callback_entry(func::Func)::CallableFunc = CallableFunc(func)
 convert_callback_result(func::Func, ::Any) = func
 
 function eval_node(element::Func, callback::Function, ::Vector{Any})::Any

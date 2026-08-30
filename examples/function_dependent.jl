@@ -21,8 +21,8 @@ f3 = Func(t -> Vec3D(sin(t),cos(t),t / 4.0),(0.0,4pi); output_count=3)
 ParametricCurve(f3; color="w",size=2)
 p1 = Point(0,3,-1)
 # Parametric curve dependent on f3's results and point
-ParametricCurve(f3,[p1]) do result,point
-    return result + point
+ParametricCurve(f3,[p1]) do t,func,point
+    return func(t) + point
 end
 
 b0 = Point(3,0,0)
@@ -53,11 +53,19 @@ point3d_2params = f1(.4,-1.1)
 # =#
 
 
+f_2d = Func(t -> sin(t), (0,2pi))
+ParametricCurve(f_2d) do t,func
+    return (t,func(t),0)
+end
+
+
 f6 = Func((-1.5,1.5)) do t
     return t^3 - t
 end
 
-f6_curve = Curve(f6)
+f6_curve = Curve!(f6)
+f6_curve_1st = Derive(f6_curve)
+f6_curve_2nd = Derive2(f6_curve)
 
 
 Juliagebra.Wait()

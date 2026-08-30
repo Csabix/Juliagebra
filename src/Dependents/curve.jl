@@ -108,7 +108,7 @@ function ParametricCurve(callback::Function, func_handle::NodeHandle, parents::U
 
     return ParametricCurve(range(func_node.domain[1][1],func_node.domain[1][2],resolution), parents,
         color_style; color=color, style=style, size=size) do t,func,args...
-        return callback(func(t),args...)
+        return callback(t,func,args...)
     end
 end
 function ParametricCurve(callback::Function, inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}}, parents::Union{Vector{NodeHandle},Nothing}=nothing,
@@ -134,30 +134,52 @@ end
 export ParametricCurve
 export @ParametricCurve
 
-# ------------------------------
+# ? ---------------------------------
+# ! Curve node
+# ? ---------------------------------
 
-# struct Curve
-#     func::Func
-#     derivative_1st::Func
-#     derivative_2nd::Func
-# end
+mutable struct Curve
+    func::NodeHandle
+    derivative_1st::Union{NodeHandle,Nothing}
+    derivative_2nd::Union{NodeHandle,Nothing}
 
-function Curve(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)
-    curve_func::Func = get_element(curve_func_handle)
-    if (derivative_1st_handle === nothing)
-        derivative_1st_handle = Func(curve_func.domain, [curve_func_handle]) do t,func
-            t = clamp(t, curve_func.domain[1][1] + DIFF_H, curve_func.domain[1][2] - DIFF_H)
-            return derive_num(func, t)
-        end
+    function Curve(func::NodeHandle,derivative_1st::Union{NodeHandle,Nothing},derivative_2nd::Union{NodeHandle,Nothing})
+        new(func,derivative_1st,derivative_2nd)
     end
-    if (derivative_2nd_handle === nothing)
-        derivative_2nd_handle = Func(curve_func.domain, [curve_func_handle]) do t,func
-            t = clamp(t, curve_func.domain[1][1] + DIFF_H, curve_func.domain[1][2] - DIFF_H)
-            return derive2nd_num(func, t)
-        end
-    end
-
-    return curve_func_handle
 end
 
-export Curve
+function get_derived_handle(curve::Curve)
+    if (curve.derivative_1st === nothing)
+        curve_func = get_element(curve.func)
+        derivative_1st_handle = Func(curve_func.domain, [curve.func]) do t,func
+            t = clamp(t, func.domain[1][1] + DIFF_H, func.domain[1][2] - DIFF_H)
+            return derive_num(func, t)
+        end
+        curve.derivative_1st = derivative_1st_handle
+    end
+
+    return curve.derivative_1st
+end
+function get_derived2nd_handle(curve::Curve)
+    if (curve.derivative_2nd === nothing)
+        curve_func = get_element(curve.func)
+        derivative_2nd_handle = Func(curve_func.domain, [curve.func]) do t,func
+            t = clamp(t, func.domain[1][1] + DIFF_H, func.domain[1][2] - DIFF_H)
+            return derive2nd_num(func, t)
+        end
+        curve.derivative_2nd = derivative_2nd_handle
+    end
+
+    return curve.derivative_2nd
+end
+
+function Curve!(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)
+
+    curve = Curve(curve_func_handle,derivative_1st_handle,derivative_2nd_handle)
+
+    return add_node!(curve)
+end
+
+
+
+export Curve!

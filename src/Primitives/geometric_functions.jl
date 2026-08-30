@@ -78,7 +78,11 @@ function AngleBisectorPlane(handles::NodeHandle...;external::Bool=false,
 end
 
 
+Derive(handle::NodeHandle)::NodeHandle  = get_derived_handle(get_element(handle))
+Derive2(handle::NodeHandle)::NodeHandle = get_derived2nd_handle(get_element(handle))
+
+
 
 export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
-    AngleBisectorPlane
+    AngleBisectorPlane,Derive,Derive2
 

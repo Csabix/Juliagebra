@@ -52,20 +52,18 @@ point3d_const = f3(pi)
 point3d_2params = f1(.4,-1.1)
 # =#
 
-
-f_2d = Func(t -> sin(t), (0,2pi))
-ParametricCurve(f_2d) do t,func
-    return (t,func(t),0)
-end
-
-
 f6 = Func((-1.5,1.5)) do t
     return t^3 - t
 end
 
 f6_curve = Curve!(f6)
+ParametricCurve(f6_curve; color="r")
+
 f6_curve_1st = Derive(f6_curve)
+ParametricCurve(f6_curve_1st; color="g", size=4.5)
+
 f6_curve_2nd = Derive2(f6_curve)
+ParametricCurve(f6_curve_2nd; color="b", size=4)
 
 
 Juliagebra.Wait()

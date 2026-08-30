@@ -94,16 +94,30 @@ function ParametricCurve(func_handle::NodeHandle,
     color_style::Union{Nothing,String}=nothing; resolution::Int=100, color="c", style="-", size=5.0f0)::NodeHandle
 
     func_node = get_element(func_handle)
-
-    return ParametricCurve(range(func_node.domain[1][1],func_node.domain[1][2],resolution), [func_handle],
-        color_style; color=color, style=style, size=size) do t,func
-        return func(t)
+    if (isa(func_node, Curve))
+        func_handle = func_node.func
+        func_node = get_element(func_handle)
     end
+
+    callback = if (func_node.input_count == 1 && func_node.output_count == 1)
+        (t,func) -> Vec3D(t,func(t),0)
+    elseif (func_node.input_count == 1 && func_node.output_count == 2)
+        (t,func) -> Vec3D(t,func(t)...)
+    else
+        (t,func) -> func(t)
+    end
+
+    return ParametricCurve(callback, range(func_node.domain[1][1],func_node.domain[1][2],resolution), [func_handle],
+        color_style; color=color, style=style, size=size)
 end
 function ParametricCurve(callback::Function, func_handle::NodeHandle, parents::Union{Vector{NodeHandle},Nothing}=nothing,
     color_style::Union{Nothing,String}=nothing; resolution::Int=100, color="c", style="-", size=5.0f0)::NodeHandle
 
     func_node = get_element(func_handle)
+    if (isa(func_node, Curve))
+        func_handle = func_node.func
+        func_node = get_element(func_handle)
+    end
     parents = parents === nothing ? [func_handle] : [func_handle, parents...]
 
     return ParametricCurve(range(func_node.domain[1][1],func_node.domain[1][2],resolution), parents,

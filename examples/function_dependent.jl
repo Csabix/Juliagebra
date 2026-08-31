@@ -68,4 +68,15 @@ ParametricCurve(f6_curve_2nd; color="b", size=3.5)
 f6_curvature = Curvature(f6_curve)
 ParametricCurve(f6_curvature; color="y", size=3)
 
+# Should be ~6.5148
+f6_arc_length = ArcLength(f6_curve)
+
+
+f7 = Func((0,2pi)) do t
+    return Vec2D(cos(t),sin(t))
+end
+f7_curve = Curve!(f7)
+# Should be 2pi ~= 6.2832
+f7_arc_length = ArcLength(f7_curve)
+
 Juliagebra.Wait()

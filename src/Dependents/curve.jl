@@ -157,9 +157,10 @@ mutable struct Curve
     derivative_1st::Union{NodeHandle,Nothing}
     derivative_2nd::Union{NodeHandle,Nothing}
     curvature::Union{NodeHandle,Nothing}
+    arc_length::Union{NodeHandle,Nothing}
 
     function Curve(func::NodeHandle,derivative_1st::Union{NodeHandle,Nothing},derivative_2nd::Union{NodeHandle,Nothing})
-        new(func,derivative_1st,derivative_2nd,nothing)
+        new(func,derivative_1st,derivative_2nd,nothing,nothing)
     end
 end
 
@@ -193,12 +194,37 @@ function get_curvature_handle(curve::Curve)
         derived2nd_handle = get_derived2nd_handle(curve)
         curve_func::Func = get_element(curve.func)
         curvature_handle = Func(curve_func.domain, [derived_handle,derived2nd_handle]) do t,derive,derive2nd
-            return derive2nd(t) / (1 + derive(t)^2)^(3/2)
+            return derive2nd(t) ./ (1 .+ derive(t).^2).^(3/2)
         end
         curve.curvature = curvature_handle
     end
 
     return curve.curvature
+end
+function get_arc_length_handle(curve::Curve)
+    if (curve.arc_length === nothing)
+        derived_handle = get_derived_handle(curve)
+        arc_length_handle = Scalar([curve.func,derived_handle]; label="Arc-length") do func,derive
+            if (func.output_count == 1)
+                distance = t -> sqrt(1 + derive(t)^2)
+            else
+                distance = t -> norm(derive(t))
+            end
+
+            a = func.domain[1][1]
+            b = func.domain[1][2]
+            sum = 0
+            for t in range(a,b,10_000)
+                sum += distance(t)
+            end
+
+            delta = (abs(a) + abs(b)) / 10_000
+            return sum * delta
+        end
+        curve.arc_length = arc_length_handle
+    end
+    
+    return curve.arc_length
 end
 
 function Curve!(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)

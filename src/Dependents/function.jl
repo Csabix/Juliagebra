@@ -151,7 +151,7 @@ end
 const FUNC_GRAPH_RESOLUTION::Int = 1000
 const FUNC_HEATMAP_RESOLUTION::Int = 100
 
-_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
+_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},VecNT}
 
 function _create_func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing;
     output_count::Union{Int,Nothing}=nothing)::Tuple{Func,Union{FuncDrawData,Nothing}} where {T<:Real,S<:Real}

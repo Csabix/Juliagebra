@@ -107,7 +107,7 @@ function ParametricCurve(func_handle::NodeHandle,
         (t,func) -> func(t)
     end
 
-    return ParametricCurve(callback, range(func_node.domain[1][1],func_node.domain[1][2],resolution), [func_handle],
+    return ParametricCurve(callback, range(get_domain_start(func_node),get_domain_end(func_node),resolution), [func_handle],
         color_style; color=color, style=style, size=size)
 end
 function ParametricCurve(callback::Function, func_handle::NodeHandle, parents::Union{Vector{NodeHandle},Nothing}=nothing,
@@ -120,7 +120,7 @@ function ParametricCurve(callback::Function, func_handle::NodeHandle, parents::U
     end
     parents = parents === nothing ? [func_handle] : [func_handle, parents...]
 
-    return ParametricCurve(range(func_node.domain[1][1],func_node.domain[1][2],resolution), parents,
+    return ParametricCurve(range(get_domain_start(func_node),get_domain_end(func_node),resolution), parents,
         color_style; color=color, style=style, size=size) do t,func,args...
         return callback(t,func,args...)
     end
@@ -169,7 +169,7 @@ function get_derived_handle(curve::Curve)
     if (curve.derivative_1st === nothing)
         curve_func = get_element(curve.func)
         derivative_1st_handle = Func(curve_func.domain, [curve.func]) do t,func
-            t = clamp(t, func.domain[1][1] + DIFF_H, func.domain[1][2] - DIFF_H)
+            t = clamp(t, get_domain_start(func) + DIFF_H, get_domain_end(func) - DIFF_H)
             return derive_num(func, t)
         end
         curve.derivative_1st = derivative_1st_handle
@@ -181,7 +181,7 @@ function get_derived2nd_handle(curve::Curve)
     if (curve.derivative_2nd === nothing)
         curve_func = get_element(curve.func)
         derivative_2nd_handle = Func(curve_func.domain, [curve.func]) do t,func
-            t = clamp(t, func.domain[1][1] + DIFF_H, func.domain[1][2] - DIFF_H)
+            t = clamp(t, get_domain_start(func) + DIFF_H, get_domain_end(func) - DIFF_H)
             return derive2nd_num(func, t)
         end
         curve.derivative_2nd = derivative_2nd_handle
@@ -212,14 +212,14 @@ function get_arc_length_handle(curve::Curve)
                 distance = t -> norm(derive(t))
             end
 
-            a = func.domain[1][1]
-            b = func.domain[1][2]
+            a = get_domain_start(func)
+            b = get_domain_end(func)
             sum = 0
-            for t in range(a,b,10_000)
+            for t in range(a,b,INTEGRAL_RES)
                 sum += distance(t)
             end
 
-            delta = (abs(a) + abs(b)) / 10_000
+            delta = (abs(a) + abs(b)) / INTEGRAL_RES
             return sum * delta
         end
         curve.arc_length = arc_length_handle
@@ -254,11 +254,16 @@ N(frame::SMatrix)::Vec3D = Vec3D(frame[:,2])
 B(frame::SMatrix)::Vec3D = Vec3D(frame[:,3])
 export T,N,B
 
-function Curve!(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)
+function Curve!(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing;
+    parametric_curve::Bool=false, color_style::Union{Nothing,String}=nothing, resolution::Int=100, color="c", style="-", size=5.0f0)
 
+    if (parametric_curve)
+        parametric_curve_handle = ParametricCurve(curve_func_handle,color_style;resolution=resolution,color=color,style=style,size=size)
+    end
     curve = Curve(curve_func_handle,derivative_1st_handle,derivative_2nd_handle)
+    curve_handle = add_node!(curve)
 
-    return add_node!(curve)
+    return parametric_curve ? (curve_handle,parametric_curve_handle) : curve_handle
 end
 
 

@@ -81,8 +81,10 @@ end
 Derive(handle::NodeHandle)::NodeHandle  = get_derived_handle(get_element(handle))
 Derive2(handle::NodeHandle)::NodeHandle = get_derived2nd_handle(get_element(handle))
 
+Curvature(handle::NodeHandle)::NodeHandle = get_curvature_handle(get_element(handle))
+
 
 
 export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
-    AngleBisectorPlane,Derive,Derive2
+    AngleBisectorPlane,Derive,Derive2,Curvature
 

@@ -102,7 +102,7 @@ function ParametricCurve(func_handle::NodeHandle,
     callback = if (func_node.input_count == 1 && func_node.output_count == 1)
         (t,func) -> Vec3D(t,func(t),0)
     elseif (func_node.input_count == 1 && func_node.output_count == 2)
-        (t,func) -> Vec3D(t,func(t)...)
+        (t,func) -> Vec3D(func(t)...,0)
     else
         (t,func) -> func(t)
     end
@@ -156,9 +156,10 @@ mutable struct Curve
     func::NodeHandle
     derivative_1st::Union{NodeHandle,Nothing}
     derivative_2nd::Union{NodeHandle,Nothing}
+    curvature::Union{NodeHandle,Nothing}
 
     function Curve(func::NodeHandle,derivative_1st::Union{NodeHandle,Nothing},derivative_2nd::Union{NodeHandle,Nothing})
-        new(func,derivative_1st,derivative_2nd)
+        new(func,derivative_1st,derivative_2nd,nothing)
     end
 end
 
@@ -185,6 +186,19 @@ function get_derived2nd_handle(curve::Curve)
     end
 
     return curve.derivative_2nd
+end
+function get_curvature_handle(curve::Curve)
+    if (curve.curvature === nothing)
+        derived_handle = get_derived_handle(curve)
+        derived2nd_handle = get_derived2nd_handle(curve)
+        curve_func::Func = get_element(curve.func)
+        curvature_handle = Func(curve_func.domain, [derived_handle,derived2nd_handle]) do t,derive,derive2nd
+            return derive2nd(t) / (1 + derive(t)^2)^(3/2)
+        end
+        curve.curvature = curvature_handle
+    end
+
+    return curve.curvature
 end
 
 function Curve!(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)

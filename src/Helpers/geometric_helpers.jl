@@ -172,5 +172,7 @@ angle_bisector_plane_external(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::P
 
 const DIFF_H::Float64 = 2^(-25)
 const DIFF_H_12::Float64 = 2^(-12)
-derive_num(f,x::Float64)    = (f(x + DIFF_H) - f(x - DIFF_H)) * 2^24
-derive2nd_num(f,x::Float64) = (f(x + DIFF_H_12) - 2*f(x) + f(x - DIFF_H_12)) * 2^24
+derive_num(f,x::Float64)    = (f(x + DIFF_H) - f(x - DIFF_H)) / (2 * DIFF_H)
+derive2nd_num(f,x::Float64) = (f(x + DIFF_H_12) - 2*f(x) + f(x - DIFF_H_12)) / (DIFF_H_12^2)
+
+

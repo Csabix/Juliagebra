@@ -60,10 +60,12 @@ f6_curve = Curve!(f6)
 ParametricCurve(f6_curve; color="r")
 
 f6_curve_1st = Derive(f6_curve)
-ParametricCurve(f6_curve_1st; color="g", size=4.5)
+ParametricCurve(f6_curve_1st; color="g", size=4.25)
 
 f6_curve_2nd = Derive2(f6_curve)
-ParametricCurve(f6_curve_2nd; color="b", size=4)
+ParametricCurve(f6_curve_2nd; color="b", size=3.5)
 
+f6_curvature = Curvature(f6_curve)
+ParametricCurve(f6_curvature; color="y", size=3)
 
 Juliagebra.Wait()

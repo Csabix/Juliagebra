@@ -51,7 +51,7 @@ scalar_const = f5(.67)
 point3d_const = f3(pi)
 point3d_2params = f1(.4,-1.1)
 # =#
-
+#=
 f6 = Func((-1.5,1.5)) do t
     return t^3 - t
 end
@@ -71,12 +71,41 @@ ParametricCurve(f6_curvature; color="y", size=3)
 # Should be ~6.5148
 f6_arc_length = ArcLength(f6_curve)
 
-
 f7 = Func((0,2pi)) do t
     return Vec2D(cos(t),sin(t))
 end
 f7_curve = Curve!(f7)
 # Should be 2pi ~= 6.2832
 f7_arc_length = ArcLength(f7_curve)
+# =#
+
+
+# Play the animation
+slider2 = Slider(0, 0, 2pi; label="Frenet-Serret frame value")
+# (1,-2) torus knot
+f8 = Func((0,2pi)) do t
+    p = 1
+    q = -2
+    r = cos(q * t) + 2
+    return Vec3D(
+        r * cos(p * t),
+        r * sin(p * t),
+        -sin(q * t))
+end
+ParametricCurve(f8; resolution=1000)
+f8_point = f8(slider2)
+f8_curve = Curve!(f8)
+
+f8_frame = FrenetFrame(f8_curve)
+
+Segment([slider2,f8_frame,f8_point]; color="r") do t,frame,p
+    return (p, p + T(frame(t)))
+end
+Segment([slider2,f8_frame,f8_point]; color="g") do t,frame,p
+    return (p, p + N(frame(t)))
+end
+Segment([slider2,f8_frame,f8_point]; color="b") do t,frame,p
+    return (p, p + B(frame(t)))
+end
 
 Juliagebra.Wait()

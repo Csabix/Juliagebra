@@ -158,9 +158,10 @@ mutable struct Curve
     derivative_2nd::Union{NodeHandle,Nothing}
     curvature::Union{NodeHandle,Nothing}
     arc_length::Union{NodeHandle,Nothing}
+    frenet_frame::Union{NodeHandle,Nothing}
 
     function Curve(func::NodeHandle,derivative_1st::Union{NodeHandle,Nothing},derivative_2nd::Union{NodeHandle,Nothing})
-        new(func,derivative_1st,derivative_2nd,nothing,nothing)
+        new(func,derivative_1st,derivative_2nd,nothing,nothing,nothing)
     end
 end
 
@@ -226,6 +227,32 @@ function get_arc_length_handle(curve::Curve)
     
     return curve.arc_length
 end
+function get_frenet_frame_handle(curve::Curve)
+    if (curve.frenet_frame === nothing)
+        derived_handle = get_derived_handle(curve)
+        derived2nd_handle = get_derived2nd_handle(curve)
+        arc_length_handle = get_arc_length_handle(curve)
+        curve_func::Func = get_element(curve.func)
+        frenet_frame_handle = Func(curve_func.domain,
+            [derived_handle,derived2nd_handle,arc_length_handle]) do t,derive,derive2nd,arc_length
+
+            T = normalize(derive(t))
+            N = normalize(derive2nd(t) / arc_length)
+            B = normalize(cross(T,N))
+
+            return hcat(T,N,B)
+        end
+
+        curve.frenet_frame = frenet_frame_handle
+    end
+
+    return curve.frenet_frame
+end
+
+T(frame::SMatrix)::Vec3D = Vec3D(frame[:,1])
+N(frame::SMatrix)::Vec3D = Vec3D(frame[:,2])
+B(frame::SMatrix)::Vec3D = Vec3D(frame[:,3])
+export T,N,B
 
 function Curve!(curve_func_handle::NodeHandle, derivative_1st_handle::Union{NodeHandle,Nothing}=nothing, derivative_2nd_handle::Union{NodeHandle,Nothing}=nothing)
 

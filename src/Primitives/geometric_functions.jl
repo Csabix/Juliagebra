@@ -78,13 +78,14 @@ function AngleBisectorPlane(handles::NodeHandle...;external::Bool=false,
 end
 
 
-Derive(handle::NodeHandle)::NodeHandle  = get_derived_handle(get_element(handle))
-Derive2(handle::NodeHandle)::NodeHandle = get_derived2nd_handle(get_element(handle))
-Curvature(handle::NodeHandle)::NodeHandle = get_curvature_handle(get_element(handle))
-ArcLength(handle::NodeHandle)::NodeHandle = get_arc_length_handle(get_element(handle))
+Derive(handle::NodeHandle)::NodeHandle      = get_derived_handle(get_element(handle))
+Derive2(handle::NodeHandle)::NodeHandle     = get_derived2nd_handle(get_element(handle))
+Curvature(handle::NodeHandle)::NodeHandle   = get_curvature_handle(get_element(handle))
+ArcLength(handle::NodeHandle)::NodeHandle   = get_arc_length_handle(get_element(handle))
+FrenetFrame(handle::NodeHandle)::NodeHandle = get_frenet_frame_handle(get_element(handle))
 
 
 
 export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
-    AngleBisectorPlane,Derive,Derive2,Curvature,ArcLength
+    AngleBisectorPlane,Derive,Derive2,Curvature,ArcLength,FrenetFrame
 

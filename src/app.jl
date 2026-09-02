@@ -192,7 +192,7 @@ function update!(self::App, iconified::Bool)
     if thread_count == 1
         lock_read(self.graph.lck)
         try
-            invokelatest(validate!,self.graph,NodeHandle(4))
+            invokelatest(validate!,self.graph,NodeHandle(4),true)
         finally
         unlock_read(self.graph.lck)
         end
@@ -202,7 +202,7 @@ function update!(self::App, iconified::Bool)
                 Base.Threads.@spawn begin
                     lock_read(self.graph.lck)
                     try
-                        invokelatest(validate!,self.graph,NodeHandle(4))
+                        invokelatest(validate!,self.graph,NodeHandle(4),false)
                     finally
                         unlock_read(self.graph.lck)
                     end
@@ -210,7 +210,7 @@ function update!(self::App, iconified::Bool)
             end
             lock_read(self.graph.lck)
             try
-                invokelatest(validate!,self.graph,NodeHandle(1))
+                invokelatest(validate!,self.graph,NodeHandle(1),true)
             finally
                 unlock_read(self.graph.lck)
             end

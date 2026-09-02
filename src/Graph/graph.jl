@@ -156,7 +156,7 @@ function _try_entry(graph::GeometryPlotGraph, node::GeometryPlotNode, index::Int
     return nothing
 end
 
-function validate!(graph::GeometryPlotGraph, start::NodeHandle)::Nothing
+function validate!(graph::GeometryPlotGraph, start::NodeHandle, main_thread::Bool)::Nothing
     if (graph.invalid_count[] == 0) return nothing end
     is_main_thread = Threads.threadid() == 1
     nodes::Vector{GeometryPlotNode} = graph.nodes
@@ -164,7 +164,7 @@ function validate!(graph::GeometryPlotGraph, start::NodeHandle)::Nothing
     limit::Int = length(nodes)
     while current <= limit
         node::GeometryPlotNode = nodes[current]
-        if (@atomic :monotonic node.state) == NODE_INVALID
+        if (@atomic :monotonic node.state) == NODE_INVALID && (!has_geom_flag(node,NODE_EVAL_ON_MAIN) || main_thread)
             if _ready(graph, node)
                 _try_entry_no_wait(graph, node, current)
             else

@@ -166,6 +166,24 @@ function add_node!(element::Any;draw_data::Any=nothing,parents::Union{Vector{Nod
     return add!(app.graph,element,draw_data,parents,nothing,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
 end
 
+function _add_node!(callback::Function,parents::Vector{NodeHandle};draw_data::Any=nothing,use_main_thread::Bool=false)
+    plot()
+    global implicitApp
+    app::App = implicitApp::App
+    value = if parents === nothing
+        callback()
+    else
+        arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
+        callback(arguments...)
+    end
+    return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+end
+macro add_node!(callback::Expr, args...)
+    (positional_args, kw_args) = _parse_macro_arguments((), (:draw_data, :use_main_thread), args...)
+    callback = _validate_callback_expr(callback, 0)
+    return _create_ctor_wrapper(callback, __module__, _add_node!, positional_args, kw_args)
+end
+
 function Wait()
     global _task
     if _task === nothing return end
@@ -186,6 +204,6 @@ include("Dependents/dependents.jl")
 include("Helpers/geometric_helpers.jl")
 include("Primitives/geometric_functions.jl")
 
-export plot, add_node!, get_element
+export plot, add_node!, @add_node!, get_element
 
 end

@@ -168,11 +168,11 @@ end
 function get_derived_handle(curve::Curve)
     if (curve.derivative_1st === nothing)
         curve_func = get_element(curve.func)
-        derivative_1st_handle = Func(curve_func.domain, [curve.func]) do t,func
-            t = clamp(t, get_domain_start(func) + DIFF_H, get_domain_end(func) - DIFF_H)
+
+        curve.derivative_1st = Func(curve_func.domain, [curve.func]) do t,func
+            t = clamp(t, get_domain_start(func) + calc_h(t), get_domain_end(func) - calc_h(t))
             return derive_num(func, t)
         end
-        curve.derivative_1st = derivative_1st_handle
     end
 
     return curve.derivative_1st
@@ -180,11 +180,11 @@ end
 function get_derived2nd_handle(curve::Curve)
     if (curve.derivative_2nd === nothing)
         curve_func = get_element(curve.func)
-        derivative_2nd_handle = Func(curve_func.domain, [curve.func]) do t,func
-            t = clamp(t, get_domain_start(func) + DIFF_H, get_domain_end(func) - DIFF_H)
+        
+        curve.derivative_2nd = Func(curve_func.domain, [curve.func]) do t,func
+            t = clamp(t, get_domain_start(func) + calc_h_large(t), get_domain_end(func) - calc_h_large(t))
             return derive2nd_num(func, t)
         end
-        curve.derivative_2nd = derivative_2nd_handle
     end
 
     return curve.derivative_2nd
@@ -194,10 +194,26 @@ function get_curvature_handle(curve::Curve)
         derived_handle = get_derived_handle(curve)
         derived2nd_handle = get_derived2nd_handle(curve)
         curve_func::Func = get_element(curve.func)
-        curvature_handle = Func(curve_func.domain, [derived_handle,derived2nd_handle]) do t,derive,derive2nd
-            return derive2nd(t) ./ (1 .+ derive(t).^2).^(3/2)
+
+        curvature_callback = if (curve_func.output_count == 1)
+            (t,derive,derive2nd) -> begin
+                return derive2nd(t) / (1 + derive(t)^2)^(3/2)
+            end
+        elseif (curve_func.output_count == 2)
+            (t,derive,derive2nd) -> begin
+                d1 = derive(t)
+                d2 = derive2nd(t)
+                return zcross(d1,d2) / norm(d1)^3
+            end
+        else
+            (t,derive,derive2nd) -> begin
+                d1 = derive(t)
+                d2 = derive2nd(t)
+                return norm(cross(d1,d2)) / norm(d1)
+            end
         end
-        curve.curvature = curvature_handle
+
+        curve.curvature = Func(curvature_callback, curve_func.domain, [derived_handle,derived2nd_handle])
     end
 
     return curve.curvature
@@ -205,24 +221,25 @@ end
 function get_arc_length_handle(curve::Curve)
     if (curve.arc_length === nothing)
         derived_handle = get_derived_handle(curve)
-        arc_length_handle = Scalar([curve.func,derived_handle]; label="Arc-length") do func,derive
-            if (func.output_count == 1)
-                distance = t -> sqrt(1 + derive(t)^2)
-            else
-                distance = t -> norm(derive(t))
-            end
+        curve_func::Func = get_element(curve.func)
 
-            a = get_domain_start(func)
-            b = get_domain_end(func)
+        a = get_domain_start(curve_func)
+        b = get_domain_end(curve_func)
+        distance_callback = if (curve_func.output_count == 1)
+            (derive,t) -> sqrt(1 + derive(t)^2)
+        else
+            (derive,t) -> norm(derive(t))
+        end
+
+        curve.arc_length = Scalar([derived_handle]; label="Arc-length") do derive
             sum = 0
             for t in range(a,b,INTEGRAL_RES)
-                sum += distance(t)
+                sum += distance_callback(derive,t)
             end
 
-            delta = (abs(a) + abs(b)) / INTEGRAL_RES
+            delta = (b - a) / INTEGRAL_RES
             return sum * delta
         end
-        curve.arc_length = arc_length_handle
     end
     
     return curve.arc_length
@@ -231,19 +248,17 @@ function get_frenet_frame_handle(curve::Curve)
     if (curve.frenet_frame === nothing)
         derived_handle = get_derived_handle(curve)
         derived2nd_handle = get_derived2nd_handle(curve)
-        arc_length_handle = get_arc_length_handle(curve)
         curve_func::Func = get_element(curve.func)
-        frenet_frame_handle = Func(curve_func.domain,
-            [derived_handle,derived2nd_handle,arc_length_handle]) do t,derive,derive2nd,arc_length
+
+        curve.frenet_frame = Func(curve_func.domain,
+            [derived_handle,derived2nd_handle]) do t,derive,derive2nd
 
             T = normalize(derive(t))
-            N = normalize(derive2nd(t) / arc_length)
-            B = normalize(cross(T,N))
+            B = normalize(cross(derive(t),derive2nd(t)))
+            N = normalize(cross(T,B))
 
             return hcat(T,N,B)
         end
-
-        curve.frenet_frame = frenet_frame_handle
     end
 
     return curve.frenet_frame

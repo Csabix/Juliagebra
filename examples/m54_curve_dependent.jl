@@ -55,4 +55,18 @@ Segment([slider2,f8_frame,f8_point]; color="b") do t,frame,p
     return (p, p + B(frame(t)))
 end
 
+
+f9 = Func((0,1)) do t
+    return Vec2D(t,sin(pi*t))
+end
+f9_curve = Curve!(f9)
+f9_curvature = Curvature(f9_curve)
+
+f10 = Func((0,1)) do t
+    return Vec3D(t,sin(pi*t),-2*t)
+end
+f10_curve = Curve!(f10)
+f10_curvature = Curvature(f10_curve)
+
+
 Juliagebra.Wait()

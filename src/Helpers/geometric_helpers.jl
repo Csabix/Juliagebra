@@ -170,9 +170,17 @@ angle_bisector_plane_external(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::P
     (coord,normalize(n(plane1) - n(plane2)))
 
 
-const DIFF_H::Float64 = 2^(-25)
-const DIFF_H_LARGE::Float64 = 2^(-12)
-derive_num(f,x::Float64)    = (f(x + DIFF_H) - f(x - DIFF_H)) / (2 * DIFF_H)
-derive2nd_num(f,x::Float64) = (f(x + DIFF_H_LARGE) - 2*f(x) + f(x - DIFF_H_LARGE)) / (DIFF_H_LARGE^2)
+calc_h(x::Float64)::Float64 = sqrt(eps(x))
+calc_h_large(x::Float64)::Float64 = sqrt(calc_h(x))
+function derive_num(f,x::Float64)
+    h = calc_h(x)
+    return (f(x + h) - f(x - h)) / (2 * h)
+end
+function derive2nd_num(f,x::Float64)
+    h = calc_h_large(x)
+    return (f(x + h) - 2*f(x) + f(x - h)) / (h^2)
+end
 
 const INTEGRAL_RES::Integer = 10_000
+
+zcross(a,b) = a[1] * b[2] + a[2] * b[1]

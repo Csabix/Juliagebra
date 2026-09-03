@@ -109,7 +109,7 @@ end
 function Sphere(p1,p2,p3,p4,color_data::Union{Nothing,String}=nothing;
     color="b")::NodeHandle
     call = function (p1,p2,p3,p4)
-        s::PSphere = FourPointOnPSphere(p1,p2,p3,p4)
+        s::PSphere = four_points_on_PSphere(p1,p2,p3,p4)
         return s
     end
     deps = NodeHandle[

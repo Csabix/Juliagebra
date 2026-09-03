@@ -55,8 +55,13 @@ _tetrahedron_func(a::Vec3D,b::Vec3D,c::Vec3D,d::Vec3D) = (a,b,c,d)
 _get_parent_tetrahedron(parent::NodeHandle) = parent
 _get_parent_tetrahedron(parent) = add_node!(Vec3D(parent))
 
+"""
+Order of additional returned nodes: (tetrahedron, (ABC,ADB,ACD,BDC), (AB,BC,CD,AD,AC,BD), (A,B,C,D))
+"""
 function Tetrahedron(a, b, c, d, color_data::Union{Nothing,String}=nothing;
+    node::Bool=true,faces::Bool=false,edges::Bool=false,vertices::Bool=false,
     color="g", border_color="c", border_style="-", border_size=3.0)
+
     nodes = NodeHandle[
         _get_parent_tetrahedron(a),
         _get_parent_tetrahedron(b),
@@ -66,7 +71,34 @@ function Tetrahedron(a, b, c, d, color_data::Union{Nothing,String}=nothing;
     c_val = isnothing(color_data) ? get_color(color) : get_color(color_data)
     (b_c, b_s) = parse_line_colors_style(nothing, border_color, border_style)
     draw_data = TetrahedronDrawData(UInt32(0), LineHandle(), c_val, b_c[1], Float32(border_size), b_s)
-    add_node!(_tetrahedron_func, Tetrahedron(); draw_data=draw_data, parents=nodes)
+
+    tetrahedron = add_node!(_tetrahedron_func, Tetrahedron(); draw_data=draw_data, parents=nodes)
+
+    result = Any[]
+    if (node)
+        push!(result, tetrahedron)
+    end
+    if (faces)
+        ABC = Triangle(a,b,c; color=color)
+        ADB = Triangle(a,d,b; color=color)
+        ACD = Triangle(a,c,d; color=color)
+        BDC = Triangle(b,d,c; color=color)
+        push!(result, (ABC,ADB,ACD,BDC))
+    end
+    if (edges)
+        AB = Segment(a,b; color=border_color,style=border_style,size=border_size)
+        BC = Segment(b,c; color=border_color,style=border_style,size=border_size)
+        CD = Segment(c,d; color=border_color,style=border_style,size=border_size)
+        AD = Segment(a,d; color=border_color,style=border_style,size=border_size)
+        AC = Segment(a,c; color=border_color,style=border_style,size=border_size)
+        BD = Segment(b,d; color=border_color,style=border_style,size=border_size)
+        push!(result, (AB,BC,CD,AD,AC,BD))
+    end
+    if (vertices)
+        push!(result, Tuple(nodes))
+    end
+    
+    return length(result) == 1 ? result[1] : Tuple(result)
 end
 
 export Tetrahedron

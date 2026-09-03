@@ -27,15 +27,17 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
 
     push!(graph.elements, element)
     push!(graph.render_data, render_data)
-    handle::NodeHandle = NodeHandle(length(graph.elements))
+    handle::NodeHandle = NodeHandle(UInt32(length(graph.elements)))
     node::GeometryPlotNode = GeometryPlotNode(callback, parents, flags)
-    set_geom_flags!(node,NODE_UPDATE_RENDER)
-    push!(graph.nodes, node)
     
-    if (callback === nothing) Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+    if (callback === nothing)
+        Threads.atomic_add!(graph.needs_render_count,UInt64(1))
+        set_geom_flags!(node,NODE_UPDATE_RENDER)
     else Threads.atomic_add!(graph.invalid_count,UInt64(1)) end
+    push!(graph.nodes, node)
     if parents !== nothing
-        for parent_h::NodeHandle in parents
+        parents_vec::Vector{NodeHandle} = parents::Vector{NodeHandle}
+        for parent_h::NodeHandle in parents_vec
             if graph.nodes[parent_h].child_h === nothing
                 graph.nodes[parent_h].child_h = NodeHandle[handle]
             else
@@ -96,25 +98,26 @@ function invalidate!(graph::GeometryPlotGraph, handle::NodeHandle)::Nothing
 end
 
 function update!(graph::GeometryPlotGraph, delta_time::Float64, handle::NodeHandle)::Nothing
-    current::NodeHandle = handle
     elements::Vector{Any} = graph.elements
-    limit::NodeHandle = length(elements)
+    current::Int = handle.value
+    limit::Int = length(elements)
     while current <= limit
         element, invalidate = update(elements[current], delta_time)
         elements[current] = element
         if invalidate
-            invalidate!(graph, current)
+            invalidate!(graph, NodeHandle(UInt32(current)))
         end
-        current += one(NodeHandle)
+        current = current + 1
     end
     return nothing
 end
 
 function _ready(graph::GeometryPlotGraph, node::GeometryPlotNode)::Bool
     ready::Bool = true
-    if node.parent_h === nothing return ready end 
+    if node.parent_h === nothing return ready end
+    parent_handles::Vector{NodeHandle} = node.parent_h::Vector{NodeHandle}
     nodes::Vector{GeometryPlotNode} = graph.nodes
-    for parent_h in node.parent_h
+    for parent_h in parent_handles
         ready &= (@atomic :acquire nodes[parent_h].state) == NODE_VALID
         if !ready
             break
@@ -123,51 +126,52 @@ function _ready(graph::GeometryPlotGraph, node::GeometryPlotNode)::Bool
     return ready
 end
 
-function _try_entry_no_wait(graph::GeometryPlotGraph, node::GeometryPlotNode, handle::NodeHandle)::Nothing
+function _try_entry_no_wait(graph::GeometryPlotGraph, node::GeometryPlotNode, index::Int)::Nothing
     (old::NodeState, succes::Bool) = @atomicreplace :monotonic :monotonic node.state NODE_INVALID => NODE_LOCKED
     if succes
-        graph.elements[handle] = eval_geometry_node(graph.elements[handle], node, graph.elements)
+        graph.elements[index] = eval_geometry_node(graph.elements[index], node, graph.elements)
         set_geom_flags!(node,NODE_UPDATE_RENDER)
         Threads.atomic_add!(graph.needs_render_count,UInt64(1))
         Threads.atomic_sub!(graph.invalid_count,UInt64(1))
         @atomic :release node.state = NODE_VALID
-        notify(graph.wait_pool, handle)
+        notify(graph.wait_pool, index)
     end
     return nothing
 end
 
-function _try_entry(graph::GeometryPlotGraph, node::GeometryPlotNode, handle::NodeHandle)::Nothing
+function _try_entry(graph::GeometryPlotGraph, node::GeometryPlotNode, index::Int)::Nothing
     (old::NodeState, succes::Bool) = @atomicreplace :monotonic :monotonic node.state NODE_INVALID => NODE_LOCKED
     if succes
-        for p_h in node.parent_h
-            wait(graph.wait_pool, graph.nodes[p_h], p_h, NODE_LOCKED)
+        parent_handles::Vector{NodeHandle} = node.parent_h::Vector{NodeHandle}
+        for p_h in parent_handles
+            wait(graph.wait_pool, graph.nodes[p_h], Int(p_h.value), NODE_LOCKED)
         end
-        graph.elements[handle] = eval_geometry_node(graph.elements[handle], node, graph.elements)
+        graph.elements[index] = eval_geometry_node(graph.elements[index], node, graph.elements)
         set_geom_flags!(node,NODE_UPDATE_RENDER)
         Threads.atomic_add!(graph.needs_render_count,UInt64(1))
         Threads.atomic_sub!(graph.invalid_count,UInt64(1))
         @atomic :release node.state = NODE_VALID
-        notify(graph.wait_pool, handle)
+        notify(graph.wait_pool, index)
     end
     return nothing
 end
 
-function validate!(graph::GeometryPlotGraph, start::NodeHandle)::Nothing
+function validate!(graph::GeometryPlotGraph, start::NodeHandle, main_thread::Bool)::Nothing
     if (graph.invalid_count[] == 0) return nothing end
     is_main_thread = Threads.threadid() == 1
     nodes::Vector{GeometryPlotNode} = graph.nodes
-    current::NodeHandle = start
-    limit::NodeHandle = length(nodes)
+    current::Int = start.value
+    limit::Int = length(nodes)
     while current <= limit
         node::GeometryPlotNode = nodes[current]
-        if (@atomic :monotonic node.state) == NODE_INVALID
+        if (@atomic :monotonic node.state) == NODE_INVALID && (!has_geom_flag(node,NODE_EVAL_ON_MAIN) || main_thread)
             if _ready(graph, node)
                 _try_entry_no_wait(graph, node, current)
             else
                 _try_entry(graph, node, current)
             end
         end
-        current += one(NodeHandle)
+        current = current + 1
     end
     return nothing
 end

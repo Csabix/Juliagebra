@@ -97,6 +97,8 @@ function Base.getindex(self::IntersectionCalculator{T}, idx = 1)::Union{T,Nothin
     end
 end
 
+Base.checkbounds(Bool,::IntersectionCalculator,I...) = true
+
 # ? ---------------------------------
 # ! IntersectionCalculator(T)
 # ? ---------------------------------

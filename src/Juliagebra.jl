@@ -116,8 +116,6 @@ include("Widgets/Windows/property_window.jl")
 
 include("imgui_data.jl")
 
-#include("App/starter.jl")
-#include("App/commander.jl")
 include("app.jl")
 
 function plot()::Nothing
@@ -143,13 +141,13 @@ function get_element(handle::NodeHandle)::Any
     return app.graph.elements[handle]
 end
 
-function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing)
+function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,element,draw_data,parents,callback,UInt64(0))
+    return add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
 end
-function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing)
+function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
     global implicitApp
     app::App = implicitApp::App
@@ -159,19 +157,29 @@ function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vect
         arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
         callback(arguments...)
     end
-    return add!(app.graph,value,draw_data,parents,callback,UInt64(0))
+    return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
 end
-function add_node!(element::Any;draw_data::Any=nothing)
+function add_node!(element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,element,draw_data,nothing,nothing,UInt64(0))
+    return add!(app.graph,element,draw_data,parents,nothing,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
 end
 
 function Wait()
     global _task
     if _task === nothing return end
     wait(_task)
+end
+
+function Base.show(io::IO, handle::NodeHandle)
+    if implicitApp !== nothing && checkbounds(Bool, implicitApp.graph.elements, handle.value)
+        print(io, "NodeHandle(value=$(handle.value),")
+        show(io, implicitApp.graph.elements[handle.value])
+        print(io, ")")
+    else
+        print(io, "NodeHandle(value=$(handle.value),INVALID LOCATION)")
+    end
 end
 
 include("Dependents/dependents.jl")

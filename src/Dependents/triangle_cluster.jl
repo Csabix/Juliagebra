@@ -84,12 +84,20 @@ end
 PrimitivesOf(self::TriangleCluster) = PTrianglesOfTriangleCluster(self.mesh.positions)
 
 Base.length(self::PTrianglesOfTriangleCluster) = convert(Integer, length(self._triangles) / 3)
-function Base.iterate(self::PTrianglesOfTriangleCluster, index::Integer = 1)
+function Base.getindex(self::PTrianglesOfTriangleCluster, index::Integer)
     if (index <= length(self))
         v0 = self._triangles[index * 3 - 2]
         v1 = self._triangles[index * 3 - 1]
         v2 = self._triangles[index * 3]
-        return (PTriangle(v0,v1,v2), (index + 1))
+        return PTriangle(v0,v1,v2)
+    else
+        return nothing
+    end
+end
+function Base.iterate(self::PTrianglesOfTriangleCluster, index::Integer = 1)
+    value = self[index]
+    if (value !== nothing)
+        return (value, index + 1)
     else
         return nothing
     end

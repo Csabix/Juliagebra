@@ -10,6 +10,7 @@
 #Dependent2Observer(app::AppDNA, ::StepperDependent) = getImGui(app)._pool[4]
 
 const _FONT_FOLDER::String = joinpath(pkgdir(@__MODULE__),"src","Fonts")
+const ImPlotColormap_Juliagebra::String = "Juliagebra"
 
 mutable struct ImGuiData <: ImGuiDNA
     _textFont::Ptr{CImGui.lib.ImFont}
@@ -36,6 +37,7 @@ mutable struct ImGuiData <: ImGuiDNA
         CImGui.ImGui_ImplGlfw_InitForOpenGL(glfwD._window.handle, true)
         CImGui.ImGui_ImplOpenGL3_Init("#version 330")
         ImPlot.SetCurrentContext(ImPlot.CreateContext())
+        add_colormap()
         
         #config = CImGui.ImFontConfig()
         #config.OversampleH = 3
@@ -143,4 +145,10 @@ function destroy!(::ImGuiData)::Nothing
     CImGui.ImGui_ImplGlfw_Shutdown()
     CImGui.DestroyContext()
     return nothing
+end
+
+function add_colormap()
+    juliagebra_colors = [ImPlot.GetColormapColor(i,ImPlot.ImPlotColormap_Dark) for i in 0:ImPlot.GetColormapSize(ImPlot.ImPlotColormap_Dark)-1]
+    juliagebra_colors[2], juliagebra_colors[3] = juliagebra_colors[3], juliagebra_colors[2]
+    ImPlot.AddColormap(ImPlotColormap_Juliagebra,juliagebra_colors,length(juliagebra_colors))
 end

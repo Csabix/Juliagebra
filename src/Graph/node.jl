@@ -1,4 +1,6 @@
-const NodeHandle::DataType = UInt32
+struct NodeHandle value::UInt32 end
+Base.to_index(handle::NodeHandle)::Int = Int(handle.value)
+
 const NodeState::DataType = UInt64
 const NodeFlag::DataType = UInt64
 
@@ -33,7 +35,7 @@ update(element::Any,delta_time::Float64)::Tuple{Any,Bool} = (element,false)
 convert_callback_entry(element::Any)::Any = element
 convert_callback_result(element::Any, result::Any)::Any = result
 eval_node(element::Any, callback::Function, arguments::Vector{Any})::Any = callback(arguments...)
-render_node(element::Any, data::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Any = nothing
+render_node(element::Any, data::Any, renderers::Dict{DataType,Renderer}, id::UInt32)::Any = data
 render_node_gui(element::Any)::Tuple{Any,Bool} = element, false
 
 const EDIT_NODE_NONE::Int = 0
@@ -41,6 +43,7 @@ const EDIT_NODE_RERENDER::Int = 1
 const EDIT_NODE_INVALIDATE::Int = 2
 edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = (element,render_data,EDIT_NODE_NONE)
 edit_node_overload(element::Any)::Bool = false
+edit_node_name(element::Any)::String = string(typeof(element))
 
 on_gizmo_select(element::Any,render_data::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_NONE, Vec3DNan, nothing) # Used gizmo axes, gizmo position, data
 on_gizmo_move(element::Any, position::Vec3D, data::Any)::Tuple{Any,Any} = (element, nothing)
@@ -54,6 +57,10 @@ function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vect
     callback_result::Any = eval_node(element, node.callback, arguments)
     return convert_callback_result(element, callback_result)
 end
+
+get_parent_node(parent::NodeHandle)::NodeHandle = parent
+get_parent_nodes(parents::Any...)::Vector{NodeHandle} = [get_parent_node(parent) for parent in parents]
+(handle::NodeHandle)(args::Any...) = get_element(handle)(handle, args...)
 
 export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload
 export on_gizmo_select, on_gizmo_move

@@ -12,6 +12,7 @@ struct RayDrawData
 end
 
 convert_callback_result(::PRay, result::PRay)               = result
+convert_callback_result(::PRay, result::LinePrimitive)      = PRay(p0(result),p1(result))
 convert_callback_result(::PRay, result::Tuple{Vec3D,Vec3D}) = PRay(result[1],result[2])
 convert_callback_result(::PRay, ::Nothing)                  = PRay(Vec3DNan,Vec3DNan)
 
@@ -73,9 +74,7 @@ end
 function Ray(line,color_style::Union{Nothing,String}=nothing;
     color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)
     
-    return Ray([_get_parent_ray(line)],color_style;color=color,style=style,size=size) do line
-        return (p0(line),p1(line))
-    end
+    return Ray(l -> l,[_get_parent_ray(line)],color_style;color=color,style=style,size=size)
 end
 
 export Ray

@@ -5,7 +5,7 @@ const RAY_RANGE = range(0, LINE_N_LENGTH, LINE_N_LENGTH + 1)
 # ? ---------------------------------
 
 struct RayDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
@@ -23,11 +23,11 @@ function render_node(ray::PRay, data::RayDrawData, renderers::Dict{DataType,Rend
     v = normalize(ray.p1 - p)
     values = [p + v * sign(t) * 4^abs(t) for t in RAY_RANGE]
 
-    if data.handle == 0
-        handle = add!(line_renderer, values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
+    if is_null(data.handle)
+        handle = add!(line_renderer, values, data.colors, [id], data.style, data.size)
         return RayDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer, data.handle, values)
+        @inbounds update_coords!(line_renderer, data.handle, values)
         return data
     end
 end
@@ -54,7 +54,7 @@ _get_parent_ray(parent) = add_node!(Vec3D(parent))
 function Ray(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
     color="g", style="-", size::Union{AbstractFloat,Integer}=3.0f0)
     (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = RayDrawData(UInt32(0), c, s, convert(Float32, size))
+    draw_data = RayDrawData(LineHandle(), c, s, convert(Float32, size))
     return add_node!(callback, PRay(Vec3DNan,Vec3DNan); draw_data=draw_data, parents=parents)
 end
 

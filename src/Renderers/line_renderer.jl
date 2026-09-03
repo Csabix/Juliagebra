@@ -1,758 +1,596 @@
-# GREEN Thread
+const SOLID::UInt8          = 1
+const DASHED::UInt8         = 2
+const DOTTED::UInt8         = 3
+const WAVE::UInt8           = 4
+const DASH_DOT::UInt8       = 5
+const ARROW::UInt8          = 6
+const ARROW_REVERSED::UInt8 = 7
+const _LINE_STYLE_COUNT     = 7
 
-const SOLID::UInt8    = 1
-const DASHED::UInt8   = 2
-const DOTTED::UInt8   = 3
-const WAVE::UInt8     = 4
-const DASH_DOT::UInt8 = 5
-const ARROW::UInt8    = 6
-const ARROW_REVERSED::UInt8 = ARROW | (one(UInt8) << 7)
-const _LINE_TYPE_COUNT::UInt8   = 6
+export SOLID, DASHED, DOTTED, WAVE, DASH_DOT, ARROW, ARROW_REVERSED
 
-function get_type_reversed(line_type::UInt8)::Tuple{UInt8,Bool}
-    mask::UInt8 = (one(UInt8) << 7)
-    return line_type & ~mask, (line_type & mask) == mask
+const _LINE_COLOR_MASK::UInt32 = ~(UInt32(0xff) << 24)
+const _LINE_GROUP_MIN_CAPACITY::Int = 1 << 13
+
+@inline function pack_color_style(color::UInt32, style::UInt8)::UInt32
+    return (UInt32(style) << 24) | (color & _LINE_COLOR_MASK)
 end
 
-@bitflag LinePropertyUpdate::UInt8 begin
-    _LINE_PROP_NONE        = 0x0
-    _LINE_PROP_COORD       = 0x1
-    _LINE_PROP_STYLE       = 0x2
-    _LINE_PROP_COLOR_STYLE = 0x4
-    _LINE_PROP_COORD_SIZE  = 0x8
+# ? ---------------------------------
+# ! LineHandle
+# ? ---------------------------------
+
+struct LineHandle
+    value::UInt32
+    LineHandle() = new(0)
+    LineHandle(value::UInt32) = new(value)
 end
 
-export SOLID, DASHED, DOTTED, 
-        WAVE, DASH_DOT, ARROW, ARROW_REVERSED
+is_null(handle::LineHandle)::Bool = handle.value == 0
+
+export LineHandle
+
+# ? ---------------------------------
+# ! Group
+# ? ---------------------------------
+
+mutable struct LineGroup
+    style::UInt8
+    positions::Vector{Vector{Vec3F}}
+    colors::Vector{Vector{UInt32}}
+    handles::Vector{UInt32}
+    widths::Vector{Float32}
+
+    capacity::Int
+    used::Int
+    dirty::Bool
+
+    position_buffer::MappedBuffer{Vec4F}      # xyz + width
+    color_style_buffer::MappedBuffer{UInt32}  # style + rgb
+    distance_buffer::MappedBuffer{Float32}    # screen space distance along the line
+
+    function LineGroup(style::UInt8, needed::Int)
+        capacity = max(_LINE_GROUP_MIN_CAPACITY, needed + 1)
+        position_buffer    = MappedBuffer{Vec4F}()
+        color_style_buffer = MappedBuffer{UInt32}()
+        distance_buffer    = MappedBuffer{Float32}()
+        reserve!(position_buffer, capacity, 0)
+        reserve!(color_style_buffer, capacity, 0)
+        reserve!(distance_buffer, capacity, 0)
+        position_buffer[1] = Vec4FNan
+        return new(
+            style,
+            Vector{Vector{Vec3F}}(), Vector{Vector{UInt32}}(),
+            Vector{UInt32}(), Vector{Float32}(),
+            capacity, 1, true,
+            position_buffer, color_style_buffer, distance_buffer)
+    end
+end
+
+@inline _instance_count(self::LineGroup)::Int = self.used - 3
+
+function _destroy_group!(self::LineGroup)::Nothing
+    destroy!(self.position_buffer)
+    destroy!(self.color_style_buffer)
+    destroy!(self.distance_buffer)
+    return nothing
+end
+
+function _flush_group!(self::LineGroup)::Nothing
+    self.dirty || return nothing
+
+    positions = self.position_buffer
+    color_styles = self.color_style_buffer
+    distances = self.distance_buffer
+
+    positions[1] = Vec4FNan
+    color_styles[1] = UInt32(0)
+    distances[1] = 0.0f0
+    index = 2
+
+    style = self.style
+    @inbounds for line in eachindex(self.positions)
+        points = self.positions[line]
+        colors = self.colors[line]
+        width = self.widths[line]
+        color_count = length(colors)
+        color_index = 1
+        for point in points
+            positions[index] = Vec4F(point[1], point[2], point[3], width)
+            color_styles[index] = pack_color_style(colors[color_index], style)
+            color_index = isnan(point[1]) ? 1 : mod1(color_index + 1, color_count)
+            index += 1
+        end
+
+        positions[index] = Vec4FNan
+        color_styles[index] = UInt32(0)
+        distances[index] = 0.0f0
+        index += 1
+    end
+
+    self.used = index - 1
+    self.dirty = false
+    return nothing
+end
+
+# ? ---------------------------------
+# ! Renderer
+# ? ---------------------------------
 
 mutable struct LineRenderer <: Renderer
-    updated::LinePropertyUpdate
     emptyVAO::VertexArray
 
-    shader_predraw::Pipeline
     shaders_opaque::Vector{Pipeline}
     shaders_behind_opaque::Vector{Pipeline}
     shaders_transparent::Vector{Pipeline}
 
-    # Static
-    ranges::Vector{Tuple{Int,Int,Int}}
-    draw_ranges::Vector{Tuple{Int,Int}}
+    pool::Vector{Union{Nothing,LineGroup}}
+    handle_map::Vector{Tuple{UInt32,UInt32}} # handle -> (group index, index within group)
+    free_handles::Vector{UInt32}
 
-    coords_sizes::Vector{Vec4F}
-    color_style::Vector{UInt32}
-
-    distances::Vector{Float32} # to avoid memory allocations
-
-    distance_buffer_in::MappedBuffer{Float32}
-    color_style_buffer_in::Buffer{UInt32}
-    position_width_buffer_in::MappedBuffer{Vec4F}
-
-    position_distance_buffer_out::Buffer{Vec4F}
-    color_buffer_out::Buffer{UVec2}
-    begin_pos_rad::Buffer{Vec4F}
-    sdf_buffer_out::Buffer{Vec4F}
-    end_pos_rad::Buffer{Vec4F}
-
-    gpu_gpu_sync::GLsync
-
-    # Dynamic
-    UBO::RepeatBufferUBO{GLuint}
-    update_list::Vector{UInt32}
-    types_dynamic::Vector{UInt8}
-    draw_ranges_dynamic::Vector{Tuple{Int,Int}}
-
-    coords_sizes_dynamic::Vector{Vector{Vec4F}}
-    color_style_dynamic::Vector{Vector{UInt32}}
-
-    distances_dynamic::Vector{Vector{Float32}} # to avoid memory allocations
-
-    distance_buffer_in_dynamic::Vector{MappedBuffer{Float32}}
-    color_style_buffer_in_dynamic::Vector{Buffer{UInt32}}
-    position_width_buffer_in_dynamic::Vector{MappedBuffer{Vec4F}}
-
-    position_distance_buffer_out_dynamic::Buffer{Vec4F}
-    color_buffer_out_dynamic::Buffer{UVec2}
-    begin_pos_rad_dynamic::Buffer{Vec4F}
-    sdf_buffer_out_dynamic::Buffer{Vec4F}
-    end_pos_rad_dynamic::Buffer{Vec4F}
-
-    gpu_gpu_sync_dynamic::GLsync
-
-    # GREEN Thread
     function LineRenderer(loader::PipelineLoader)
-        updated = _LINE_PROP_NONE
         emptyVAO = VertexArray()
 
-        shader_predraw = create_compute_pipeline!(loader,spv"renderers/line/line.comp")
         shaders_opaque = Vector{Pipeline}()
         shaders_behind_opaque = Vector{Pipeline}()
         shaders_transparent = Vector{Pipeline}()
-        for i in 0:(_LINE_TYPE_COUNT - 1) 
-            push!(shaders_opaque,create_graphics_pipeline!(loader;
+
+        for i in 0:(_LINE_STYLE_COUNT - 2)
+            push!(shaders_opaque, create_graphics_pipeline!(loader;
                 vert = spv"renderers/line/line.vert",
-                frag = (spv"renderers/line/line_opaque.frag",Tuple{GLuint,GLuint}[(0,0),(1,GLuint(i))])
+                frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(i))])
+            ))
+            push!(shaders_behind_opaque, create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 1), (1, GLuint(i))])
+            ))
+            push!(shaders_transparent, create_graphics_pipeline!(loader;
+                vert = spv"renderers/line/line.vert",
+                frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(i))])
             ))
         end
-        for i in 0:(_LINE_TYPE_COUNT - 1) 
-            push!(shaders_behind_opaque,create_graphics_pipeline!(loader;
-                vert = spv"renderers/line/line.vert",
-                frag = (spv"renderers/line/line_opaque.frag",Tuple{GLuint,GLuint}[(0,1),(1,GLuint(i))])
-            ))
-        end
-        for i in 0:(_LINE_TYPE_COUNT - 1) 
-            push!(shaders_transparent,create_graphics_pipeline!(loader;
-                vert = spv"renderers/line/line.vert",
-                frag = (spv"renderers/line/line_transparent.frag",Tuple{GLuint,GLuint}[(0,0),(1,GLuint(i))])
-            ))
-        end
-        
-        # Static
+        push!(shaders_opaque, create_graphics_pipeline!(loader;
+            vert = (spv"renderers/line/line.vert",Tuple{GLuint,GLuint}[(0, reinterpret(GLuint, -1.0f0))]),
+            frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(ARROW-1))])
+        ))
+        push!(shaders_behind_opaque, create_graphics_pipeline!(loader;
+            vert = (spv"renderers/line/line.vert",Tuple{GLuint,GLuint}[(0, reinterpret(GLuint, -1.0f0))]),
+            frag = (spv"renderers/line/line_opaque.frag", Tuple{GLuint,GLuint}[(0, 1), (1, GLuint(ARROW-1))])
+        ))
+        push!(shaders_transparent, create_graphics_pipeline!(loader;
+            vert = (spv"renderers/line/line.vert",Tuple{GLuint,GLuint}[(0, reinterpret(GLuint, -1.0f0))]),
+            frag = (spv"renderers/line/line_transparent.frag", Tuple{GLuint,GLuint}[(0, 0), (1, GLuint(ARROW-1))])
+        ))
 
-        ranges = Vector{Tuple{Int,Int,Int}}()
-        draw_ranges = fill((0,0),_LINE_TYPE_COUNT)
-
-        coords_sizes = Vec4F[Vec4FNan]
-        color_style = UInt32[0x0]
-
-        distances = Vector{Float32}()
-
-        distance_buffer_in = MappedBuffer{Float32}()
-        color_style_buffer_in = Buffer{UInt32}()
-        position_width_buffer_in = MappedBuffer{Vec4F}()
-
-        position_distance_buffer_out = Buffer{Vec4F}()
-        color_buffer_out = Buffer{UVec2}()
-        begin_pos_rad = Buffer{Vec4F}()
-        sdf_buffer_out = Buffer{Vec4F}()
-        end_pos_rad = Buffer{Vec4F}()
-
-        gpu_gpu_sync::GLsync = C_NULL
-
-        # Dynamic
-
-        UBO = RepeatBufferUBO{GLuint}()
-
-        update_list = Vector{UInt32}()
-        types_dynamic = Vector{UInt8}()
-        draw_ranges_dynamic = fill((0,0),_LINE_TYPE_COUNT)
-
-        coords_sizes_dynamic = Vector{Vector{Vec4F}}()
-        color_style_dynamic = Vector{Vector{UInt32}}()
-
-        distances_dynamic = Vector{Vector{Float32}}()
-
-        distance_buffer_in_dynamic = Vector{MappedBuffer{Float32}}()
-        color_style_buffer_in_dynamic = Vector{Buffer{UInt32}}()
-        position_width_buffer_in_dynamic = Vector{MappedBuffer{Vec4F}}()
-
-        position_distance_buffer_out_dynamic = Buffer{Vec4F}()
-        color_buffer_out_dynamic = Buffer{UVec2}()
-        begin_pos_rad_dynamic = Buffer{Vec4F}()
-        sdf_buffer_out_dynamic = Buffer{Vec4F}()
-        end_pos_rad_dynamic = Buffer{Vec4F}()
-
-        gpu_gpu_sync_dynamic = C_NULL
-
-        return new(updated,emptyVAO,
-            shader_predraw,shaders_opaque,shaders_behind_opaque,shaders_transparent,
-            ranges,draw_ranges,
-            coords_sizes,color_style,
-            distances,
-            distance_buffer_in,color_style_buffer_in,position_width_buffer_in,
-            position_distance_buffer_out,color_buffer_out,begin_pos_rad,sdf_buffer_out,end_pos_rad,
-            gpu_gpu_sync,
-            UBO,update_list,types_dynamic,draw_ranges_dynamic,
-            coords_sizes_dynamic,color_style_dynamic,
-            distances_dynamic,
-            distance_buffer_in_dynamic,color_style_buffer_in_dynamic,position_width_buffer_in_dynamic,
-            position_distance_buffer_out_dynamic,color_buffer_out_dynamic,begin_pos_rad_dynamic,sdf_buffer_out_dynamic,end_pos_rad_dynamic,
-            gpu_gpu_sync_dynamic)
-    end
-end
-
-function _sort_lines!(self::LineRenderer)
-    range_groups = [Vector{Int}() for _ in 1:_LINE_TYPE_COUNT]
-    for index = 1:length(self.ranges)
-        push!(range_groups[self.ranges[index][3]],index)
-    end
-
-    coords_sizes = Vec4F[Vec4FNan]
-    sizehint!(coords_sizes, length(self.coords_sizes))
-    color_style = UInt32[0x0]
-    sizehint!(color_style, length(self.coords_sizes))
-
-    draw_first = 0
-    @inbounds for (index,group) in enumerate(range_groups)
-        draw_count = 0
-        @inbounds for range_ind in group
-            (first, last, type) = self.ranges[range_ind]
-            draw_count += last-first+2
-            self.ranges[range_ind] = (length(coords_sizes)+1,length(coords_sizes)+last-first+1,type)
-            
-            append!(coords_sizes, view(self.coords_sizes,first:last))
-            append!(color_style, view(self.color_style,first:last))
-            
-            push!(coords_sizes, Vec4FNan)
-            push!(color_style, 0x0)
-        end
-        self.draw_ranges[index] = (draw_first, draw_count == 0 ? 0 : (draw_count - 2))
-        draw_first += draw_count
-    end
-
-    self.coords_sizes = coords_sizes
-    self.color_style = color_style
-end
-
-@inline function _compute_strip_distances!(distances::Vector{Float32}, coords_sizes::Vector{Vec4F}, first_idx::Int, last_idx::Int, vp::Mat4, wh::Vec2F)
-    distance_sum::Float32 = 0.0f0
-    @inbounds for i in first_idx:(last_idx-1)
-        cw1::Vec4F = coords_sizes[i]
-        cw2::Vec4F = coords_sizes[i+1]
-        a::Vec4F = vp * Vec4F(cw1[1], cw1[2], cw1[3], 1.0f0)
-        b::Vec4F = vp * Vec4F(cw2[1], cw2[2], cw2[3], 1.0f0)
-        
-        if a[3] + a[4] < 0.0f0 && b[3] + b[4] < 0.0f0 continue end
-        
-        t0::Float32 = a[3] + a[4]
-        t1::Float32 = b[3] + b[4]
-        
-        if t0 < 0.0f0
-            tt = t0 / (t0 - t1)
-            a = @. a * (1 - tt) + b * tt
-        elseif t1 < 0.0f0
-            tt = t1 / (t1 - t0)
-            b = @. b * (1 - tt) + a * tt
-        end
-        
-        a2::Vec2F = Vec2F(a[1], a[2]) / a[4]
-        a2 = @. a2 * 0.5f0 + 0.5f0
-        a2 = @. a2 * wh
-
-        b2::Vec2F = Vec2F(b[1], b[2]) / b[4]
-        b2 = @. b2 * 0.5f0 + 0.5f0
-        b2 = @. b2 * wh
-
-        distances[i] = distance_sum
-        
-        segment_dist = norm(a2 - b2)::Float32
-        distance_sum = !isnan(segment_dist) ? distance_sum + segment_dist : 0.0f0
-    end
-    @inbounds distances[last_idx] = distance_sum
-end
-
-function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)
-    @time_cpu_begin Renderer Line Distances Static
-    Threads.@threads for (first, last, _) in self.ranges
-        _compute_strip_distances!(self.distances, self.coords_sizes, first, last, vp, wh)
-    end
-    @time_cpu_end Renderer Line Distances Static
-    
-    copyto!(self.distance_buffer_in, self.distances)
-    
-end
-
-function _calc_distances_dynamic!(self::LineRenderer, vp::Mat4, wh::Vec2F)
-    @time_cpu_begin Renderer Line Distances Dynamic
-    Threads.@threads for index in 1:length(self.coords_sizes_dynamic)
-        distances = self.distances_dynamic[index]
-        coords_sizes = self.coords_sizes_dynamic[index]
-        
-        first_idx = 1
-        last_idx = length(coords_sizes)
-        
-        _compute_strip_distances!(distances, coords_sizes, first_idx, last_idx, vp, wh)
-    end
-    @time_cpu_end Renderer Line Distances Dynamic
-
-    @inbounds for i in 1:length(self.distances_dynamic)
-        copyto!(self.distance_buffer_in_dynamic[i], self.distances_dynamic[i])
+        return new(
+            emptyVAO,
+            shaders_opaque, shaders_behind_opaque, shaders_transparent,
+            Vector{Union{Nothing,LineGroup}}(),
+            Vector{Tuple{UInt32,UInt32}}(),
+            Vector{UInt32}()
+        )
     end
 end
 
 function clear!(self::LineRenderer)::Nothing
-    destroy!(self.distance_buffer_in)
-    destroy!(self.color_style_buffer_in)
-    destroy!(self.position_width_buffer_in)
-
-    destroy!(self.position_distance_buffer_out)
-    destroy!(self.color_buffer_out)
-    destroy!(self.begin_pos_rad)
-    destroy!(self.sdf_buffer_out)
-    destroy!(self.end_pos_rad)
-
-    foreach(destroy!,self.distance_buffer_in_dynamic)
-    foreach(destroy!,self.color_style_buffer_in_dynamic)
-    foreach(destroy!,self.position_width_buffer_in_dynamic)
-
-    destroy!(self.position_distance_buffer_out_dynamic)
-    destroy!(self.color_buffer_out_dynamic)
-    destroy!(self.begin_pos_rad_dynamic)
-    destroy!(self.sdf_buffer_out_dynamic)
-    destroy!(self.end_pos_rad_dynamic)
-
-    self.ranges = Vector{Tuple{Int,Int,Int}}()
-    self.draw_ranges = fill((0,0),_LINE_TYPE_COUNT)
-    self.coords_sizes = Vec4F[Vec4FNan]
-    self.color_style = UInt32[0x0]
-    self.distances = Vector{Float32}()
-    self.distance_buffer_in = MappedBuffer{Float32}()
-    self.color_style_buffer_in = Buffer{UInt32}()
-    self.position_width_buffer_in = MappedBuffer{Vec4F}()
-    self.position_distance_buffer_out = Buffer{Vec4F}()
-    self.color_buffer_out = Buffer{UVec2}()
-    self.begin_pos_rad = Buffer{Vec4F}()
-    self.sdf_buffer_out = Buffer{Vec4F}()
-    self.end_pos_rad = Buffer{Vec4F}()
-
-    self.update_list = Vector{UInt32}()
-    self.types_dynamic = Vector{UInt8}()
-    self.draw_ranges_dynamic = fill((0,0),_LINE_TYPE_COUNT)
-    self.coords_sizes_dynamic = Vector{Vector{Vec4F}}()
-    self.color_style_dynamic = Vector{Vector{UInt32}}()
-    self.distances_dynamic = Vector{Vector{Float32}}()
-    self.distance_buffer_in_dynamic = Vector{MappedBuffer{Float32}}()
-    self.color_style_buffer_in_dynamic = Vector{Buffer{UInt32}}()
-    self.position_width_buffer_in_dynamic = Vector{MappedBuffer{Vec4F}}()
-    self.position_distance_buffer_out_dynamic = Buffer{Vec4F}()
-    self.color_buffer_out_dynamic = Buffer{UVec2}()
-    self.begin_pos_rad_dynamic = Buffer{Vec4F}()
-    self.sdf_buffer_out_dynamic = Buffer{Vec4F}()
-    self.end_pos_rad_dynamic = Buffer{Vec4F}()
+    for group in self.pool
+        group === nothing && continue
+        _destroy_group!(group)
+    end
+    empty!(self.pool)
+    empty!(self.handle_map)
+    empty!(self.free_handles)
     return nothing
 end
 
 function destroy!(self::LineRenderer)::Nothing
+    for group in self.pool
+        group === nothing && continue
+        _destroy_group!(group)
+    end
     destroy!(self.emptyVAO)
-
-    destroy!(self.distance_buffer_in)
-    destroy!(self.color_style_buffer_in)
-    destroy!(self.position_width_buffer_in)
-
-    destroy!(self.position_distance_buffer_out)
-    destroy!(self.color_buffer_out)
-    destroy!(self.begin_pos_rad)
-    destroy!(self.sdf_buffer_out)
-    destroy!(self.end_pos_rad)
-
-    foreach(destroy!,self.distance_buffer_in_dynamic)
-    foreach(destroy!,self.color_style_buffer_in_dynamic)
-    foreach(destroy!,self.position_width_buffer_in_dynamic)
-
-    destroy!(self.position_distance_buffer_out_dynamic)
-    destroy!(self.color_buffer_out_dynamic)
-    destroy!(self.begin_pos_rad_dynamic)
-    destroy!(self.sdf_buffer_out_dynamic)
-    destroy!(self.end_pos_rad_dynamic)
-
     return nothing
 end
 
-function pack_color_reversed(color::UInt32, reversed::Bool)::UInt32
-    return (UInt32(reversed ? 0xff : 0x00) << 24) | (color & ~(UInt32(0xff) << 24))
-end
+# ? ---------------------------------
+# ! Handles and placement
+# ? ---------------------------------
 
-function add!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::UInt32
-    (type, reversed) = get_type_reversed(type)
-    first = length(self.coords_sizes) + 1
-    append!(self.coords_sizes,(Vec4F(coord...,width) for coord in coords))
-    last = length(self.coords_sizes)
-    push!(self.coords_sizes, Vec4FNan)
-
-    append!(self.color_style, (pack_color_reversed(color,reversed) for color in Iterators.take(colors,length(coords))))
-    push!(self.color_style, UInt32(0))
-
-    push!(self.ranges,tuple(first,last,Int(type)))
-    return UInt32(length(self.ranges))
-end
-
-function add_dynamic!(self::LineRenderer,coords,colors,ids,width::Float32,type::UInt8)::UInt32
-    (type, reversed) = get_type_reversed(type)
-    coords_sizes = Vector{Vec4F}()
-    sizehint!(coords_sizes, 2 + length(coords))
-    push!(coords_sizes, Vec4FNan)
-    append!(coords_sizes, (Vec4F(coord...,width) for coord in coords))
-    push!(coords_sizes, Vec4FNan)
-    push!(self.coords_sizes_dynamic, coords_sizes)
-
-    color_style = Vector{UInt32}()
-    sizehint!(color_style, 2 + length(coords))
-    push!(color_style, 0x0)
-    append!(color_style, (pack_color_reversed(color,reversed) for color in Iterators.take(colors,length(coords))))
-    push!(color_style, 0x0)
-    push!(self.color_style_dynamic, color_style)
-
-    push!(self.types_dynamic,type)
-    return UInt32(length(self.coords_sizes_dynamic))
-end
-
-function added_static!(self::LineRenderer)::Nothing
-    _sort_lines!(self)
-    upload!(self.position_width_buffer_in, self.coords_sizes, 0)
-    upload!(self.color_style_buffer_in, self.color_style, 0)
-
-    N = length(self.coords_sizes)
-    self.distances = Vector{Float32}(undef, N)
-    reserve!(self.distance_buffer_in,N,0)
-
-    reserve!(self.position_distance_buffer_out,5*(N-3),0)
-    reserve!(self.color_buffer_out,N-3,0)
-    reserve!(self.begin_pos_rad,N-3,0)
-    reserve!(self.sdf_buffer_out,5*(N-3),0)
-    reserve!(self.end_pos_rad,N-3,0)
-    self.updated = _LINE_PROP_NONE
-    return nothing
-end
-
-function added_dynamic!(self::LineRenderer)::Nothing
-    for i in (length(self.position_width_buffer_in_dynamic)+1):length(self.coords_sizes_dynamic)
-        pw = MappedBuffer{Vec4F}()
-        upload!(pw, self.coords_sizes_dynamic[i], 0)
-        push!(self.position_width_buffer_in_dynamic, pw)
-            
-        ct = Buffer{UInt32}()
-        upload!(ct, self.color_style_dynamic[i], 0)
-        push!(self.color_style_buffer_in_dynamic, ct)
-            
-        N = length(self.coords_sizes_dynamic[i])
-        push!(self.distances_dynamic,Vector{Float32}(undef, N))
-
-        distance_buffer = MappedBuffer{Float32}()
-        reserve!(distance_buffer,N,0)
-        push!(self.distance_buffer_in_dynamic, distance_buffer)
+function _acquire_handle!(self::LineRenderer)::LineHandle
+    if isempty(self.free_handles)
+        push!(self.handle_map, (UInt32(0), UInt32(0)))
+        return LineHandle(UInt32(length(self.handle_map)))
     end
-    N = sum(v -> length(v) <= 3 ? 0 : (length(v) - 3), self.coords_sizes_dynamic)
-    reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
-    reserve!(self.color_buffer_out_dynamic,N,0)
-    reserve!(self.begin_pos_rad_dynamic,N,0)
-    reserve!(self.sdf_buffer_out_dynamic,5*N,0)
-    reserve!(self.end_pos_rad_dynamic,5*N,0)
-    return nothing
+    value = pop!(self.free_handles)
+    @inbounds self.handle_map[value] = (UInt32(0), UInt32(0))
+    return LineHandle(value)
 end
 
-function update_coords!(self::LineRenderer,ref::UInt32,coords)::Nothing
-    (first,last,_) = self.ranges[ref]
-    first == last && return nothing
-
-    coords_sizes_view = view(self.coords_sizes, first:last)
-    size = coords_sizes_view[1][4]
-    for (i,coord) in enumerate(coords)
-        coords_sizes_view[i] = Vec4F(coord[1],coord[2],coord[3],size)
+Base.@propagate_inbounds function _resolve_line(self::LineRenderer, handle::LineHandle)::Tuple{Int,Int}
+    value = handle.value
+    @boundscheck checkbounds(Bool, self.handle_map, value) || throw(BoundsError(self.handle_map, value))
+    @inbounds (group_index, line_index) = self.handle_map[value]
+    @boundscheck begin
+        checkbounds(Bool, self.pool, group_index) && 
+        self.pool[group_index] !== nothing && 
+        checkbounds(Bool, self.pool[group_index].positions, line_index) || 
+        throw(BoundsError(self.pool, (group_index, line_index)))
     end
-    self.updated |= _LINE_PROP_COORD_SIZE
-    return nothing
+    return (Int(group_index), Int(line_index))
 end
 
-function update_size!(self::LineRenderer,ref::UInt32,size::Float32)::Nothing
-    (first,last,_) = self.ranges[ref]
-    first == last && return nothing
-
-    coords_sizes_view = view(self.coords_sizes, first:last)
-    map!(e -> Vec4F(e[1],e[2],e[3],size), coords_sizes_view)
-    self.updated |= _LINE_PROP_COORD_SIZE
-    return nothing
-end
-
-function update_colors!(self::LineRenderer,ref::UInt32,colors)
-    (first,last,_) = self.ranges[ref]
-    first == last && return nothing
-    
-    color_style_view = view(self.color_style, first:last)
-    for (i,color) in enumerate(take(colors, last - first + 1))
-        color_style_view[i] = color_style_view[i] & (UInt32(0xFF) << 24) | color & ~(UInt32(0xFF) << 24)
-    end
-    self.updated |= _LINE_PROP_COLOR_STYLE
-    return nothing
-end
-
-function update_style!(self::LineRenderer,ref::UInt32,style::UInt8)
-    (first,last,old_style) = self.ranges[ref]
-    first == last && return nothing
-
-    (new_style, new_reversed) = get_type_reversed(style)
-    old_reversed = (self.color_style[first] & (UInt32(0xff) << 24)) != 0
-
-    if new_style != old_style
-        self.ranges[ref] = (first, last, new_style)
-        self.updated |= _LINE_PROP_STYLE
-    end
-
-    if xor(new_reversed, old_reversed)
-        color_style_view = view(self.color_style, first:UInt32(first + N - 1))
-        reversed_value::UInt32 = UInt32(new_reversed ? 0xff : 0x00) << 24
-        map!(e -> e & ~(UInt32(0xff) << 24) | reversed_value, color_style_view)
-        self.updated |= _LINE_PROP_COLOR_STYLE
-    end
-    return nothing
-end
-
-function update_dynamic!(self::LineRenderer,ref::UInt32,coords,colors,ids,width::Float32,type::UInt8)
-    (type, reversed) = get_type_reversed(type)
-    coords_sizes = self.coords_sizes_dynamic[ref]
-    empty!(coords_sizes)
-    push!(coords_sizes, Vec4FNan)
-    append!(coords_sizes, (Vec4F(coord...,width) for coord in coords))
-    push!(coords_sizes, Vec4FNan)
-
-    color_style = self.color_style_dynamic[ref]
-    empty!(color_style)
-    push!(color_style, 0x0)
-    append!(color_style, (pack_color_reversed(color,reversed) for color in Iterators.take(colors,length(coords))))
-    push!(color_style, 0x0)
-
-    self.types_dynamic[ref] = type
-    push!(self.update_list, ref)
-end
-
-function update_colors_dynamic!(self::LineRenderer,ref::UInt32,colors)::Nothing
-    color_style = self.color_style_dynamic[ref]
-    length(color_style) <= 2 && return nothing
-    for (i,color) in enumerate(take(colors, length(color_style)-2))
-        color_style[i+1] = color_style[i+1] & (UInt32(0xFF) << 24) | color & ~(UInt32(0xFF) << 24)
-    end
-    push!(self.update_list,ref)
-    return nothing
-end
-
-function update_style_dynamic!(self::LineRenderer,ref::UInt32,style::UInt8)::Nothing
-    color_style = self.color_style_dynamic[ref]
-    length(color_style) <= 2 && return nothing
-
-    (new_style, new_reversed) = get_type_reversed(style)
-    old_reversed = (color_style[2] & (UInt32(0xff) << 24)) != 0
-
-    self.types_dynamic[ref] = new_style
-
-    if xor(new_reversed, old_reversed)
-        reversed_value::UInt32 = UInt32(new_reversed ? 0xff : 0x00) << 24
-        map!(e -> e & ~(UInt32(0xff) << 24) | reversed_value, color_style)
-    end
-    push!(self.update_list,ref)
-    return nothing
-end
-
-function update_size_dynamic!(self::LineRenderer,ref::UInt32,size::Float32)::Nothing
-    coord_sizes = self.coords_sizes_dynamic[ref]
-    length(coord_sizes) <= 2 && return nothing
-
-    for i in 2:(length(coord_sizes)-1)
-        c = coord_sizes[i]
-        coord_sizes[i] = Vec4F(c[1],c[2],c[3],size)
-    end
-
-    push!(self.update_list,ref)
-    return nothing
-end
-
-function pre_draw!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
-    N = length(self.coords_sizes)
-    if N != length(self.position_width_buffer_in) && N > 1
-        added_static!(self)
-    end
-
-    if length(self.coords_sizes_dynamic) != length(self.position_width_buffer_in_dynamic)
-        added_dynamic!(self)
-    end
-    
-    if (self.updated & _LINE_PROP_STYLE) == _LINE_PROP_STYLE
-        _sort_lines!(self)
-        self.updated |= _LINE_PROP_COORD_SIZE | _LINE_PROP_COLOR_STYLE
-    end
-    if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE || (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
-        if (self.updated & _LINE_PROP_COORD_SIZE) == _LINE_PROP_COORD_SIZE
-            copyto!(self.position_width_buffer_in, self.coords_sizes)
-        end
-        if (self.updated & _LINE_PROP_COLOR_STYLE) == _LINE_PROP_COLOR_STYLE
-            upload!(self.color_style_buffer_in, self.color_style, 0)
+# First group matching style with room, otherwise a new one sized to fit.
+function _find_group!(self::LineRenderer, style::UInt8, needed::Int)::Int
+    for index in eachindex(self.pool)
+        @inbounds group = self.pool[index]
+        group === nothing && continue
+        if group.style == style && group.used + needed <= group.capacity
+            return index
         end
     end
-    if length(self.update_list) != 0
 
-        for ref in self.update_list
-            upload!(self.position_width_buffer_in_dynamic[ref], self.coords_sizes_dynamic[ref], 0)
-            upload!(self.color_style_buffer_in_dynamic[ref], self.color_style_dynamic[ref], 0)
-            
-            N = length(self.coords_sizes_dynamic[ref])
-
-            Base.resize!(self.distances_dynamic[ref],N)
-            reserve!(self.distance_buffer_in_dynamic[ref],N,0)
-        end
-        empty!(self.update_list)
-
-        N = sum(v -> length(v) <= 3 ? 0 : (length(v) - 3), self.coords_sizes_dynamic)
-        if N > length(self.color_buffer_out_dynamic)
-            reserve!(self.position_distance_buffer_out_dynamic,5*N,0)
-            reserve!(self.color_buffer_out_dynamic,N,0)
-            reserve!(self.begin_pos_rad_dynamic,N,0)
-            reserve!(self.sdf_buffer_out_dynamic,5*N,0)
-            reserve!(self.end_pos_rad_dynamic,5*N,0)
-        end
+    group = LineGroup(style, needed)
+    slot = findfirst(isnothing, self.pool)
+    if slot === nothing
+        push!(self.pool, group)
+        return length(self.pool)
     end
-    self.updated = _LINE_PROP_NONE
+    @inbounds self.pool[slot] = group
+    return slot
+end
 
-    if length(self.coords_sizes) == 0 && length(self.coords_sizes_dynamic) == 0 return nothing end
+function _place_line!(self::LineRenderer, handle_value::UInt32,
+                    points::Vector{Vec3F}, colors::Vector{UInt32},
+                    style::UInt8, width::Float32)::Nothing
+    needed = length(points) + 1 # Point count + trailing NaN
+    group_index = _find_group!(self, style, needed)
+    @inbounds group::LineGroup = self.pool[group_index]::LineGroup
 
-    prev_offset::UInt32 = 0
-    offset::UInt32 = 0
-    offsets::Vector{GLuint} = Vector{GLuint}()
-    sizehint!(offsets, max(length(self.coords_sizes_dynamic),1))
-    for i in 1:_LINE_TYPE_COUNT
-        for j in 1:length(self.coords_sizes_dynamic)
-            if self.types_dynamic[j] != i || length(self.coords_sizes_dynamic[j]) <= 3 continue end
-            push!(offsets,GLuint(offset))
-            offset += UInt32(length(self.coords_sizes_dynamic[j]) - 3)
-        end
-        self.draw_ranges_dynamic[i] = (prev_offset, offset - prev_offset)
-        prev_offset = offset
+    push!(group.positions, points)
+    push!(group.colors, colors)
+    push!(group.handles, handle_value)
+    push!(group.widths, width)
+
+    group.used += needed
+    group.dirty = true
+
+    @inbounds self.handle_map[handle_value] = (UInt32(group_index), UInt32(length(group.positions)))
+    return nothing
+end
+
+# Detaches the line from its group and gives its data back. The handle itself is
+# not released, so a relocation can reuse it.
+function _unplace_line!(self::LineRenderer, handle_value::UInt32)::Tuple{Vector{Vec3F},Vector{UInt32},UInt8,Float32}
+    @inbounds (group_index_u, line_index_u) = self.handle_map[handle_value]
+    group = self.pool[group_index_u]::LineGroup
+    line_index = Int(line_index_u)
+
+    points = group.positions[line_index]
+    colors = group.colors[line_index]
+    style  = group.style
+    width  = group.widths[line_index]
+
+    group.used -= length(points) + 1
+
+    last_index = length(group.positions)
+    if line_index != last_index
+        @inbounds group.positions[line_index] = group.positions[last_index]
+        @inbounds group.colors[line_index]    = group.colors[last_index]
+        @inbounds group.handles[line_index]   = group.handles[last_index]
+        @inbounds group.widths[line_index]    = group.widths[last_index]
+        moved_handle = group.handles[line_index]
+        @inbounds self.handle_map[moved_handle] = (group_index_u, UInt32(line_index))
     end
 
-    if length(offsets) == 0 push!(offsets, GLuint(0)) end
+    pop!(group.positions)
+    pop!(group.colors)
+    pop!(group.handles)
+    pop!(group.widths)
 
-    if length(self.UBO) != length(offsets)
-        upload!(self.UBO,offsets,GL_DYNAMIC_STORAGE_BIT)
-    else
-        upload!(self.UBO,offsets)
+    group.dirty = true
+    @inbounds self.handle_map[handle_value] = (UInt32(0), UInt32(0))
+
+    if group.used == 1
+        println("destroy called")
+        @assert length(group.positions) == 0
+        _destroy_group!(group)
+        self.pool[group_index_u] = nothing
     end
 
+    return (points, colors, style, width)
+end
 
-    (vp, v, p) = get_matrices(cam)
+# ? ---------------------------------
+# ! Input conversion
+# ? ---------------------------------
 
-    # Static
-    
-    if length(self.coords_sizes) > 1
-    _calc_distances!(self,vp,Vec2F(window.width,window.height))
+@inline _as_vec3f(coord::Vec3F)::Vec3F = coord
+@inline function _as_vec3f(coord)::Vec3F
+    return length(coord) >= 3 ?
+        Vec3F(Float32(coord[1]), Float32(coord[2]), Float32(coord[3])) :
+        Vec3F(Float32(coord[1]), Float32(coord[2]), 0.0f0)
+end
 
-    bind_ssbo(self.distance_buffer_in,0)
-    bind_ssbo(self.color_style_buffer_in,1)
-    bind_ssbo(self.position_width_buffer_in,2)
-    bind_ssbo(self.position_distance_buffer_out,3)
-    bind_ssbo(self.color_buffer_out,4)
-    bind_ssbo(self.begin_pos_rad,5)
-    bind_ssbo(self.sdf_buffer_out,6)
-    bind_ssbo(self.end_pos_rad,7)
+@inline _line_has_length(iter)::Bool = Base.IteratorSize(iter) isa Union{Base.HasLength,Base.HasShape}
 
-    (cam_light, side_light) = get_lights(cam)
-    activate(self.shader_predraw)
-    bind_ubo(self.UBO, 1, 8) # Always 0
-    @time_gpu_begin Renderer Line Pre_Draw Static
-    glDispatchCompute(cld(length(self.coords_sizes),32),1,1);
-    @time_gpu_end Renderer Line Pre_Draw Static
-    self.gpu_gpu_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+function _assert_line_finite(iter, what::String)::Nothing
+    if Base.IteratorSize(iter) isa Base.IsInfinite
+        throw(ArgumentError("LineRenderer: $what must be finite - colors are cycled internally, " *
+                            "pass the source vector instead of Iterators.cycle(...)"))
     end
-    # Dynamic
-    
-    if length(self.coords_sizes_dynamic) > 0
-    _calc_distances_dynamic!(self,vp,Vec2F(window.width,window.height))
+    return nothing
+end
 
-    bind_ssbo(self.position_distance_buffer_out_dynamic,3)
-    bind_ssbo(self.color_buffer_out_dynamic,4)
-    bind_ssbo(self.begin_pos_rad_dynamic,5)
-    bind_ssbo(self.sdf_buffer_out_dynamic,6)
-    bind_ssbo(self.end_pos_rad_dynamic,7)
+_to_line_points(coords::Vector{Vec3F})::Vector{Vec3F} = copy(coords)
+function _to_line_points(coords)::Vector{Vec3F}
+    _assert_line_finite(coords, "coords")
+    out = Vector{Vec3F}()
+    _line_has_length(coords) && sizehint!(out, length(coords))
+    for coord in coords
+        push!(out, _as_vec3f(coord))
+    end
+    return out
+end
 
-    (cam_light, side_light) = get_lights(cam)
-    activate(self.shader_predraw)
+_to_line_colors(colors::Vector{UInt32})::Vector{UInt32} = copy(colors)
+function _to_line_colors(colors)::Vector{UInt32}
+    _assert_line_finite(colors, "colors")
+    out = Vector{UInt32}()
+    _line_has_length(colors) && sizehint!(out, length(colors))
+    for color in colors
+        push!(out, UInt32(color))
+    end
+    return out
+end
 
-    index = 1
-    @time_gpu_begin Renderer Line Pre_Draw Dynamic
-    for i in 1:_LINE_TYPE_COUNT
-        for j in 1:length(self.coords_sizes_dynamic)
-            if self.types_dynamic[j] != i || length(self.coords_sizes_dynamic[j]) <= 3 continue end
-            bind_ssbo(self.distance_buffer_in_dynamic[j],0)
-            bind_ssbo(self.color_style_buffer_in_dynamic[j],1)
-            bind_ssbo(self.position_width_buffer_in_dynamic[j],2)
-            bind_ubo(self.UBO, index, 8)
-            glDispatchCompute(cld(length(self.coords_sizes_dynamic[j]),32),1,1);
+# ? ---------------------------------
+# ! Public API
+# ? ---------------------------------
+
+function add!(self::LineRenderer, coords::Vector{Vec3F}, colors::Vector{UInt32},
+              ids::Vector{UInt32}, style::UInt8, size::Float32)::LineHandle
+    handle = _acquire_handle!(self)
+    _place_line!(self, handle.value, copy(coords), copy(colors), style, size)
+    return handle
+end
+
+function add!(self::LineRenderer, coords, colors, ids, style::UInt8, size::Float32)::LineHandle
+    handle = _acquire_handle!(self)
+    _place_line!(self, handle.value, _to_line_points(coords), _to_line_colors(colors), style, size)
+    return handle
+end
+
+function remove!(self::LineRenderer, handle::LineHandle)::Nothing
+    _resolve_line(self, handle)
+    _unplace_line!(self, handle.value)
+    push!(self.free_handles, handle.value)
+    return nothing
+end
+
+Base.@propagate_inbounds function update_coords!(self::LineRenderer, handle::LineHandle, coords::Vector{Vec3F})::Nothing
+    (group_index, line_index) = _resolve_line(self, handle)
+    group = self.pool[group_index]::LineGroup
+    points = group.positions[line_index]
+
+    delta = length(coords) - length(points)
+
+    if delta == 0
+        copyto!(points, coords)
+        group.dirty = true
+        return nothing
+    end
+
+    if group.used + delta <= group.capacity
+        Base.resize!(points, length(coords))
+        copyto!(points, coords)
+        group.used += delta
+        group.dirty = true
+        return nothing
+    end
+
+    (old_points, colors, style, width) = _unplace_line!(self, handle.value)
+    Base.resize!(old_points, length(coords))
+    copyto!(old_points, coords)
+    _place_line!(self, handle.value, old_points, colors, style, width)
+    return nothing
+end
+
+Base.@propagate_inbounds function update_coords!(self::LineRenderer, handle::LineHandle, coords)::Nothing
+    (group_index, line_index) = _resolve_line(self, handle)
+    group = self.pool[group_index]::LineGroup
+    points = group.positions[line_index]
+
+    if _line_has_length(coords) && length(coords) == length(points)
+        index = 1
+        @inbounds for coord in coords
+            points[index] = _as_vec3f(coord)
             index += 1
         end
-    end
-    @time_gpu_end Renderer Line Pre_Draw Dynamic
-
-    self.gpu_gpu_sync_dynamic = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+        group.dirty = true
+        return nothing
     end
 
+    return update_coords!(self, handle, _to_line_points(coords))
+end
+
+Base.@propagate_inbounds function update_colors!(self::LineRenderer, handle::LineHandle, colors::Vector{UInt32})::Nothing
+    (group_index, line_index) = _resolve_line(self, handle)
+    group = self.pool[group_index]::LineGroup
+    destination = group.colors[line_index]
+    Base.resize!(destination, length(colors))
+    copyto!(destination, colors)
+    group.dirty = true
     return nothing
 end
 
-function draw_opaque!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
-    if (any(x -> x[2] != 0, self.draw_ranges))
-    glWaitSync(self.gpu_gpu_sync, 0, 0xFFFFFFFFFFFFFFFF)
-    glDeleteSync(self.gpu_gpu_sync);
+Base.@propagate_inbounds function update_colors!(self::LineRenderer, handle::LineHandle, colors)::Nothing
+    return update_colors!(self, handle, _to_line_colors(colors))
+end
 
+Base.@propagate_inbounds function update_size!(self::LineRenderer, handle::LineHandle, size::Float32)::Nothing
+    (group_index, line_index) = _resolve_line(self, handle)
+    group = self.pool[group_index]::LineGroup
+    group.widths[line_index] = size
+    group.dirty = true
+    return nothing
+end
+
+Base.@propagate_inbounds function update_style!(self::LineRenderer, handle::LineHandle, style::UInt8)::Nothing
+    (group_index, line_index) = _resolve_line(self, handle)
+    group = self.pool[group_index]::LineGroup
+    group.style == style && return nothing
+
+    (points, colors, _, width) = _unplace_line!(self, handle.value)
+    _place_line!(self, handle.value, points, colors, style, width)
+    return nothing
+end
+
+# ? ---------------------------------
+# ! Distances
+# ? ---------------------------------
+
+@inline function _screen_segment_dist(c1::Vec3F, c2::Vec3F, vp::Mat4, wh::Vec2F)::Float32
+    if isnan(c1[1]) || isnan(c2[1])
+        return NaN32
+    end
+
+    a = vp * Vec4F(c1[1], c1[2], c1[3], 1.0f0)
+    b = vp * Vec4F(c2[1], c2[2], c2[3], 1.0f0)
+
+    (a[4] <= 0.0f0 || b[4] <= 0.0f0) && return NaN32
+
+    a2 = Vec2F(a[1], a[2]) / a[4]
+    a2 = @. (a2 * 0.5f0 + 0.5f0) * wh
+
+    b2 = Vec2F(b[1], b[2]) / b[4]
+    b2 = @. (b2 * 0.5f0 + 0.5f0) * wh
+
+    d = norm(a2 - b2)
+    return isnan(d) ? NaN32 : Float32(d)
+end
+
+function _calc_group_distances!(group::LineGroup, vp::Mat4, wh::Vec2F)::Nothing
+    distances = group.distance_buffer
+    distances[1] = NaN32
+    index = 2
+
+    @inbounds for positions in group.positions
+        distance_sum::Float32 = 0.0f0
+        len = length(positions)
+
+        for i in 1:len
+            p1 = positions[i]
+            if isnan(p1[1])
+                distances[index] = NaN32
+                distance_sum = 0.0f0
+            else
+                distances[index] = distance_sum
+                if i < len
+                    p2 = positions[i + 1]
+                    segment_dist = _screen_segment_dist(p1, p2, vp, wh)
+                    
+                    if isnan(segment_dist)
+                        distance_sum = 0.0f0
+                    else
+                        distance_sum += segment_dist
+                    end
+                end
+            end
+            index += 1
+        end
+        distances[index] = NaN32
+        index += 1
+    end
+    return nothing
+end
+
+function _calc_distances!(self::LineRenderer, vp::Mat4, wh::Vec2F)::Nothing
+    @time_cpu_begin Renderer Line Distances
+    Threads.@threads for group in self.pool
+        group === nothing && continue
+        isempty(group.positions) && continue
+        _calc_group_distances!(group, vp, wh)
+    end
+    @time_cpu_end Renderer Line Distances
+    return nothing
+end
+
+# ? ---------------------------------
+# ! Frame
+# ? ---------------------------------
+
+function _has_drawable(self::LineRenderer)::Bool
+    for group in self.pool
+        group === nothing && continue
+        _instance_count(group) > 0 && return true
+    end
+    return false
+end
+
+function pre_draw!(self::LineRenderer, cam::Camera, window::GLFWData)::Nothing
+    _has_drawable(self) || return nothing
+
+    for group_or_nothing in self.pool
+        group_or_nothing === nothing && continue
+        group::LineGroup = group_or_nothing
+        wait(group.position_buffer)
+        _flush_group!(group)
+    end
+
+    (vp, v, p) = get_matrices(cam)
+    _calc_distances!(self, vp, Vec2F(window.width, window.height))
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+    return nothing
+end
+
+function _draw_groups!(self::LineRenderer, shaders::Vector{Pipeline})::Nothing
     activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,0)
-    bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.begin_pos_rad,2)
-    bind_ssbo(self.sdf_buffer_out,3)
-    bind_ssbo(self.end_pos_rad,4)
-    @time_gpu_begin Renderer Line Opaque Static
-    for type in 1:_LINE_TYPE_COUNT
-        (first,count) = self.draw_ranges[type]
-        if count == 0 continue end
-        activate(self.shaders_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
-    end
-    @time_gpu_end Renderer Line Opaque Static
-    end
+    for style_idx in 1:_LINE_STYLE_COUNT
+        shader = shaders[style_idx]
+        shader_activated = false
 
-    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
-    glWaitSync(self.gpu_gpu_sync_dynamic, 0, 0xFFFFFFFFFFFFFFFF)
-    glDeleteSync(self.gpu_gpu_sync_dynamic);
+        for group_or_nothing in self.pool
+            group_or_nothing === nothing && continue
+            group::LineGroup = group_or_nothing
+            group.style == UInt8(style_idx) || continue
 
-    activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
-    bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.begin_pos_rad_dynamic,2)
-    bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    bind_ssbo(self.end_pos_rad_dynamic,4)
-    @time_gpu_begin Renderer Line Opaque Dynamic
-    for type in 1:_LINE_TYPE_COUNT
-        (first,count) = self.draw_ranges_dynamic[type]
-        if count == 0 continue end
-        activate(self.shaders_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
+            instances = _instance_count(group)
+            instances <= 0 && continue
+
+            if !shader_activated
+                activate(shader)
+                shader_activated = true
+            end
+
+            bind_ssbo(group.distance_buffer, 0)
+            bind_ssbo(group.color_style_buffer, 1)
+            bind_ssbo(group.position_buffer, 2)
+            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, instances, 0)
+        end
     end
-    @time_gpu_end Renderer Line Opaque Dynamic
-    end
+    return nothing
+end
+
+function draw_opaque!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
+    _has_drawable(self) || return nothing
+    @time_gpu_begin Renderer Line Opaque
+    _draw_groups!(self, self.shaders_opaque)
+    @time_gpu_end Renderer Line Opaque
     return nothing
 end
 
 visible_behind_opaque(self::LineRenderer)::Bool = true
-function draw_behind_opaque!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
-    (_, _, p) = get_matrices(cam)
+function draw_behind_opaque!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
+    _has_drawable(self) || return nothing
+
     glEnable(GL_BLEND)
     glBlendColor(0.0, 0.0, 0.0, 0.4)
     glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA)
     glColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
 
-    if (any(x -> x[2] != 0, self.draw_ranges))
-    activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,0)
-    bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.begin_pos_rad,2)
-    bind_ssbo(self.sdf_buffer_out,3)
-    bind_ssbo(self.end_pos_rad,4)
-    for type in 1:_LINE_TYPE_COUNT
-        (first,count) = self.draw_ranges[type]
-        if count == 0 continue end
-        activate(self.shaders_behind_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
-    end
-    end
-
-    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
-    activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
-    bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.begin_pos_rad_dynamic,2)
-    bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    bind_ssbo(self.end_pos_rad_dynamic,4)
-    for type in 1:_LINE_TYPE_COUNT
-        (first,count) = self.draw_ranges_dynamic[type]
-        if count == 0 continue end
-        activate(self.shaders_behind_opaque[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
-    end
-    end
+    @time_gpu_begin Renderer Line Behind-Opaque
+    _draw_groups!(self, self.shaders_behind_opaque)
+    @time_gpu_end Renderer Line Behind-Opaque
 
     glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -760,41 +598,17 @@ function draw_behind_opaque!(self::LineRenderer,cam::Camera,window::GLFWData)::N
     return nothing
 end
 
-function draw_transparent!(self::LineRenderer,cam::Camera,window::GLFWData)::Nothing
-    if (any(x -> x[2] != 0, self.draw_ranges))
+function draw_transparent!(self::LineRenderer, ::Camera, ::GLFWData)::Nothing
+    _has_drawable(self) || return nothing
 
-    activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out,0)
-    bind_ssbo(self.color_buffer_out,1)
-    bind_ssbo(self.begin_pos_rad,2)
-    bind_ssbo(self.sdf_buffer_out,3)
-    bind_ssbo(self.end_pos_rad,4)
-    @time_gpu_begin Renderer Line Transparent Static
-    for type in 1:_LINE_TYPE_COUNT
-        (first,count) = self.draw_ranges[type]
-        if count == 0 continue end
-        activate(self.shaders_transparent[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
-    end
-    @time_gpu_end Renderer Line Transparent Static
-    end
+    @time_gpu_begin Renderer Line Transparent
+    _draw_groups!(self, self.shaders_transparent)
+    @time_gpu_end Renderer Line Transparent
 
-    if (any(x -> x[2] != 0, self.draw_ranges_dynamic))
-
-    activate(self.emptyVAO)
-    bind_ssbo(self.position_distance_buffer_out_dynamic,0)
-    bind_ssbo(self.color_buffer_out_dynamic,1)
-    bind_ssbo(self.begin_pos_rad_dynamic,2)
-    bind_ssbo(self.sdf_buffer_out_dynamic,3)
-    bind_ssbo(self.end_pos_rad_dynamic,4)
-    @time_gpu_begin Renderer Line Transparent Dynamic
-    for type in 1:_LINE_TYPE_COUNT
-        (first,count) = self.draw_ranges_dynamic[type]
-        if count == 0 continue end
-        activate(self.shaders_transparent[type])
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 5, count, first)
-    end
-    @time_gpu_end Renderer Line Transparent Dynamic
+    for group_or_nothing in self.pool
+        group_or_nothing === nothing && continue
+        group::LineGroup = group_or_nothing
+        lock(group.position_buffer)
     end
     return nothing
 end

@@ -16,7 +16,7 @@ end
 
 struct TetrahedronDrawData
     face_handle::UInt32
-    border_handle::UInt32
+    border_handle::LineHandle
     color::UInt32
     border_color::UInt32
     border_size::Float32
@@ -42,11 +42,11 @@ function render_node(t::Tetrahedron, data::TetrahedronDrawData, renderers::Dict{
 
     if data.face_handle == 0
         face_handle = add!(triangle_renderer, triangles, mat4(1.0f0), data.color, false, id)
-        border_handle = add!(line_renderer, line, Iterators.cycle((data.border_color,)), Iterators.cycle((id,)), data.border_size, data.border_style)
+        border_handle = add!(line_renderer, line, [data.border_color], [id], data.border_style, data.border_size)
         return TetrahedronDrawData(face_handle, border_handle, data.color, data.border_color, data.border_size, data.border_style)
     else
         update_coords!(triangle_renderer, data.face_handle, triangles)
-        update_coords!(line_renderer, data.border_handle, line)
+        @inbounds update_coords!(line_renderer, data.border_handle, line)
         return data
     end
 end
@@ -70,7 +70,7 @@ function Tetrahedron(a, b, c, d, color_data::Union{Nothing,String}=nothing;
     ]
     c_val = isnothing(color_data) ? get_color(color) : get_color(color_data)
     (b_c, b_s) = parse_line_colors_style(nothing, border_color, border_style)
-    draw_data = TetrahedronDrawData(UInt32(0), UInt32(0), c_val, b_c[1], Float32(border_size), b_s)
+    draw_data = TetrahedronDrawData(UInt32(0), LineHandle(), c_val, b_c[1], Float32(border_size), b_s)
 
     tetrahedron = add_node!(_tetrahedron_func, Tetrahedron(); draw_data=draw_data, parents=nodes)
 

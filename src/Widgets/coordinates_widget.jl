@@ -18,6 +18,19 @@ end
 
 _ImGuiWidget_(self::CoordinatesWidget)::ImGuiWidget = return self._widget
 
+function format_float(x::Real,n::Integer)
+    sign_str = x < 0 ? "-" : ""
+    x_abs = abs(x)
+    int_part = trunc(Int, x_abs)
+    frac_part = round(Int, (x_abs - int_part) * 10^n)
+    if frac_part == 10^n
+        int_part += 1
+        frac_part = 0
+    end
+    frac_str = lpad(string(frac_part), n, '0')
+    return sign_str * string(int_part) * "." * frac_str
+end
+
 function render(self::CoordinatesWidget, app::AppDNA)
     imgui = getImGui(app)
 
@@ -34,7 +47,9 @@ function render(self::CoordinatesWidget, app::AppDNA)
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoCollapse |
             CImGui.ImGuiWindowFlags_NoDecoration)
 
-        coords = "(" * string(round(self._gizmo.position[1]; digits = 1)) * ", " * string(round(self._gizmo.position[2]; digits = 1)) * ", " * string(round(self._gizmo.position[3]; digits = 1)) * ")"
+        coords = "(" * format_float(self._gizmo.position[1],4) * ", " *
+                       format_float(self._gizmo.position[2],4) * ", " *
+                       format_float(self._gizmo.position[3],4) * ")"
         CImGui.Text(coords)
         
         CImGui.End()
@@ -54,7 +69,7 @@ function resize!(self::CoordinatesWidget,x::Int,y::Int)
     plusDigits += floor(Int, log10(max(1.0, abs(self._gizmo.position[3]))))
     if (self._gizmo.position[3] < 0) plusDigits += 1 end
 
-    self._width = 100 + plusDigits * 6
+    self._width = 163 + plusDigits * 6
     self._height = 20
 
     self._padding = 8

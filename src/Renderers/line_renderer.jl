@@ -128,7 +128,6 @@ mutable struct LineRenderer <: Renderer
     handle_map::Vector{Tuple{UInt32,UInt32}} # handle -> (group index, index within group)
     free_handles::Vector{UInt32}
 
-    # GREEN Thread
     function LineRenderer(loader::PipelineLoader)
         emptyVAO = VertexArray()
 
@@ -389,7 +388,6 @@ Base.@propagate_inbounds function update_coords!(self::LineRenderer, handle::Lin
         return nothing
     end
 
-    # Does not fit any more: detach, resize, and re-place through normal allocation path.
     (old_points, colors, style, width) = _unplace_line!(self, handle.value)
     Base.resize!(old_points, length(coords))
     copyto!(old_points, coords)
@@ -442,7 +440,6 @@ Base.@propagate_inbounds function update_style!(self::LineRenderer, handle::Line
     group = self.pool[group_index]::LineGroup
     group.style == style && return nothing
 
-    # Relocate line to a group matching the target style
     (points, colors, _, width) = _unplace_line!(self, handle.value)
     _place_line!(self, handle.value, points, colors, style, width)
     return nothing
@@ -452,20 +449,6 @@ end
 # ! Distances
 # ? ---------------------------------
 
-@inline function _plane_dist(p::Vec4F, plane::Int)::Float32
-    if plane == 1
-        return p[3] + p[4]
-    elseif plane == 2
-        return p[1] + p[4]
-    elseif plane == 3
-        return p[4] - p[1]
-    elseif plane == 4
-        return p[2] + p[4]
-    else
-        return p[4] - p[2]
-    end
-end
-
 @inline function _screen_segment_dist(c1::Vec3F, c2::Vec3F, vp::Mat4, wh::Vec2F)::Float32
     if isnan(c1[1]) || isnan(c2[1])
         return NaN32
@@ -473,21 +456,6 @@ end
 
     a = vp * Vec4F(c1[1], c1[2], c1[3], 1.0f0)
     b = vp * Vec4F(c2[1], c2[2], c2[3], 1.0f0)
-
-    for plane in 1:5
-        da = _plane_dist(a, plane)
-        db = _plane_dist(b, plane)
-
-        if da < 0.0f0 && db < 0.0f0
-            return NaN32
-        elseif da < 0.0f0
-            tt = da / (da - db)
-            a = @. a * (1.0f0 - tt) + b * tt
-        elseif db < 0.0f0
-            tt = db / (db - da)
-            b = @. b * (1.0f0 - tt) + a * tt
-        end
-    end
 
     (a[4] <= 0.0f0 || b[4] <= 0.0f0) && return NaN32
 

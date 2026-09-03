@@ -156,20 +156,8 @@ function play!(self::App)
         update!(self._asset_watcher,delta_time)
         self._scene_change |= updateCam!(self,delta_time)
 
-        
-        
-        #model::Model = self._model
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
-
-        # ? Begin model operations with decided state.
-        #state::ModelState = decideState(model)
-        
-        # ? Do model operations with state.
         update!(self,iconified)
-
-
-        # ? End model state.
-        #endState(model,state)
         
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         swap_buffers(self._glfw)

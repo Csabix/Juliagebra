@@ -125,3 +125,51 @@ function get_origin(app, x, y)::Vec3F
 
     return self.eye + right * (mouse[1] * halfWidth) + camUp * (mouse[2] * halfHeight)
 end
+
+function set_eye!(x,y,z)::Nothing
+    plot()
+    global implicitApp
+    cam::Camera = implicitApp._cam
+    cam.eye = Vec3F(Float32(x),Float32(y),Float32(z))
+    reset!(implicitApp._manipulator,cam)
+    calculate_view_matrix!(cam)
+    return nothing
+end
+
+function set_at!(x,y,z)::Nothing
+    plot()
+    global implicitApp
+    cam::Camera = implicitApp._cam
+    cam.at = Vec3F(Float32(x),Float32(y),Float32(z))
+    reset!(implicitApp._manipulator,cam)
+    calculate_view_matrix!(cam)
+    return nothing
+end
+
+function set_fov!(fov)::Nothing
+    plot()
+    global implicitApp
+    cam::Camera = implicitApp._cam
+    cam.fov = Float32(fov)
+    calculate_projection_matrix!(cam)
+    return nothing
+end
+
+function set_perspective!()::Nothing
+    plot()
+    global implicitApp
+    cam::Camera = implicitApp._cam
+    set_perspective!(cam)
+    calculate_projection_matrix!(cam)
+end
+
+function set_ortho!()::Nothing
+    plot()
+    global implicitApp
+    cam::Camera = implicitApp._cam
+    set_ortho!(cam)
+    calculate_projection_matrix!(cam)
+    return nothing
+end
+
+export set_eye!, set_fov!, set_at!, set_perspective!, set_ortho!

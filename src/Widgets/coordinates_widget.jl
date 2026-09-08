@@ -47,9 +47,9 @@ function render(self::CoordinatesWidget, app::AppDNA)
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoCollapse |
             CImGui.ImGuiWindowFlags_NoDecoration)
 
-        coords = "(" * format_float(self._gizmo.position[1],4) * ", " *
-                       format_float(self._gizmo.position[2],4) * ", " *
-                       format_float(self._gizmo.position[3],4) * ")"
+        coords = "(" * format_float(self._gizmo.position[1],8) * ", " *
+                       format_float(self._gizmo.position[2],8) * ", " *
+                       format_float(self._gizmo.position[3],8) * ")"
         CImGui.Text(coords)
         
         CImGui.End()
@@ -69,7 +69,7 @@ function resize!(self::CoordinatesWidget,x::Int,y::Int)
     plusDigits += floor(Int, log10(max(1.0, abs(self._gizmo.position[3]))))
     if (self._gizmo.position[3] < 0) plusDigits += 1 end
 
-    self._width = 163 + plusDigits * 6
+    self._width = 252 + plusDigits * 6
     self._height = 20
 
     self._padding = 8

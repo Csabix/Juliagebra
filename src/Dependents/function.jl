@@ -30,12 +30,15 @@ struct CallableFunc
     domain::Vector{Tuple{Float64,Float64}}
     input_count::Int
     output_count::Int
+
+    function CallableFunc(func::Func)
+        new((args...) -> evaluate(func, args...),func.domain,func.input_count,func.output_count)
+    end
 end
 
 (callable_func::CallableFunc)(args...) = callable_func.callback(args...)
 
-convert_callback_entry(func::Func)::CallableFunc =
-    CallableFunc((args...) -> evaluate(func, args...),func.domain,func.input_count,func.output_count)
+convert_callback_entry(func::Func)::CallableFunc = CallableFunc(func)
 convert_callback_result(func::Func, ::Any) = func
 
 function eval_node(element::Func, callback::Function, ::Vector{Any})::Any
@@ -49,8 +52,8 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
 
     if (func.input_count == 1 && func.output_count > 0)
 
-        domain_start = func.domain[1][1]
-        domain_end = func.domain[1][2]
+        domain_start = get_domain_start(func)
+        domain_end = get_domain_end(func)
         xs = collect(range(domain_start,domain_end,data.graph_resolution))
         if (func.value_changed)
             _calc_graph_values!(func,data)
@@ -68,10 +71,10 @@ function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::No
         end
     elseif (func.input_count == 2 && func.output_count == 1)
 
-        domain_start_u = func.domain[1][1]
-        domain_end_u = func.domain[1][2]
-        domain_start_v = func.domain[2][1]
-        domain_end_v = func.domain[2][2]
+        domain_start_u = get_domain_start(func)
+        domain_end_u = get_domain_end(func)
+        domain_start_v = get_domain_start(func, 2)
+        domain_end_v = get_domain_end(func, 2)
         if (func.value_changed)
             _calc_graph_values!(func,data)
         end
@@ -108,21 +111,24 @@ end
 
 function _calc_graph_values!(func::Func,data::GraphDrawData)
     if (func.input_count == 1 && func.output_count > 0)
-        domain_start = func.domain[1][1]
-        domain_end = func.domain[1][2]
+        domain_start = get_domain_start(func)
+        domain_end = get_domain_end(func)
         xs = collect(range(domain_start,domain_end,data.graph_resolution))
         func.values = [@invokelatest evaluate(func,t) for t in xs]
     elseif (func.input_count == 2 && func.output_count == 1)
-        domain_start_u = func.domain[1][1]
-        domain_end_u = func.domain[1][2]
-        domain_start_v = func.domain[2][1]
-        domain_end_v = func.domain[2][2]
+        domain_start_u = get_domain_start(func)
+        domain_end_u = get_domain_end(func)
+        domain_start_v = get_domain_start(func, 2)
+        domain_end_v = get_domain_end(func, 2)
         xs = collect(range(domain_start_u,domain_end_u,data.graph_resolution))
         ys = collect(range(domain_start_v,domain_end_v,data.graph_resolution))
         func.values = [@invokelatest evaluate(func,u,v) for u in xs, v in ys]
     end
     func.value_changed = false
 end
+
+get_domain_start(func::Union{Func,CallableFunc},interval::Integer=1) = func.domain[interval][1]
+get_domain_end(func::Union{Func,CallableFunc},interval::Integer=1)   = func.domain[interval][2]
 
 _get_func_parents(parents) = [convert_callback_entry(get_element(handle)) for handle in parents]
 evaluate(func::Func, args...) = func.callback(args..., _get_func_parents(func.parents)...)
@@ -148,7 +154,7 @@ end
 const FUNC_GRAPH_RESOLUTION::Int = 1000
 const FUNC_HEATMAP_RESOLUTION::Int = 100
 
-_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},Vec3T}
+_can_be_graphed(type::Type)::Bool = type <: Union{Real,Tuple{Vararg{Real}},VecNT}
 
 function _create_func(callback::Function,inputs::Union{Tuple{<:T,<:S},Vector{Tuple{<:T,<:S}}},parents::Union{Vector{NodeHandle},Nothing}=nothing;
     output_count::Union{Int,Nothing}=nothing)::Tuple{Func,Union{FuncDrawData,Nothing}} where {T<:Real,S<:Real}

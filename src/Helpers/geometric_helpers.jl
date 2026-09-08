@@ -168,3 +168,19 @@ Returns a plane on the given point with the normalized subtraction vector of the
 """
 angle_bisector_plane_external(coord::Vec3D,plane1::PrimitiveWithNormal,plane2::PrimitiveWithNormal)::Tuple{Vec3D,Vec3D} =
     (coord,normalize(n(plane1) - n(plane2)))
+
+
+calc_h(x::Float64)::Float64 = sqrt(eps(x))
+calc_h_large(x::Float64)::Float64 = sqrt(calc_h(x))
+function derive_num(f,x::Float64)
+    h = calc_h(x)
+    return (f(x + h) - f(x - h)) / (2 * h)
+end
+function derive2nd_num(f,x::Float64)
+    h = calc_h_large(x)
+    return (f(x + h) - 2*f(x) + f(x - h)) / (h^2)
+end
+
+const INTEGRAL_RES::Integer = 10_000
+
+zcross(a,b) = a[1] * b[2] + a[2] * b[1]

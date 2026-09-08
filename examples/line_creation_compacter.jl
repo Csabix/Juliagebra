@@ -17,16 +17,8 @@ function point_dir(to, from)
     return normalize(to - from)
 end
 
-function norm_ab(a, b)
-    return norm(a - b)
-end
-
 function project_to_2d(P)
     return Vec2D(P[1], P[3])
-end
-
-function f_dot(A, B)
-    return dot(A, B)
 end
 
 function draw_vector(origin, dir; color="c", style="->", width=5.0f0)
@@ -50,40 +42,34 @@ function miter_offset(v1, v2)
     return isapprox(d, 1.0; atol=1e-4) ? r1 : (r1 .+ r2) / (1.0 + dot(r1, r2))
 end
 
-function curve_segment(_pA, _pB, _pC, _pD, line_width, index)
-    # Static setup: Evaluate index flags once at creation instead of inside graph nodes
-    is_low     = index <= 2
-    is_idx_5   = index == 5
-    swap_ab    = xor(index > 2, iseven(index - 1))
-    s_23       = index in (2, 3) ? -1.0 : 1.0
-
-    # Select target input points up-front
+function curve_segment(_pA, _pB, _pC, _pD, line_width, index)    
+    is_low = index <= 2
     pA_in = is_low ? _pA : _pD
     pB    = is_low ? _pB : _pC
     pC_in = is_low ? _pC : _pB
 
-    A = ValueHolder(project_to_2d, Vec2D, [pA_in])
-    B = ValueHolder(project_to_2d, Vec2D, [pB])
-    C = ValueHolder(project_to_2d, Vec2D, [pC_in])
+    A = add_node!(project_to_2d,parents=[pA_in])
+    B = add_node!(project_to_2d,parents=[pB])
+    C = add_node!(project_to_2d,parents=[pC_in])
 
-    l_AB = @ValueHolder(() -> norm(A - B), Float64)
-    l_CB = @ValueHolder(() -> norm(B - C), Float64)
+    l_AB = @add_node!(() -> norm(A - B))
+    l_CB = @add_node!(() -> norm(B - C))
 
-    dir_AB = ValueHolder(point_dir, Vec2D, [A, B])
-    dir_BC = ValueHolder(point_dir, Vec2D, [B, C])
+    dir_AB = add_node!(point_dir;parents=[A, B])
+    dir_BC = add_node!(point_dir;parents=[B, C])
 
-    dir_AB_r = ValueHolder(perp, Vec2D, [dir_AB])
-    dir_BC_r = ValueHolder(perp, Vec2D, [dir_BC])
+    dir_AB_r = add_node!(perp;parents=[dir_AB])
+    dir_BC_r = add_node!(perp;parents=[dir_BC])
 
-    inner = @ValueHolder(Vec2D) do
+    inner = @add_node!() do
         r_ab = dir_AB_r * (dot(dir_AB_r, dir_BC) >= 0.0 ? -1.0 : 1.0)
         r_bc = dir_BC_r * (dot(dir_BC_r, dir_AB) < 0.0 ? -1.0 : 1.0)
         isapprox(abs(dot(dir_AB, dir_BC)), 1.0; atol=1e-4) ? r_ab : (r_ab .+ r_bc) / (1.0 + dot(r_ab, r_bc))
     end
 
-    right_offset = @ValueHolder(() -> miter_offset(dir_AB, dir_BC), Vec2D)
+    right_offset = @add_node!(() -> miter_offset(dir_AB, dir_BC))
 
-    overlap = @ValueHolder(Bool) do
+    overlap = @add_node!() do
         d_dot = dot(dir_AB, dir_BC)
         d_dot <= -0.9999 && return true
         d_dot >= 0.9999  && return false
@@ -94,31 +80,31 @@ function curve_segment(_pA, _pB, _pC, _pD, line_width, index)
         return l_abc > l_AB || l_abc > l_CB
     end
 
-    t = @ValueHolder(Float64) do
+    t = @add_node!() do
         v = normalize(inner) * (dot(right_offset, inner) <= 0.0 ? -1.0 : 1.0)
         cos_half = clamp(dot(dir_BC_r, v), -1.0, 1.0)
-        sqrt(max(0.0, 1.0 - cos_half) / (1.0 + cos_half)) # Branchless clamp equivalent
+        sqrt(max(0.0, 1.0 - cos_half) / (1.0 + cos_half))
     end
 
-    # Pre-select reactive handle references based on fixed index
     perp_base = index < 5 ? dir_BC_r : dir_AB_r
-    parallel  = index < 5 ? dir_BC   : @ValueHolder(() -> -dir_AB, Vec2D)
+    parallel  = index < 5 ? dir_BC   : @add_node!(() -> -dir_AB)
 
-    perpendicular = @ValueHolder(Vec2D) do
+    perpendicular = @add_node!() do
         (dot(right_offset, inner) >= 0.0 ? -1.0 : 1.0) * perp_base
     end
 
-    no_overlap_offset = @ValueHolder(Vec2D) do
+    no_overlap_offset = @add_node!() do
         a = perpendicular + t * parallel
-        b = is_idx_5 ? a : inner
-        first_v, second_v = swap_ab ? (b, a) : (a, b)
+        b = index == 5 ? a : inner
+        first_v, second_v = xor(index > 2, iseven(index - 1)) ? (b, a) : (a, b)
         dot(right_offset, inner) >= 0.0 ? first_v : second_v
     end
 
-    overlap_offset = @ValueHolder(() -> dir_BC + s_23 * dir_BC_r, Vec2D)
-    obtuse_offset  = @ValueHolder(() -> s_23 * right_offset, Vec2D)
+    s_23 = index in (2, 3) ? -1.0 : 1.0
+    overlap_offset = @add_node!(() -> dir_BC + s_23 * dir_BC_r)
+    obtuse_offset  = @add_node!(() -> s_23 * right_offset)
 
-    offset = @ValueHolder(Vec2D) do
+    offset = @add_node!() do
         dot(dir_AB, dir_BC) >= 0 ? obtuse_offset : (overlap ? overlap_offset : no_overlap_offset)
     end
 
@@ -152,3 +138,5 @@ r5 = curve_segment(B, C, D, E, line_width, 5)
 triangle(r1, r2, r3, (1.0, 0.0, 0.0))
 triangle(r3, r2, r4, (0.0, 1.0, 0.0))
 triangle(r3, r4, r5, (0.0, 0.0, 1.0))
+##
+Juliagebra.Wait()

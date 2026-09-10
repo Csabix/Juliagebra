@@ -138,3 +138,5 @@ r5 = curve_segment(B, C, D, E, line_width, 5)
 triangle(r1, r2, r3, (1.0, 0.0, 0.0))
 triangle(r3, r2, r4, (0.0, 1.0, 0.0))
 triangle(r3, r4, r5, (0.0, 0.0, 1.0))
+##
+Juliagebra.Wait()

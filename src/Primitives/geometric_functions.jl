@@ -77,8 +77,18 @@ function AngleBisectorPlane(handles::NodeHandle...;external::Bool=false,
         Plane((nodes...) -> angle_bisector_plane_internal(nodes...),[handles...],color_style;color=color)
 end
 
+function AngleBisector(A::NodeHandle,B::NodeHandle,C::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",inner::Bool=true)
+    parents = [A,B,B,C]
+    inner ? Line(angle_bisector_inner,parents,color_style;color=color,style=style) :
+            Line(angle_bisector_outer,parents,color_style;color=color,style=style)
+end
 
+function AngleBisector(A1::NodeHandle,A2::NodeHandle,B1::NodeHandle,B2::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",inner::Bool=true)
+    parents = [A1,A2,B1,B2]
+    inner ? Line(angle_bisector_inner,parents,color_style;color=color,style=style) :
+            Line(angle_bisector_outer,parents,color_style;color=color,style=style)
+end
 
 export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
-    AngleBisectorPlane
+    AngleBisectorPlane, AngleBisector
 

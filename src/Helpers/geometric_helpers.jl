@@ -138,6 +138,26 @@ function parallel_plane(line1::LinePrimitive,line2::LinePrimitive)::Tuple{Vec3D,
 end
 #endregion
 
+#region Angle bisector
+function angle_bisector_inner(a1::Vec3D, a2::Vec3D, b1::Vec3D, b2::Vec3D)::PLine
+    da = normalize(a2 - a1)
+    db = normalize(b2 - b1)
+    M = [da -db]
+    t_u = M \ (b1 - a1)
+    p0 = a1 + t_u[1] * da
+    return PLine(p0, p0 + da - db)
+end
+
+function angle_bisector_outer(a1::Vec3D, a2::Vec3D, b1::Vec3D, b2::Vec3D)::PLine
+    da = normalize(a2 - a1)
+    db = normalize(b2 - b1)
+    M = [da -db]
+    t_u = M \ (b1 - a1)
+    p0 = a1 + t_u[1] * da
+    return PLine(p0, p0 + da + db)
+end
+#endregion
+
 """
 Returns the coordinates of given coord projected onto an infinite line defined by given line.
 """

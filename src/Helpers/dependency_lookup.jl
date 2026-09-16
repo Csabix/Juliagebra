@@ -487,12 +487,13 @@ function _collect_free_vars(def::Expr, mod::Module)
 end
 
 """Helper for generating the code returned by macro ctors"""
-function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_args::Vector{Any}, ctor_kw_args::Dict{Symbol,Any}, get_ctor_args = tuple)
+function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_args::Vector{Any}, ctor_kw_args::Dict{Symbol,Any}, get_ctor_args = tuple, pass_gpu_tess_args::Bool = false)
     free_syms = _collect_free_vars(callback, mod)
 
     body = callback.args[2]
 
     gs_captured_deps = gensym(:captured_deps)
+    gs_dependent_bindings = gensym(:dependent_bindings)
     gs_callback_args = gensym(:callback_args)
     gs_callback_wrapper = gensym(:callback_wrapper)
 
@@ -506,6 +507,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
 
             if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
                 push!($gs_captured_deps, $(esc(sym)))
+                $gs_dependent_bindings[$(QuoteNode(sym))] = $(esc(sym))
                 $sym_gs = length($gs_captured_deps)
             end
         end)
@@ -520,15 +522,31 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
         push!(inner_let_bindings.args, Expr(:(=), esc(sym), inner_let_rhs))
     end
 
-    base_ctor_args = [:($arg) for arg in get_ctor_args(gs_callback_wrapper, gs_captured_deps)]
+    base_ctor_args = [
+        (arg === gs_callback_wrapper || arg === gs_captured_deps) ? :($arg) : :($(esc(arg)))
+        for arg in get_ctor_args(gs_callback_wrapper, gs_captured_deps)
+    ]
+
     base_ctor_optional_args = [:($(esc(v))) for v in ctor_optional_args]
     base_ctor_kw_args = [:($(esc(k)) = $(esc(v))) for (k, v) in ctor_kw_args]
     base_ctor_call = :($base_ctor($(base_ctor_args...), $(base_ctor_optional_args...); $(base_ctor_kw_args...)))
+
+    if pass_gpu_tess_args
+        if !Meta.isexpr(base_ctor_call.args[2], :parameters)
+            insert!(base_ctor_call.args[2], 2, Expr(:parameters))
+        end
+
+        push!(base_ctor_call.args[2].args,
+            Expr(:kw, :callback_ast, QuoteNode(callback)),
+            Expr(:kw, :dependent_bindings, gs_dependent_bindings)
+        )
+    end
 
     base_cb_args = [esc(arg_sym) for arg_sym in callback.args[1].args]
 
     return quote
         $gs_captured_deps = Vector{NodeHandle}()
+        $gs_dependent_bindings = Dict{Symbol, NodeHandle}()
 
         $init_block
 

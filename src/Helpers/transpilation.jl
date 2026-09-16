@@ -12,13 +12,11 @@ const GPU_TESS_LOCAL_SIZE = UInt32(256)
 const GPU_TESS_POS_BINDING_IDX = 0
 
 _parse_curly(T::DataType)::Union{Expr,Symbol} = 
-        isempty(T.parameters) ? nameof(T) : Expr(:curly, nameof(T), _parse_curly.(T.parameters)...)
-
-# general fallback for unsupported dependent types
-get_glsl_representation(::Type) = Nothing
+    isempty(T.parameters) ? nameof(T) : Expr(:curly, nameof(T), _parse_curly.(T.parameters)...)
+_parse_curly(::Type{<:SMatrix{N,M,T}}) where {N,M,T} = :(MatNxMT{$N,$M,$(_parse_curly(T))})
 
 # helper for base transpilation decorators reusable across pipelines
-function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::Dict{Symbol, NodeHandle},
+function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::Dict{Symbol, Tuple{NodeHandle, DataType}},
                                         extraUniforms::Vector{Tuple{String,DataType}}=Tuple{String,DataType}[])::Union{ShaderProgram,Nothing}
     global implicitApp
     # this is an internal error, not a transpilation failure
@@ -45,20 +43,12 @@ function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::
 
     push!(top_cmpd, :(@gl_uniform global $GPU_TESS_N::UInt32))
 
-    for (uni_name, UniTy) in extraUniforms
-        type_expr = _parse_curly(UniTy)
-
-        push!(top_cmpd, :(@gl_uniform global $(Symbol(uni_name))::$type_expr))
+    for (uni_name, uni_ty) in extraUniforms
+        push!(top_cmpd, :(@gl_uniform global $(Symbol(uni_name))::$(_parse_curly(uni_ty))))
     end
 
-    for (sym, handle) in dependent_bindings
-        glsl_t = get_glsl_representation(typeof(get_element(handle)))
-        if glsl_t == Nothing
-            dbg && @log "couldn't get GLSL representation for dependent type: $(typeof(get_element(handle)))" INFO
-        end
-
-        glsl_t_expr = _parse_curly(glsl_t)
-        push!(top_cmpd, :(@gl_uniform global $sym::$glsl_t_expr))
+    for (sym, (_, uni_type)) in dependent_bindings
+        push!(top_cmpd, :(@gl_uniform global $sym::$(_parse_curly(uni_type))))
     end
 
     append!(top_cmpd, implicitApp._callback_helpers)

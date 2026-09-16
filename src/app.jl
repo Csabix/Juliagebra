@@ -29,6 +29,9 @@ mutable struct App <: AppDNA
     _delta_time::Float64
     _vsync_state::Int32
 
+    _transpiler_cfg::ShaderTranspiler.ConfigHandle
+    _callback_helpers::Vector{Expr}
+
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -52,10 +55,20 @@ mutable struct App <: AppDNA
         delta_time = 0.0
         vsync_state = Int32(1)
 
+        transpiler_cfg = ShaderTranspiler.ConfigHandle()
+        ShaderTranspiler.set_config_opts!(transpiler_cfg;
+            target_version = "460",
+            code_gen_indent = zero(UInt16),
+            local_size = (GPU_TESS_LOCAL_SIZE, one(UInt32), one(UInt32)),
+        )
+
+        callback_helpers = Expr[]
+
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,graph,false,false,asset_watcher,hovered,delta_time,vsync_state)
+            optimizer,graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
+            transpiler_cfg,callback_helpers)
     end
 end
 

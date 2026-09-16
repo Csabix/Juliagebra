@@ -190,5 +190,28 @@ end
             @test_throws "Slurped arguments" SUT._validate_callback_expr(:(function(a, b...) end), 2)
             @test_throws "Default argument values" SUT._validate_callback_expr(:(function(a = 2) end), 1)
         end
+
+        @testset verbose=true "normalized callback shape" begin
+            @test SUT._is_normalized_callback(:(function () end))
+            @test SUT._is_normalized_callback(:(function (a) a + 1 end))
+            @test SUT._is_normalized_callback(:(function (a, b, c) a + b + c end))
+            
+            @test !SUT._is_normalized_callback(:(a + 2))
+            @test !SUT._is_normalized_callback(Expr(:block, :a))
+            @test !SUT._is_normalized_callback(:(function f(a) 2 end))
+            @test !SUT._is_normalized_callback(:(function (a::Int,) 2 end))
+            @test !SUT._is_normalized_callback(:(function (a...,) 2 end))
+            @test !SUT._is_normalized_callback(:(function (a,) where {T} 2 end))
+            @test !SUT._is_normalized_callback(:(f(a) = a))
+            @test !SUT._is_normalized_callback(:(a -> a))
+
+            # all function forms produce the normalized callback shape by _validate_callback_expr
+            @test SUT._is_normalized_callback(SUT._validate_callback_expr(:(() -> 2), 0))
+            @test SUT._is_normalized_callback(SUT._validate_callback_expr(:(t -> 2), 1))
+            @test SUT._is_normalized_callback(SUT._validate_callback_expr(:((a,b) -> 2), 2))
+            @test SUT._is_normalized_callback(SUT._validate_callback_expr(:(f(a,b) = 2), 2))
+            @test SUT._is_normalized_callback(SUT._validate_callback_expr(:(function(a,b) 2 end), 2))
+            @test SUT._is_normalized_callback(SUT._validate_callback_expr(:(function f(a,b) 2 end), 2))
+        end
     end
 end

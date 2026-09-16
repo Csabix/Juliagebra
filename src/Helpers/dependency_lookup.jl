@@ -197,6 +197,22 @@ function _validate_callback_expr(callback, arg_count::Integer)
     return callback
 end
 
+"""
+Checks whether `ast` has the normalized callback shape produced by `_validate_callback_expr`,
+that is `function (arg_syms...) body end`.
+
+MacroTools.splitdef is too slow to use for normalization every the form is assumed, and while
+macro ctors already produce this form, I didn't wanna keep direct calls bypassing those unguarded
+"""
+function _is_normalized_callback(ast::Expr)::Bool
+    return ast.head === :function &&
+           length(ast.args) == 2 &&
+           Meta.isexpr(ast.args[1], :tuple) &&
+           all(arg -> arg isa Symbol, ast.args[1].args) &&
+           Meta.isexpr(ast.args[2], :block)
+end
+_is_normalized_callback(ast)::Bool = false
+
 """Extracts symbols being defined/declared in lhs and adds them to current_scope"""
 function _process_lhs!(lhs, current_scope::Set{Symbol}, walk_fn)
     if lhs isa Symbol

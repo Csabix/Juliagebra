@@ -11,6 +11,7 @@ using ThreadPinning
 using BitFlags
 #pinthreads(:cores)
 import MacroTools
+import ShaderTranspiler
 
 include("logger.jl")
 include("profiling.jl")
@@ -51,6 +52,8 @@ include("Helpers/infer.jl")
 include("Helpers/dependency_lookup.jl")
 
 include("Graph/graph.jl")
+
+include("Helpers/transpilation.jl")
 
 # ? ---------------------------------
 # ! Primitives

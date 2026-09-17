@@ -125,6 +125,11 @@ perpendicular_plane(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coo
 perpendicular_plane(coord1::Vec3D,coord2::Vec3D)::Tuple{Vec3D,Vec3D} = (coord1,normalize(coord2 - coord1))
 #endregion
 
+#region PerpendicularBisector
+perpendicular_bisector(a::Vec3D, b::Vec3D, n::Vec3D)::PLine = PLine(((a + b) / 2), ((a + b) / 2) + cross(normalize(a - b), n))
+perpendicular_bisector(s::PSegment, n::Vec3D)::PLine = PLine(((p0(s) + p1(s)) / 2),((p0(s) + p1(s)) / 2) + cross(normalize(p0(s) - p1(s)), n))
+#endregion
+
 #region Parallel Line & Plane
 parallel_line(coord::Vec3D,line::LinePrimitive)::Tuple{Vec3D,Vec3D} = (coord,coord + v(line))
 parallel_line(coord1::Vec3D,coord2::Vec3D,coord3::Vec3D)::Tuple{Vec3D,Vec3D} = (coord1,coord1 + coord3 - coord2)

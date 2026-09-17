@@ -208,13 +208,13 @@ end
     @inbounds for i in first_idx:(last_idx-1)
         cw1::Vec4F = coords_sizes[i]
         cw2::Vec4F = coords_sizes[i+1]
-        a::Vec4F = vp * Vec4F(cw1[1], cw1[2], cw1[3], 1.0f0)
-        b::Vec4F = vp * Vec4F(cw2[1], cw2[2], cw2[3], 1.0f0)
+        a::Vec4F = vp * vec4(cw1[1], cw1[2], cw1[3], 1.0f0)
+        b::Vec4F = vp * vec4(cw2[1], cw2[2], cw2[3], 1.0f0)
         
-        if a[3] + a[4] < 0.0f0 && b[3] + b[4] < 0.0f0 continue end
-        
-        t0::Float32 = a[3] + a[4]
-        t1::Float32 = b[3] + b[4]
+        t0::Float32 = a.z + a.w
+        t1::Float32 = b.z + b.w
+
+        if t0 < 0.0f0 && t1 < 0.0f0 continue end
         
         if t0 < 0.0f0
             tt = t0 / (t0 - t1)
@@ -224,11 +224,11 @@ end
             b = @. b * (1 - tt) + a * tt
         end
         
-        a2::Vec2F = Vec2F(a[1], a[2]) / a[4]
+        a2::Vec2F = Vec2F(a.x, a.y) / a.w
         a2 = @. a2 * 0.5f0 + 0.5f0
         a2 = @. a2 * wh
 
-        b2::Vec2F = Vec2F(b[1], b[2]) / b[4]
+        b2::Vec2F = Vec2F(b.x, b.y) / b.w
         b2 = @. b2 * 0.5f0 + 0.5f0
         b2 = @. b2 * wh
 

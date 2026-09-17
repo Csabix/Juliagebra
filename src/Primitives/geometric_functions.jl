@@ -46,6 +46,9 @@ function Perpendicular(handles::NodeHandle...;
     end
 end
 
+PerpendicularBisector(A::NodeHandle, B::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-") =
+    Line(perpendicular_bisector,[A,B,add_node!(Vec3D(0,0,1))],color_style;color=color,style=style)
+
 
 ParallelLine(handles::NodeHandle...;color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle =
     Line((nodes...) -> parallel_line(nodes...),[handles...],color_style;color=color,style=style,size=size)
@@ -89,6 +92,6 @@ function AngleBisector(A1::NodeHandle,A2::NodeHandle,B1::NodeHandle,B2::NodeHand
             Line(angle_bisector_outer,parents,color_style;color=color,style=style)
 end
 
-export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
+export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, PerpendicularBisector, ParallelLine, ParallelPlane, Parallel,
     AngleBisectorPlane, AngleBisector
 

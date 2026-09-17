@@ -129,9 +129,9 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
     # --- KEYBOARD DOWN EVENTS ---
     register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_W))
     register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_UP))
-    register_callback!(ev -> (cam._left = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_A))
+    register_callback!(ev -> (cam._left = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_A))
     register_callback!(ev -> (cam._left = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_LEFT))
-    register_callback!(ev -> (cam._right = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_D))
+    register_callback!(ev -> (cam._right = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_D))
     register_callback!(ev -> (cam._right = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_RIGHT))
     register_callback!(ev -> (cam._backward = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_S))
     register_callback!(ev -> (cam._backward = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_DOWN))
@@ -223,7 +223,7 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
 
     # --- MOUSE MOVE EVENT ---
     register_callback!(inputs, MOUSE_MOVE) do ev
-        du = Float32(ev.dx) / 100.0f0
+        du = -Float32(ev.dx) / 100.0f0
         dv = -Float32(ev.dy) / 100.0f0
 
         if cam._move_state == _ORBITAL_ORBIT || cam._move_state == _ORBITAL_LOOK

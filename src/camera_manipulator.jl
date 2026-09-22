@@ -35,16 +35,20 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     return OrbitalCamera(camera,u,v,log1p(distance),Float32(0.5),0,0,0,0,0,0,_ORBITAL_NONE,false,false)
 end
 
-function reset!(self::OrbitalCamera,camera::Camera)
-    to_aim = camera.at - camera.eye
+function reset!(self::OrbitalCamera, camera::Camera)
+    to_aim   = camera.at - camera.eye
     distance = Float32(norm(to_aim))
-
-    u = atan(to_aim.y, to_aim.x)
-    v = acos(to_aim.z / distance)
-
-    self._u = u
-    self._v = v
+    distance < 1f-6 && return
+ 
+    if hypot(to_aim.x, to_aim.y) > 1f-6
+        self._u = atan(to_aim.y, to_aim.x)
+    end
+    self._v    = acos(clamp(to_aim.z / distance, -1.0f0, 1.0f0))
     self._zoom = log1p(distance)
+    look  = Vec3F(cos(self._u)*sin(self._v), sin(self._u)*sin(self._v), cos(self._v))
+    right = Vec3F(cos(self._u + 0.5f0π), sin(self._u + 0.5f0π), 0.0f0)
+    camera.up = normalize(cross(right, -look))
+    return nothing
 end
 
 function update!(self::OrbitalCamera,deltaTime,inputs::Inputs)

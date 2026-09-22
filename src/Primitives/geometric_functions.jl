@@ -5,7 +5,7 @@ function Midpoint(pointHandles::NodeHandle...;color_style::Union{Nothing,String}
     nodes = map(handle -> get_element(handle), pointHandles)
     
     if (all(node -> isa(node, Point), nodes))
-        point_sequence = PointSequence(collect(pointHandles);size=20)
+        point_sequence = PointSequence(collect(pointHandles);size=0)
         return Point([point_sequence],color_style;color=color,style=style,size=size,axis_constraint=axis_constraint) do ps
             return midpoint(ps)
         end
@@ -46,8 +46,8 @@ function Perpendicular(handles::NodeHandle...;
     end
 end
 
-PerpendicularBisector(A::NodeHandle, B::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-") =
-    Line(perpendicular_bisector,[A,B,add_node!(Vec3D(0,0,1))],color_style;color=color,style=style)
+PerpendicularBisector(A::NodeHandle, B::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",size=3.0) =
+    Line(perpendicular_bisector,[A,B,add_node!(Vec3D(0,0,1))],color_style;color=color,style=style,size=size)
 
 
 ParallelLine(handles::NodeHandle...;color_style::Union{Nothing,String}=nothing,color="g",style="-",size::Union{AbstractFloat,Integer}=3.0f0)::NodeHandle =
@@ -80,10 +80,10 @@ function AngleBisectorPlane(handles::NodeHandle...;external::Bool=false,
         Plane((nodes...) -> angle_bisector_plane_internal(nodes...),[handles...],color_style;color=color)
 end
 
-function AngleBisector(A::NodeHandle,B::NodeHandle,C::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",inner::Bool=true)
+function AngleBisector(A::NodeHandle,B::NodeHandle,C::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",size=3.0,inner::Bool=true)
     parents = [A,B,B,C]
-    inner ? Line(angle_bisector_inner,parents,color_style;color=color,style=style) :
-            Line(angle_bisector_outer,parents,color_style;color=color,style=style)
+    inner ? Line(angle_bisector_inner,parents,color_style;color=color,style=style,size=size) :
+            Line(angle_bisector_outer,parents,color_style;color=color,style=style,size=size)
 end
 
 function AngleBisector(A1::NodeHandle,A2::NodeHandle,B1::NodeHandle,B2::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",inner::Bool=true)

@@ -92,6 +92,12 @@ function AngleBisector(A1::NodeHandle,A2::NodeHandle,B1::NodeHandle,B2::NodeHand
             Line(angle_bisector_outer,parents,color_style;color=color,style=style)
 end
 
-export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, PerpendicularBisector, ParallelLine, ParallelPlane, Parallel,
-    AngleBisectorPlane, AngleBisector
+Derive(handle::NodeHandle)::NodeHandle      = get_derived_handle(get_element(handle))
+Derive2(handle::NodeHandle)::NodeHandle     = get_derived2nd_handle(get_element(handle))
+Curvature(handle::NodeHandle)::NodeHandle   = get_curvature_handle(get_element(handle))
+ArcLength(handle::NodeHandle)::NodeHandle   = get_arc_length_handle(get_element(handle))
+FrenetFrame(handle::NodeHandle)::NodeHandle = get_frenet_frame_handle(get_element(handle))
 
+
+export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
+    AngleBisectorPlane, AngleBisector, Derive, Derive2, Curvature, ArcLength, FrenetFrame

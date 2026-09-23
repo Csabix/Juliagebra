@@ -92,8 +92,7 @@ function load_scene(path::String;scale_factor::Float32=1.0f0,z_up::Bool=false)::
         aiProcess_RemoveComponent |
         aiProcess_ImproveCacheLocality |
         aiProcess_FindInvalidData |
-        aiProcess_GlobalScale |
-        aiProcess_FlipWindingOrder
+        aiProcess_GlobalScale
 
     scene_ptr = aiImportFileExWithProperties(path, flags, C_NULL, props)
     aiReleasePropertyStore(props);

@@ -78,8 +78,8 @@ function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
     for v in 1:(height(mat,layer)-1)
         for u in 1:(width(mat,layer)-1)
             push!(self,T(fetchIndex(mat,layer,u  ,v  )-1))
-            push!(self,T(fetchIndex(mat,layer,u  ,v+1)-1))
             push!(self,T(fetchIndex(mat,layer,u+1,v  )-1))
+            push!(self,T(fetchIndex(mat,layer,u  ,v+1)-1))
         end
     end
 
@@ -91,8 +91,8 @@ function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
     for v in 2:(height(mat,layer))
         for u in 1:(width(mat,layer)-1)
             push!(self,T(fetchIndex(mat,layer,u  ,v  )-1))
-            push!(self,T(fetchIndex(mat,layer,u+1,v  )-1))
             push!(self,T(fetchIndex(mat,layer,u+1,v-1)-1))
+            push!(self,T(fetchIndex(mat,layer,u+1,v  )-1))
         end
     end
 end

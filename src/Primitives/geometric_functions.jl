@@ -99,5 +99,5 @@ ArcLength(handle::NodeHandle)::NodeHandle   = get_arc_length_handle(get_element(
 FrenetFrame(handle::NodeHandle)::NodeHandle = get_frenet_frame_handle(get_element(handle))
 
 
-export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, ParallelLine, ParallelPlane, Parallel,
+export Midpoint, Distance, ClosestPoint, PerpendicularLine, PerpendicularPlane, Perpendicular, PerpendicularBisector, ParallelLine, ParallelPlane, Parallel,
     AngleBisectorPlane, AngleBisector, Derive, Derive2, Curvature, ArcLength, FrenetFrame

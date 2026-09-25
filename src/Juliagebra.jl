@@ -145,25 +145,25 @@ function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parent
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    node = add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    validate!(app.graph, node, true)
+    return node
 end
 function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
     global implicitApp
     app::App = implicitApp::App
-    value = if parents === nothing
-        callback()
-    else
-        arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
-        callback(arguments...)
-    end
-    return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    node =  add!(app.graph,nothing,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    validate!(app.graph, node, true)
+    return node
 end
 function add_node!(element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
     global implicitApp
     app::App = implicitApp::App
-    return add!(app.graph,element,draw_data,parents,nothing,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    node = add!(app.graph,element,draw_data,parents,nothing,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    validate!(app.graph, node, true)
+    return node
 end
 
 function _add_node!(callback::Function,parents::Vector{NodeHandle};draw_data::Any=nothing,use_main_thread::Bool=false)

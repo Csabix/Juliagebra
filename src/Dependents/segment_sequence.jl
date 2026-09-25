@@ -7,7 +7,7 @@ mutable struct SegmentSequence
 end
 
 struct SegmentSequenceDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     break_every::Int32
     size::Float32
@@ -94,42 +94,31 @@ end
 
 function render_node(segseq::SegmentSequence, data::SegmentSequenceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SegmentSequenceDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if data.handle == 0
+    if is_null(data.handle)
         handle = if data.break_every >= 2
-            add_dynamic!(line_renderer,
-                collect(custom_interleaver((Vec3F(coord) for coord in segseq.values), Vec3FNan, data.break_every)),
-                custom_interleaver(collect(Iterators.take(Iterators.cycle(data.colors), length(segseq.values))), zero(UInt32), data.break_every),
-                custom_interleaver(collect(Iterators.take(Iterators.cycle((id,)), length(segseq.values))), zero(UInt32), data.break_every),
-                data.size,
-                data.style
+            add!(line_renderer,
+                custom_interleaver(segseq.values, Vec3FNan, data.break_every),
+                data.colors,
+                [id],
+                data.style,
+                data.size
             )
         else
-            add_dynamic!(line_renderer,
-                (Vec3F(coord) for coord in segseq.values),
-                Iterators.cycle(data.colors),
-                Iterators.cycle((id,)),
-                data.size,
-                data.style
+            add!(line_renderer,
+                [Vec3F(coord) for coord in segseq.values],
+                data.colors,
+                [id],
+                data.style,
+                data.size
             )
         end
         return SegmentSequenceDrawData(handle, data.colors, data.break_every, data.size, data.style)
     else
         if data.break_every >= 2
-            update_dynamic!(line_renderer, data.handle,
-                collect(custom_interleaver((Vec3F(coord) for coord in segseq.values), Vec3FNan, data.break_every)),
-                custom_interleaver(collect(Iterators.take(Iterators.cycle(data.colors), length(segseq.values))), zero(UInt32), data.break_every),
-                custom_interleaver(collect(Iterators.take(Iterators.cycle((id,)), length(segseq.values))), zero(UInt32), data.break_every),
-                data.size,
-                data.style
-            )
+            @inbounds update_coords!(line_renderer, data.handle,
+                custom_interleaver(segseq.values, Vec3FNan, data.break_every))
         else
-            update_dynamic!(line_renderer, data.handle,
-                collect((Vec3F(coord) for coord in segseq.values)),
-                Iterators.cycle(data.colors),
-                Iterators.cycle((id,)),
-                data.size,
-                data.style
-            )
+            @inbounds update_coords!(line_renderer, data.handle,segseq.values)
         end
         return data
     end
@@ -138,7 +127,7 @@ end
 function SegmentSequence(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, break_every=2, color_style::Union{Nothing,String}=nothing;
     color="c", style="-", size=5.0f0)::NodeHandle
     (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = SegmentSequenceDrawData(UInt32(0), c, round(Int32, break_every), Float32(size), s)
+    draw_data = SegmentSequenceDrawData(LineHandle(), c, round(Int32, break_every), Float32(size), s)
     return add_node!(callback, SegmentSequence(); draw_data=draw_data, parents=parents)
 end
 

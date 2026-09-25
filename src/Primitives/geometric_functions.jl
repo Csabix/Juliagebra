@@ -81,15 +81,13 @@ function AngleBisectorPlane(handles::NodeHandle...;external::Bool=false,
 end
 
 function AngleBisector(A::NodeHandle,B::NodeHandle,C::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",size=3.0,inner::Bool=true)
-    parents = [A,B,B,C]
-    inner ? Line(angle_bisector_inner,parents,color_style;color=color,style=style,size=size) :
-            Line(angle_bisector_outer,parents,color_style;color=color,style=style,size=size)
+    parents = inner ? [A,B,B,C] : [B,A,B,C]
+    Line(angle_bisector,parents,color_style;color=color,style=style,size=size)
 end
 
 function AngleBisector(A1::NodeHandle,A2::NodeHandle,B1::NodeHandle,B2::NodeHandle,color_style::Union{Nothing,String}=nothing;color="g",style="-",inner::Bool=true)
-    parents = [A1,A2,B1,B2]
-    inner ? Line(angle_bisector_inner,parents,color_style;color=color,style=style) :
-            Line(angle_bisector_outer,parents,color_style;color=color,style=style)
+    parents = inner ? [A1,A2,B1,B2] : [A2,A1,B1,B2]
+    Line(angle_bisector,parents,color_style;color=color,style=style)
 end
 
 Derive(handle::NodeHandle)::NodeHandle      = get_derived_handle(get_element(handle))

@@ -30,7 +30,7 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
     handle::NodeHandle = NodeHandle(UInt32(length(graph.elements)))
     node::GeometryPlotNode = GeometryPlotNode(callback, parents, flags)
     
-    if (callback === nothing)
+    if !is_dependent(callback, parents)
         Threads.atomic_add!(graph.needs_render_count,UInt64(1))
         set_geom_flags!(node,NODE_UPDATE_RENDER)
     else Threads.atomic_add!(graph.invalid_count,UInt64(1)) end
@@ -73,18 +73,16 @@ function invalidate!(graph::GeometryPlotGraph, handle::NodeHandle)::Nothing
     current::NodeHandle = handle
     nodes::Vector{GeometryPlotNode} = graph.nodes
     invalidate_stack::Vector{NodeHandle} = graph.invalidate_stack
-    #nodes[handle].needs_render = NODE_RENDER
-    #set_geom_flags!(graph.nodes[handle], NODE_UPDATE_RENDER)
     while true
         node::GeometryPlotNode = nodes[current]
         if (@atomic :monotonic node.state) == NODE_VALID
             if node.child_h !== nothing append!(invalidate_stack, node.child_h) end
-            if node.callback !== nothing
+            if is_dependent(node)
                 @atomic :monotonic node.state = NODE_INVALID
                 Threads.atomic_add!(graph.invalid_count,UInt64(1))
             else
-                if !has_geom_flag(nodes[current], NODE_UPDATE_RENDER)
-                    set_geom_flags!(nodes[current], NODE_UPDATE_RENDER)
+                if !has_geom_flag(node, NODE_UPDATE_RENDER)
+                    set_geom_flags!(node, NODE_UPDATE_RENDER)
                     Threads.atomic_add!(graph.needs_render_count,UInt64(1))
                 end
             end
@@ -119,32 +117,19 @@ function _ready(graph::GeometryPlotGraph, node::GeometryPlotNode)::Bool
     nodes::Vector{GeometryPlotNode} = graph.nodes
     for parent_h in parent_handles
         ready &= (@atomic :acquire nodes[parent_h].state) == NODE_VALID
-        if !ready
-            break
-        end
+        !ready && break
     end
     return ready
-end
-
-function _try_entry_no_wait(graph::GeometryPlotGraph, node::GeometryPlotNode, index::Int)::Nothing
-    (old::NodeState, succes::Bool) = @atomicreplace :monotonic :monotonic node.state NODE_INVALID => NODE_LOCKED
-    if succes
-        graph.elements[index] = eval_geometry_node(graph.elements[index], node, graph.elements)
-        set_geom_flags!(node,NODE_UPDATE_RENDER)
-        Threads.atomic_add!(graph.needs_render_count,UInt64(1))
-        Threads.atomic_sub!(graph.invalid_count,UInt64(1))
-        @atomic :release node.state = NODE_VALID
-        notify(graph.wait_pool, index)
-    end
-    return nothing
 end
 
 function _try_entry(graph::GeometryPlotGraph, node::GeometryPlotNode, index::Int)::Nothing
     (old::NodeState, succes::Bool) = @atomicreplace :monotonic :monotonic node.state NODE_INVALID => NODE_LOCKED
     if succes
-        parent_handles::Vector{NodeHandle} = node.parent_h::Vector{NodeHandle}
-        for p_h in parent_handles
-            wait(graph.wait_pool, graph.nodes[p_h], Int(p_h.value), NODE_LOCKED)
+        if !_ready(graph, node)
+            parent_handles::Vector{NodeHandle} = node.parent_h::Vector{NodeHandle}
+            for p_h in parent_handles
+                wait(graph.wait_pool, graph.nodes[p_h], Int(p_h.value))
+            end
         end
         graph.elements[index] = eval_geometry_node(graph.elements[index], node, graph.elements)
         set_geom_flags!(node,NODE_UPDATE_RENDER)
@@ -158,18 +143,13 @@ end
 
 function validate!(graph::GeometryPlotGraph, start::NodeHandle, main_thread::Bool)::Nothing
     if (graph.invalid_count[] == 0) return nothing end
-    is_main_thread = Threads.threadid() == 1
     nodes::Vector{GeometryPlotNode} = graph.nodes
     current::Int = start.value
     limit::Int = length(nodes)
     while current <= limit
         node::GeometryPlotNode = nodes[current]
         if (@atomic :monotonic node.state) == NODE_INVALID && (!has_geom_flag(node,NODE_EVAL_ON_MAIN) || main_thread)
-            if _ready(graph, node)
-                _try_entry_no_wait(graph, node, current)
-            else
-                _try_entry(graph, node, current)
-            end
+            _try_entry(graph, node, current)
         end
         current = current + 1
     end

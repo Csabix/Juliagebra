@@ -5,62 +5,43 @@ const MORTON_CODE_TYPE = UInt64
 # ! IntersectionCalculator{T}
 # ? ---------------------------------
 
-mutable struct IntersectionCalculator{T}
-    _foundIntersectionNum::UInt
-    _intersections::Vector{T}
+struct IntersectionCalculator{T}
+    intersections::Vector{T}
+    limit::UInt
 
-    # YELLOW Thread
     function IntersectionCalculator{T}(maxIntersectionNum::UInt) where T
-        foundIntersectionNum = 0
-        intersections = Vector{T}(undef,maxIntersectionNum)
-        new(foundIntersectionNum,intersections)
+        @assert maxIntersectionNum > 0 "Intersection count must be larger than 0"
+        new(sizehint!(T[],maxIntersectionNum),maxIntersectionNum)
     end
 end
 
-convert_callback_entry(self::IntersectionCalculator)::IntersectionCalculator = return self
-
-convert_callback_result(::IntersectionCalculator,::Nothing) = return nothing
-
-function eval_node(element::IntersectionCalculator, callback::Function, arguments::Vector{Any})::Any
-    callback(element, arguments...)
-    return element
+# Brute-force
+function FindIntersections(self::IntersectionCalculator{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
+    empty!(self.intersections)
+    for (b,a) in Iterators.product(shapes_b,shapes_a)
+        maybe_intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(a, b)
+        if maybe_intersection !== nothing
+            intersection::T = maybe_intersection::T
+            push!(self.intersections, intersection)
+            length(self.intersections) >= self.limit && break
+        end
+    end
+    return self
 end
 
-function FindIntersections(self::IntersectionCalculator,shapes_a::PrimitivesOf,shapes_b::PrimitivesOf)
-    self._foundIntersectionNum = 0
-    BruteForceIntersections(self,shapes_a,shapes_b)
-end
-
+# LBVH
 function FindIntersections(self::IntersectionCalculator,shapes_a::LazyLBVH{PrimitivesOf{U}}, shapes_b::LazyLBVH{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}
-    self._foundIntersectionNum = 0
-
     if ((length(shapes_a._iter) < BRUTE_FORCE_LBVH_THRESHOLD) && (length(shapes_b._iter) < BRUTE_FORCE_LBVH_THRESHOLD))
-        BruteForceIntersections(self, shapes_a._iter, shapes_b._iter)
+        FindIntersections(self, shapes_a._iter, shapes_b._iter)
     else
+        empty!(self.intersections)
         if (length(shapes_a._iter) <= length(shapes_b._iter))
-            @log "$(getGraphID(shapes_a)) vs $(getGraphID(shapes_b)) --> $(getGraphID(shapes_a)) is LBVH"
             LBVHIntersections(self, shapes_a, shapes_b)
         else
-            @log "$(getGraphID(shapes_a)) vs $(getGraphID(shapes_b)) --> $(getGraphID(shapes_b)) is LBVH"
             LBVHIntersections(self, shapes_b, shapes_a)
         end
     end
-end
-
-function BruteForceIntersections(self::IntersectionCalculator{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}
-    for primitive_a in shapes_a
-        for primitive_b in shapes_b
-            intersection::Union{T,Nothing} = PrimitiveToPrimitiveIntersection(primitive_a, primitive_b)
-            if (intersection !== nothing)
-                if (self._foundIntersectionNum < length(self._intersections))
-                    self._intersections[self._foundIntersectionNum + 1] = intersection
-                    self._foundIntersectionNum += 1
-                else
-                    return
-                end
-            end
-        end
-    end
+    return self
 end
 
 function LBVHIntersections(self::IntersectionCalculator, geometry_lbvh::LazyLBVH{PrimitivesOf{U}}, geometry_b::LazyLBVH{PrimitivesOf{V}}) where {U,V <: AABBPrimitive}    
@@ -70,7 +51,8 @@ function LBVHIntersections(self::IntersectionCalculator, geometry_lbvh::LazyLBVH
     shapes_b = geometry_b._iter
             
     for primitive_b in shapes_b
-        number_of_intersections = LBVHToPrimitiveIntersection(
+        length(self.intersections) >= self.limit && break
+        LBVHToPrimitiveIntersection(
             lbvh.lbvh_nodes,
             shapes_lbvh,
             lbvh.number_of_internal_nodes,
@@ -78,26 +60,27 @@ function LBVHIntersections(self::IntersectionCalculator, geometry_lbvh::LazyLBVH
             primitive_b,
             GetAABB(primitive_b),
             PrimitiveToPrimitiveIntersection,
-            self._intersections,
-            self._foundIntersectionNum
+            self.intersections,
+            self.limit
         )
-        self._foundIntersectionNum += number_of_intersections
-
-        if (self._foundIntersectionNum >= length(self._intersections)) # the > is not necesseary its just for extra safety
-            return
-        end
     end
+    return nothing
 end
 
+function eval_geometry_node(element::IntersectionCalculator, node::GeometryPlotNode, elements::Vector{Any})
+    A = convert_callback_entry(elements[node.parent_h[1]])
+    B = convert_callback_entry(elements[node.parent_h[2]])
+    return FindIntersections(element, A, B)
+end
+
+Base.checkbounds(Bool,self::IntersectionCalculator,idx) = return 0 < idx <= self.limit
 function Base.getindex(self::IntersectionCalculator{T}, idx = 1)::Union{T,Nothing} where T
-    if (1 <= idx && idx <= self._foundIntersectionNum)
-        return self._intersections[idx]
+    if checkbounds(Bool, self.intersections, idx)
+        return @inbounds self.intersections[idx]
     else
         return nothing
     end
 end
-
-Base.checkbounds(Bool,::IntersectionCalculator,I...) = true
 
 # ? ---------------------------------
 # ! IntersectionCalculator(T)
@@ -108,10 +91,7 @@ function IntersectionCalculator(T12::Type, geometry1::NodeHandle, geometry2::Nod
     # ! - data: IntersectionCalculator{T12}
     # ! - geometry1: PrimtiviesOf{T1<:Primitive} or LazyLBVH{PrimitivesOf{T1<:AABBPrimitive}}
     # ! - geometry2: PrimtiviesOf{T2<:Primitive} or LazyLBVH{PrimitivesOf{T2<:AABBPrimitive}}
-    add_node!(IntersectionCalculator{T12}(UInt(maxIntersectionNum));parents=[geometry1,geometry2]) do data,g1,g2
-        FindIntersections(data,g1,g2)
-        return nothing
-    end
+    add_node!(IntersectionCalculator{T12}(UInt(maxIntersectionNum));parents=[geometry1,geometry2])
 end
 
 # ? ---------------------------------
@@ -133,7 +113,6 @@ function InferPrimitiveToPrimitiveIntersection(::Type{U},::Type{V})::Type where 
     return InferSingletonDefinitionFor(Tuple{U,V},PrimitiveToPrimitiveIntersection,Union{Any,Nothing})
 end
 
-# YELLOW Thread
 function Intersection(geometry1::NodeHandle,geometry2::NodeHandle; maxIntersectionNum=25)
     T1::Type = InferPrimitivesT(geometry1)
     T2::Type = InferPrimitivesT(geometry2)

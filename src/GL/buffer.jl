@@ -133,6 +133,8 @@ function Base.setindex!(self::MappedBuffer{T}, value, index::Int) where {T}
     return self
 end
 
+Base.getindex(self::MappedBuffer{T}, index::Int) where {T} = self._mapped[index]
+
 function Base.lock(self::MappedBuffer)
     if self._sync != C_NULL
         glDeleteSync(self._sync)

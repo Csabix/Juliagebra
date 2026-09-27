@@ -6,25 +6,37 @@ const GPU_TESS_POS_ARR = :JG_TESS_POS_ARRAY
 const GPU_TESS_CB = :JG_TESS_CALLBACK
 const GPU_TESS_ID = :JG_TESS_ID
 
-# ! TODO: remove
+# ! TODO: place in a more relevant file
 const GPU_TESS_DEBUG_ARG = "--debug-gpu-tess"
-const GPU_TESS_LOCAL_SIZE = UInt32(256)
 const GPU_TESS_POS_BINDING_IDX = 0
 
-_parse_curly(T::DataType)::Union{Expr,Symbol} = 
-    isempty(T.parameters) ? nameof(T) : Expr(:curly, nameof(T), _parse_curly.(T.parameters)...)
-_parse_curly(::Type{<:SMatrix{N,M,T}}) where {N,M,T} = :(MatNxMT{$N,$M,$(_parse_curly(T))})
+mutable struct TranspilationSource
+    callback_ast::Expr
+    argument_bindings::Vector{Tuple{Symbol,NodeHandle}}
+    node_uniforms::Dict{Symbol,DataType}
 
-# helper for base transpilation decorators reusable across pipelines
-function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::Dict{Symbol, Tuple{NodeHandle, DataType}},
-                                        extraUniforms::Vector{Tuple{String,DataType}}=Tuple{String,DataType}[])::Union{ShaderProgram,Nothing}
+    function TranspilationSource(callback_ast::Expr, argument_bindings::Vector{Tuple{Symbol,NodeHandle}},
+                               node_uniforms::Dict{Symbol,DataType}=Dict{Symbol,DataType}())
+        new(callback_ast, argument_bindings, node_uniforms)
+    end
+end
+
+# only meant to support types that convert_argument_gpu can actually produce
+_parse_curly_type(T::DataType)::Union{Expr,Symbol} = 
+    isempty(T.parameters) ? nameof(T) : Expr(:curly, nameof(T), _parse_curly_type.(T.parameters)...)
+_parse_curly_type(::Type{<:SMatrix{N,M,T}}) where {N,M,T} = :(MatNxMT{$N,$M,$(_parse_curly_type(T))})
+
+# transpiles, compiles and links the compute shader for GPU tessellation
+# argument_types should reflect the current argument types
+# this is available, since shaders are transpiled lazily, before tessellation
+function transpile_tess_shader(src::TranspilationSource, argument_types::Dict{NodeHandle,DataType})::Union{ShaderProgram,Nothing}
     global implicitApp
     # this is an internal error, not a transpilation failure
     implicitApp === nothing && error("Trying to invoke shader transpilation before implicitApp has been initialized")
 
     dbg::Bool = GPU_TESS_DEBUG_ARG in ARGS
 
-    if !_is_normalized_callback(callback_ast)
+    if !_is_normalized_callback(src.callback_ast)
         dbg && @log "AST provided as a callback is not of normalized callback form" INFO
         return nothing
     end
@@ -43,28 +55,33 @@ function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::
 
     push!(top_cmpd, :(@gl_uniform global $GPU_TESS_N::UInt32))
 
-    for (uni_name, uni_ty) in extraUniforms
-        push!(top_cmpd, :(@gl_uniform global $(Symbol(uni_name))::$(_parse_curly(uni_ty))))
+    for (uni_name, uni_type) in src.node_uniforms
+        push!(top_cmpd, :(@gl_uniform global $uni_name::$(_parse_curly_type(uni_type))))
     end
 
-    for (sym, (_, uni_type)) in dependent_bindings
-        push!(top_cmpd, :(@gl_uniform global $sym::$(_parse_curly(uni_type))))
+    for (arg_sym, arg_handle) in src.argument_bindings
+        arg_type = get(argument_types, arg_handle, nothing)
+        if arg_type === nothing
+            dbg && @log "argument_types contains no entry for binding `$arg_sym`"
+            return nothing
+        end
+        push!(top_cmpd, :(@gl_uniform global $arg_sym::$(_parse_curly_type(arg_type))))
     end
 
     append!(top_cmpd, implicitApp._callback_helpers)
 
     # only the body is carried over: the callback's own arguments are dropped and recomputed
     # from GPU_TESS_ID by the caller, and an explicit return type, if any, is overwritten
-    push!(top_cmpd, Expr(:function, :($GPU_TESS_CB($GPU_TESS_ID::UInt32)::Vec3F), callback_ast.args[2]))
+    push!(top_cmpd, Expr(:function, :($GPU_TESS_CB($GPU_TESS_ID::UInt32)::Vec3F), src.callback_ast.args[2]))
 
     main_body = Expr(:block,
-        :($GPU_TESS_ID = gl_GlobalInvocationID[:x]),
+        :($GPU_TESS_ID = gl_GlobalInvocationID.x),
         :(
             if $GPU_TESS_ID >= $GPU_TESS_N
                 return
             end
         ),
-        :($GPU_TESS_POS_ARR[$GPU_TESS_ID + UInt32(1)] = Vec4F(JG_TESS_CALLBACK($GPU_TESS_ID), 0))
+        :($GPU_TESS_POS_ARR[$GPU_TESS_ID + UInt32(1)] = Vec4F($GPU_TESS_CB($GPU_TESS_ID), 0))
     )
 
     push!(top_cmpd, Expr(:function, :(main()::Nothing), main_body))
@@ -126,7 +143,11 @@ function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::
         close(io)
 
         return try
-            sp = ShaderProgram([path], [GPU_TESS_N_STR, first.(extraUniforms)..., string.(collect(keys(dependent_bindings)))...])
+            sp = ShaderProgram([path], [
+                GPU_TESS_N_STR,
+                String.(collect(keys(src.node_uniforms)))...,
+                String.(first.(src.argument_bindings))...
+            ])
 
             if sp.id != GLuint(0)
                 sp
@@ -145,7 +166,7 @@ function try_transpile_tess_shader_base(callback_ast::Expr, dependent_bindings::
     end
 end
 
-precompile(try_transpile_tess_shader_base, (Expr, Dict{Symbol,NodeHandle}, Vector{Tuple{String,DataType}}))
+precompile(transpile_tess_shader, (TranspilationSource, Dict{NodeHandle,DataType}))
 
 macro callback_helper(fn::Expr)
     @assert MacroTools.isdef(fn) "@callback_helper placed before non-function AST node"

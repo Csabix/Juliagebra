@@ -493,7 +493,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
     body = callback.args[2]
 
     gs_captured_deps = gensym(:captured_deps)
-    gs_dependent_bindings = gensym(:dependent_bindings)
+    gs_argument_bindings = gensym(:argument_bindings)
     gs_callback_args = gensym(:callback_args)
     gs_callback_wrapper = gensym(:callback_wrapper)
 
@@ -507,7 +507,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
 
             if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
                 push!($gs_captured_deps, $(esc(sym)))
-                $gs_dependent_bindings[$(QuoteNode(sym))] = $(esc(sym))
+                $gs_argument_bindings[$(QuoteNode(sym))] = $(esc(sym))
                 $sym_gs = length($gs_captured_deps)
             end
         end)
@@ -538,7 +538,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
 
         push!(base_ctor_call.args[2].args,
             Expr(:kw, :callback_ast, QuoteNode(callback)),
-            Expr(:kw, :dependent_bindings, gs_dependent_bindings)
+            Expr(:kw, :argument_bindings, gs_argument_bindings)
         )
     end
 
@@ -546,7 +546,7 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
 
     return quote
         $gs_captured_deps = Vector{NodeHandle}()
-        $gs_dependent_bindings = Dict{Symbol, NodeHandle}()
+        $gs_argument_bindings = Dict{Symbol, NodeHandle}()
 
         $init_block
 

@@ -54,7 +54,8 @@ include("Helpers/dependency_lookup.jl")
 include("Graph/graph.jl")
 
 include("Helpers/transpilation.jl")
-include("gpu_tessellation.jl")
+include("Helpers/gpu_tessellation.jl")
+include("parametric_tessellation.jl")
 
 # ? ---------------------------------
 # ! Primitives

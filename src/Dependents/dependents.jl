@@ -1,6 +1,7 @@
 include("parsers.jl")
 #include("Gui/gui_renderer.jl")
 #include("Gui/gui_dependent.jl")
+include("node_indexer.jl")
 include("point.jl")
 include("curve.jl")
 include("surface.jl")
@@ -22,7 +23,6 @@ include("plane.jl")
 include("circle.jl")
 include("scalar.jl")
 include("function.jl")
-include("node_indexer.jl")
 
 _deps_collect_add!(vec::Vector{Vec3D},::Nothing) = nothing
 _deps_collect_add!(vec::Vector{Vec3D},v) = push!(vec,v)

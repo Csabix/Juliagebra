@@ -10,7 +10,7 @@ mutable struct ParametricCurve
 end
 
 struct ParametricCurveDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
@@ -60,15 +60,12 @@ function convert_gpu_result(element::ParametricCurve,pos_buffer::MappedBuffer{Ve
 end
 
 function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData
-    @time_cpu_begin ParamTess Render Curve
     line_renderer::LineRenderer = renderers[LineRenderer]
-    if data.handle == 0
-        handle = add!(line_renderer, pc.values, Iterators.cycle(data.colors), Iterators.cycle(id), data.size, data.style)
-        @time_cpu_end ParamTess Render Curve
+    if is_null(data.handle)
+        handle = add!(line_renderer, pc.values, data.colors, [id], data.style, data.size)
         return ParametricCurveDrawData(handle, data.colors, data.style, data.size)
     else
-        update_coords!(line_renderer, data.handle, pc.values)
-        @time_cpu_end ParamTess Render Curve
+        @inbounds update_coords!(line_renderer, data.handle, pc.values)
         return data
     end
 end
@@ -149,7 +146,7 @@ function ParametricCurve(callback::Function, range::AbstractRange{Float64},
                 argument_bindings::Union{Dict{Symbol,NodeHandle},Nothing}=nothing,
                 enable_gpu_tessellation::Bool=false)::NodeHandle
     (c, s) = parse_line_colors_style(color_style, color, style)
-    draw_data = ParametricCurveDrawData(UInt32(0), c, s, Float32(size))
+    draw_data = ParametricCurveDrawData(LineHandle(), c, s, Float32(size))
     
     if !enable_gpu_tessellation
         callback_ast = nothing

@@ -6,7 +6,7 @@ const CIRCLE_RANGE = range(0,2pi,CIRCLE_RESOLUTION)
 # ? ---------------------------------
 
 mutable struct CircleDrawData
-    handle::UInt32
+    handle::LineHandle
     colors::Vector{UInt32}
     style::UInt8
     size::Float32
@@ -25,10 +25,10 @@ function render_node(circle::PCircle, data::CircleDrawData, renderers::Dict{Data
     radius = r(circle)
     values = [u * c_angle + v * s_angle for (c_angle, s_angle) in zip(cos.(CIRCLE_RANGE), sin.(CIRCLE_RANGE))] .* radius .+ [offset]
 
-    if data.handle == 0
-        data.handle = add!(line_renderer,values,Iterators.cycle(data.colors),Iterators.cycle(id),data.size,data.style)
+    if is_null(data.handle)
+        data.handle = add!(line_renderer,values,data.colors,[id],data.style,data.size)
     else
-        update_coords!(line_renderer,data.handle,values)
+        @inbounds update_coords!(line_renderer,data.handle,values)
     end
     return data
 end
@@ -75,7 +75,7 @@ function Circle(callback::Function,parents::Union{Vector{NodeHandle},Nothing}=no
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
     (c,s) = parse_line_colors_style(color_style,color,style)
-    draw_data = CircleDrawData(UInt32(0),c,s,convert(Float32,size))
+    draw_data = CircleDrawData(LineHandle(),c,s,convert(Float32,size))
     return add_node!(callback,PCircle(Vec3DNan,NaN64,Vec3DNan);draw_data=draw_data,parents=parents)
 end
 function Circle(data1,data2,data3=nothing,color_style::Union{Nothing,String}=nothing;
@@ -97,7 +97,7 @@ function Circle(data1,data2,data3=nothing,color_style::Union{Nothing,String}=not
         color_style;color=color,style=style,size=size)
 end
 
-function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},::Union{Point,Vec3D},
+function create_circle(::Union{Point,Vec3D,NodeIndexer},::Union{Point,Vec3D},::Union{Point,Vec3D},
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
@@ -120,7 +120,7 @@ function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},::Union{Point,V
         return (center,radius,normalize(normal))
     end
 end
-function create_circle(::LinePrimitive,::Union{Point,Vec3D},::Nothing,
+function create_circle(::LinePrimitive,::Union{Point,Vec3D,NodeIndexer},::Nothing,
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
@@ -130,7 +130,7 @@ function create_circle(::LinePrimitive,::Union{Point,Vec3D},::Nothing,
         return (projected,radius,normalize(v(line)))
     end
 end
-function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{PPlane,Nothing},
+function create_circle(::Union{Point,Vec3D,NodeIndexer},::Union{Point,Vec3D,NodeIndexer},plane::Union{PPlane,Nothing},
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     
@@ -142,7 +142,7 @@ function create_circle(::Union{Point,Vec3D},::Union{Point,Vec3D},plane::Union{PP
             parents,color_style;color=color,style=style,size=size)
     end
 end
-function create_circle(::Union{Point,Vec3D},::Real,plane::Union{PPlane,Nothing},
+function create_circle(::Union{Point,Vec3D,NodeIndexer},::Real,plane::Union{PPlane,Nothing},
     parents::Vector{NodeHandle},color_style::Union{Nothing,String}=nothing;
     color="b",style="-",size::Union{AbstractFloat,Integer}=5.0f0)
     

@@ -18,10 +18,10 @@ void main() {
     vec3 v1 = positions[idx + 1].xyz;
     vec3 v2 = positions[idx + 2].xyz;
 
-    vec3 edge1 = v0 - v1;
-    vec3 edge2 = v2 - v1;
+    vec3 u = v1 - v0;
+    vec3 v = v2 - v0;
 
-    vec3 triangleNormal = normalize(cross(edge1, edge2));
+    vec3 triangleNormal = normalize(cross(u, v));
     
     normals[idx]     = vec4(triangleNormal, 0.0);
     normals[idx + 1] = vec4(triangleNormal, 0.0);

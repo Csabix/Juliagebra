@@ -40,7 +40,6 @@ julia> GetContainerAABB(Vector{AABB3D}([AABB3D(SVector(0.7f0, 0.8f0, 1.8f0), SVe
 ```
 """
 function GetContainerAABB(aabbs::Vector{AABB{N}})::AABB{N} where {N}
-    @assert all(AABBValid.(aabbs)) "Error, invalid AABBs provided"
     return AABB{N}(reduce((a, b) -> min.(a, b), getfield.(aabbs, :min)), reduce((a, b) -> max.(a, b), getfield.(aabbs, :max)))
 end
 
@@ -70,8 +69,6 @@ julia> GetScaledAABBCenter(AABB3D(SVector(0.7f0, 0.8f0, 1.8f0), SVector(0.7f0, 0
 - if the `aabb` isn't a point and the `container_aabb` is computed as the min of mins and max of maxes than this might be a tiny bit wasteful  
 """
 function GetScaledAABBCenter(aabb::AABB{N}, container_aabb::AABB{N})::SVector{N, Float32} where {N}
-    @assert AABBValid(aabb) "Error, invalid AABB provided"
-    @assert AABBValid(container_aabb) "Error, invalid container AABB provided"
     return ((0.5 .* (aabb.min .+ aabb.max) .- container_aabb.min) ./ ((container_aabb.max .- container_aabb.min) .+ CONTAINER_EPSILON))
 end
 
@@ -162,7 +159,6 @@ Takes a vector of AABBs (Axis Aligned Bounding Boxes) and first computes a bound
 - `Vector{UInt32}`: the resulting vector of either 32 or 64 bit morton codes (specified in the functions argument)
 """
 function CalculateMortonCodesForPrimitiveAABBs(primitive_aabbs::Vector{AABB{N}}, ::Type{MortonCodeT})::Vector{MortonCodeT} where {N, MortonCodeT<:AbstractMortonCodeType}
-    @assert all(AABBValid.(primitive_aabbs)) "Error, invalid AABBs provided"
     @assert ((N == 2) || ( N == 3)) "Error, only dimensions 2 and 3 are supported"
     container_aabb::AABB{N} = GetContainerAABB(primitive_aabbs)
     if (MortonCodeT === UInt32)
@@ -532,7 +528,6 @@ function LBVHToPrimitiveIntersection(
     @assert ((number_of_internal_nodes + 1) == number_of_leafs) "Error, number of internal nodes is incorrect"
     @assert (length(lbvh_nodes) == (number_of_internal_nodes + number_of_leafs)) "Error, invalid sized lbvh buffer provided"
     @assert (length(lbvh_primitives) == number_of_leafs) "Error, invalid primitives buffer provided"
-    @assert AABBValid(primitive_aabb) "Error, invalid primitive AABB provided"
 
     stack::MVector{STACK_SIZE, UInt32} = MVector{STACK_SIZE, UInt32}(undef)
     stack_size::Int32 = 0
@@ -593,7 +588,6 @@ function LBVHToPrimitiveIntersection(
     @assert ((number_of_internal_nodes + 1) == number_of_leafs) "Error, number of internal nodes is incorrect"
     @assert (length(lbvh_nodes) == (number_of_internal_nodes + number_of_leafs)) "Error, invalid sized lbvh buffer provided"
     @assert (length(lbvh_primitives) == number_of_leafs) "Error, invalid primitives buffer provided"
-    @assert AABBValid(primitive_aabb) "Error, invalid primitive AABB provided"
 
     stack::MVector{STACK_SIZE, UInt32} = MVector{STACK_SIZE, UInt32}(undef)
     stack_size::Int32 = 0

@@ -90,7 +90,7 @@ function transpile_tess_shader(src::TranspilationSource, argument_types::Dict{No
 
     if dbg
         println("code passed to transpiler:")
-        println(translation_unit)
+        println(MacroTools.striplines(translation_unit))
     end
 
     pipe = Pipe()
@@ -158,9 +158,8 @@ function transpile_tess_shader(src::TranspilationSource, argument_types::Dict{No
         catch ex
             if dbg
                 @log "error thrown while creating ShaderProgram from generated code, exception printed to stderr" INFO
-                println(stderr, ex)
+                Base.show(stderr, ex)
             end
-
             nothing
         end
     end

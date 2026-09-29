@@ -3,8 +3,8 @@ using JuliaGLM
 using JuliaGLM: cross, normalize
 
 # tessellation range density
-TESS_RADIUS = 1000
-TESS_THETA =  1000
+TESS_RADIUS = 500
+TESS_THETA =  500
 
 P1 = Point(-2, 0, 0)
 P2 = Point(2, 0, 0)

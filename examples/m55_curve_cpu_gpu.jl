@@ -1,8 +1,8 @@
 using Juliagebra
 using JuliaGLM
 
-const CPU_TESS_COUNT = 500_000
-const GPU_TESS_COUNT = 500_000
+const CPU_TESS_COUNT = 250_000
+const GPU_TESS_COUNT = 250_000
 
 center_cpu = Point(-3.5,0,0)
 center_gpu = Point( 3.5,0,0)

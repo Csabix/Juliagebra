@@ -146,42 +146,72 @@ function get_element(handle::NodeHandle)::Any
     return app.graph.elements[handle]
 end
 
-function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
-    plot()
+function _add_and_validate!(element::Any,draw_data::Any,parents::Union{Vector{NodeHandle},Nothing},callback::Union{Function,Nothing},use_main_thread::Bool)::NodeHandle
     global implicitApp
     app::App = implicitApp::App
-    node = add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
-    validate!(app.graph, node, true)
-    return node
+
+    if !use_main_thread
+        handle = add!(app.graph,element,draw_data,parents,callback,zero(UInt64))
+        validate!(app.graph,handle,true)
+        return handle
+    end
+
+    # for pinned nodes, we need the gl context lock, so that the initial eval can make gl calls
+    handle, success = lock(app._gl_ctx_lock) do
+        # ?? if add! is moved outside the lock, graph validation will probably already do the below validation, do we want this?
+        h = add!(app.graph,element,draw_data,parents,callback,NODE_EVAL_ON_MAIN)
+
+        # the very rare case this _ready check protects is when parents get invalidated between the frame gl context unlocking and this code acquiring the lock
+        # this should only be able to happen if outside user code invalidates a parent AND it gets control between graph validation and us acquiring the lock
+        if _ready(app.graph, app.graph.nodes[h])
+            validate!(app.graph, h, true)
+            return (h, true)
+        end
+        return (h, false)
+    end
+    # ?? yielding here allows not starving rendering when a burst of pinned nodes is added, but keeps add_node! blocking for longer than needed, do we want this? 
+    yield()
+
+    if success
+        return handle
+    end
+
+    # if a parent did get invalidated, we wait for the main play! flow to validate the new node
+    # we can rely on this, since the node has already been added to the graph as NODE_INVALID
+    node = app.graph.nodes[handle]
+    wait(app.graph.wait_pool, node, Int(handle.value), NODE_INVALID)
+    wait(app.graph.wait_pool, node, Int(handle.value), NODE_LOCKED)
+
+    return handle
+end
+
+function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
+    plot()
+    return _add_and_validate!(element,draw_data,parents,callback,use_main_thread)
 end
 function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
-    global implicitApp
-    app::App = implicitApp::App
-    node =  add!(app.graph,nothing,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
-    validate!(app.graph, node, true)
-    return node
+    return _add_and_validate!(nothing,draw_data,parents,callback,use_main_thread)
 end
 function add_node!(element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
-    global implicitApp
-    app::App = implicitApp::App
-    node = add!(app.graph,element,draw_data,parents,nothing,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
-    validate!(app.graph, node, true)
-    return node
+    return _add_and_validate!(element,draw_data,parents,nothing,use_main_thread)
 end
 
+# adapter for macro ctor signature
 function _add_node!(callback::Function,parents::Vector{NodeHandle};draw_data::Any=nothing,use_main_thread::Bool=false)
     plot()
-    global implicitApp
-    app::App = implicitApp::App
-    value = if parents === nothing
-        callback()
-    else
-        arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
-        callback(arguments...)
-    end
-    return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    # ?? is there a reason this didn't get the same validate! treatment as the other add_node!-s methods?
+    # global implicitApp
+    # app::App = implicitApp::App
+    # value = if parents === nothing
+    #     callback()
+    # else
+    #     arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
+    #     callback(arguments...)
+    # end
+    # return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    return _add_and_validate!(nothing,draw_data,parents,callback,use_main_thread)
 end
 macro add_node!(callback::Expr, args...)
     (positional_args, kw_args) = _parse_macro_arguments((), (:draw_data, :use_main_thread), args...)

@@ -80,7 +80,6 @@ function convert_gpu_result(element::ParametricSurface,pos_buffer::MappedBuffer{
 end
 
 function render_node(ps::ParametricSurface, pdata::ParametricSurfaceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricSurfaceDrawData
-    @time_cpu_begin ParamTess Render Surface
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
     if pdata.handle == 0
         width = length(ps.uRange)
@@ -90,17 +89,11 @@ function render_node(ps::ParametricSurface, pdata::ParametricSurfaceDrawData, re
         copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
         triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
         handle = add!(triangle_renderer, triangles, mat4(1.0f0), pdata.color, false, id)
-        @time_cpu_end ParamTess Render Surface
         return ParametricSurfaceDrawData(handle, pdata.color)
     else
-        @time_cpu_begin ParamTess Render Surface Triangulate
         copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
         triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
-        @time_cpu_end ParamTess Render Surface Triangulate
-        @time_cpu_begin ParamTess Render Surface UpdateCoords
         update_coords!(triangle_renderer, pdata.handle, triangles)
-        @time_cpu_end ParamTess Render Surface UpdateCoords
-        @time_cpu_end ParamTess Render Surface
         return pdata
     end
 end

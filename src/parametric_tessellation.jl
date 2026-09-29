@@ -106,6 +106,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
                       pos_buffer_read::Bool, pos_buffer_write::Bool)::ParamTessMode.EnumType
     # we don't clean GPU data here, since it may be partially reusable
     # early fallback path returns that switch to CPU mode clean up potential GPU resources automatically
+    dbg::Bool = GPU_TESS_DEBUG_ARG in ARGS
 
     if param_tess_data.transpilation_src === nothing
         return switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
@@ -116,19 +117,16 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
         if value === nothing
             has_gpu_compatible_args = false
 
-            if GPU_TESS_DEBUG_ARG in ARGS
+            if dbg
                 sym_idx = findfirst(binding -> binding[2] == handle, param_tess_data.transpilation_src.argument_bindings)
-                sym = if sym_idx !== nothing
-                    param_tess_data.transpilation_src.argument_bindings[sym_idx][1]
-                else
-                    :UNKNOWN
-                end
+                sym = sym_idx !== nothing ? param_tess_data.transpilation_src.argument_bindings[sym_idx][1] : :UNKNOWN
 
                 entry_type = typeof(convert_callback_entry(get_element(handle)))
                 @log "a callback argument (named $sym, pointing to $handle) has an entry type that is not GPU compatible ($entry_type)"
             end
 
-            break
+            # allows all problematic arguments to be logged at once during debugging
+            !dbg && break
         end
     end
 
@@ -259,39 +257,37 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
 
         cpu_result
     else
-        @time "GPU eval" begin
-            @time_cpu_begin ParamTess GPU Eval
+        @time_cpu_begin ParamTess GPU Eval
 
-            @time_gpu_begin ParamTess GPU Eval Compute
-            activate(gpu_data.shader)
-            bind_ssbo(gpu_data.pos_buffer, 0)
+        @time_gpu_begin ParamTess GPU Eval Compute
+        activate(gpu_data.shader)
+        bind_ssbo(gpu_data.pos_buffer, 0)
 
-            for (handle, value) in gpu_argument_values()
-                glUniform(gpu_data.argument_uniform_locs[handle], value)
-            end
-
-            glUniform(gpu_data.N_uniform_loc, GLuint(param_tess_data.sample_count))
-
-            update_node_uniforms!(gpu_data.node_uniform_values, element)
-            for (uni_sym, uni_value) in gpu_data.node_uniform_values
-                glUniform(gpu_data.node_uniform_locs[uni_sym], uni_value)
-            end
-
-            num_wg = div(param_tess_data.sample_count + GPU_TESS_LOCAL_SIZE - 1, GPU_TESS_LOCAL_SIZE)
-            glDispatchCompute(num_wg, 1, 1)
-            @time_gpu_end ParamTess GPU Eval Compute
-
-            @time_cpu_begin ParamTess GPU Eval Sync
-            lock(gpu_data.pos_buffer)
-            wait(gpu_data.pos_buffer)
-            @time_cpu_end ParamTess GPU Eval Sync
-
-            @time_cpu_begin ParamTess GPU Eval ProcessData
-            success, gpu_result = convert_gpu_result(element,gpu_data.pos_buffer)
-            @time_cpu_end ParamTess GPU Eval ProcessData
-            
-            @time_cpu_end ParamTess GPU Eval
+        for (handle, value) in gpu_argument_values()
+            glUniform(gpu_data.argument_uniform_locs[handle], value)
         end
+
+        glUniform(gpu_data.N_uniform_loc, GLuint(param_tess_data.sample_count))
+
+        update_node_uniforms!(gpu_data.node_uniform_values, element)
+        for (uni_sym, uni_value) in gpu_data.node_uniform_values
+            glUniform(gpu_data.node_uniform_locs[uni_sym], uni_value)
+        end
+
+        num_wg = div(param_tess_data.sample_count + GPU_TESS_LOCAL_SIZE - 1, GPU_TESS_LOCAL_SIZE)
+        glDispatchCompute(num_wg, 1, 1)
+        @time_gpu_end ParamTess GPU Eval Compute
+
+        @time_cpu_begin ParamTess GPU Eval Sync
+        lock(gpu_data.pos_buffer)
+        wait(gpu_data.pos_buffer)
+        @time_cpu_end ParamTess GPU Eval Sync
+
+        @time_cpu_begin ParamTess GPU Eval ProcessData
+        success, gpu_result = convert_gpu_result(element,gpu_data.pos_buffer)
+        @time_cpu_end ParamTess GPU Eval ProcessData
+
+        @time_cpu_end ParamTess GPU Eval
 
         if !success
             switch_mode!(param_tess_data, Val(ParamTessMode.CPU))

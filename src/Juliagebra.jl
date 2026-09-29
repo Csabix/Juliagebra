@@ -108,8 +108,6 @@ include("Widgets/coordinates_widget.jl")
 #include("Widgets/curves_window.jl")
 #include("Widgets/surfaces_window.jl")
 
-include("global_dependent_optimizer.jl")
-
 include("Widgets/Windows/gui_dependents_window.jl")
 #include("Widgets/Windows/graph_window.jl")
 include("Widgets/Windows/property_window.jl")

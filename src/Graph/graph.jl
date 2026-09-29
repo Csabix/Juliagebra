@@ -144,6 +144,7 @@ function _try_entry(graph::GeometryPlotGraph, node::GeometryPlotNode, index::Int
     if succes
         parent_handles::Vector{NodeHandle} = node.parent_h::Vector{NodeHandle}
         for p_h in parent_handles
+            wait(graph.wait_pool, graph.nodes[p_h], Int(p_h.value), NODE_INVALID)
             wait(graph.wait_pool, graph.nodes[p_h], Int(p_h.value), NODE_LOCKED)
         end
         graph.elements[index] = eval_geometry_node(graph.elements[index], node, graph.elements)

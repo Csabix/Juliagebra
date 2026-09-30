@@ -486,6 +486,9 @@ function _collect_free_vars(def::Expr, mod::Module)
     return free_vars
 end
 
+"""Helper for the macro ctor wrapped callbacks, which helps keep callback arguments type stable"""
+_callback_arg(args::Tuple, ::Val{I}) where {I} = args[I]
+
 """Helper for generating the code returned by macro ctors"""
 function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_args::Vector{Any}, ctor_kw_args::Dict{Symbol,Any}, get_ctor_args = tuple, pass_gpu_tess_args::Bool = false)
     free_syms = _collect_free_vars(callback, mod)
@@ -503,17 +506,17 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
         sym_gs = gensym(Symbol(:ctor_arg_, sym))
 
         push!(init_block.args, quote
-            $sym_gs = 0
-
-            if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
+            $sym_gs = if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
                 push!($gs_captured_deps, $(esc(sym)))
                 $gs_argument_bindings[$(QuoteNode(sym))] = $(esc(sym))
-                $sym_gs = length($gs_captured_deps)
+                Val(length($gs_captured_deps))
+            else
+                Val(0)
             end
         end)
 
-        inner_let_rhs = :($sym_gs > 0 ?
-            $gs_callback_args[$sym_gs] :
+        inner_let_rhs = :(!isa($sym_gs, Val{0}) ?
+            $(_callback_arg)($gs_callback_args, $sym_gs) :
             ($(esc(:(@isdefined($sym)))) ?
                 $(esc(sym)) :
                 @warn "Failed to find symbol '" * String($(QuoteNode(sym))) * "' in the defining context of a macro constructor. This could be because of an internal deficiency of the macro system, but it could be a user-side error as well. Execution will continue, as things may work without any problems, especially if the symbol does not refer to a dependent. Use the constructors with explicit dependency lists if experiencing any errors, or incorrect behavior, and please open an issue in the Juliagebra github repo."
@@ -545,17 +548,19 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
     base_cb_args = [esc(arg_sym) for arg_sym in callback.args[1].args]
 
     return quote
-        $gs_captured_deps = Vector{NodeHandle}()
-        $gs_argument_bindings = Dict{Symbol, NodeHandle}()
+        let
+            $gs_captured_deps = Vector{NodeHandle}()
+            $gs_argument_bindings = Dict{Symbol, NodeHandle}()
 
-        $init_block
+            $init_block
 
-        $gs_callback_wrapper = ($(base_cb_args...), $gs_callback_args...) -> begin
-            let $(inner_let_bindings.args...);
-                $(esc(body))
+            $gs_callback_wrapper = ($(base_cb_args...), $gs_callback_args...) -> begin
+                let $(inner_let_bindings.args...);
+                    $(esc(body))
+                end
             end
-        end
 
-        $base_ctor_call
+            $base_ctor_call
+        end
     end
 end

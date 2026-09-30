@@ -381,7 +381,7 @@ function BuildHierarchy(
         left_child_index::UInt32 = range_split + ((range_split == range_start) ? number_of_internal_nodes : 0)
         right_child_index::UInt32 = range_split + 1 + (((range_split + 1) == range_end) ? number_of_internal_nodes : 0)
 
-        lbvh_nodes[internal_node_index + 1] = LBVHNode{N}(left_child_index, right_child_index, AABB{N}(SVector{N, Float32}(MVector{N, Float32}(undef)), SVector{N, Float32}(MVector{N, Float32}(undef))))
+        lbvh_nodes[internal_node_index + 1] = LBVHNode{N}(left_child_index, right_child_index, AABB{N}(zero(SVector{N, Float32}), zero(SVector{N, Float32})))
 
         parent_information[left_child_index + 1] = internal_node_index
         parent_information[right_child_index + 1] = internal_node_index

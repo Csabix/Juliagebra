@@ -5,6 +5,7 @@ include("graph_helpers.jl")
     lck::LockRW = LockRW()
     elements::Vector{Any} = Vector{Any}()
     render_data::Vector{Any} = Vector{Any}()
+    element_names::Vector{String} = Vector{String}()
     nodes::Vector{GeometryPlotNode} = Vector{GeometryPlotNode}()
     invalidate_stack::Vector{NodeHandle} = Vector{NodeHandle}()
     wait_pool::WaitPool = WaitPool()
@@ -19,16 +20,25 @@ function clear!(graph::GeometryPlotGraph)::Nothing
     empty!(graph.elements)
     empty!(graph.render_data)
     empty!(graph.nodes)
+    empty!(graph.element_names)
     return nothing
 end
 
 function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
-    parents::Union{Vector{NodeHandle},Nothing}, callback::Union{Function,Nothing}, flags::NodeFlag)::NodeHandle
+    parents::Union{Vector{NodeHandle},Nothing}, callback::Union{Function,Nothing}, flags::NodeFlag, element_name::Union{String, Nothing} = nothing)::NodeHandle
 
+    name::String = ""
+    if element_name === nothing
+        name = calc_element_name(graph, edit_node_type_string(element), edit_node_type_string(element))
+    else
+        name = calc_element_name(graph, element_name, edit_node_type_string(element))
+    end
+    push!(graph.element_names, name)
     push!(graph.elements, element)
     push!(graph.render_data, render_data)
     handle::NodeHandle = NodeHandle(UInt32(length(graph.elements)))
     node::GeometryPlotNode = GeometryPlotNode(callback, parents, flags)
+    
     
     if (callback === nothing)
         Threads.atomic_add!(graph.needs_render_count,UInt64(1))
@@ -47,6 +57,25 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
     end
 
     return handle
+end
+
+function calc_element_name(graph::GeometryPlotGraph, intended_name::String, type_string::String)::String
+    rt::String = intended_name
+    count::Int = 1
+    while true
+        unique::Bool=true
+        
+        for i::Int in 1:length(graph.elements)
+            if edit_node_type_string(graph.elements[i]) == type_string && graph.element_names[i] == rt*string(count)
+                unique = false
+                
+                count+=1
+            end
+        end
+        if unique break end
+    end
+    rt*=string(count)
+    return rt
 end
 
 function set_geom_flags!(node::GeometryPlotNode, flags::NodeFlag)::NodeFlag

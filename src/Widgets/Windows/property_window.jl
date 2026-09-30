@@ -11,9 +11,10 @@ getWindowName(property_window::PropertyWindow) = "Node Properties"
 
 function renderContent(property_window::PropertyWindow)
     elements::Vector{Any} = property_window.graph.elements
+    element_names::Vector{String} = property_window.graph.element_names
     render_data::Vector{Any} = property_window.graph.render_data
-    names::Vector{String} = [edit_node_name(e) for e in elements]
-    sorted_indices = sortperm(names)
+    type_names::Vector{String} = [edit_node_type_string(e) for e in elements]
+    sorted_indices = sortperm(type_names)
 
     current_type = ""
     is_tree_open = false
@@ -22,7 +23,7 @@ function renderContent(property_window::PropertyWindow)
         element = elements[i]
         if !edit_node_overload(element) continue end
 
-        element_type_name = names[i]
+        element_type_name = type_names[i]
         if element_type_name != current_type
             if is_tree_open
                 CImGui.TreePop()
@@ -32,11 +33,14 @@ function renderContent(property_window::PropertyWindow)
         end
         if is_tree_open
             CImGui.PushID(i)
-            elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
-            if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
-                invalidate!(property_window.graph, NodeHandle(i)) 
-            elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
-                rerender!(property_window.graph, NodeHandle(i))
+            if CImGui.TreeNode(element_names[i])
+                elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
+                if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
+                    invalidate!(property_window.graph, NodeHandle(i)) 
+                elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
+                    rerender!(property_window.graph, NodeHandle(i))
+                end
+                CImGui.TreePop()
             end
             CImGui.PopID()
         end

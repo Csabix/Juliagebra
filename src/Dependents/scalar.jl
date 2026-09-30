@@ -8,7 +8,7 @@ struct ScalarData
 end
 
 edit_node_overload(scalar::Real)::Bool = true
-edit_node_name(::Real) = "Scalar"
+edit_node_type_string(::Real) = "Scalar"
 function edit_node(scalar::Real,data::ScalarData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
     text = "$(data.label)"
     if (length(data.label) > 0)

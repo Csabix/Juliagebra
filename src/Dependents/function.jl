@@ -47,7 +47,7 @@ function eval_node(element::Func, callback::Function, ::Vector{Any})::Any
 end
 
 edit_node_overload(::Func{T}) where T = _can_be_graphed(T)::Bool
-edit_node_name(::Func)::String = "Function"
+edit_node_type_string(::Func)::String = "Function"
 function edit_node(func::Func,data::GraphDrawData,::Dict{DataType,Renderer},::NodeHandle)::Tuple{Any,Any,Int}
 
     if (func.input_count == 1 && func.output_count > 0)

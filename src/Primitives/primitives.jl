@@ -30,6 +30,8 @@ function GetAABB(triangle::PTriangle)::AABB3D
     return AABB3D(min.(triangle.v0, min.(triangle.v1, triangle.v2)), max.(triangle.v0, max.(triangle.v1, triangle.v2)))
 end
 
+export PTriangle
+
 """
 Infinite representation of a line primitive.
 - p0 is a point on the line.

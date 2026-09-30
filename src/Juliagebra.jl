@@ -113,8 +113,6 @@ include("Widgets/coordinates_widget.jl")
 #include("Widgets/curves_window.jl")
 #include("Widgets/surfaces_window.jl")
 
-include("global_dependent_optimizer.jl")
-
 include("Widgets/Windows/gui_dependents_window.jl")
 #include("Widgets/Windows/graph_window.jl")
 include("Widgets/Windows/property_window.jl")
@@ -179,8 +177,7 @@ function _add_and_validate!(element::Any,draw_data::Any,parents::Union{Vector{No
     # if a parent did get invalidated, we wait for the main play! flow to validate the new node
     # we can rely on this, since the node has already been added to the graph as NODE_INVALID
     node = app.graph.nodes[handle]
-    wait(app.graph.wait_pool, node, Int(handle.value), NODE_INVALID)
-    wait(app.graph.wait_pool, node, Int(handle.value), NODE_LOCKED)
+    wait(app.graph.wait_pool, node, Int(handle.value))
 
     return handle
 end

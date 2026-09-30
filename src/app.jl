@@ -16,8 +16,6 @@ mutable struct App <: AppDNA
     _old_limiter::Union{Nothing,FrameLimiter}
     _cam::Camera
     _manipulator::CameraManipulator
-    
-    _optimizer::GlobalNodeOptimizer
 
     graph::GeometryPlotGraph
     _scene_change::Bool
@@ -48,7 +46,6 @@ mutable struct App <: AppDNA
         cam = defaultCamera()
         
         manipulator = create_orbital_manipulator(cam)
-        optimizer = GlobalNodeOptimizer()
 
         graph = GeometryPlotGraph()
 
@@ -72,7 +69,7 @@ mutable struct App <: AppDNA
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            optimizer,graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
+            graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
             transpiler_cfg,callback_helpers,gl_ctx_lock)
     end
 end
@@ -158,7 +155,6 @@ function clear!(app::App)
     clear!(app.graph)
     for _ in 1:3 add!(app.graph,GizmoPlaceHolder(),nothing,nothing,nothing,NodeFlag(0)) end
     clear!(app._opengl)
-    clear!(app._optimizer)
     app._need_clear = false
 end
 

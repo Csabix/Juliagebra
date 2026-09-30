@@ -40,7 +40,6 @@ julia> GetContainerAABB(Vector{AABB3D}([AABB3D(SVector(0.7f0, 0.8f0, 1.8f0), SVe
 ```
 """
 function GetContainerAABB(aabbs::Vector{AABB{N}})::AABB{N} where {N}
-    @assert all(AABBValid.(aabbs)) "Error, invalid AABBs provided"
     return AABB{N}(reduce((a, b) -> min.(a, b), getfield.(aabbs, :min)), reduce((a, b) -> max.(a, b), getfield.(aabbs, :max)))
 end
 
@@ -70,8 +69,6 @@ julia> GetScaledAABBCenter(AABB3D(SVector(0.7f0, 0.8f0, 1.8f0), SVector(0.7f0, 0
 - if the `aabb` isn't a point and the `container_aabb` is computed as the min of mins and max of maxes than this might be a tiny bit wasteful  
 """
 function GetScaledAABBCenter(aabb::AABB{N}, container_aabb::AABB{N})::SVector{N, Float32} where {N}
-    @assert AABBValid(aabb) "Error, invalid AABB provided"
-    @assert AABBValid(container_aabb) "Error, invalid container AABB provided"
     return ((0.5 .* (aabb.min .+ aabb.max) .- container_aabb.min) ./ ((container_aabb.max .- container_aabb.min) .+ CONTAINER_EPSILON))
 end
 
@@ -162,7 +159,6 @@ Takes a vector of AABBs (Axis Aligned Bounding Boxes) and first computes a bound
 - `Vector{UInt32}`: the resulting vector of either 32 or 64 bit morton codes (specified in the functions argument)
 """
 function CalculateMortonCodesForPrimitiveAABBs(primitive_aabbs::Vector{AABB{N}}, ::Type{MortonCodeT})::Vector{MortonCodeT} where {N, MortonCodeT<:AbstractMortonCodeType}
-    @assert all(AABBValid.(primitive_aabbs)) "Error, invalid AABBs provided"
     @assert ((N == 2) || ( N == 3)) "Error, only dimensions 2 and 3 are supported"
     container_aabb::AABB{N} = GetContainerAABB(primitive_aabbs)
     if (MortonCodeT === UInt32)
@@ -385,7 +381,7 @@ function BuildHierarchy(
         left_child_index::UInt32 = range_split + ((range_split == range_start) ? number_of_internal_nodes : 0)
         right_child_index::UInt32 = range_split + 1 + (((range_split + 1) == range_end) ? number_of_internal_nodes : 0)
 
-        lbvh_nodes[internal_node_index + 1] = LBVHNode{N}(left_child_index, right_child_index, AABB{N}(SVector{N, Float32}(MVector{N, Float32}(undef)), SVector{N, Float32}(MVector{N, Float32}(undef))))
+        lbvh_nodes[internal_node_index + 1] = LBVHNode{N}(left_child_index, right_child_index, AABB{N}(zero(SVector{N, Float32}), zero(SVector{N, Float32})))
 
         parent_information[left_child_index + 1] = internal_node_index
         parent_information[right_child_index + 1] = internal_node_index
@@ -429,8 +425,8 @@ function CalculateBoundingBoxesBottomUp(
 
         current_node_index::UInt32 = parent_information[leaf_index + 1]
 
-        while (true)
-            if (visitation_information[current_node_index + 1] == 0)
+        while true
+            if visitation_information[current_node_index + 1] == 0
                 visitation_information[current_node_index + 1] += 1
                 break
             end
@@ -442,7 +438,7 @@ function CalculateBoundingBoxesBottomUp(
             aabb::AABB{N} = AABBUnion(left_child_node.aabb, right_child_node.aabb)
             lbvh_nodes[current_node_index + 1] = LBVHNode{N}(current_node.left_child_index,current_node.right_child_index_or_primitive_index,aabb)
 
-            if (current_node_index == 0)
+            if current_node_index == 0
                 break
             end
 
@@ -532,7 +528,6 @@ function LBVHToPrimitiveIntersection(
     @assert ((number_of_internal_nodes + 1) == number_of_leafs) "Error, number of internal nodes is incorrect"
     @assert (length(lbvh_nodes) == (number_of_internal_nodes + number_of_leafs)) "Error, invalid sized lbvh buffer provided"
     @assert (length(lbvh_primitives) == number_of_leafs) "Error, invalid primitives buffer provided"
-    @assert AABBValid(primitive_aabb) "Error, invalid primitive AABB provided"
 
     stack::MVector{STACK_SIZE, UInt32} = MVector{STACK_SIZE, UInt32}(undef)
     stack_size::Int32 = 0
@@ -540,15 +535,15 @@ function LBVHToPrimitiveIntersection(
     current_node_index::UInt32 = 0
     current_node::LBVHNode{N} = lbvh_nodes[current_node_index + 1]
 
-    while (true)
+    while true
         is_node_internal::Bool = (current_node.left_child_index != INVALID_CHILD_POINTER)
 
         intersect_left_child::Bool = (is_node_internal && AABB2AABBIntersection(primitive_aabb, lbvh_nodes[current_node.left_child_index + 1].aabb))
         intersect_right_child::Bool = (is_node_internal && AABB2AABBIntersection(primitive_aabb, lbvh_nodes[current_node.right_child_index_or_primitive_index + 1].aabb))
 
-        if (intersect_left_child)
-            if (intersect_right_child)
-                if (stack_size < length(stack))
+        if intersect_left_child
+            if intersect_right_child
+                if stack_size < length(stack)
                     stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
                     stack_size += 1
                 else
@@ -561,16 +556,14 @@ function LBVHToPrimitiveIntersection(
             current_node_index = current_node.right_child_index_or_primitive_index
             current_node = lbvh_nodes[current_node.right_child_index_or_primitive_index + 1]
         else
-            if (!is_node_internal)
+            if !is_node_internal
                 is_intersecting, intersection_infos... = primitive_lbvh_primitive_intersection(primitive, lbvh_primitives[current_node.right_child_index_or_primitive_index + 1])
                 if (is_intersecting)
                     intersection_callback(intersection_infos...)
                 end
             end
 
-            if (stack_size == 0)
-                break
-            end
+            stack_size == 0 && break
 
             current_node_index = stack[(stack_size - 1) + 1]
             stack_size -= 1
@@ -589,13 +582,12 @@ function LBVHToPrimitiveIntersection(
     primitive_aabb::AABB{N},
     primitive_lbvh_primitive_intersection::Function,
     buffer::Vector,
-    buffer_start_index::UInt
+    limit::UInt
 ) where {N}
     @assert (number_of_leafs > 0) "Error, empty lbvh provided"
     @assert ((number_of_internal_nodes + 1) == number_of_leafs) "Error, number of internal nodes is incorrect"
     @assert (length(lbvh_nodes) == (number_of_internal_nodes + number_of_leafs)) "Error, invalid sized lbvh buffer provided"
     @assert (length(lbvh_primitives) == number_of_leafs) "Error, invalid primitives buffer provided"
-    @assert AABBValid(primitive_aabb) "Error, invalid primitive AABB provided"
 
     stack::MVector{STACK_SIZE, UInt32} = MVector{STACK_SIZE, UInt32}(undef)
     stack_size::Int32 = 0
@@ -603,16 +595,14 @@ function LBVHToPrimitiveIntersection(
     current_node_index::UInt32 = 0
     current_node::LBVHNode{N} = lbvh_nodes[current_node_index + 1]
 
-    buffer_current_index::UInt = buffer_start_index
-
-    while (true)
+    while true
         is_node_internal::Bool = (current_node.left_child_index != INVALID_CHILD_POINTER)
 
         intersect_left_child::Bool = (is_node_internal && AABB2AABBIntersection(primitive_aabb, lbvh_nodes[current_node.left_child_index + 1].aabb))
         intersect_right_child::Bool = (is_node_internal && AABB2AABBIntersection(primitive_aabb, lbvh_nodes[current_node.right_child_index_or_primitive_index + 1].aabb))
 
-        if (intersect_left_child)
-            if (intersect_right_child)
+        if intersect_left_child
+            if intersect_right_child
                 if (stack_size < length(stack))
                     stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
                     stack_size += 1
@@ -622,21 +612,19 @@ function LBVHToPrimitiveIntersection(
             end
             current_node_index = current_node.left_child_index
             current_node = lbvh_nodes[current_node.left_child_index + 1]
-        elseif (intersect_right_child)
+        elseif intersect_right_child
             current_node_index = current_node.right_child_index_or_primitive_index
             current_node = lbvh_nodes[current_node.right_child_index_or_primitive_index + 1]
         else
-            if (!is_node_internal)
+            if !is_node_internal
                 intersection = primitive_lbvh_primitive_intersection(primitive, lbvh_primitives[UInt(current_node.right_child_index_or_primitive_index + 1)])
-                if ((intersection !== nothing) && buffer_current_index < length(buffer))
-                    buffer[buffer_current_index + 1] = intersection
-                    buffer_current_index += 1
+                if intersection !== nothing
+                    push!(buffer, intersection)
+                    length(buffer) >= limit && return nothing
                 end
             end
 
-            if (stack_size == 0)
-                break
-            end
+            stack_size == 0 && break
 
             current_node_index = stack[(stack_size - 1) + 1]
             stack_size -= 1
@@ -645,7 +633,7 @@ function LBVHToPrimitiveIntersection(
         end
     end
 
-    return (buffer_current_index - buffer_start_index)
+    return nothing
 end
 
 

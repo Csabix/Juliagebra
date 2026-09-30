@@ -26,10 +26,13 @@ mutable struct GeometryPlotNode
     child_h::Union{Vector{NodeHandle},Nothing}
     callback::Union{Function,Nothing}
     flags::NodeFlag
-
-    GeometryPlotNode(callback::Union{Function,Nothing}, parent_h::Union{Vector{NodeHandle},Nothing}, flags::NodeFlag) =
-        new(isnothing(callback) ? NODE_VALID : NODE_INVALID, parent_h, nothing, callback, flags)
 end
+
+is_dependent(callback, parent)::Bool = callback !== nothing || parent !== nothing
+is_dependent(node::GeometryPlotNode)::Bool = is_dependent(node.callback, node.parent_h)
+
+GeometryPlotNode(callback::Union{Function,Nothing}, parent_h::Union{Vector{NodeHandle},Nothing}, flags::NodeFlag) =
+        GeometryPlotNode(is_dependent(callback, parent_h) ? NODE_INVALID : NODE_VALID, parent_h, nothing, callback, flags)
 
 update(element::Any,delta_time::Float64)::Tuple{Any,Bool} = (element,false)
 convert_callback_entry(element::Any)::Any = element
@@ -49,6 +52,7 @@ on_gizmo_select(element::Any,render_data::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_
 on_gizmo_move(element::Any, position::Vec3D, data::Any)::Tuple{Any,Any} = (element, nothing)
 
 function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vector{Any})
+    node.callback === nothing && return element
     arguments::Vector{Any} = if node.parent_h === nothing
         Any[]
     else

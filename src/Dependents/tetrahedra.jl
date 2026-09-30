@@ -37,7 +37,7 @@ function render_node(t::Tetrahedron, data::TetrahedronDrawData, renderers::Dict{
     b = Vec3F(t.b)
     c = Vec3F(t.c)
     d = Vec3F(t.d)
-    triangles = Vec3F[a, b, c, a, d, b, a, c, d, b, d, c]
+    triangles = Vec3F[a, c, b, a, b, d, a, d, c, b, c, d]
     line = Vec3F[a, b, c, d, a, c, Vec3FNan, b, d]
 
     if data.face_handle == 0
@@ -79,10 +79,10 @@ function Tetrahedron(a, b, c, d, color_data::Union{Nothing,String}=nothing;
         push!(result, tetrahedron)
     end
     if (faces)
-        ABC = Triangle(a,b,c; color=color)
-        ADB = Triangle(a,d,b; color=color)
-        ACD = Triangle(a,c,d; color=color)
-        BDC = Triangle(b,d,c; color=color)
+        ABC = Triangle(a,c,b; color=color)
+        ADB = Triangle(a,b,d; color=color)
+        ACD = Triangle(a,d,c; color=color)
+        BDC = Triangle(b,c,d; color=color)
         push!(result, (ABC,ADB,ACD,BDC))
     end
     if (edges)

@@ -19,38 +19,43 @@ function renderContent(property_window::PropertyWindow)
 
     current_type = ""
     is_tree_open = false
+    @cstatic selection::Int = -1 begin
 
-    for i in sorted_indices
-        element = elements[i]
-        if !edit_node_overload(element) continue end
+        CImGui.BeginChild("Scene Tree", (CImGui.GetContentRegionAvail().x * 0.5, 0.0))
+        for i in sorted_indices
+            element = elements[i]
+            if !edit_node_overload(element) continue end
 
-        element_type_name = type_names[i]
-        if element_type_name != current_type
-            if is_tree_open
-                CImGui.TreePop()
+            element_type_name = type_names[i]
+            if element_type_name != current_type
+                if is_tree_open
+                    CImGui.TreePop()
+                end
+                current_type = element_type_name
+                is_tree_open = CImGui.TreeNode(current_type)
             end
-            current_type = element_type_name
-            is_tree_open = CImGui.TreeNode(current_type)
-        end
-        if is_tree_open
-            @cstatic selection::Int = -1 begin
+            if is_tree_open
                 if CImGui.Selectable(element_names[i], selection == i)
                     selection = i
                 end
-                if  selection == i
-                    elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
-                    if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
-                        invalidate!(property_window.graph, NodeHandle(i)) 
-                    elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
-                        rerender!(property_window.graph, NodeHandle(i))
-                    end
-                end
             end
-        else
         end
-    end
-
-    if is_tree_open
-        CImGui.TreePop()
+        if is_tree_open
+            CImGui.TreePop()
+        end
+        CImGui.EndChild()
+        CImGui.SameLine()
+        CImGui.BeginChild("Inspector", (0.0, 0.0))
+        if checkbounds(Bool, elements, selection)
+            i = selection
+            element = elements[i]
+            elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
+            if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
+                invalidate!(property_window.graph, NodeHandle(i)) 
+            elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
+                rerender!(property_window.graph, NodeHandle(i))
+            end
+        end
+        CImGui.EndChild()
     end
 end

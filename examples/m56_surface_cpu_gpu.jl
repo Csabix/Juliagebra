@@ -3,11 +3,11 @@ using JuliaGLM
 using JuliaGLM: cross, normalize
 
 # tessellation range density
-TESS_RADIUS = 500
-TESS_THETA =  500
+TESS_RADIUS = 750
+TESS_THETA =  750
 
 P1 = Point(-2, 0, 0)
-P2 = Point(2, 0, 0)
+P2 = Point( 2, 0, 0)
 
 amplitude_cpu = Slider(0, 0, 1; label="Noise Amplitude CPU")
 amplitude_gpu = Slider(0, 0, 1; label="Noise Amplitude GPU")
@@ -76,8 +76,8 @@ end
     return offset + vec3(0,0,3) + pos + (amp * noise(pos) * norm_unit)
 end
 
-ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), [P2, amplitude_cpu]; color="r") do r, theta, P2, amp
-    return param_fn(Float32(r), Float32(theta), Vec3F(P2), Float32(amp))
+@ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), color="r") do r, theta
+    return param_fn(Float32(r), Float32(theta), Vec3F(P2), Float32(amplitude_cpu))
 end
 
 @ParametricSurface(range(0, 1, TESS_RADIUS), range(0, 2pi, TESS_THETA), color="g", enable_gpu_tessellation=true) do r, theta

@@ -159,7 +159,7 @@ function clear!(app::App)
 end
 
 function play!(self::App)
-    lock(self._gl_ctx_lock) do
+    @lock self._gl_ctx_lock begin
         old_time::Float64 = time()
         while(!get_shouldclose(self._glfw))
             yield()

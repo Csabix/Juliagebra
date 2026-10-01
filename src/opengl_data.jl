@@ -54,7 +54,6 @@ mutable struct OpenGLData
     _highlighter::Pipeline
     _buffer_clear::Pipeline
     _grid::Pipeline
-    _surface_normals::Pipeline
 
     # ! Main FBO objects
     _rgbaTexture::Texture2D
@@ -79,6 +78,9 @@ mutable struct OpenGLData
     _backgroundCol::Vec3F
 
     _last_vp::Mat4T{Float32}
+
+    _max_wg_count::Tuple{GLint,GLint,GLint}
+    _max_shader_storage_block_size::GLint64
 
     function OpenGLData(window::GLFWData,asset_watcher::Union{Nothing,AssetWatcher})
         c_debug_callback = @cfunction(debug_callback, Nothing, 
@@ -133,7 +135,6 @@ mutable struct OpenGLData
             vert = spv"postprocess/grid.vert",
             frag = spv"postprocess/grid.frag"
         )
-        surface_normals = create_compute_pipeline!(pipeline_loader,spv"misc/surface_normals.comp")
 
         depth_stencil = Texture2D(window.width,window.height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
         depth_stencil_behind_opaque = Texture2D(window.width,window.height,GL_DEPTH24_STENCIL8,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8)
@@ -197,13 +198,15 @@ mutable struct OpenGLData
         
         last_vp = mat4(1.0f0)
 
+        max_wg_count, max_shader_storage_block_size = _get_compute_limits()
+
         self = new(window,profiler,passes,cpu_stopwatch,pipeline_loader,renderers,
-            transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,surface_normals,
+            transparent_color_combiner,transparent_id_combiner,highlighter,buffer_clear,grid,
             rgba,id,depth_stencil,depth_stencil_behind_opaque,accum,reveal,
             opaqueFBO,behindOpaqueFBO,transparentFBO,
             ubo,ubo_aabb,pixel_buffer_dist,pixel_buffer_col,pixel_buffer_id,empty_vao,
             Vec3F(0.73,0.73,0.73),
-            last_vp)
+            last_vp,max_wg_count,max_shader_storage_block_size)
 
         return self
     end
@@ -482,4 +485,17 @@ function destroy!(self::OpenGLData)
     destroy!(self._revealTexture)
     destroy!(self._depthstencilTexture)
     destroy!(self._behindOpaqueDepthstencilTexture)
+end
+
+# queries max workgroup count dimensions + max shader storage block size
+function _get_compute_limits()::Tuple{Tuple{GLint,GLint,GLint},GLint64}
+    max_wg_x = Ref(GLint(0)); glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, max_wg_x)
+    max_wg_y = Ref(GLint(0)); glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, max_wg_y)
+    max_wg_z = Ref(GLint(0)); glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, max_wg_z)
+    max_wg_count = (max_wg_x[], max_wg_y[], max_wg_z[])
+
+    max_shader_storage_block_size = Ref(GLint64(0))
+    glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, max_shader_storage_block_size)
+
+    return max_wg_count, max_shader_storage_block_size[]
 end

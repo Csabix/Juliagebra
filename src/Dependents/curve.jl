@@ -37,8 +37,7 @@ convert_result!(pc::ParametricCurve,v::Vec2D,index)              = pc.values[ind
 convert_result!(pc::ParametricCurve,v::Vec2F,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
 convert_result!(pc::ParametricCurve,v::Nothing,index)            = pc.values[index] = Vec3DNan
 
-eval_geometry_node(element::ParametricCurve, node::GeometryPlotNode, elements::Vector{Any}) =
-    handle_param_tess!(element.param_tess_data, element, node, elements; pos_buffer_read=true, pos_buffer_write=false)
+eval_geometry_node(element::ParametricCurve, node::GeometryPlotNode, elements::Vector{Any}) = handle_param_tess!(element.param_tess_data, element, node, elements)
 
 function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::Any
     for index in eachindex(element.range)
@@ -51,13 +50,15 @@ function update_node_uniforms!(uniform_values::Dict{Symbol,Any}, element::Parame
     uniform_values[GPU_TESS_CURVE_T_RANGE] = Vec2F(first(element.range), step(element.range))
 end
 
-function convert_gpu_result(element::ParametricCurve,pos_buffer::MappedBuffer{Vec4})::Tuple{Bool,Any}
-    @inbounds for (index, v4) in enumerate(pos_buffer._mapped)
+function convert_gpu_result(element::ParametricCurve,tess_buffer::MappedBuffer{Vec4})::Tuple{Bool,Any}
+    @inbounds for (index, v4) in enumerate(tess_buffer._mapped)
         convert_result!(element,v4.xyz,index)
     end
 
-    return (true, element)
+    return true, element
 end
+
+needs_eval_on_new_child(pc::ParametricCurve)::Bool = needs_eval_on_new_child(pc.param_tess_data)
 
 function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
@@ -120,25 +121,7 @@ function wrap_curve_callback(callback_ast::Expr)::Union{Expr,Nothing}
 end
 
 edit_node_overload(::ParametricCurve)::Bool = true
-function edit_node(pc::ParametricCurve,data::ParametricCurveDrawData,renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
-    result = EDIT_NODE_NONE
-
-    CImGui.Text("Tessellation Mode: $(pc.param_tess_data.current_mode)")
-
-    CImGui.SameLine()
-    if CImGui.Button("-> CPU")
-        pc.param_tess_data.next_mode = ParamTessMode.CPU
-        result |= EDIT_NODE_INVALIDATE
-    end
-    
-    CImGui.SameLine()
-    if CImGui.Button("-> GPU")
-        pc.param_tess_data.next_mode = ParamTessMode.GPU
-        result |= EDIT_NODE_INVALIDATE
-    end
-    
-    return pc, data, result
-end
+edit_node(pc::ParametricCurve,data::ParametricCurveDrawData,::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = pc, data, edit_param_tess_data!(pc.param_tess_data,handle)
 
 function ParametricCurve(callback::Function, range::AbstractRange{Float64},
                 parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;

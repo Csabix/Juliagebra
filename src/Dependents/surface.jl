@@ -2,7 +2,6 @@ mutable struct ParametricSurface{Range<:AbstractRange}
     vertexes::FlatMatrixManager{Vec3F}
     indexes::Vector{UInt32}
     uvValues::FlatMatrix{Vec3D}
-    # uvNormals::FlatMatrix{Vec3D}
     uRange::Range
     vRange::Range
     param_tess_data::ParamTessData
@@ -11,7 +10,6 @@ mutable struct ParametricSurface{Range<:AbstractRange}
         vertexes = FlatMatrixManager{Vec3F}()
         indexes = Vector{UInt32}()
         uvValues = FlatMatrix{Vec3D}(length(uRange), length(vRange))
-        # uvNormals = FlatMatrix{Vec3D}(length(uRange), length(vRange))
         new{Range}(vertexes, indexes, uvValues, #= uvNormals, =# uRange, vRange, param_tess_data)
     end
 end
@@ -34,66 +32,63 @@ convert_result!(ps::ParametricSurface,result::Vec3F,u,v) = (ps.uvValues[u,v] = V
 convert_result!(ps::ParametricSurface,result::Vec3D,u,v) = (ps.uvValues[u,v] = result;ps)
 convert_result!(ps::ParametricSurface,::Nothing,u,v) = (ps.uvValues[u,v] = Vec3DNan;ps)
 
-# function setNormal!(element::ParametricSurface, u::Int, v::Int, w::Int, h::Int)
-#     vals = element.uvValues
-# 
-#     right = vals[min(u + 1, w), v]
-#     left  = vals[max(u - 1, 1), v]
-#     down  = vals[u, min(v + 1, h)]
-#     up    = vals[u, max(v - 1, 1)]
-# 
-#     uVec = right - left
-#     vVec = down - up
-#     element.uvNormals[u, v] = normalize(cross(uVec, vVec))
-# end
+eval_geometry_node(ps::ParametricSurface, node::GeometryPlotNode, elements::Vector{Any}) = handle_param_tess!(ps.param_tess_data, ps, node, elements)
 
-eval_geometry_node(element::ParametricSurface, node::GeometryPlotNode, elements::Vector{Any}) =
-    handle_param_tess!(element.param_tess_data, element, node, elements; pos_buffer_read=true, pos_buffer_write=false)
-
-function eval_node(element::ParametricSurface, callback::Function, arguments::Vector{Any})::Any
-    for (v, vf) in enumerate(element.vRange), (u, uf) in enumerate(element.uRange)
+function eval_node(ps::ParametricSurface, callback::Function, arguments::Vector{Any})::Any
+    for (v, vf) in enumerate(ps.vRange), (u, uf) in enumerate(ps.uRange)
         res = callback(uf, vf, arguments...)
-        convert_result!(element, res, u, v)
+        convert_result!(ps, res, u, v)
     end
 
-    # w = width(element.uvValues)
-    # h = height(element.uvValues)
-    # for v in 1:h, u in 1:w
-    #     setNormal!(element, u, v, w, h)
-    # end
-
-    return element
+    return ps
 end
 
-function update_node_uniforms!(uniform_values::Dict{Symbol,Any}, element::ParametricSurface)
-    uniform_values[GPU_TESS_SURFACE_UV_RANGE] = Vec4F(first(element.uRange), step(element.uRange), first(element.vRange), step(element.vRange))
-    uniform_values[GPU_TESS_SURFACE_GRID_WIDTH] = GLint(width(element.uvValues))
+function update_node_uniforms!(uniform_values::Dict{Symbol,Any}, ps::ParametricSurface)
+    uniform_values[GPU_TESS_SURFACE_UV_RANGE] = Vec4F(first(ps.uRange), step(ps.uRange), first(ps.vRange), step(ps.vRange))
+    uniform_values[GPU_TESS_SURFACE_GRID_WIDTH] = GLint(width(ps.uvValues))
 end
 
-function convert_gpu_result(element::ParametricSurface,pos_buffer::MappedBuffer{Vec4})::Tuple{Bool,Any}
-    grid_width = width(element.uvValues)
-    @inbounds for v in eachindex(element.vRange), u in eachindex(element.uRange)
-        convert_result!(element, pos_buffer._mapped[(v-1)*grid_width+u].xyz, u, v)
+function convert_gpu_result(ps::ParametricSurface,tess_buffer::MappedBuffer{Vec4})::Tuple{Bool,Any}
+    grid_width = width(ps.uvValues)
+    @inbounds for v in eachindex(ps.vRange), u in eachindex(ps.uRange)
+        convert_result!(ps, tess_buffer._mapped[(v-1)*grid_width+u].xyz, u, v)
     end
 
-    return (true, element)
+    return true, ps
 end
+
+# check if the renderer gather pass will be able to fit the triangulated coords in an SSBO
+can_render_without_readback(ps::ParametricSurface) =
+    _triangulated_size(length(ps.uRange), length(ps.vRange)) * sizeof(Vec4F) <= implicitApp._opengl._max_shader_storage_block_size
+
+needs_eval_on_new_child(ps::ParametricSurface)::Bool = needs_eval_on_new_child(ps.param_tess_data)
 
 function render_node(ps::ParametricSurface, pdata::ParametricSurfaceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricSurfaceDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
+    from_gpu::Bool = ps.param_tess_data.render_from_gpu
+    from_gpu && @assert ps.param_tess_data.gpu_data !== nothing
     if pdata.handle == 0
         width = length(ps.uRange)
         height = length(ps.vRange)
         initMatrix(ps.vertexes, width, height, Vec3FNan)
-        triangulateInto!(ps.indexes, ps.vertexes, layers(ps.vertexes))
-        copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
-        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
-        handle = add!(triangle_renderer, triangles, mat4(1.0f0), pdata.color, false, id)
+        # ?? indexes aren't used anywhere currently
+        # triangulateInto!(ps.indexes, ps.vertexes, layers(ps.vertexes))
+        handle = if !from_gpu
+            copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
+            triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
+            add!(triangle_renderer, triangles, mat4(1.0f0), pdata.color, false, id)
+        else
+            add!(triangle_renderer, ps.param_tess_data.gpu_data.tess_buffer, length(ps.uRange), mat4(1.0f0), pdata.color, id)
+        end
         return ParametricSurfaceDrawData(handle, pdata.color)
     else
-        copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
-        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
-        update_coords!(triangle_renderer, pdata.handle, triangles)
+        if !from_gpu
+            copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
+            triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
+            update_coords!(triangle_renderer, pdata.handle, triangles)
+        else
+            update_coords!(triangle_renderer, pdata.handle, ps.param_tess_data.gpu_data.tess_buffer, length(ps.uRange))
+        end
         return pdata
     end
 end
@@ -135,25 +130,8 @@ function wrap_surface_callback(callback_ast::Expr)::Union{Expr,Nothing}
 end
 
 edit_node_overload(::ParametricSurface)::Bool = true
-function edit_node(ps::ParametricSurface,data::ParametricSurfaceDrawData,renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
-    result = EDIT_NODE_NONE
-
-    CImGui.Text("Tessellation Mode: $(ps.param_tess_data.current_mode)")
-
-    CImGui.SameLine()
-    if CImGui.Button("-> CPU")
-        ps.param_tess_data.next_mode = ParamTessMode.CPU
-        result |= EDIT_NODE_INVALIDATE
-    end
-    
-    CImGui.SameLine()
-    if CImGui.Button("-> GPU")
-        ps.param_tess_data.next_mode = ParamTessMode.GPU
-        result |= EDIT_NODE_INVALIDATE
-    end
-    
-    return ps, data, result
-end
+edit_node_name(::ParametricSurface)::String = "ParametricSurface" # drop range type params
+edit_node(ps::ParametricSurface,data::ParametricSurfaceDrawData,::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = ps, data, edit_param_tess_data!(ps.param_tess_data,handle)
 
 # ? ---------------------------------
 # ! ParametricSurfaceRenderer

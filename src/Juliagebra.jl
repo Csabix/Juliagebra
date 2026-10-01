@@ -148,36 +148,34 @@ function _add_and_validate!(element::Any,draw_data::Any,parents::Union{Vector{No
     global implicitApp
     app::App = implicitApp::App
 
-    if !use_main_thread
+    needs_lock::Bool = use_main_thread || (parents !== nothing && any(h -> has_geom_flag(app.graph.nodes[h], NODE_EVAL_ON_MAIN), parents))
+
+    if !needs_lock
         handle = add!(app.graph,element,draw_data,parents,callback,zero(UInt64))
         validate!(app.graph,handle,true)
         return handle
     end
 
-    # for pinned nodes, we need the gl context lock, so that the initial eval can make gl calls
-    handle, success = lock(app._gl_ctx_lock) do
-        # ?? if add! is moved outside the lock, graph validation will probably already do the below validation, do we want this?
-        h = add!(app.graph,element,draw_data,parents,callback,NODE_EVAL_ON_MAIN)
+    # for pinned nodes, we need the GL context lock, so that the initial eval can make gl* calls
+    # for pinned parent nodes, at this stage they cannot be NODE_LOCKED, so add! invalidation can never skip them
+    handle, success = @lock app._gl_ctx_lock begin
+        h = add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : zero(UInt64))
 
-        # the very rare case this _ready check protects is when parents get invalidated between the frame gl context unlocking and this code acquiring the lock
-        # this should only be able to happen if outside user code invalidates a parent AND it gets control between graph validation and us acquiring the lock
+        # if a parent got invalidated by add! we have to wait for it, otherwise validate and return asap
         if _ready(app.graph, app.graph.nodes[h])
             validate!(app.graph, h, true)
-            return (h, true)
+            (h, true)
+        else
+            (h, false)
         end
-        return (h, false)
     end
-    # ?? yielding here allows not starving rendering when a burst of pinned nodes is added, but keeps add_node! blocking for longer than needed, do we want this? 
+    
+    # ?? yielding here helps out with not starving rendering when a burst of lock-needing nodes are added, but keeps add_node! blocking for longer than necessary, do we want this? 
     yield()
+    success && return handle
 
-    if success
-        return handle
-    end
-
-    # if a parent did get invalidated, we wait for the main play! flow to validate the new node
-    # we can rely on this, since the node has already been added to the graph as NODE_INVALID
-    node = app.graph.nodes[handle]
-    wait(app.graph.wait_pool, node, Int(handle.value))
+    # if a parent did get invalidated, we wait for the main play! flow to validate it and the new node (add! already ran)
+    wait(app.graph.wait_pool, app.graph.nodes[handle], Int(handle.value))
 
     return handle
 end

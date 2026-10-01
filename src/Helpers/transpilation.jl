@@ -1,14 +1,14 @@
 # identifiers used in generated tessellation shaders
 const GPU_TESS_N = :JG_TESS_N
 const GPU_TESS_N_STR = string(GPU_TESS_N)
-const GPU_TESS_POS_BUF = :JG_TESS_POS_BUFFER
-const GPU_TESS_POS_ARR = :JG_TESS_POS_ARRAY
+const GPU_TESS_BUF = :JG_TESS_BUFFER
+const GPU_TESS_COORD_ARR = :JG_TESS_COORD_ARRAY
 const GPU_TESS_CB = :JG_TESS_CALLBACK
 const GPU_TESS_ID = :JG_TESS_ID
 
 # ! TODO: place in a more relevant file
 const GPU_TESS_DEBUG_ARG = "--debug-gpu-tess"
-const GPU_TESS_POS_BINDING_IDX = 0
+const GPU_TESS_BUF_BINDING_IDX = 0
 
 mutable struct TranspilationSource
     callback_ast::Expr
@@ -46,9 +46,9 @@ function transpile_tess_shader(src::TranspilationSource, argument_types::Dict{No
 
     push!(top_cmpd, :(
         @gl_buffer @gl_restrict @gl_writeonly @gl_layout(
-            std430, binding = $GPU_TESS_POS_BINDING_IDX,
-            struct $GPU_TESS_POS_BUF
-                $(GPU_TESS_POS_ARR)::Vector{Vec4}
+            std430, binding = $GPU_TESS_BUF_BINDING_IDX,
+            struct $GPU_TESS_BUF
+                $(GPU_TESS_COORD_ARR)::Vector{Vec4}
             end
         ))
     )
@@ -81,7 +81,8 @@ function transpile_tess_shader(src::TranspilationSource, argument_types::Dict{No
                 return
             end
         ),
-        :($GPU_TESS_POS_ARR[$GPU_TESS_ID + UInt32(1)] = Vec4F($GPU_TESS_CB($GPU_TESS_ID), 0))
+        # ! w = 1 so that the buffer can be passed as-is to surface rendering 
+        :($GPU_TESS_COORD_ARR[$GPU_TESS_ID + UInt32(1)] = Vec4F($GPU_TESS_CB($GPU_TESS_ID), 1))
     )
 
     push!(top_cmpd, Expr(:function, :(main()::Nothing), main_body))

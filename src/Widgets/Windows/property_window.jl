@@ -12,7 +12,7 @@ getWindowName(property_window::PropertyWindow) = "Node Properties"
 
 function renderContent(property_window::PropertyWindow)
     elements::Vector{Any} = property_window.graph.elements
-    element_names::Vector{String} = property_window.graph.element_names
+    element_labels::Vector{String} = property_window.graph.element_labels
     render_data::Vector{Any} = property_window.graph.render_data
     type_names::Vector{String} = [edit_node_type_string(e) for e in elements]
     sorted_indices = sortperm(type_names)
@@ -35,7 +35,7 @@ function renderContent(property_window::PropertyWindow)
                 is_tree_open = CImGui.TreeNode(current_type)
             end
             if is_tree_open
-                if CImGui.Selectable(element_names[i], selection == i)
+                if CImGui.Selectable(element_labels[i], selection == i)
                     selection = i
                 end
             end
@@ -49,6 +49,8 @@ function renderContent(property_window::PropertyWindow)
         if checkbounds(Bool, elements, selection)
             i = selection
             element = elements[i]
+            CImGui.Text(element_labels[i])
+            CImGui.Separator()
             elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
             if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
                 invalidate!(property_window.graph, NodeHandle(i)) 

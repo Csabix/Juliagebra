@@ -50,7 +50,7 @@ function edit_node(point::Point, data::PointDrawData, renderers::Dict{DataType,R
     end
 
     new_color = color_edit3(data.color, "##pcol$id")
-        if new_color !== nothing
+        if new_color != data.color
             data = PointDrawData(data.handle,new_color,data.style,data.style,data.constraints)
             update_colors!(renderers[PointRenderer]::PointRenderer,data.handle,new_color)
             result |= EDIT_NODE_RERENDER

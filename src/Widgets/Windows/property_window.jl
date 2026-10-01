@@ -1,3 +1,4 @@
+using CImGui.CSyntax.CStatic
 mutable struct PropertyWindow <: WindowDNA
     window::Window
     graph::GeometryPlotGraph
@@ -32,17 +33,20 @@ function renderContent(property_window::PropertyWindow)
             is_tree_open = CImGui.TreeNode(current_type)
         end
         if is_tree_open
-            CImGui.PushID(i)
-            if CImGui.TreeNode(element_names[i])
-                elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
-                if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
-                    invalidate!(property_window.graph, NodeHandle(i)) 
-                elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
-                    rerender!(property_window.graph, NodeHandle(i))
+            @cstatic selection::Int = -1 begin
+                if CImGui.Selectable(element_names[i], selection == i)
+                    selection = i
                 end
-                CImGui.TreePop()
+                if  selection == i
+                    elements[i], render_data[i], result = edit_node(element, render_data[i], property_window.renderers, NodeHandle(i))
+                    if (result & EDIT_NODE_INVALIDATE) == EDIT_NODE_INVALIDATE
+                        invalidate!(property_window.graph, NodeHandle(i)) 
+                    elseif (result & EDIT_NODE_RERENDER) == EDIT_NODE_RERENDER
+                        rerender!(property_window.graph, NodeHandle(i))
+                    end
+                end
             end
-            CImGui.PopID()
+        else
         end
     end
 

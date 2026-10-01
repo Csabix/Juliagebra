@@ -75,9 +75,13 @@ function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGu
     result::Union{String,Nothing} = nothing
     buf = Vector{UInt8}(undef,buf_size)
     units = codeunits(text)
-    
-    # Not ideal because it can cut a character in half
+
     copy_end = min(length(units),buf_size-1)
+
+    while !isvalid(String(view(units,1:copy_end)))
+        copy_end-=1
+    end
+
     if !isempty(units)
         copyto!(buf,view(units,1:copy_end))
     end

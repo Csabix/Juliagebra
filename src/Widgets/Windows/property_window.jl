@@ -21,7 +21,7 @@ function renderContent(property_window::PropertyWindow)
     is_tree_open = false
     @cstatic selection::Int = -1 begin
 
-        CImGui.BeginChild("Scene Tree", (CImGui.GetContentRegionAvail().x * 0.5, 0.0))
+        CImGui.BeginChild("Scene Elements", (CImGui.GetContentRegionAvail().x * 0.5, 0.0))
         for i in sorted_indices
             element = elements[i]
             if !edit_node_overload(element) continue end

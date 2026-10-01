@@ -23,6 +23,12 @@ function input1(self::Float32, label::String, step::Float32, step_fast::Float32)
     return self_ref[]
 end
 
+function input3(self::Vec3T, label::String)::Vec3T
+    vec = @MVector[Float32(self.x), Float32(self.y), Float32(self.z)]
+    CImGui.InputFloat3(label, vec)
+    return Vec3T(vec[1], vec[2], vec[3])
+end
+
 function input1i(self::Int, label::String, step::Int, step_fast::Int)::Int
     self_ref = Ref(Int32(self))
     CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast))

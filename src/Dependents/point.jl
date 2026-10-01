@@ -44,21 +44,11 @@ edit_node_overload(point::Point)::Bool = true
 function edit_node(point::Point, data::PointDrawData, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
     result = EDIT_NODE_NONE
     coord = point.coord
-    x_ref = Ref(Cdouble(coord.x))
-    y_ref = Ref(Cdouble(coord.y))
-    z_ref = Ref(Cdouble(coord.z))
-    if CImGui.InputDouble("##x$handle", x_ref, 0.0, 0.0, "%.8f")
-        point.coord = Vec3D(x_ref[],coord[2],coord[3])
+    point.coord = input3(coord, "##pos$handle")
+    if coord != point.coord
         result |= EDIT_NODE_INVALIDATE
     end
-    if CImGui.InputDouble("##y$handle", y_ref, 0.0, 0.0, "%.8f")
-        point.coord = Vec3D(coord[1],y_ref[],coord[3])
-        result |= EDIT_NODE_INVALIDATE
-    end
-    if CImGui.InputDouble("##z$handle", z_ref, 0.0, 0.0, "%.8f")
-        point.coord = Vec3D(coord[1],coord[2],z_ref[])
-        result |= EDIT_NODE_INVALIDATE
-    end
+
     new_color = color_edit3(data.color, "##pcol$id")
         if new_color !== nothing
             data = PointDrawData(data.handle,new_color,data.style,data.style,data.constraints)

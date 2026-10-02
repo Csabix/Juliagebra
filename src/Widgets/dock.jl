@@ -68,7 +68,7 @@ function render(self::Dock, app::AppDNA)
         CImGui.SameLine()
         
         windowName = getWindowName(window)
-        size = getButtonSize(windowName) .* 1.15
+        size = get_button_size(windowName) .* 1.15
 
         if(CImGui.Button(windowName,size))
             toggle!(window)

@@ -1,10 +1,9 @@
-mutable struct ParametricCurve
-    range::AbstractRange{Float64}
+mutable struct ParametricCurve{R <: AbstractRange{Float64}}
+    range::R
     values::Vector{Vec3D}
 
-    function ParametricCurve(range::AbstractRange{Float64})
-        values = Vector{Vec3D}(undef, length(range))
-        new(range, values)
+    function ParametricCurve(range::R) where {R<:AbstractRange{Float64}}
+        new{R}(range, Vector{Vec3D}(undef, length(range)))
     end
 end
 
@@ -34,10 +33,14 @@ convert_result(pc::ParametricCurve,v::Vec2F,index)              = pc.values[inde
 convert_result(pc::ParametricCurve,v::Nothing,index)            = pc.values[index] = Vec3DNan
 
 function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::Any
-    for index in eachindex(element.range)
-        convert_result(element,callback(element.range[index],arguments...),index)
-    end
+    _fill_curve!(element, callback, arguments...)
     return element
+end
+function _fill_curve!(pc::ParametricCurve, callback::F, args::Vararg{Any,N}) where {F,N}
+    for i in eachindex(pc.range)
+        convert_result(pc, callback(pc.range[i], args...), i)
+    end
+    return pc
 end
 
 function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData

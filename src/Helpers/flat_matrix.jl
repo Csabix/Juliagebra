@@ -25,8 +25,8 @@ end
 height(self::FlatMatrix) = return self._height
 width(self::FlatMatrix)= return self._width
 
-struct TrianglesOf
-    _vertexes::FlatMatrix
+struct TrianglesOf{T}
+    _vertexes::FlatMatrix{T}
 end
 
 function Base.iterate(self::TrianglesOf,uvs = (1,1,1))

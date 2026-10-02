@@ -26,13 +26,19 @@ mutable struct GeometryPlotNode
     child_h::Union{Vector{NodeHandle},Nothing}
     callback::Union{Function,Nothing}
     flags::NodeFlag
+    converted_parents::Vector{Any}
 end
 
 is_dependent(callback, parent)::Bool = callback !== nothing || parent !== nothing
 is_dependent(node::GeometryPlotNode)::Bool = is_dependent(node.callback, node.parent_h)
 
-GeometryPlotNode(callback::Union{Function,Nothing}, parent_h::Union{Vector{NodeHandle},Nothing}, flags::NodeFlag) =
-        GeometryPlotNode(is_dependent(callback, parent_h) ? NODE_INVALID : NODE_VALID, parent_h, nothing, callback, flags)
+function GeometryPlotNode(callback::Union{Function,Nothing}, parent_h::Union{Vector{NodeHandle},Nothing}, flags::NodeFlag)
+    converted_parents = Any[]
+    if parent_h !== nothing
+        sizehint!(converted_parents,length(parent_h))
+    end
+    return GeometryPlotNode(is_dependent(callback, parent_h) ? NODE_INVALID : NODE_VALID, parent_h, nothing, callback, flags, converted_parents)
+end
 
 update(element::Any,delta_time::Float64)::Tuple{Any,Bool} = (element,false)
 convert_callback_entry(element::Any)::Any = element
@@ -53,12 +59,13 @@ on_gizmo_move(element::Any, position::Vec3D, data::Any)::Tuple{Any,Any} = (eleme
 
 function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vector{Any})
     node.callback === nothing && return element
-    arguments::Vector{Any} = if node.parent_h === nothing
-        Any[]
-    else
-        Any[convert_callback_entry(elements[p_h]) for p_h in node.parent_h]
+    if node.parent_h !== nothing
+        for p_h in node.parent_h::Vector{NodeHandle}
+            push!(node.converted_parents,convert_callback_entry(elements[p_h]))
+        end
     end
-    callback_result::Any = eval_node(element, node.callback, arguments)
+    callback_result::Any = eval_node(element, node.callback, node.converted_parents)
+    empty!(node.converted_parents)
     return convert_callback_result(element, callback_result)
 end
 

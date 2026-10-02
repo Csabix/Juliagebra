@@ -40,18 +40,14 @@ function setNormal!(element::ParametricSurface, u::Int, v::Int, w::Int, h::Int)
 end
 
 function eval_node(element::ParametricSurface, callback::Function, arguments::Vector{Any})::Any
-    for (v, vf) in enumerate(element.vRange), (u, uf) in enumerate(element.uRange)
-        res = callback(uf, vf, arguments...)
-        convert_result(element, res, u, v)
-    end
-    
-    w = width(element.uvValues)
-    h = height(element.uvValues)
-    for v in 1:h, u in 1:w
-        setNormal!(element, u, v, w, h)
-    end
-
+    _fill_surface!(element, callback, arguments...)
     return element
+end
+function _fill_surface!(ps::ParametricSurface, callback::F, args::Vararg{Any,N}) where {F,N}
+    for (v, vf) in enumerate(ps.vRange), (u, uf) in enumerate(ps.uRange)
+        convert_result(ps, callback(uf, vf, args...), u, v)
+    end
+    return ps
 end
 
 function render_node(ps::ParametricSurface, pdata::ParametricSurfaceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricSurfaceDrawData
@@ -75,9 +71,9 @@ end
 
 # ? For Intersectable ParametricSurfaces.
 struct PTrianglesOfSurface <: PrimitivesOf{PTriangle}
-    _surfaceTriangleIterator::TrianglesOf
+    _surfaceTriangleIterator::TrianglesOf{Vec3D}
 end
-PrimitivesOf(self::ParametricSurface) = return PTrianglesOfSurface(TrianglesOf(self.uvValues))
+PrimitivesOf(self::ParametricSurface) = return PTrianglesOfSurface(TrianglesOf{Vec3D}(self.uvValues))
 Base.length(self::PTrianglesOfSurface) = return length(self._surfaceTriangleIterator)
 Base.getindex(self::PTrianglesOfSurface, index::UInt)::PTriangle = return self._surfaceTriangleIterator[index]
 Base.iterate(self::PTrianglesOfSurface, state = (1,1,1)) = return iterate(self._surfaceTriangleIterator,state)   

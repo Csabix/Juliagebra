@@ -1,6 +1,7 @@
 using Juliagebra
-
-Juliagebra.Window() do 
+using Profile
+for i in 1:2
+    Profile.clear_malloc_data()
     cursor = Point(0,0,5)
 
     function wave(xf,yf,zf,cap,xc,yc,zc)
@@ -11,7 +12,7 @@ Juliagebra.Window() do
         end
 
         z = zc + (zf - zc) * distance
-        return (xf,yf,z)
+        return (xf,yf,z-0.1)
     end
 
     for x in -10:10
@@ -24,7 +25,5 @@ Juliagebra.Window() do
             end
         end
     end
+    Juliagebra.Wait()
 end
-
-
-#Juliagebra.Wait()

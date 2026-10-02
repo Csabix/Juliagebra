@@ -173,34 +173,35 @@ end
 function update!(self::App, iconified::Bool)
     update!(self.graph, self._delta_time, NodeHandle(4))
     thread_count::Int64 = Base.Threads.nthreads()
-    if thread_count == 1
-        lock_read(self.graph.lck)
-        try
-            invokelatest(validate!,self.graph,NodeHandle(4),true)
-        finally
-        unlock_read(self.graph.lck)
-        end
-    else
-        @sync begin
-            for _ in 1:thread_count
-                Base.Threads.@spawn begin
-                    lock_read(self.graph.lck)
-                    try
-                        invokelatest(validate!,self.graph,NodeHandle(4),false)
-                    finally
-                        unlock_read(self.graph.lck)
-                    end
-                end
-            end
+    if self.graph.invalid_count != 0
+        if thread_count == 1
             lock_read(self.graph.lck)
             try
-                invokelatest(validate!,self.graph,NodeHandle(1),true)
+                invokelatest(validate!,self.graph,NodeHandle(4),true)
             finally
-                unlock_read(self.graph.lck)
+            unlock_read(self.graph.lck)
+            end
+        else
+            @sync begin
+                for _ in 1:thread_count
+                    Base.Threads.@spawn begin
+                        lock_read(self.graph.lck)
+                        try
+                            invokelatest(validate!,self.graph,NodeHandle(4),false)
+                        finally
+                            unlock_read(self.graph.lck)
+                        end
+                    end
+                end
+                lock_read(self.graph.lck)
+                try
+                    invokelatest(validate!,self.graph,NodeHandle(1),true)
+                finally
+                    unlock_read(self.graph.lck)
+                end
             end
         end
     end
-
     self._scene_change |= render!(self.graph, self._opengl._renderers)
     update!(self._imgui,self)
 

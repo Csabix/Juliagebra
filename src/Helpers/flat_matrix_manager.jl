@@ -69,17 +69,22 @@ function data(self::FlatMatrixManager{T}, layer) where T
     return view(self._data, start_idx:end_idx)
 end
 
-function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
+function triangulateInto!(self::Vector{T}, mat::FlatMatrixManager{U}, layer) where {T,U}
+    empty!(self)
+    W = width(mat, layer)
+    H = height(mat, layer)
+    sizehint!(self, 6 * (W - 1) * (H - 1))
+
     # ! 1---3---5   u:->+ 
     # ! |##/|##/|      
     # ! |#/ |#/ |   v:|
     # ! |/  |/  |     V
     # ! 2---4---*     +
-    for v in 1:(height(mat,layer)-1)
-        for u in 1:(width(mat,layer)-1)
-            push!(self,T(fetchIndex(mat,layer,u  ,v  )-1))
-            push!(self,T(fetchIndex(mat,layer,u+1,v  )-1))
-            push!(self,T(fetchIndex(mat,layer,u  ,v+1)-1))
+    for v in 1:(H - 1)
+        for u in 1:(W - 1)
+            push!(self, T(fetchIndex(mat, layer, u    , v    ) - 1))
+            push!(self, T(fetchIndex(mat, layer, u + 1, v    ) - 1))
+            push!(self, T(fetchIndex(mat, layer, u    , v + 1) - 1))
         end
     end
 
@@ -88,11 +93,11 @@ function triangulateInto!(self::Vector{T},mat::FlatMatrixManager,layer) where T
     # ! | /#| /#|   v:|
     # ! |/##|/##|     V
     # ! 1---2---3     +
-    for v in 2:(height(mat,layer))
-        for u in 1:(width(mat,layer)-1)
-            push!(self,T(fetchIndex(mat,layer,u  ,v  )-1))
-            push!(self,T(fetchIndex(mat,layer,u+1,v-1)-1))
-            push!(self,T(fetchIndex(mat,layer,u+1,v  )-1))
+    for v in 2:H
+        for u in 1:(W - 1)
+            push!(self, T(fetchIndex(mat, layer, u    , v    ) - 1))
+            push!(self, T(fetchIndex(mat, layer, u + 1, v - 1) - 1))
+            push!(self, T(fetchIndex(mat, layer, u + 1, v    ) - 1))
         end
     end
 end

@@ -51,6 +51,10 @@ edit_node_name(element::Any)::String = string(typeof(element))
 on_gizmo_select(element::Any,render_data::Any)::Tuple{UInt32,Vec3D,Any} = (AXIS_NONE, Vec3DNan, nothing) # Used gizmo axes, gizmo position, data
 on_gizmo_move(element::Any, position::Vec3D, data::Any)::Tuple{Any,Any} = (element, nothing)
 
+# only main thread pinned nodes may return true (otherwise it'll be ignored)
+# applies to direct children only, no propagation
+needs_eval_on_new_child(element::Any) = false
+
 function eval_geometry_node(element::Any, node::GeometryPlotNode, elements::Vector{Any})
     node.callback === nothing && return element
     arguments::Vector{Any} = if node.parent_h === nothing

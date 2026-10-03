@@ -36,6 +36,11 @@ function uniform(self::ShaderProgram,name::String,data)::Nothing
     glUniform(self.uniforms[name],data)
 end
 
+# uniform location or -1 if it doesn't exist in the shader program
+# used by transpiled shaders where uniforms may be optimized out by the GLSL compiler
+# (-1 acts as a no-op location in glUniform* calls, so it's safe to forward)
+maybe_uniform_loc(self::ShaderProgram, name::String)::GLint = get(self.uniforms, name, GLint(-1))
+
 function parse_stage(stage::String)::Tuple{String,Union{Nothing,Vector{String}},Union{Nothing,Vector{Pair{String,String}}}}
     return stage,nothing,nothing
 end

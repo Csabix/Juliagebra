@@ -27,6 +27,12 @@ mutable struct App <: AppDNA
     _delta_time::Float64
     _vsync_state::Int32
 
+    _transpiler_cfg::ShaderTranspiler.ConfigHandle
+    _callback_helpers::Vector{Expr}
+
+    # locked for almost the entirety of play!, unlocked for a brief window per frame to allow add_node!-time validations to run with a GL context guarantee
+    _gl_ctx_lock::ReentrantLock
+
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -49,10 +55,22 @@ mutable struct App <: AppDNA
         delta_time = 0.0
         vsync_state = Int32(1)
 
+        transpiler_cfg = ShaderTranspiler.ConfigHandle()
+        ShaderTranspiler.set_config_opts!(transpiler_cfg;
+            target_version = "460",
+            code_gen_indent = zero(UInt16),
+            local_size = (GPU_TESS_LOCAL_SIZE, one(UInt32), one(UInt32)),
+        )
+
+        callback_helpers = Expr[]
+
+        gl_ctx_lock = ReentrantLock()
+
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            graph,false,false,asset_watcher,hovered,delta_time,vsync_state)
+            graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
+            transpiler_cfg,callback_helpers,gl_ctx_lock)
     end
 end
 
@@ -141,27 +159,29 @@ function clear!(app::App)
 end
 
 function play!(self::App)
-    old_time::Float64 = time()
-    while(!get_shouldclose(self._glfw))
-        yield()
-        perf_get_results()
-        new_time::Float64 = time()
-        delta_time = new_time - old_time
-        old_time = new_time
-        self._delta_time = delta_time
-        update!(self._asset_watcher,delta_time)
-        self._scene_change |= updateCam!(self,delta_time)
+    @lock self._gl_ctx_lock begin
+        old_time::Float64 = time()
+        while(!get_shouldclose(self._glfw))
+            yield()
+            perf_get_results()
+            new_time::Float64 = time()
+            delta_time = new_time - old_time
+            old_time = new_time
+            self._delta_time = delta_time
+            update!(self._asset_watcher,delta_time)
+            self._scene_change |= updateCam!(self,delta_time)
 
-        iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
-        update!(self,iconified)
-        
-        if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
-        swap_buffers(self._glfw)
-        if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
-        poll_events(self._glfw)
-        self._need_clear && clear!(self)
+            iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
+            update!(self,iconified) # NOTE: unlocks and relocks _gl_ctx_lock
+
+            if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
+            swap_buffers(self._glfw)
+            if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
+            poll_events(self._glfw)
+            self._need_clear && clear!(self)
+        end
+        destroy!(self)
     end
-    destroy!(self)
     
     global implicitApp
     if (implicitApp === self)
@@ -199,6 +219,16 @@ function update!(self::App, iconified::Bool)
                 unlock_read(self.graph.lck)
             end
         end
+    end
+
+    # allows main-thread-pinned nodes to perform their add_node validation when the GL context is owned by the main thread
+    # otherwise (especially if they might yield), they might find themselves executing on the main thread, but during the
+    # wait in swap_buffers, where another thread owns the GL context
+    unlock(self._gl_ctx_lock)
+    try
+        yield() # try/finally protects against InterruptException-s in the unlock window
+    finally
+        lock(self._gl_ctx_lock)
     end
 
     self._scene_change |= render!(self.graph, self._opengl._renderers)

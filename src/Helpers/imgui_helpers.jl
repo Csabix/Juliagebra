@@ -17,8 +17,15 @@ function slider(label::String,self::Vec3T,min::Real,max::Real)::Vec3F
     return self_ref[]
 end
 
+function slider(label::String,self::Vec4T,min::Real,max::Real)::Vec4F
+    self_ref = Ref(Vec4F(self.x, self.y, self.z, self.w))
+    CImGui.SliderFloat4(label, self_ref, Float32(min), Float32(max))
+    return self_ref[]
+end
+
 function slider(label::String,self::Integer,min::Real,max::Real)::Int32
     self_ref = Ref(Int32(self))
+    CimGui.InputFloat
     CImGui.SliderInt(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
@@ -33,6 +40,13 @@ function slider(label::String,self::Vec3T{T},min::Real,max::Real)::Vec3T{Int32} 
     Integer
     self_ref = Ref(Vec3T{Int32}(self.x, self.y, self.z))
     CImGui.SliderInt3(label, self_ref, Int32(min), Int32(max))
+    return self_ref[]
+end
+
+function slider(label::String,self::Vec4T{T},min::Real,max::Real)::Vec4T{Int32} where T <: Integer
+    Integer
+    self_ref = Ref(Vec4T{Int32}(self.x, self.y, self.z, self.w))
+    CImGui.SliderInt4(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
@@ -54,6 +68,12 @@ function input(label::String,self::Vec3T)::Vec3F
     return Vec3F(vec[1], vec[2], vec[3])
 end
 
+function input(label::String,self::Vec4T)::Vec4F
+    vec = @MVector[Float32(self.x), Float32(self.y), Float32(self.z), Float32(self.w)]
+    CImGui.InputFloat4(label, vec)
+    return Vec4F(vec[1], vec[2], vec[3], vec[4])
+end
+
 function input(label::String,self::Integer,step::Integer,step_fast::Integer)::Int32
     self_ref = Ref(Int32(self))
     CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast))
@@ -70,6 +90,12 @@ function input(label::String,self::Vec3T{T})::Vec3T{Int32} where T <: Integer
     vec = @MVector[Int32(self.x), Int32(self.y), Int32(self.z)]
     CImGui.InputInt3(label, vec)
     return Vec3T(vec[1], vec[2], vec[3])
+end
+
+function input(label::String,self::Vec4T{T})::Vec4T{Int32} where T <: Integer
+    vec = @MVector[Int32(self.x), Int32(self.y), Int32(self.z), Int32(self.w)]
+    CImGui.InputInt4(label, vec)
+    return Vec4T(vec[1], vec[2], vec[3], vec[4])
 end
 
 function color_edit3(label::String,color::UInt32)::UInt32
@@ -94,7 +120,6 @@ end
 function input(label::String,text::String,buf_size=1024)::String
     result::String = text
     buf = get_bytebuffer(text, buf_size)
-
     if (CImGui.InputText(label,buf,length(buf)))
         GC.@preserve buf result = unsafe_string(pointer(buf), buf_size)
     end

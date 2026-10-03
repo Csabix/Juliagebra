@@ -55,7 +55,7 @@ function render_node_gui(slider::Slider)::Any
     end
 
     CImGui.SetNextItemWidth(-1)
-    value::Float64 = slider1(slider.value,"",slider.min_value,slider.max_value)
+    value::Float64 = slider("",slider.value,slider.min_value,slider.max_value)
     invalidate = slider.value != value
     return Slider(slider,value,playing), invalidate
 end

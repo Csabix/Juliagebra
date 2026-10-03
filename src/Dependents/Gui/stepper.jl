@@ -51,7 +51,7 @@ function render_node_gui(stepper::Stepper)::Any
     end
 
     CImGui.SetNextItemWidth(-1)
-    value = input1(Float32(stepper.value), "", Float32(0.1), Float32(1))
+    value = input("", Float32(stepper.value), Float32(0.1), Float32(1))
     if value === nothing
         return Stepper(stepper, stepper.value, playing), invalidate
     end

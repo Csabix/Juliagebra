@@ -6,7 +6,7 @@ include("graph_helpers.jl")
     elements::Vector{Any} = Vector{Any}()
     render_data::Vector{Any} = Vector{Any}()
     element_labels::Vector{String} = Vector{String}()
-    label_count::Dict{Srting, Int} = Dict{String, Int}
+    label_count::Dict{String, Int} = Dict{String, Int}()
     nodes::Vector{GeometryPlotNode} = Vector{GeometryPlotNode}()
     invalidate_stack::Vector{NodeHandle} = Vector{NodeHandle}()
     wait_pool::WaitPool = WaitPool()
@@ -30,8 +30,8 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
 
     name::String = 
         element_name === nothing ?
-        calc_element_label(graph, edit_node_type_string(element), edit_node_type_string(element)) :
-        calc_element_label(graph, element_name, edit_node_type_string(element))
+        calc_element_label(graph, edit_node_type_string(element)) :
+        calc_element_label(graph, element_name)
     push!(graph.element_labels, name)
     push!(graph.elements, element)
     push!(graph.render_data, render_data)
@@ -58,11 +58,12 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
     return handle
 end
 
-function calc_element_label(graph::GeometryPlotGraph, intended_name::String, type_string::String)::String
+function calc_element_label(graph::GeometryPlotGraph, intended_name::String)::String
     rt::String = intended_name
     count::Int = get(graph.label_count, intended_name, 0) + 1
     graph.label_count[intended_name] = count
     rt*=string(count)
+    println(rt)
     return rt
 end
 

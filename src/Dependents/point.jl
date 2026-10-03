@@ -44,12 +44,12 @@ edit_node_overload(point::Point)::Bool = true
 function edit_node(point::Point, data::PointDrawData, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
     result = EDIT_NODE_NONE
     coord = point.coord
-    point.coord = input3(coord, "##pos$handle")
+    point.coord = input("##pos$handle", coord)
     if coord != point.coord
         result |= EDIT_NODE_INVALIDATE
     end
 
-    new_color = color_edit3(data.color, "##pcol$id")
+    new_color = color_edit3("##pcol$id", data.color)
         if new_color != data.color
             data = PointDrawData(data.handle,new_color,data.style,data.style,data.constraints)
             update_colors!(renderers[PointRenderer]::PointRenderer,data.handle,new_color)

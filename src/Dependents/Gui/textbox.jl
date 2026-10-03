@@ -12,7 +12,7 @@ convert_callback_result(::TextBoxNode, ::Nothing) = TextBoxNode()
 
 function render_node_gui(textbox::TextBoxNode)::Tuple{Any,Bool}
     CImGui.SetNextItemWidth(-1)
-    proposed_text = txtbox("##textbox", textbox.value)
+    proposed_text = input_multiline("##textbox", textbox.value)
 
     invalidate = if isnothing(proposed_text)
         false

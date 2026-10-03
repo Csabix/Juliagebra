@@ -23,13 +23,14 @@ function slider(label::String,self::Integer,min::Real,max::Real)::Int32
     return self_ref[]
 end
 
-function slider(label::String,self::Vec2T{Integer},min::Real,max::Real)::Vec2T{Int32}
-    self_ref = Ref(Vec2T{Int32}(self.x, self.y))
+function slider(label::String,self::Vec2T{T},min::Real,max::Real)::Vec2T{Int32} where T <: Integer
+    self_ref = Ref(Vec2T{Int32}(Int32(self.x), Int32(self.y)))
     CImGui.SliderInt2(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Vec3T{Integer},min::Real,max::Real)::Vec3T{Int32}
+function slider(label::String,self::Vec3T{T},min::Real,max::Real)::Vec3T{Int32} where T <: Integer
+    Integer
     self_ref = Ref(Vec3T{Int32}(self.x, self.y, self.z))
     CImGui.SliderInt3(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
@@ -59,13 +60,13 @@ function input(label::String,self::Integer,step::Integer,step_fast::Integer)::In
     return Int(self_ref[])
 end
 
-function input(label::String,self::Vec2T{Integer})::Vec2T{Int32}
+function input(label::String,self::Vec2T{T})::Vec2T{Int32} where T <: Integer
     vec = @MVector[Int32(self.x), Int32(self.y)]
     CImGui.InputInt2(label, vec)
     return Vec2T(vec[1], vec[2])
 end
 
-function input(label::String,self::Vec3T{Integer})::Vec3T{Int32}
+function input(label::String,self::Vec3T{T})::Vec3T{Int32} where T <: Integer
     vec = @MVector[Int32(self.x), Int32(self.y), Int32(self.z)]
     CImGui.InputInt3(label, vec)
     return Vec3T(vec[1], vec[2], vec[3])

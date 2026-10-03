@@ -23,8 +23,8 @@ stc_jll = "8dead81b-3450-5e2f-948b-0f2a405f2b3d"
 
 [sources]
 JuliaGLM = {rev = "v0.0.2+0", url = "https://github.com/Csabix/JuliaGLM"}
-ShaderTranspiler = {rev = "v0.9.0-rc.3", url = "https://github.com/ShaderTranspiler/ShaderTranspiler.jl"}
-stc_jll = {rev = "v0.9.0-rc.3", url = "https://github.com/ShaderTranspiler/stc_jll.jl"}
+ShaderTranspiler = {rev = "v0.9.0", url = "https://github.com/ShaderTranspiler/ShaderTranspiler.jl"}
+stc_jll = {rev = "v0.9.0", url = "https://github.com/ShaderTranspiler/stc_jll.jl"}
 
 [compat]
 CEnum = "0.5.0"

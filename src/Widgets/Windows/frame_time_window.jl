@@ -4,6 +4,10 @@ mutable struct FrameTime <: WindowDNA
     cpu_times::Vector{Float64}
     frame_times::Vector{Float64}
     insert_times::Vector{Float64}
+    alloc_counts::Vector{Float64}
+    alloc_kbytes::Vector{Float64}
+    gc_incremental::Vector{Tuple{Float64,Float64}} # (timestamp, GC time in ms)
+    gc_full::Vector{Tuple{Float64,Float64}} # (timestamp, GC time in ms)
     target_fps::Ref{Float32}
     limit_framerate::Ref{Bool}
 
@@ -11,7 +15,8 @@ mutable struct FrameTime <: WindowDNA
         primary = GLFW.GetPrimaryMonitor()
         mode = GLFW.GetVideoMode(primary)
         refresh_rate = mode.refreshrate
-        return new(Window(),Vector{Float64}[],Vector{Float64}[],Float64[],Float64[],Ref(Float32(refresh_rate)),Ref(false))
+        return new(Window(),Vector{Float64}[],Vector{Float64}[],Float64[],Float64[],Float64[],Float64[],
+                   Tuple{Float64,Float64}[],Tuple{Float64,Float64}[],Ref(Float32(refresh_rate)),Ref(false))
     end
 end
 
@@ -32,6 +37,14 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
         deleteat!(gui.gpu_times, 1:(valid_idx - 1))
         deleteat!(gui.cpu_times, 1:(valid_idx - 1))
         deleteat!(gui.frame_times, 1:(valid_idx - 1))
+        deleteat!(gui.alloc_counts, 1:(valid_idx - 1))
+        deleteat!(gui.alloc_kbytes, 1:(valid_idx - 1))
+    end
+    _trim_gc!(gui.gc_incremental, cutoff_time)
+    _trim_gc!(gui.gc_full, cutoff_time)
+    if app._frame_gc_count > 0
+        sample = (current_time, app._frame_gc_time_ns / 1.0e6)
+        push!(app._frame_gc_full > 0 ? gui.gc_full : gui.gc_incremental, sample)
     end
 
     current_dt = app._delta_time * 1000.0
@@ -52,6 +65,8 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
     ]
     push!(gui.gpu_times, current_frame_pass_times)
     push!(gui.cpu_times, opengl_data._profiler.cpu_times[opengl_data._cpu_stopwatch])
+    push!(gui.alloc_counts, Float64(app._frame_alloc_count))
+    push!(gui.alloc_kbytes, app._frame_alloc_bytes / 1024.0)
 
     ImPlot.SetNextAxisLimits(ImPlot.ImAxis_X1, -60.0, 0.0, CImGui.ImGuiCond_Always)
     if ImPlot.BeginPlot("FrameTime", "Time (seconds ago)", "Render Time (ms)")
@@ -77,6 +92,19 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
                 1000.0/gui.target_fps[]
             end
         ImPlot.PlotLine("Target render time", [-60.0, 0.0], [target_frametime, target_frametime], 2)
+        _plot_gc_points("GC incremental", gui.gc_incremental, current_time,
+                        ImPlot.ImPlotMarker_Cross, CImGui.ImVec4(0.25, 0.55, 1.0, 1.0))
+        _plot_gc_points("GC full", gui.gc_full, current_time,
+                        ImPlot.ImPlotMarker_Cross, CImGui.ImVec4(1.0, 0.2, 0.2, 1.0))
+        ImPlot.EndPlot()
+    end
+
+    ImPlot.SetNextAxisLimits(ImPlot.ImAxis_X1, -60.0, 0.0, CImGui.ImGuiCond_Always)
+    if ImPlot.BeginPlot("Allocations", "Time (seconds ago)", "Allocations per frame")
+        num_frames = length(gui.insert_times)
+        x_coords = [t - current_time for t in gui.insert_times]
+        ImPlot.PlotLine("Allocation count", x_coords, gui.alloc_counts, num_frames)
+        ImPlot.PlotLine("Allocated KiB", x_coords, gui.alloc_kbytes, num_frames)
         ImPlot.EndPlot()
     end
 
@@ -108,5 +136,23 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
         end
         CImGui.EndCombo()
     end
+    return nothing
+end
+
+function _trim_gc!(samples::Vector{Tuple{Float64,Float64}}, cutoff_time::Float64)::Nothing
+    idx = findfirst(p -> p[1] >= cutoff_time, samples)
+    n = idx === nothing ? length(samples) : idx - 1
+    n > 0 && deleteat!(samples, 1:n)
+    return nothing
+end
+
+function _plot_gc_points(label::String, samples::Vector{Tuple{Float64,Float64}},
+                         current_time::Float64, marker, color)::Nothing
+    n = length(samples)
+    n == 0 && return nothing
+    xs = [p[1] - current_time for p in samples]
+    ys = [p[2] for p in samples]
+    ImPlot.SetNextMarkerStyle(marker, 5.0, color, 1.5, color)
+    ImPlot.PlotScatter(label, xs, ys, n)
     return nothing
 end

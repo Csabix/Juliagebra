@@ -27,6 +27,12 @@ mutable struct App <: AppDNA
     _delta_time::Float64
     _vsync_state::Int32
 
+    _frame_alloc_count::Int64
+    _frame_alloc_bytes::Int64
+    _frame_gc_count::Int64
+    _frame_gc_full::Int64
+    _frame_gc_time_ns::Int64
+
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -52,7 +58,8 @@ mutable struct App <: AppDNA
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
-            graph,false,false,asset_watcher,hovered,delta_time,vsync_state)
+            graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
+            0,0,0,0,0)
     end
 end
 
@@ -142,7 +149,17 @@ end
 
 function play!(self::App)
     old_time::Float64 = time()
+    old_gc_num = Base.gc_num()
     while(!get_shouldclose(self._glfw))
+        new_gc_num = Base.gc_num()
+        gc_diff = Base.GC_Diff(new_gc_num, old_gc_num)
+        old_gc_num = new_gc_num
+        self._frame_alloc_count = Base.gc_alloc_count(gc_diff)
+        self._frame_alloc_bytes = gc_diff.allocd
+        self._frame_gc_count = gc_diff.pause
+        self._frame_gc_full = gc_diff.full_sweep
+        self._frame_gc_time_ns = gc_diff.total_time
+
         yield()
         perf_get_results()
         new_time::Float64 = time()

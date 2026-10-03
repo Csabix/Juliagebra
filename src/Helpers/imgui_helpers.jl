@@ -5,6 +5,12 @@ function slider(label::String,value::AbstractFloat,min::Real,max::Real)::Float32
     return value_ref[]
 end
 
+function slider(label::String,self::Vec2T,min::Real,max::Real)::Vec2F
+    self_ref = Ref(Vec2F(self.x, self.y))
+    CImGui.SliderFloat2(label, self_ref, Float32(min), Float32(max))
+    return self_ref[]
+end
+
 function slider(label::String,self::Vec3T,min::Real,max::Real)::Vec3F
     self_ref = Ref(Vec3F(self.x, self.y, self.z))
     CImGui.SliderFloat3(label, self_ref, Float32(min), Float32(max))
@@ -14,6 +20,12 @@ end
 function slider(label::String,self::Integer,min::Real,max::Real)::Int32
     self_ref = Ref(Int32(self))
     CImGui.SliderInt(label, self_ref, Int32(min), Int32(max))
+    return self_ref[]
+end
+
+function slider(label::String,self::Vec2T{Integer},min::Real,max::Real)::Vec2T{Int32}
+    self_ref = Ref(Vec2T{Int32}(self.x, self.y))
+    CImGui.SliderInt2(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
@@ -29,6 +41,12 @@ function input(label::String,self::AbstractFloat,step::Real,step_fast::Real)::Fl
     return self_ref[]
 end
 
+function input(label::String,self::Vec2T)::Vec2F
+    vec = @MVector[Float32(self.x), Float32(self.y)]
+    CImGui.InputFloat2(label, vec)
+    return Vec2F(vec[1], vec[2])
+end
+
 function input(label::String,self::Vec3T)::Vec3F
     vec = @MVector[Float32(self.x), Float32(self.y), Float32(self.z)]
     CImGui.InputFloat3(label, vec)
@@ -39,6 +57,12 @@ function input(label::String,self::Integer,step::Integer,step_fast::Integer)::In
     self_ref = Ref(Int32(self))
     CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast))
     return Int(self_ref[])
+end
+
+function input(label::String,self::Vec2T{Integer})::Vec2T{Int32}
+    vec = @MVector[Int32(self.x), Int32(self.y)]
+    CImGui.InputInt2(label, vec)
+    return Vec2T(vec[1], vec[2])
 end
 
 function input(label::String,self::Vec3T{Integer})::Vec3T{Int32}
@@ -66,7 +90,7 @@ function color_edit4(label::String,color::UInt32)::UInt32
     return get_color((col[1], col[2], col[3], col[4]))
 end
 
-function input_text(label::String,text::String,buf_size=1024)::String
+function input(label::String,text::String,buf_size=1024)::String
     result::String = text
     buf = get_bytebuffer(text, buf_size)
 
@@ -77,11 +101,11 @@ function input_text(label::String,text::String,buf_size=1024)::String
     return result
 end
 
-function input_text_multiline(label::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::String
+function input_multiline(label::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::String
     result::String = text
     buf = get_bytebuffer(text, buf_size)
     
-    if (CImGui.InputTextMultiline(label,buf,length(buf),size))
+    if (CImGui.InputTextMultiline(label, buf, length(buf), size))
         GC.@preserve buf result = unsafe_string(pointer(buf), buf_size)
     end
 
@@ -89,17 +113,17 @@ function input_text_multiline(label::String,text::String,buf_size=1024,size=CImG
 end
 
 function get_bytebuffer(text::String,buf_size::Unsigned=1024)::Vector{UInt8}
-    buf = Vector{UInt8}(undef,buf_size)
+    buf = Vector{UInt8}(undef, buf_size)
     units = codeunits(text)
 
-    copy_end = min(length(units),buf_size-1)
+    copy_end = min(length(units), buf_size-1)
 
-    while !isvalid(String(view(units,1:copy_end)))
+    while !isvalid(String(view(units, 1:copy_end)))
         copy_end-=1
     end
 
     if !isempty(units)
-        copyto!(buf,view(units,1:copy_end))
+        copyto!(buf, view(units,1:copy_end))
     end
     buf[copy_end+1] = 0
     return buf
@@ -119,64 +143,4 @@ function get_button_size(text::String)::Tuple{Float32, Float32}
     size_y += padding_y * 2
 
     return (size_x,size_y)
-end
-
-@enum PropertyHint begin
-    ANY_NONE = 0
-    UINT32_COLOR = 1
-    UINT32_COLOR_ALPHA = 2
-    REAL_SLIDER = 4
-    STRING_MULTILINE = 8
-end
-
-input_property(property_name::String,v::Any,property_hint::PropertyHint=PropertyHint.ANY_NONE)::Any = v
-
-function input_property(property_name::String,v::String,property_hint::PropertyHint=PropertyHint.ANY_NONE,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::String
-    if property_hint & STRING_MULTILINE
-        return input_text_multiline(property_name, v, buf_size, size)
-    else
-        return input_text(property_name, v, buf_size)
-    end
-end
-
-function input_property(property_name::String,v::UInt32,property_hint::PropertyHint=PropertyHint._NONE)::Int32
-    if property_hint & UINT32_COLOR
-        return color_edit3(property_name, v)
-    elseif property_hint & UINT32_COLOR_ALPHA
-        return color_edit4(property_name, v)
-    else
-        return input_property(property_name, Int64(v), property_hint)
-    end
-end
-
-function input_property(property_name::String,v::Integer,x::Real,y::Real,property_hint::PropertyHint=PropertyHint.ANY_NONE)::Int32
-    if property_hint & PropertyHint.REAL_SLIDER
-        return slider(property_name, v, x, y)
-    else
-        return input(property_name, x, y)
-    end
-end
-
-function input_property(property_name::String,v::AbstractFloat,x::Real,y::Real,property_hint::PropertyHint=PropertyHint.ANY_NONE)::Float32
-    if property_hint & PropertyHint.REAL_SLIDER
-        return slider(property_name, v, x, y)
-    else
-        return input(property_name, x, y)
-    end
-end
-
-function input_property(property_name::String,v::Vec3T,min::Real=typemin(Float32),max::Real=typemin(Float32),property_hint::PropertyHint=PropertyHint.ANY_NONE)::Vec3F
-    if property_hint & PropertyHint.REAL_SLIDER
-        return slider(property_name, v, min, max)
-    else
-        return input(property_name)
-    end
-end
-
-function input_property(property_name::String,v::Vec3T{Integer},min::Real=typemin(Float32),max::Real=typemin(Float32),property_hint::PropertyHint=PropertyHint.ANY_NONE)::Vec3T{Int32}
-    if property_hint & PropertyHint.REAL_SLIDER
-        return slider(property_name, v, min, max)
-    else
-        return input(property_name)
-    end
 end

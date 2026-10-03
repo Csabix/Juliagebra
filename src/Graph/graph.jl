@@ -6,6 +6,7 @@ include("graph_helpers.jl")
     elements::Vector{Any} = Vector{Any}()
     render_data::Vector{Any} = Vector{Any}()
     element_labels::Vector{String} = Vector{String}()
+    label_count::Dict{Srting, Int} = Dict{String, Int}
     nodes::Vector{GeometryPlotNode} = Vector{GeometryPlotNode}()
     invalidate_stack::Vector{NodeHandle} = Vector{NodeHandle}()
     wait_pool::WaitPool = WaitPool()
@@ -59,19 +60,8 @@ end
 
 function calc_element_label(graph::GeometryPlotGraph, intended_name::String, type_string::String)::String
     rt::String = intended_name
-    count::Int = 1
-    while true
-        unique::Bool=true
-        
-        for i::Int in eachindex(graph.elements)
-            if edit_node_type_string(graph.elements[i]) == type_string && graph.element_labels[i] == rt*string(count)
-                unique = false
-                
-                count+=1
-            end
-        end
-        if unique break end
-    end
+    count::Int = get(graph.label_count, intended_name, 0) + 1
+    graph.label_count[intended_name] = count
     rt*=string(count)
     return rt
 end

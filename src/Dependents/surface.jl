@@ -1,17 +1,10 @@
 mutable struct ParametricSurface{Range<:AbstractRange}
-    vertexes::FlatMatrixManager{Vec3F}
-    indexes::Vector{UInt32}
-    uvValues::FlatMatrix{Vec3D}
-    uvNormals::FlatMatrix{Vec3D}
+    values::Matrix{Vec3D}
     uRange::Range
     vRange::Range
 
     function ParametricSurface(uRange::Range, vRange::Range) where {Range<:AbstractRange}
-        vertexes = FlatMatrixManager{Vec3F}()
-        indexes = Vector{UInt32}()
-        uvValues = FlatMatrix{Vec3D}(length(uRange), length(vRange))
-        uvNormals = FlatMatrix{Vec3D}(length(uRange), length(vRange))
-        new{Range}(vertexes, indexes, uvValues, uvNormals, uRange, vRange)
+        new{Range}(Matrix{Vec3D}(undef, length(uRange), length(vRange)), uRange, vRange)
     end
 end
 
@@ -20,24 +13,11 @@ struct ParametricSurfaceDrawData
     color::UInt32
 end
 
-convert_result(ps::ParametricSurface,result,u,v) = (ps.uvValues[u,v] = Vec3D(result);ps)
-convert_result(ps::ParametricSurface,result::Tuple,u,v) = (ps.uvValues[u,v] = Vec3D(result...);ps)
-convert_result(ps::ParametricSurface,result::Vec3F,u,v) = (ps.uvValues[u,v] = Vec3D(result);ps)
-convert_result(ps::ParametricSurface,result::Vec3D,u,v) = (ps.uvValues[u,v] = result;ps)
-convert_result(ps::ParametricSurface,::Nothing,u,v) = (ps.uvValues[u,v] = Vec3DNan;ps)
-
-function setNormal!(element::ParametricSurface, u::Int, v::Int, w::Int, h::Int)
-    vals = element.uvValues
-
-    right = vals[min(u + 1, w), v]
-    left  = vals[max(u - 1, 1), v]
-    down  = vals[u, min(v + 1, h)]
-    up    = vals[u, max(v - 1, 1)]
-
-    uVec = right - left
-    vVec = down - up
-    element.uvNormals[u, v] = normalize(cross(uVec, vVec))
-end
+Base.@propagate_inbounds convert_result(ps::ParametricSurface,result,u,v) = (ps.values[u,v] = Vec3D(result);ps)
+Base.@propagate_inbounds convert_result(ps::ParametricSurface,result::Tuple,u,v) = (ps.values[u,v] = Vec3D(result...);ps)
+Base.@propagate_inbounds convert_result(ps::ParametricSurface,result::Vec3F,u,v) = (ps.values[u,v] = Vec3D(result);ps)
+Base.@propagate_inbounds convert_result(ps::ParametricSurface,result::Vec3D,u,v) = (ps.values[u,v] = result;ps)
+Base.@propagate_inbounds convert_result(ps::ParametricSurface,::Nothing,u,v) = (ps.values[u,v] = Vec3DNan;ps)
 
 function eval_node(element::ParametricSurface, callback::Function, arguments::Vector{Any})::Any
     _fill_surface!(element, callback, arguments...)
@@ -45,38 +25,24 @@ function eval_node(element::ParametricSurface, callback::Function, arguments::Ve
 end
 function _fill_surface!(ps::ParametricSurface, callback::F, args::Vararg{Any,N}) where {F,N}
     for (v, vf) in enumerate(ps.vRange), (u, uf) in enumerate(ps.uRange)
-        convert_result(ps, callback(uf, vf, args...), u, v)
+        @inbounds convert_result(ps, callback(uf, vf, args...), u, v)
     end
     return ps
 end
 
 function render_node(ps::ParametricSurface, pdata::ParametricSurfaceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricSurfaceDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
+    triangles = get_triangulated(ps.values)
     if pdata.handle == 0
-        width = length(ps.uRange)
-        height = length(ps.vRange)
-        initMatrix(ps.vertexes, width, height, Vec3FNan)
-        triangulateInto!(ps.indexes, ps.vertexes, layers(ps.vertexes))
-        copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
-        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
         handle = add!(triangle_renderer, triangles, mat4(1.0f0), pdata.color, false, id)
         return ParametricSurfaceDrawData(handle, pdata.color)
     else
-        copy!(ps.uvValues, ps.vertexes, layers(ps.vertexes))
-        triangles = get_triangulated(data(ps.vertexes, layers(ps.vertexes)), ps.vertexes, layers(ps.vertexes))
         update_coords!(triangle_renderer, pdata.handle, triangles)
         return pdata
     end
 end
 
-# ? For Intersectable ParametricSurfaces.
-struct PTrianglesOfSurface <: PrimitivesOf{PTriangle}
-    _surfaceTriangleIterator::TrianglesOf{Vec3D}
-end
-PrimitivesOf(self::ParametricSurface) = return PTrianglesOfSurface(TrianglesOf{Vec3D}(self.uvValues))
-Base.length(self::PTrianglesOfSurface) = return length(self._surfaceTriangleIterator)
-Base.getindex(self::PTrianglesOfSurface, index::UInt)::PTriangle = return self._surfaceTriangleIterator[index]
-Base.iterate(self::PTrianglesOfSurface, state = (1,1,1)) = return iterate(self._surfaceTriangleIterator,state)   
+PrimitivesOf(self::ParametricSurface) = PTrianglesOfSurface(self.values)
 
 # ? ---------------------------------
 # ! ParametricSurfaceRenderer

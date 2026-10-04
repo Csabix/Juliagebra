@@ -57,6 +57,7 @@ include("Graph/graph.jl")
 # ? ---------------------------------
 
 include("Primitives/primitives.jl")
+include("Helpers/triangulation.jl")
 include("Primitives/primitive_intersections.jl")
 include("Primitives/primitive_constructors.jl")
 

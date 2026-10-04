@@ -3,6 +3,7 @@ struct _TriangleTransform
     MIT::Mat4T{Float32}
     IsInfinite::Int32
     _TriangleTransform(M::Mat4T{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
+    _TriangleTransform(M::Mat4T{Float32},IsInfinite::Int32) = new(M,inv(transpose(M)),IsInfinite)
 end
 
 mutable struct TriangleRenderer <: Renderer
@@ -13,10 +14,9 @@ mutable struct TriangleRenderer <: Renderer
     UBO::RepeatBufferUBO{_TriangleTransform}
     buffers::Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}} # position normal color id
 
-    matrices::Vector{Mat4T{Float32}}
+    transforms::Vector{_TriangleTransform}
     coords::Vector{Vector{Vec4F}}
     color_ids::Vector{Vec2T{UInt32}}
-    infinite_ids::Vector{Bool}
 
     update_normals::Vector{UInt32}
     color_updates::Vector{UInt32}
@@ -33,7 +33,7 @@ mutable struct TriangleRenderer <: Renderer
         new(calc_normals,opaque,transparent,
             RepeatBufferUBO{_TriangleTransform}(),
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
-            Vector{Mat4T{Float32}}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),Vector{Bool}(),
+            Vector{_TriangleTransform}(),Vector{Vector{Vec3F}}(),Vector{Vec2T{UInt32}}(),
             Vector{UInt32}(),
             Vector{UInt32}()
         )
@@ -44,12 +44,11 @@ function clear!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
 
     self.buffers = Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}()
-    self.matrices = Vector{Mat4T{Float32}}()
+    self.transforms = Vector{_TriangleTransform}()
     self.coords = Vector{Vector{Vec3F}}()
     self.color_ids = Vector{Vec2T{UInt32}}()
     self.update_normals = Vector{UInt32}()
     self.color_updates = Vector{UInt32}()
-    self.infinite_ids = Vector{Bool}()
     return nothing
 end
 
@@ -58,10 +57,9 @@ function destroy!(self::TriangleRenderer)::Nothing
 end
 
 function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,isInfinite::Bool,id::UInt32)::UInt32
+    push!(self.transforms, _TriangleTransform(matrix, isInfinite))
     push!(self.coords, collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords)))
-    push!(self.matrices, matrix)
     push!(self.color_ids,UVec2(color,id))
-    push!(self.infinite_ids,isInfinite)
     return UInt32(length(self.coords))
 end
 
@@ -72,7 +70,8 @@ function update_color!(self::TriangleRenderer, ref::UInt32, color::UInt32)
 end
 
 function update_transform!(self::TriangleRenderer, ref::UInt32, transform)
-    self.matrices[ref] = Mat4T{Float32}(transform)
+    _transform::_TriangleTransform = self.transforms[ref]
+    self.transforms[ref] = _TriangleTransform(transform,_transform.IsInfinite)
 end
 
 function _triangle_renderer_buffer_array()
@@ -86,11 +85,6 @@ function update_coords!(self::TriangleRenderer,ref::UInt32,coords)::Nothing
     empty!(self.coords[ref])
     append!(self.coords[ref],(Vec4F(c[1],c[2],c[3],1.0f0) for c in coords))
     push!(self.update_normals,ref)
-    return nothing
-end
-
-function update_matrix!(self::TriangleRenderer,ref::UInt32,matrix::Mat4T{Float32})::Nothing
-    self.matrices[ref] = matrix
     return nothing
 end
 
@@ -137,11 +131,10 @@ function pre_draw!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
         glDispatchCompute(cld(length(self.coords[i]),64),1,1);
     end
 
-    transforms = _TriangleTransform[_TriangleTransform(M,is_infinite) for (M,is_infinite) in zip(self.matrices,self.infinite_ids)]
-    if length(self.UBO) != length(transforms)
-        upload!(self.UBO,transforms,GL_DYNAMIC_STORAGE_BIT)
+    if length(self.UBO) != length(self.transforms)
+        upload!(self.UBO,self.transforms,GL_DYNAMIC_STORAGE_BIT)
     else
-        upload!(self.UBO,transforms)
+        upload!(self.UBO,self.transforms)
     end
 
     return nothing

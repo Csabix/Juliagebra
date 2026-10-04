@@ -10,8 +10,8 @@ mutable struct FrameTime <: WindowDNA
     alloc_kbytes::Vector{Float64}
     gc_incremental::Vector{Tuple{Float64,Float64}} # (timestamp, GC time in ms)
     gc_full::Vector{Tuple{Float64,Float64}} # (timestamp, GC time in ms)
-    target_fps::Base.RefValue{Float32}
-    limit_framerate::Base.RefValue{Bool}
+    target_fps::Float32
+    limit_framerate::Bool
 
     # Reused buffers
     x_buf::Vector{Float64}
@@ -27,7 +27,7 @@ mutable struct FrameTime <: WindowDNA
         mode = GLFW.GetVideoMode(primary)
         refresh_rate = mode.refreshrate
         return new(Window(),NTuple{6,Float64}[],Float64[],Float64[],Float64[],Float64[],Float64[],
-                   Tuple{Float64,Float64}[],Tuple{Float64,Float64}[],Ref(Float32(refresh_rate)),Ref(false),
+                   Tuple{Float64,Float64}[],Tuple{Float64,Float64}[],Float32(refresh_rate),false,
                    Float64[],Float64[],Float64[],[-60.0, 0.0],[0.0, 0.0],Float64[],Float64[])
     end
 end
@@ -101,7 +101,7 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
             frame_limiter::FrameLimiter = app._frame_limiter
                 1000000000.0 / frame_limiter.ns_per_frame
             else
-                1000.0/gui.target_fps[]
+                1000.0/gui.target_fps
             end
         fill!(gui.target_y, target_frametime)
         ImPlot.PlotLine("Target render time", gui.target_x, gui.target_y, 2)
@@ -119,15 +119,19 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
         ImPlot.EndPlot()
     end
 
-    if CImGui.Checkbox("Framerate Limit",gui.limit_framerate)
-        if gui.limit_framerate[]
-            app._frame_limiter = FrameLimiter(Float64(gui.target_fps[]))
+    limit_framerate = Ref(gui.limit_framerate)
+    if CImGui.Checkbox("Framerate Limit",limit_framerate)
+        gui.limit_framerate = limit_framerate[]
+        if gui.limit_framerate
+            app._frame_limiter = FrameLimiter(Float64(gui.target_fps))
         else
             app._frame_limiter = nothing
         end
     end
-    if CImGui.SliderFloat("Target Framerate", gui.target_fps, 10.0, 144.0)
-        set_limit!(app._frame_limiter, Float64(gui.target_fps[]))
+    target_fps = Ref(gui.target_fps)
+    if CImGui.SliderFloat("Target Framerate", target_fps, 10.0, 144.0)
+        gui.target_fps = target_fps[]
+        set_limit!(app._frame_limiter, Float64(gui.target_fps))
     end
 
     items = ("Adaptive (-1)", "Off (0)", "On (1)")

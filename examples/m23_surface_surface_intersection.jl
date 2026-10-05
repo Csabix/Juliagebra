@@ -19,13 +19,13 @@ end
 
     
 
-#it = Intersection(surface1, surface2; maxIntersectionNum = MAX_INTERSECTIONS)
-#
-#for i in 1:MAX_INTERSECTIONS
-#    ParametricCurve(range(0,1,2), [it]; size=3.0) do t, iit
-#        s::PSegment = iit[i]
-#        return s.p0 .* t .+ (1.0 - t) .* s.p1
-#    end
-#end
+it = Intersection(surface1, surface2; maxIntersectionNum = MAX_INTERSECTIONS)
+
+for i in 1:MAX_INTERSECTIONS
+    ParametricCurve(range(0,1,2), [it]; size=3.0) do t, iit
+        s::PSegment = iit[i]
+        return s.p0 .* t .+ (1.0 - t) .* s.p1
+    end
+end
 
 Juliagebra.Wait()

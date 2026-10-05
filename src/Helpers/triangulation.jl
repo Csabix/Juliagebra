@@ -21,7 +21,7 @@ Base.length(self::PTrianglesOfSurface) = (Base.size(self.values, 1) - 1) * (Base
 
 function Base.getindex(triangles::PTrianglesOfSurface, index::Integer)::PTriangle
     values = triangles.values
-    num_cols = size(values)[2] - 1
+    num_cols = StaticArrays.size(values)[2] - 1
 
     cell_idx = div(index - 1, 2)
     
@@ -34,10 +34,10 @@ function Base.getindex(triangles::PTrianglesOfSurface, index::Integer)::PTriangl
 end
 
 function Base.iterate(triangles::PTrianglesOfSurface, n::Int = 1)
-    h, w = size(triangles.values)
+    h, w = StaticArrays.size(triangles.values)
     total_triangles = 2 * (h - 1) * (w - 1)
     if n > total_triangles || h < 2 || w < 2
         return nothing
     end
-    return triangles[n]
+    return (triangles[n],n+1)
 end

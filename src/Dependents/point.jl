@@ -41,21 +41,25 @@ on_gizmo_select(point::Point,data::PointDrawData)::Tuple{UInt32,Vec3D,Any} = (UI
 on_gizmo_move(point::Point, position::Vec3D, data::Any)::Tuple{Any,Any} = (point.coord = position;(point, nothing))
 
 edit_node_overload(point::Point)::Bool = true
-function edit_node(point::Point, data::PointDrawData, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
-    result = EDIT_NODE_NONE
-    coord = point.coord
-    point.coord = input("##pos$handle", coord)
-    if coord != point.coord
-        result |= EDIT_NODE_INVALIDATE
-    end
+Base.propertynames(data::Point) = [:coord]
+Base.propertynames(data::PointDrawData) = [:color]
+get_property_hint(data::PointDrawData, property::Symbol) = property == :color ? PROPERTY_HINT_COLOR : PROPERTY_HINT_NONE
 
-    new_color = color_edit3("##pcol$id", data.color)
-        if new_color != data.color
-            data = PointDrawData(data.handle,new_color,data.style,data.style,data.constraints)
-            update_colors!(renderers[PointRenderer]::PointRenderer,data.handle,new_color)
-            result |= EDIT_NODE_RERENDER
-        end
-    return point, data, result
+function reconstruct_node(element::PointDrawData, properties::Dict{Symbol, Any})
+
+    if !haskey(properties, :color)
+        properties[:color] = element.color
+    end
+    return PointDrawData(
+        element.handle,
+        properties[:color],
+        element.style,
+        element.size,
+        element.constraints)
+end
+
+function rerender_node(render_data::PointDrawData, renderers::Dict{DataType, Renderer}, handle::NodeHandle)
+    update_colors!(renderers[PointRenderer]::PointRenderer,render_data.handle,render_data.color)
 end
 
 function Point(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;

@@ -50,7 +50,7 @@ function slider(label::String,self::Vec4T{T},min::Real,max::Real)::Vec4T{Int32} 
     return self_ref[]
 end
 
-function input(label::String,self::AbstractFloat,step::Real,step_fast::Real)::Float32
+function input(label::String,self::AbstractFloat,step::Real=1,step_fast::Real=5)::Float32
     self_ref = Ref(Float32(self))
     CImGui.InputFloat(label,self_ref, Float32(step), Float32(step_fast))
     return self_ref[]
@@ -74,7 +74,7 @@ function input(label::String,self::Vec4T)::Vec4F
     return Vec4F(vec[1], vec[2], vec[3], vec[4])
 end
 
-function input(label::String,self::Integer,step::Integer,step_fast::Integer)::Int32
+function input(label::String,self::Integer,step::Integer=1,step_fast::Integer=5)::Int32
     self_ref = Ref(Int32(self))
     CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast))
     return Int(self_ref[])

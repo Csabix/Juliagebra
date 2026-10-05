@@ -63,7 +63,6 @@ function calc_element_label(graph::GeometryPlotGraph, intended_name::String)::St
     count::Int = get(graph.label_count, intended_name, 0) + 1
     graph.label_count[intended_name] = count
     rt*=string(count)
-    println(rt)
     return rt
 end
 

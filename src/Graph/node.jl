@@ -41,7 +41,58 @@ render_node_gui(element::Any)::Tuple{Any,Bool} = element, false
 const EDIT_NODE_NONE::Int = 0
 const EDIT_NODE_RERENDER::Int = 1
 const EDIT_NODE_INVALIDATE::Int = 2
-edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = (element,render_data,EDIT_NODE_NONE)
+function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
+    result::Int = EDIT_NODE_NONE
+    result, element = modify_properties(element, handle, EDIT_NODE_INVALIDATE)
+    CImGui.Separator()
+    CImGui.Text("Render Data")
+    result, render_data = modify_properties(render_data, handle, EDIT_NODE_RERENDER)
+    if result & EDIT_NODE_RERENDER != 0
+        rerender_node(render_data, renderers, handle)
+    end
+    return element, render_data, result
+end
+
+@enum PropertyHint begin
+    PROPERTY_HINT_NONE
+    PROPERTY_HINT_COLOR
+    PROPERTY_HINT_COLOR_ALPHA
+    PROPERTY_HINT_MULITLINE
+end
+
+get_property_hint(element::Any, property::Symbol)::PropertyHint = PROPERTY_HINT_NONE
+
+function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T<:Any
+    result::Int = EDIT_NODE_NONE
+    properties::Dict{Symbol, Any} = Dict{Symbol, Any}()
+    for f::Symbol in propertynames(element)
+        old = getproperty(element, f)
+        new = input_property(String(f)*"$handle", old, get_property_hint(element, f))
+        if ismutable(element)
+            setproperty!(element, f, new)
+        else
+            properties[f] = new
+        end
+        result |= flag * (old != new)
+    end
+    if !ismutable(element)
+        element = reconstruct_node(element, properties)
+    end
+    return result, element
+end
+function input_property(label::String, value::T, property_hint::PropertyHint)::T where T
+    if property_hint == PROPERTY_HINT_COLOR_ALPHA
+        return color_edit4(label, value)
+    elseif property_hint == PROPERTY_HINT_COLOR
+        return color_edit3(label, value)
+    elseif property_hint == PROPERTY_HINT_MULITLINE
+        return input_multiline(label, value)
+    else
+        return input(label, value)
+    end
+end
+function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end
+rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}, handle) = false
 edit_node_overload(element::Any)::Bool = false
 edit_node_type_string(element::Any)::String = string(typeof(element))
 
@@ -63,6 +114,6 @@ get_parent_node(parent::NodeHandle)::NodeHandle = parent
 get_parent_nodes(parents::Any...)::Vector{NodeHandle} = [get_parent_node(parent) for parent in parents]
 (handle::NodeHandle)(args::Any...) = get_element(handle)(handle, args...)
 
-export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload
+export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload, reconstruct_node, rerender_node, get_property_hint
 export on_gizmo_select, on_gizmo_move
 export eval_geometry_node, GeometryPlotNode

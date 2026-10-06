@@ -59,11 +59,9 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
 end
 
 function calc_element_label(graph::GeometryPlotGraph, intended_name::String)::String
-    rt::String = intended_name
     count::Int = get(graph.label_count, intended_name, 0) + 1
     graph.label_count[intended_name] = count
-    rt*=string(count)
-    return rt
+    return intended_name * string(count)
 end
 
 function set_geom_flags!(node::GeometryPlotNode, flags::NodeFlag)::NodeFlag

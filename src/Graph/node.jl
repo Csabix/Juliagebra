@@ -80,6 +80,7 @@ function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int
     end
     return result, element
 end
+
 function input_property(label::String, value::T, property_hint::PropertyHint)::T where T
     if property_hint == PROPERTY_HINT_COLOR_ALPHA
         return color_edit4(label, value)
@@ -91,6 +92,7 @@ function input_property(label::String, value::T, property_hint::PropertyHint)::T
         return input(label, value)
     end
 end
+
 function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end
 rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}, handle) = false
 edit_node_overload(element::Any)::Bool = false

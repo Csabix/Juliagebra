@@ -42,11 +42,11 @@ const EDIT_NODE_NONE::Int = 0
 const EDIT_NODE_RERENDER::Int = 1
 const EDIT_NODE_INVALIDATE::Int = 2
 function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
-    result::Int = EDIT_NODE_NONE
-    result, element = modify_properties(element, handle, EDIT_NODE_INVALIDATE)
+    result_element, element = modify_properties(element, handle, EDIT_NODE_INVALIDATE)
     CImGui.Separator()
     CImGui.Text("Render Data")
-    result, render_data = modify_properties(render_data, handle, EDIT_NODE_RERENDER)
+    result_data, render_data = modify_properties(render_data, handle, EDIT_NODE_RERENDER)
+    result::Int = result_element | result_data
     if result & EDIT_NODE_RERENDER != 0
         rerender_node(render_data, renderers, handle)
     end

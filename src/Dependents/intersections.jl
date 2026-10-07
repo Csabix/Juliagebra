@@ -10,11 +10,11 @@ on_window_clear(() -> empty!(_intersection_cache))
 
 # _UndefinedAccelerator => | PrimitivesOf                       (PrimitivesOf(elements[node.parent_h[1]]) <: PrimitivesOf{<:Primitive})
 #                          | Tuple{LBVHCache{3},<:PrimitivesOf} (PrimitivesOf(elements[node.parent_h[1]]) <: PrimitivesOf{<:AABBPrimitive3D})
-_define_accelerator(primitives::PrimitivesOf, ::Union{LBVHCache{3},Nothing}) = primitives
-function _define_accelerator(primitives::PrimitivesOf{<:AABBPrimitive3D}, lbvh::Union{LBVHCache{3},Nothing})
-    cache::LBVHCache{3} = lbvh === nothing ? LBVHCache{3}() : lbvh
+_define_accelerator(primitives::PrimitivesOf, ::Union{LBVHCache{3,MORTON_CODE_TYPE},Nothing}) = primitives
+function _define_accelerator(primitives::PrimitivesOf{<:AABBPrimitive3D}, lbvh::Union{LBVHCache{3,MORTON_CODE_TYPE},Nothing})
+    cache::LBVHCache{3,MORTON_CODE_TYPE} = lbvh === nothing ? LBVHCache{3,MORTON_CODE_TYPE}() : lbvh
     if length(primitives) >= BRUTE_FORCE_LBVH_THRESHOLD
-        BuildLBVH!(cache,map(GetAABB, primitives),MORTON_CODE_TYPE)
+        BuildLBVH!(cache,map(GetAABB, primitives))
     else
         # Keep the allocation, but mark it empty / stale
         cache.number_of_leafs = UInt32(0)
@@ -24,10 +24,10 @@ function _define_accelerator(primitives::PrimitivesOf{<:AABBPrimitive3D}, lbvh::
 end
 
 _reuse_lbvh(::Any) = nothing
-_reuse_lbvh(accelerator::Tuple{LBVHCache{3},<:PrimitivesOf}) = accelerator[1]
+_reuse_lbvh(accelerator::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf}) = accelerator[1]
 
 struct _UndefinedAccelerator end
-eval_geometry_node(element::Union{_UndefinedAccelerator, PrimitivesOf, Tuple{LBVHCache{3},<:PrimitivesOf}}, node::GeometryPlotNode, elements::Vector{Any}) =
+eval_geometry_node(element::Union{_UndefinedAccelerator, PrimitivesOf, Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf}}, node::GeometryPlotNode, elements::Vector{Any}) =
     _define_accelerator(PrimitivesOf(elements[node.parent_h[1]]), _reuse_lbvh(element))
 
 # ? ---------------------------------
@@ -59,7 +59,7 @@ function FindIntersections(self::IntersectionCalculator{T}, shapes_a::Primitives
 end
 
 # LBVH
-function FindIntersections(self::IntersectionCalculator, shapes_a::Tuple{LBVHCache{3},<:PrimitivesOf{<:AABBPrimitive}}, shapes_b::Tuple{LBVHCache{3},<:PrimitivesOf{<:AABBPrimitive}})
+function FindIntersections(self::IntersectionCalculator, shapes_a::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf{<:AABBPrimitive}}, shapes_b::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf{<:AABBPrimitive}})
     iter_a = shapes_a[2]
     iter_b = shapes_b[2]
     has_lbvh_a = shapes_a[1].number_of_leafs > 0
@@ -79,10 +79,10 @@ end
 
 # Mixed (fallback to brute-force)
 _primitives(primitives::PrimitivesOf) = primitives
-_primitives(accelerator::Tuple{LBVHCache{3},<:PrimitivesOf}) = accelerator[2]
+_primitives(accelerator::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf}) = accelerator[2]
 FindIntersections(self::IntersectionCalculator, shapes_a, shapes_b) = FindIntersections(self, _primitives(shapes_a), _primitives(shapes_b))
 
-function LBVHIntersections(self::IntersectionCalculator, geometry_lbvh::Tuple{LBVHCache{3},<:PrimitivesOf{<:AABBPrimitive}}, geometry_b::Tuple{LBVHCache{3},<:PrimitivesOf{<:AABBPrimitive}})
+function LBVHIntersections(self::IntersectionCalculator, geometry_lbvh::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf{<:AABBPrimitive}}, geometry_b::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf{<:AABBPrimitive}})
     lbvh = geometry_lbvh[1]
     
     shapes_lbvh = geometry_lbvh[2]

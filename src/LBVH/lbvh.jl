@@ -40,7 +40,14 @@ julia> GetContainerAABB(Vector{AABB3D}([AABB3D(SVector(0.7f0, 0.8f0, 1.8f0), SVe
 ```
 """
 function GetContainerAABB(aabbs::Vector{AABB{N}})::AABB{N} where {N}
-    return AABB{N}(reduce((a, b) -> min.(a, b), getfield.(aabbs, :min)), reduce((a, b) -> max.(a, b), getfield.(aabbs, :max)))
+    @assert (length(aabbs) > 0) "Error, can't compute the container of an empty vector of aabbs"
+    container_min::SVector{N, Float32} = aabbs[1].min
+    container_max::SVector{N, Float32} = aabbs[1].max
+    @inbounds for i in 2:length(aabbs)
+        container_min = min.(container_min, aabbs[i].min)
+        container_max = max.(container_max, aabbs[i].max)
+    end
+    return AABB{N}(container_min, container_max)
 end
 
 """
@@ -159,15 +166,39 @@ Takes a vector of AABBs (Axis Aligned Bounding Boxes) and first computes a bound
 - `Vector{UInt32}`: the resulting vector of either 32 or 64 bit morton codes (specified in the functions argument)
 """
 function CalculateMortonCodesForPrimitiveAABBs(primitive_aabbs::Vector{AABB{N}}, ::Type{MortonCodeT})::Vector{MortonCodeT} where {N, MortonCodeT<:AbstractMortonCodeType}
+    return CalculateMortonCodesForPrimitiveAABBs!(Vector{MortonCodeT}(undef, length(primitive_aabbs)), primitive_aabbs)
+end
+
+"""
+```julia
+function CalculateMortonCodesForPrimitiveAABBs!(result::Vector{MortonCodeT}, primitive_aabbs::Vector{AABB{N}})::Vector{MortonCodeT} where {N, MortonCodeT<:AbstractMortonCodeType}
+```
+
+In-place version of `CalculateMortonCodesForPrimitiveAABBs`, resizes `result` to the number of primitives and writes the morton codes into it (no allocation if `result` already has enough capacity)
+
+# Arguments
+- `result`: the out vector, its element type specifies if 32 bit or 64 bit morton codes should be used
+- `primitive_aabbs`: a vector of AABBs of the primitives
+
+# Returns
+- `Vector{MortonCodeT}`: `result`
+"""
+function CalculateMortonCodesForPrimitiveAABBs!(result::Vector{MortonCodeT}, primitive_aabbs::Vector{AABB{N}})::Vector{MortonCodeT} where {N, MortonCodeT<:AbstractMortonCodeType}
     @assert ((N == 2) || ( N == 3)) "Error, only dimensions 2 and 3 are supported"
     container_aabb::AABB{N} = GetContainerAABB(primitive_aabbs)
+    Base.resize!(result, Base.length(primitive_aabbs))
     if (MortonCodeT === UInt32)
-        return MortonCodeScaledCenter32.(GetScaledAABBCenter.(primitive_aabbs, Ref(container_aabb)))
+        @inbounds for i in eachindex(primitive_aabbs)
+            result[i] = MortonCodeScaledCenter32(GetScaledAABBCenter(primitive_aabbs[i], container_aabb))
+        end
     elseif (MortonCodeT === UInt64)
-        return MortonCodeScaledCenter64.(GetScaledAABBCenter.(primitive_aabbs, Ref(container_aabb)))
+        @inbounds for i in eachindex(primitive_aabbs)
+            result[i] = MortonCodeScaledCenter64(GetScaledAABBCenter(primitive_aabbs[i], container_aabb))
+        end
     else
         @assert (false) "Error, unsupported morton code bit depth"
     end
+    return result
 end
 
 """
@@ -179,6 +210,7 @@ Takes a vector of unsorted morton codes, creates pairs out of the morton codes a
 
 # Arguments
 - `morton_codes`: an unsorted vector of the primitives morton codes
+- `result`: an optional `Vector{PrimitiveIndexWithMortonCode{MortonCodeT}}` for storing the result
 
 # Returns
 - `Vector{PrimitiveIndexWithMortonCode{MortonCodeT}}`: a sorted (by the morton codes) vector of pairs each having a morton code with their original indecies in the `morton_codes` buffer
@@ -188,9 +220,12 @@ Takes a vector of unsorted morton codes, creates pairs out of the morton codes a
 GetSortedMortonCodesWithIndecies(Vector{UInt32}([0, 9, 2, 8, 3, 7, 4, 6, 5])) # => PrimitiveIndexWithMortonCode{UInt32}[PrimitiveIndexWithMortonCode{UInt32}(0, 0), PrimitiveIndexWithMortonCode{UInt32}(2, 2), PrimitiveIndexWithMortonCode{UInt32}(4, 3), PrimitiveIndexWithMortonCode{UInt32}(6, 4), PrimitiveIndexWithMortonCode{UInt32}(8, 5), PrimitiveIndexWithMortonCode{UInt32}(7, 6), PrimitiveIndexWithMortonCode{UInt32}(5, 7), PrimitiveIndexWithMortonCode{UInt32}(3, 8), PrimitiveIndexWithMortonCode{UInt32}(1, 9)]
 ```
 """
-function GetSortedMortonCodesWithIndecies(morton_codes::Vector{MortonCodeT})::Vector{PrimitiveIndexWithMortonCode{MortonCodeT}} where {MortonCodeT<:AbstractMortonCodeType}
-    indecies_with_codes::Vector{PrimitiveIndexWithMortonCode{MortonCodeT}} = [PrimitiveIndexWithMortonCode(UInt32(index - 1), morton_code) for (index, morton_code) in enumerate(morton_codes)]
-    return sort(indecies_with_codes, by = x -> x.morton_code)
+function GetSortedMortonCodesWithIndecies(morton_codes::Vector{MortonCodeT},result=PrimitiveIndexWithMortonCode{MortonCodeT}[])::Vector{PrimitiveIndexWithMortonCode{MortonCodeT}} where {MortonCodeT<:AbstractMortonCodeType}
+    Base.resize!(result, Base.length(morton_codes))
+    @inbounds for index in eachindex(morton_codes)
+        result[index] = PrimitiveIndexWithMortonCode(UInt32(index - 1), morton_codes[index])
+    end
+    return sort!(result, by = x -> x.morton_code,alg=QuickSort)
 end
 
 """
@@ -374,7 +409,7 @@ function BuildHierarchy(
     @assert (length(lbvh_nodes) == (number_of_internal_nodes + number_of_internal_nodes + 1)) "Error, invalid lbvh buffer provided"
     @assert ((length(sorted_morton_codes) == (number_of_internal_nodes + 1)) && issorted(sorted_morton_codes)) "Error, invalid sorted morton codes buffer provided"
     @assert (length(parent_information) == (number_of_internal_nodes + number_of_internal_nodes + 1)) "Error, invalid parent information buffer provided"
-    for internal_node_index in 0:(number_of_internal_nodes - 1)
+    for internal_node_index in 0:(Int(number_of_internal_nodes) - 1)
         range_start, range_end = DetermineRange(sorted_morton_codes, Int32(internal_node_index))
         range_split = FindSplit(sorted_morton_codes, range_start, range_end)
 
@@ -544,7 +579,7 @@ function LBVHToPrimitiveIntersection(
         if intersect_left_child
             if intersect_right_child
                 if stack_size < length(stack)
-                    stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
+                    @inbounds stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
                     stack_size += 1
                 else
                     @log "Warning, dropped node because stack is too small" WARN
@@ -565,7 +600,7 @@ function LBVHToPrimitiveIntersection(
 
             stack_size == 0 && break
 
-            current_node_index = stack[(stack_size - 1) + 1]
+            @inbounds current_node_index = stack[(stack_size - 1) + 1]
             stack_size -= 1
 
             current_node = lbvh_nodes[current_node_index + 1]
@@ -604,7 +639,7 @@ function LBVHToPrimitiveIntersection(
         if intersect_left_child
             if intersect_right_child
                 if (stack_size < length(stack))
-                    stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
+                    @inbounds stack[stack_size + 1] = current_node.right_child_index_or_primitive_index
                     stack_size += 1
                 else
                     @log "Warning, dropped node because stack is too small" WARN
@@ -626,7 +661,7 @@ function LBVHToPrimitiveIntersection(
 
             stack_size == 0 && break
 
-            current_node_index = stack[(stack_size - 1) + 1]
+            @inbounds current_node_index = stack[(stack_size - 1) + 1]
             stack_size -= 1
 
             current_node = lbvh_nodes[current_node_index + 1]

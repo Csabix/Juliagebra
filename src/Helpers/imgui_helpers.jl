@@ -25,7 +25,7 @@ end
 
 function slider(label::String,self::Integer,min::Real=0,max::Real=1)::Int32
     self_ref = Ref(Int32(self))
-    CimGui.InputFloat
+    CImGui.InputFloat
     CImGui.SliderInt(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end

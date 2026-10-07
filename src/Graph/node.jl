@@ -58,9 +58,9 @@ end
 abstract type PropertyHint end
 
 struct PropertyHintSlider <: PropertyHint
-    min::Float32
-    max::Float32
-    function PropertyHintSlider(min::Float32 = 0f, max::Float32 = 1f)
+    min::Real
+    max::Real
+    function PropertyHintSlider(min::Real = 0f, max::Real = 1f)
         new(min, max)
     end
 end
@@ -73,9 +73,9 @@ struct PropertyHintColor <: PropertyHint
 end
 
 struct PropertyHintNumber <: PropertyHint
-    step::Float32
-    step_fast::Float32
-    function PropertyHintNumber(step::Float32=1f, step_fast::Float32=5f)
+    step::Real
+    step_fast::Real
+    function PropertyHintNumber(step::Real=1f, step_fast::Real=5f)
         new(step, step_fast)
     end
 end

@@ -39,7 +39,7 @@ convert_result!(pc::ParametricCurve,v::Nothing,index)            = pc.values[ind
 
 eval_geometry_node(element::ParametricCurve, node::GeometryPlotNode, elements::Vector{Any}) = handle_param_tess!(element.param_tess_data, element, node, elements)
 
-function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::Any
+function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::ParametricCurve
     for index in eachindex(element.range)
         convert_result!(element,callback(element.range[index],arguments...),index)
     end
@@ -50,15 +50,13 @@ function update_node_uniforms!(uniform_values::Dict{Symbol,Any}, element::Parame
     uniform_values[GPU_TESS_CURVE_T_RANGE] = Vec2F(first(element.range), step(element.range))
 end
 
-function convert_gpu_result(element::ParametricCurve,tess_buffer::MappedBuffer{Vec4})::Tuple{Bool,Any}
+get_param_tess_data(pc::ParametricCurve)::ParamTessData = pc.param_tess_data
+
+function convert_gpu_result!(element::ParametricCurve,tess_buffer::MappedBuffer{Vec4})
     @inbounds for (index, v4) in enumerate(tess_buffer._mapped)
         convert_result!(element,v4.xyz,index)
     end
-
-    return true, element
 end
-
-needs_eval_on_new_child(pc::ParametricCurve)::Bool = needs_eval_on_new_child(pc.param_tess_data)
 
 function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
@@ -135,17 +133,28 @@ function ParametricCurve(callback::Function, range::AbstractRange{Float64},
         callback_ast = nothing
         argument_bindings = nothing
     elseif callback_ast !== nothing
-        callback_ast = wrap_curve_callback(callback_ast)
+        callback_ast = wrap_curve_callback(callback_ast) # may return nothing and invalidate callback_ast
     end
-    n = length(range)
-    param_tess_data = (callback_ast !== nothing && argument_bindings !== nothing) ?
-        ParamTessData(callback_ast, argument_bindings, GPU_TESS_CURVE_NODE_UNIFORMS, n) :
-        ParamTessData(n)
+    param_tess_data = if callback_ast !== nothing && argument_bindings !== nothing
+        ParamTessData(callback_ast, argument_bindings, GPU_TESS_CURVE_NODE_UNIFORMS, length(range))
+    else
+        ParamTessData(length(range))
+    end
 
     # TODO: unpin main thread requirement dynamically
     # currently pins main thread when there's any possibility GPU tessellation will be possible
-    return add_node!(callback, ParametricCurve(range,param_tess_data); draw_data=draw_data, parents=parents,
-                     use_main_thread=(param_tess_data.transpilation_src !== nothing))
+    curve_h = add_node!(callback, ParametricCurve(range,param_tess_data); draw_data=draw_data, parents=parents,
+                        use_main_thread=(param_tess_data.transpilation_src !== nothing))
+
+    # ugly temporary workaround hack until GPU tessellation is connected to the line renderer (rendering always requires syncing)
+    if param_tess_data.transpilation_src !== nothing
+        syncer_h = _get_tess_synchronizer!(curve_h)
+        app::App = implicitApp::App
+        invalidate!(app.graph, curve_h)
+        wait(app.graph.wait_pool, app.graph.nodes[syncer_h], Int(syncer_h.value))
+    end
+
+    return curve_h
 end
 
 macro ParametricCurve(callback::Expr,range,args...)

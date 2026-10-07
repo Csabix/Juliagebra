@@ -41,8 +41,8 @@ s2 = @ParametricSurface(TESS_RANGE, TESS_RANGE, color="g", enable_gpu_tessellati
     return a .+ Vec3(x,y,z - 5.0)
 end
 
-@add_node!(() -> (s1; return 0))
-@add_node!(() -> (s1; s2; return 0))
+@add_node!(() -> (s1; return nothing))
+@add_node!(() -> (s1; s2; return nothing))
 
 it = Intersection(s1, s2; maxIntersectionNum = MAX_INTERSECTIONS)
 

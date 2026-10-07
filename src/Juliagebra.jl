@@ -55,7 +55,6 @@ include("Graph/graph.jl")
 
 include("Helpers/transpilation.jl")
 include("Helpers/gpu_tessellation.jl")
-include("parametric_tessellation.jl")
 
 # ? ---------------------------------
 # ! Primitives
@@ -148,34 +147,27 @@ function _add_and_validate!(element::Any,draw_data::Any,parents::Union{Vector{No
     global implicitApp
     app::App = implicitApp::App
 
-    needs_lock::Bool = use_main_thread || (parents !== nothing && any(h -> has_geom_flag(app.graph.nodes[h], NODE_EVAL_ON_MAIN), parents))
-
-    if !needs_lock
-        handle = add!(app.graph,element,draw_data,parents,callback,zero(UInt64))
-        validate!(app.graph,handle,true)
-        return handle
-    end
-
-    # for pinned nodes, we need the GL context lock, so that the initial eval can make gl* calls
-    # for pinned parent nodes, at this stage they cannot be NODE_LOCKED, so add! invalidation can never skip them
-    handle, success = @lock app._gl_ctx_lock begin
-        h = add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : zero(UInt64))
-
-        # if a parent got invalidated by add! we have to wait for it, otherwise validate and return asap
-        if _ready(app.graph, app.graph.nodes[h])
-            validate!(app.graph, h, true)
-            (h, true)
-        else
-            (h, false)
+    graph_parents = nothing
+    if parents !== nothing
+        graph_parents = copy(parents)
+        for i in eachindex(graph_parents)
+            p_h = graph_parents[i]
+            if _needs_tess_synchronizer(app.graph.elements[p_h]) && !isa(element, TessellationSynchronizer)
+                graph_parents[i] = _get_tess_synchronizer!(p_h)
+            end
         end
     end
-    
-    # ?? yielding here helps out with not starving rendering when a burst of lock-needing nodes are added, but keeps add_node! blocking for longer than necessary, do we want this? 
-    yield()
-    success && return handle
 
-    # if a parent did get invalidated, we wait for the main play! flow to validate it and the new node (add! already ran)
-    wait(app.graph.wait_pool, app.graph.nodes[handle], Int(handle.value))
+    handle = add!(app.graph,element,draw_data,graph_parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : zero(UInt64))
+
+    if !use_main_thread
+        validate!(app.graph,handle,true)
+    else
+        # for GL-context-needing nodes, we wait for next play! iteration to validate them
+        # otherwise we'd have to perform some additional synchronization for the GL context, which would result in a similar waiting time
+        wait(app.graph.wait_pool, app.graph.nodes[handle], Int(handle.value))
+    end
+
 
     return handle
 end

@@ -178,6 +178,7 @@ function pre_draw!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
     end
 
     activate(self.shader_surface_gather)
+    !isempty(self.gather_coords) && glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT) # sync GPU tessellation comp shaders
     for (i, (tess_buffer, grid_width)) in self.gather_coords
         N = self.coords_lengths[i]
         N == 0 && continue

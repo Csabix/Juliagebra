@@ -1,5 +1,6 @@
 include("parsers.jl")
 include("node_indexer.jl")
+include("../parametric_tessellation.jl")
 include("point.jl")
 include("curve.jl")
 include("surface.jl")

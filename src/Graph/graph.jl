@@ -43,8 +43,6 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
             else
                 push!(graph.nodes[parent_h].child_h, handle)
             end
-
-            needs_eval_on_new_child(graph.elements[parent_h]) && invalidate!(graph, parent_h)
         end
     end
 

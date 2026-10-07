@@ -4,7 +4,7 @@ baremodule ParamTessMode
     Base.@enum EnumType Uninitalized CPU GPU
     
     Base.show(io::IO, mode::EnumType) =
-        Base.print(io, "ParamTessMode(", mode === CPU ? "CPU" : (mode === GPU ? "GPU" : "uninit"), ")")
+        Base.print(io, "ParamTessMode(", mode === CPU ? "CPU" : (mode === GPU ? "GPU" : "uninitialized"), ")")
 end
 
 # groups GPU resources for an initalized GPU tessellation state
@@ -13,10 +13,7 @@ mutable struct ParamGPUTessData
 
     shader::ShaderProgram # the computer shader used for tessellation
 
-    # CPU-read-only MappedBuffer when readback is required, regular Buffer otherwise
-    tess_buffer::BufferBase{Vec4} # output buffer of tessellation
-
-    can_readback::Bool # whether the GPU state was set up for readback
+    tess_buffer::Buffer{Vec4} # output buffer of tessellation
 
     # argument types (for dependents) have to be locked per transpiled shader
     # this is because if a node decides to change the type it returns for convert_callback_entry during runtime,
@@ -53,10 +50,6 @@ mutable struct ParamTessData
     # external code should not rely on this
     gpu_argument_values::Dict{NodeHandle,Any}
 
-    # indicates whether rendering can use gpu_data's tess_buffer as a data source during the next rendering rendering pass
-    # NOTE: this being true only indicates that the renderer doesn't have to rely on CPU data, not that it hasn't been read back
-    render_from_gpu::Bool
-
     # GPU tessellation candidate constructor
     function ParamTessData(callback_ast::Expr, argument_bindings::Dict{Symbol, NodeHandle},
                            node_uniforms::Dict{Symbol,DataType}, sample_count::Int)
@@ -65,31 +58,18 @@ mutable struct ParamTessData
         gpu_argument_values = Dict{NodeHandle,Any}()
         sizehint!(gpu_argument_values, length(argument_bindings))
 
-        new(transpilation_src, nothing, sample_count, ParamTessMode.Uninitalized, nothing, gpu_argument_values, false)
+        new(transpilation_src, nothing, sample_count, ParamTessMode.Uninitalized, nothing, gpu_argument_values)
     end
 
     # no GPU tessellation constructor
     ParamTessData(sample_count::Int) = 
-        new(nothing, nothing, sample_count, ParamTessMode.Uninitalized, nothing, Dict{NodeHandle,Any}(), false)
+        new(nothing, nothing, sample_count, ParamTessMode.Uninitalized, nothing, Dict{NodeHandle,Any}())
 end
 
 update_node_uniforms!(uniform_values::Dict{Symbol,Any}, element::Any) = nothing
 
-# handles processing the (already fenced) GPU result
-# first return value indicates if conversion was successful, the second is the result passed to convert_callback_result
-# (separation allows a successful readback to use nothing as a valid result)
-convert_gpu_result(element::Any, tess_buffer::MappedBuffer{Vec4})::Tuple{Bool,Any} = (false, nothing)
-
-# no-GPU-readback case, return value passed to convert_callback_result
-convert_gpu_result(element::Any)::Any = element
-
-# indicates whether the given geometry can render without the tessellation output being read back to the CPU
-# renderer buffer size checks and such can be performed here
-# other checking (children, tessellation buffer size) is performed automatically
-can_render_without_readback(element::Any)::Bool = false
-
-# helper the concrete node types can simply pass their param_tess_data to
-needs_eval_on_new_child(param_tess_data::ParamTessData)::Bool = param_tess_data.current_mode === ParamTessMode.GPU && !param_tess_data.gpu_data.can_readback
+# handles processing the (already synchronized) GPU result
+convert_gpu_result!(element::Any, tess_buffer::MappedBuffer{Vec4})::Nothing = nothing
 
 # NOTE: the below thread restrictions don't apply if transpilation_src === nothing
 # in that case no GPU init or cleanup will ever run on the ParamTessData, even if requested and
@@ -98,20 +78,17 @@ needs_eval_on_new_child(param_tess_data::ParamTessData)::Bool = param_tess_data.
 # main thread only
 # no-op if `param_tess_data` is not in GPU mode
 function cleanup_gpu_data!(param_tess_data::ParamTessData)
-    if param_tess_data.gpu_data === nothing
-        return
-    end
+    param_tess_data.gpu_data === nothing && return
 
     destroy!(param_tess_data.gpu_data.shader)
     destroy!(param_tess_data.gpu_data.tess_buffer)
-
     param_tess_data.gpu_data = nothing
 end
 
 switch_mode!(::ParamTessData, ::Val{ParamTessMode.Uninitalized}) = 
     error("Cannot manually switch to the Uninitialized state!")
 
-# main thread only (iff GPU cleanup is needed)
+# main thread only iff GPU cleanup is needed
 function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.CPU})::ParamTessMode.EnumType
     cleanup_gpu_data!(param_tess_data)
 
@@ -121,7 +98,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.CPU}):
 end
 
 # main thread only
-function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, gpu_argument_values::Dict{NodeHandle,Any}, needs_readback::Bool)::ParamTessMode.EnumType
+function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, gpu_argument_values::Dict{NodeHandle,Any})::ParamTessMode.EnumType
     # we don't clean GPU data here, since the buffer might be reusable
     # fallback path early returns that switch to CPU mode clean up potential GPU resources automatically
 
@@ -179,23 +156,15 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
 
     # if previous mode is GPU and tess_buffer properties match, we can just steal the already allocated buffer
     can_reuse_tess_buffer = param_tess_data.current_mode === ParamTessMode.GPU && 
-                            param_tess_data.gpu_data.can_readback == needs_readback &&
                             length(param_tess_data.gpu_data.tess_buffer) == param_tess_data.sample_count
 
     tess_buffer = if can_reuse_tess_buffer
         param_tess_data.gpu_data.tess_buffer
     else
         cleanup_gpu_data!(param_tess_data)
-
-        if needs_readback
-            mapped = MappedBuffer{Vec4}(; read = true, write = false)
-            reserve!(mapped, param_tess_data.sample_count, 0)
-            mapped
-        else
-            buf = Buffer{Vec4}()
-            reserve!(buf, param_tess_data.sample_count, 0)
-            buf
-        end
+        buf = Buffer{Vec4}()
+        reserve!(buf, param_tess_data.sample_count, 0)
+        buf
     end
 
     argument_uniform_locs::Dict{NodeHandle,GLint} = Dict{NodeHandle,GLint}(
@@ -211,7 +180,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
 
     param_tess_data.gpu_data !== nothing && destroy!(param_tess_data.gpu_data.shader)
 
-    param_tess_data.gpu_data = ParamGPUTessData(shader, tess_buffer, needs_readback, gpu_argument_types,
+    param_tess_data.gpu_data = ParamGPUTessData(shader, tess_buffer, gpu_argument_types,
                                                 argument_uniform_locs, node_uniform_locs, N_uniform_loc,
                                                 node_uniform_values)
 
@@ -230,10 +199,6 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
     else
         Any[convert_callback_entry(elements[p_h]) for p_h in node.parent_h]
     end
-    has_children::Bool = node.child_h !== nothing && !isempty(node.child_h)
-
-    can_render_from_gpu::Bool = can_render_without_readback(element)
-    needs_readback::Bool = has_children || !can_render_from_gpu
 
     # GPU argument projection is only updated lazily, if it's actually needed
     # it also happens in-place on the ParamTessData to reduce per-eval allocations
@@ -266,13 +231,11 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
     if target_mode === ParamTessMode.CPU
         switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
     elseif target_mode === ParamTessMode.GPU
-        switch_mode!(param_tess_data, Val(ParamTessMode.GPU), gpu_argument_values(), needs_readback)
+        switch_mode!(param_tess_data, Val(ParamTessMode.GPU), gpu_argument_values())
     end
 
-    # if the argument types changed since transpilation, retry transpilation
-    # if it fails, we fall back to the CPU
-    # this allows a dependency to change its projected type dynamically without
-    # permanently invalidating its GPU-tessellated children
+    # if the argument types changed since transpilation, retry transpilation. if that fails, we fall back to the CPU
+    # this allows a dependency to change its projected type dynamically without permanently invalidating its GPU-tessellated children
     if param_tess_data.current_mode === ParamTessMode.GPU
         gpu_data::ParamGPUTessData = param_tess_data.gpu_data::ParamGPUTessData
         gpu_arg_vals::Dict{NodeHandle,Any} = gpu_argument_values()
@@ -281,21 +244,18 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
             length(gpu_arg_vals) != length(gpu_data.argument_types) ||
             any(handle -> gpu_arg_vals[handle] === nothing || !haskey(gpu_data.argument_types, handle) ||
                         gpu_data.argument_types[handle] != typeof(gpu_arg_vals[handle]), keys(gpu_arg_vals)) ||
-            length(gpu_data.tess_buffer) != param_tess_data.sample_count ||
-            gpu_data.can_readback != needs_readback
+            length(gpu_data.tess_buffer) != param_tess_data.sample_count
 
         if has_stale_gpu_data
             dbg && println("GPU data is stale, reinitializing GPU state...")
-            switch_mode!(param_tess_data, Val(ParamTessMode.GPU), gpu_arg_vals, needs_readback)
+            switch_mode!(param_tess_data, Val(ParamTessMode.GPU), gpu_arg_vals)
             if param_tess_data.current_mode === ParamTessMode.GPU
                 gpu_data = param_tess_data.gpu_data # refetch GPU data so that it doesn't leave this if stmt stale
             end
         end
     end
-    
-    @assert param_tess_data.current_mode != ParamTessMode.Uninitalized
 
-    param_tess_data.render_from_gpu = false
+    @assert param_tess_data.current_mode != ParamTessMode.Uninitalized
 
     eval_result = if param_tess_data.current_mode === ParamTessMode.CPU
         @time_cpu_begin ParamTess CPU Eval
@@ -324,43 +284,9 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
         num_wg = cld(param_tess_data.sample_count, GPU_TESS_LOCAL_SIZE)
         glDispatchCompute(num_wg, 1, 1)
         @time_gpu_end ParamTess GPU Eval Compute
+        @time_cpu_end ParamTess GPU Eval
 
-        # if we have child nodes, or hit other limitations we need to read back GPU data even if the renderer doesn't use it
-        gpu_result = if needs_readback
-            @assert gpu_data.can_readback
-
-            @time_cpu_begin ParamTess GPU Eval FenceSync
-            lock(gpu_data.tess_buffer)
-            wait(gpu_data.tess_buffer)
-            @time_cpu_end ParamTess GPU Eval FenceSync
-
-            @time_cpu_begin ParamTess GPU Eval ProcessData
-            success, result = convert_gpu_result(element, gpu_data.tess_buffer)
-            @time_cpu_end ParamTess GPU Eval ProcessData
-
-            @time_cpu_end ParamTess GPU Eval
-
-            if success
-                param_tess_data.render_from_gpu = can_render_from_gpu
-            else
-                dbg && println("GPU tessellation data processing failed, falling back to CPU state...")
-                switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
-
-                @time_cpu_begin ParamTess CPU Eval
-                result = eval_node(element, node.callback, arguments)
-                @time_cpu_end ParamTess CPU Eval
-            end
-
-            result
-        else
-            @time_cpu_end ParamTess GPU Eval
-            param_tess_data.render_from_gpu = true # !needs_readback already implies can_render_from_gpu
-            convert_gpu_result(element)
-        end
-
-        param_tess_data.render_from_gpu && glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
-
-        gpu_result
+        element
     end
 
     return convert_callback_result(element, eval_result)
@@ -370,12 +296,7 @@ end
 function edit_param_tess_data!(param_tess_data::ParamTessData,handle::NodeHandle)::Int
     result = EDIT_NODE_NONE
 
-    extra_note = if param_tess_data.current_mode === ParamTessMode.GPU
-        param_tess_data.gpu_data.can_readback ? " (with readback)" : " (without readback)"
-    else
-        ""
-    end
-    CImGui.Text("Tessellation Mode: $(param_tess_data.current_mode)$extra_note")
+    CImGui.Text("Tessellation Mode: $(param_tess_data.current_mode)")
 
     CImGui.SameLine()
     if CImGui.Button("-> CPU##$(handle.value)")
@@ -392,4 +313,98 @@ function edit_param_tess_data!(param_tess_data::ParamTessData,handle::NodeHandle
     CImGui.EndDisabled()
 
     return result
+end
+
+on_window_clear() do
+    app::App = implicitApp::App
+    for element in app.graph.elements
+        param_tess_data = get_param_tess_data(element)
+        param_tess_data !== nothing && cleanup_gpu_data!(param_tess_data)
+    end
+end
+
+# ? ----------------------------
+# ! tessellation CPU readback
+# ? ----------------------------
+
+mutable struct TessellationSynchronizer
+    target_h::NodeHandle # the node to sync, must be the parent of the synchronizer
+    readback_buffer::Union{MappedBuffer{Vec4},Nothing}
+end
+
+const _tess_synchronizer_cache::Dict{NodeHandle, NodeHandle} = Dict{NodeHandle, NodeHandle}()
+on_window_clear() do
+    for syncer_h in values(_tess_synchronizer_cache)
+        syncer = get_element(syncer_h)
+        syncer.readback_buffer !== nothing && destroy!(syncer.readback_buffer)
+    end
+    empty!(_tess_synchronizer_cache)
+end
+
+get_param_tess_data(element::Any)::Union{ParamTessData,Nothing} = nothing
+
+# NOTE: this assumes that a synchronizer node can only ever exist with a single parametric node parent, whose handle is target_h
+function eval_geometry_node(ts::TessellationSynchronizer, node::GeometryPlotNode, elements::Vector{Any})::Any
+    if node.parent_h === nothing || get(node.parent_h, 1, nothing) != ts.target_h
+        error("a TessellationSynchronizer node can only have a single parent, its sync target")
+    end
+    target = elements[ts.target_h]
+
+    maybe_param_tess_data = get_param_tess_data(target)
+    maybe_param_tess_data === nothing && error("get_param_tess_data not implemented for target of a TessellationSynchronizer")
+    param_tess_data::ParamTessData = maybe_param_tess_data::ParamTessData
+
+    # CPU-tessellated case
+    if param_tess_data.current_mode !== ParamTessMode.GPU
+        if ts.readback_buffer !== nothing
+            destroy!(ts.readback_buffer)
+            ts.readback_buffer = nothing
+        end
+        return ts
+    end
+
+    @assert param_tess_data.gpu_data !== nothing "a GPU-tessellated parametric node has no GPU data"
+    gpu_data::ParamGPUTessData = param_tess_data.gpu_data::ParamGPUTessData
+
+    if ts.readback_buffer === nothing
+        ts.readback_buffer = MappedBuffer{Vec4}(; write=false, read=true)
+    end
+
+    @assert size(ts.readback_buffer) % sizeof(eltype(ts.readback_buffer)) == 0 "unexpected readback buffer size"
+    readback_buffer_count = div(size(ts.readback_buffer), sizeof(eltype(ts.readback_buffer)))
+    if readback_buffer_count != param_tess_data.sample_count
+        reserve!(ts.readback_buffer, param_tess_data.sample_count, 0)
+    end
+
+    @time_gpu_begin ParamTess GPU Sync Copy
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT)
+    glCopyNamedBufferSubData(gpu_data.tess_buffer._id, ts.readback_buffer._id, 0, 0, size(gpu_data.tess_buffer))
+    @time_gpu_end ParamTess GPU Sync Copy
+
+    @time_cpu_begin ParamTess GPU Sync Fence
+    lock(ts.readback_buffer)
+    wait(ts.readback_buffer)
+    @time_cpu_end ParamTess GPU Sync Fence
+
+    @time_cpu_begin ParamTess GPU Sync ProcessData
+    convert_gpu_result!(target, ts.readback_buffer)
+    @time_cpu_end ParamTess GPU Sync ProcessData
+
+    return ts
+end
+
+convert_callback_entry(ts::TessellationSynchronizer) = convert_callback_entry(get_element(ts.target_h))
+
+PrimitivesOf(ts::TessellationSynchronizer) = PrimitivesOf(get_element(ts.target_h))
+
+# nodes can decide dynamically whether they need a synchronizer inserted between them and their children
+function _needs_tess_synchronizer(element::Any)::Bool
+    param_tess_data = get_param_tess_data(element)
+    return param_tess_data !== nothing ? param_tess_data.transpilation_src !== nothing : false
+end
+
+function _get_tess_synchronizer!(target_h::NodeHandle)
+    get!(_tess_synchronizer_cache, target_h) do
+        add_node!(TessellationSynchronizer(target_h, nothing); parents=[target_h], use_main_thread=true)
+    end
 end

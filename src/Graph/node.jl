@@ -96,6 +96,13 @@ struct PropertyHintTextMultiline <: PropertyHint
     end
 end
 
+struct PropertyHintBitFlags <: PropertyHint
+    bitcount::Unsigned
+    function PropertyHintBitFlags(bitcount::Unsigned = 32)
+        new(bitcount)
+    end
+end
+
 get_property_hint(element::Any, property::Symbol)::Union{PropertyHint, Nothing} = nothing
 
 function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T<:Any
@@ -143,6 +150,9 @@ function input_property(label::String, value::T, property_hint::Union{PropertyHi
     elseif property_hint isa PropertyHintTextMultiline
         pm::PropertyHintTextMultiline = property_hint
         return input_multiline(label, value, pm.buffer_size, pm.textbox_size)
+    elseif property_hint isa PropertyHintBitFlags
+        pb::PropertyHintBitFlags = property_hint
+        return input_bitflags(label, value, pb.bitcount)
     else
         return input(label, value)
     end

@@ -42,7 +42,7 @@ on_gizmo_move(point::Point, position::Vec3D, data::Any)::Tuple{Any,Any} = (point
 
 edit_node_overload(point::Point)::Bool = true
 Base.propertynames(data::Point) = [:coord]
-Base.propertynames(data::PointDrawData) = [:color, :style, :size]
+Base.propertynames(data::PointDrawData) = [:color, :style, :size, :constraints]
 function get_property_hint(data::PointDrawData, property::Symbol)
     if property == :color
         return PropertyHintColor()
@@ -50,6 +50,8 @@ function get_property_hint(data::PointDrawData, property::Symbol)
         return PropertyHintSlider(0,1)
     elseif property == :size
         return PropertyHintSlider(0,255)
+    elseif property == :constraints
+        return PropertyHintBitFlags(UInt8(3))
     end
 end
 function reconstruct_node(element::PointDrawData, properties::Dict{Symbol, Any})

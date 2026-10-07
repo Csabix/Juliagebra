@@ -117,6 +117,21 @@ function color_edit4(label::String,color::UInt32)::UInt32
     return get_color((col[1], col[2], col[3], col[4]))
 end
 
+function input_bitflags(label::String, value::Integer, used_bits::Unsigned=ndigits(typemax(typeof(value)), 2))
+    bits_left::Unsigned = used_bits
+    rt =0
+    while bits_left >0
+        bitcount = used_bits-bits_left
+        out = (2^bitcount & value) != 0
+        CImGui.Checkbox(label*(used_bits>1 ? "$bitcount" : ""), Ref(out))
+        rt |= Int(out) << bitcount
+        bits_left-=1
+    end
+    println(value)
+    return rt
+end
+
+
 function input(label::String,text::String,buf_size=1024)::String
     result::String = text
     buf = get_bytebuffer(text, buf_size)

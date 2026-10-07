@@ -48,26 +48,62 @@ function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Rend
     result_data, render_data = modify_properties(render_data, handle, EDIT_NODE_RERENDER)
     result::Int = result_element | result_data
     if result & EDIT_NODE_RERENDER != 0
-        rerender_node(render_data, renderers, handle)
+        rerender_node(render_data, renderers)
     end
     return element, render_data, result
 end
 
-@enum PropertyHint begin
-    PROPERTY_HINT_NONE
-    PROPERTY_HINT_COLOR
-    PROPERTY_HINT_COLOR_ALPHA
-    PROPERTY_HINT_MULITLINE
+
+
+abstract type PropertyHint end
+
+struct PropertyHintSlider <: PropertyHint
+    min::Float32
+    max::Float32
+    function PropertyHintSlider(min::Float32 = 0f, max::Float32 = 1f)
+        new(min, max)
+    end
 end
 
-get_property_hint(element::Any, property::Symbol)::PropertyHint = PROPERTY_HINT_NONE
+struct PropertyHintColor <: PropertyHint
+    input_alpha::Bool
+    function PropertyHintColor(input_alpha::Bool = false)
+        new(input_alpha)
+    end
+end
+
+struct PropertyHintNumber <: PropertyHint
+    step::Float32
+    step_fast::Float32
+    function PropertyHintNumber(step::Float32=1f, step_fast::Float32=5f)
+        new(step, step_fast)
+    end
+end
+
+
+struct PropertyHintText <: PropertyHint
+    buffer_size::Int
+    function PropertyHintText(buffer_size::Int=1024)
+        new(buffer_size)
+    end
+end
+
+struct PropertyHintTextMultiline <: PropertyHint
+    buffer_size::Int
+    textbox_size::Vec2F
+    function PropertyHintTextMultiline(buffer_size::Int=1024, textbox_size::CImGui.ImVec2 = CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))
+        new(buffer_size, textbox_size)
+    end
+end
+
+get_property_hint(element::Any, property::Symbol)::Union{PropertyHint, Nothing} = nothing
 
 function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T<:Any
     result::Int = EDIT_NODE_NONE
     properties::Dict{Symbol, Any} = Dict{Symbol, Any}()
     for f::Symbol in propertynames(element)
         old = getproperty(element, f)
-        new = input_property(String(f)*"$handle", old, get_property_hint(element, f))
+        new = input_property(String(f), old, get_property_hint(element, f))
         if ismutable(element)
             setproperty!(element, f, new)
         else
@@ -81,20 +117,39 @@ function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int
     return result, element
 end
 
-function input_property(label::String, value::T, property_hint::PropertyHint)::T where T
-    if property_hint == PROPERTY_HINT_COLOR_ALPHA
-        return color_edit4(label, value)
-    elseif property_hint == PROPERTY_HINT_COLOR
-        return color_edit3(label, value)
-    elseif property_hint == PROPERTY_HINT_MULITLINE
-        return input_multiline(label, value)
+function input_property(label::String, value::T, property_hint::Union{PropertyHint, Nothing} = nothing)::T where T
+    if value isa Vector
+        rt::Vector = []
+        for v in eachindex(value)
+            push!(rt, input_property(label*"$v", value[v], property_hint))
+        end
+        return rt
+    end
+    if property_hint isa PropertyHintColor
+        if (property_hint::PropertyHintColor).input_alpha
+            return color_edit4(label, value)
+        else
+            return color_edit3(label, value)
+        end
+    elseif property_hint isa PropertyHintSlider
+        ps::PropertyHintSlider = property_hint::PropertyHintSlider
+        return slider(label, value, ps.min, ps.max)
+    elseif property_hint isa PropertyHintNumber
+        pn::PropertyHintNumber = property_hint
+        return input(label, value, pn.step, pn.step_fast)
+    elseif property_hint isa PropertyHintText
+        pt::PropertyHintText = property_hint
+        return input(label, value, pt.buffer_size)
+    elseif property_hint isa PropertyHintTextMultiline
+        pm::PropertyHintTextMultiline = property_hint
+        return input_multiline(label, value, pm.buffer_size, pm.textbox_size)
     else
         return input(label, value)
     end
 end
 
 function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end
-rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}, handle) = false
+rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}) = false
 edit_node_overload(element::Any)::Bool = false
 edit_node_type_string(element::Any)::String = string(typeof(element))
 
@@ -116,6 +171,6 @@ get_parent_node(parent::NodeHandle)::NodeHandle = parent
 get_parent_nodes(parents::Any...)::Vector{NodeHandle} = [get_parent_node(parent) for parent in parents]
 (handle::NodeHandle)(args::Any...) = get_element(handle)(handle, args...)
 
-export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload, reconstruct_node, rerender_node, get_property_hint
+export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload, reconstruct_node, rerender_node, get_property_hint, property_hint_params
 export on_gizmo_select, on_gizmo_move
 export eval_geometry_node, GeometryPlotNode

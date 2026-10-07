@@ -85,9 +85,9 @@ Representation of a primitive circle.
 - n is the normal of the plane that the circle lies on.
 """
 struct PCircle <: Primitive
-    c::Vec3D
-    r::Float64
-    n::Vec3D
+    center::Vec3D
+    radius::Float64
+    normal::Vec3D
 end
 
 Base.convert(::Type{PCircle},::Nothing)::PCircle = return PCircle(Vec3DNan,NaN64,Vec3DNan)
@@ -111,7 +111,7 @@ p0(ray::PRay)::Vec3D         = ray.p0
 p0(segment::PSegment)::Vec3D = segment.p0
 p0(plane::PPlane)::Vec3D     = plane.p
 p0(sphere::PSphere)::Vec3D   = sphere.c
-p0(circle::PCircle)::Vec3D   = circle.c
+p0(circle::PCircle)::Vec3D   = circle.center
 
 p1(line::PLine)::Vec3D       = line.p1
 p1(ray::PRay)::Vec3D         = ray.p1
@@ -123,9 +123,9 @@ v(segment::PSegment)::Vec3D = segment.p1 - segment.p0
 
 n(plane::PPlane)::Vec3D       = plane.n
 n(triangle::PTriangle)::Vec3D = normalize(cross(triangle.v1 - triangle.v0,triangle.v2 - triangle.v0))
-n(circle::PCircle)::Vec3D     = circle.n
+n(circle::PCircle)::Vec3D     = circle.normal
 
 r(sphere::PSphere)::Float64 = sphere.r
-r(circle::PCircle)::Float64 = circle.r
+r(circle::PCircle)::Float64 = circle.radius
 
 export p0,p1,v,n,r,ParameterInside,ClampParameter

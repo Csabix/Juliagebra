@@ -1,49 +1,49 @@
 
-function slider(label::String,value::AbstractFloat,min::Real,max::Real)::Float32
+function slider(label::String,value::AbstractFloat,min::Real=0,max::Real=1)::Float32
     value_ref = Ref(Float32(value))
     CImGui.SliderFloat(label, value_ref, Float32(min), Float32(max))
     return value_ref[]
 end
 
-function slider(label::String,self::Vec2T,min::Real,max::Real)::Vec2F
+function slider(label::String,self::Vec2T,min::Real=0,max::Real=1)::Vec2F
     self_ref = Ref(Vec2F(self.x, self.y))
     CImGui.SliderFloat2(label, self_ref, Float32(min), Float32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Vec3T,min::Real,max::Real)::Vec3F
+function slider(label::String,self::Vec3T,min::Real=0,max::Real=1)::Vec3F
     self_ref = Ref(Vec3F(self.x, self.y, self.z))
     CImGui.SliderFloat3(label, self_ref, Float32(min), Float32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Vec4T,min::Real,max::Real)::Vec4F
+function slider(label::String,self::Vec4T,min::Real=0,max::Real=1)::Vec4F
     self_ref = Ref(Vec4F(self.x, self.y, self.z, self.w))
     CImGui.SliderFloat4(label, self_ref, Float32(min), Float32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Integer,min::Real,max::Real)::Int32
+function slider(label::String,self::Integer,min::Real=0,max::Real=1)::Int32
     self_ref = Ref(Int32(self))
     CimGui.InputFloat
     CImGui.SliderInt(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Vec2T{T},min::Real,max::Real)::Vec2T{Int32} where T <: Integer
+function slider(label::String,self::Vec2T{T},min::Real=0,max::Real=1)::Vec2T{Int32} where T <: Integer
     self_ref = Ref(Vec2T{Int32}(Int32(self.x), Int32(self.y)))
     CImGui.SliderInt2(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Vec3T{T},min::Real,max::Real)::Vec3T{Int32} where T <: Integer
+function slider(label::String,self::Vec3T{T},min::Real=0,max::Real=1)::Vec3T{Int32} where T <: Integer
     Integer
     self_ref = Ref(Vec3T{Int32}(self.x, self.y, self.z))
     CImGui.SliderInt3(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
-function slider(label::String,self::Vec4T{T},min::Real,max::Real)::Vec4T{Int32} where T <: Integer
+function slider(label::String,self::Vec4T{T},min::Real=0,max::Real=1)::Vec4T{Int32} where T <: Integer
     Integer
     self_ref = Ref(Vec4T{Int32}(self.x, self.y, self.z, self.w))
     CImGui.SliderInt4(label, self_ref, Int32(min), Int32(max))
@@ -74,7 +74,7 @@ function input(label::String,self::Vec4T)::Vec4F
     return Vec4F(vec[1], vec[2], vec[3], vec[4])
 end
 
-function input(label::String,self::Integer,step::Integer=1,step_fast::Integer=5)::Int32
+function input(label::String,self::Integer,step::Real=1,step_fast::Real=5)::Int32
     self_ref = Ref(Int32(self))
     CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast))
     return Int(self_ref[])

@@ -42,24 +42,24 @@ on_gizmo_move(point::Point, position::Vec3D, data::Any)::Tuple{Any,Any} = (point
 
 edit_node_overload(point::Point)::Bool = true
 Base.propertynames(data::Point) = [:coord]
-Base.propertynames(data::PointDrawData) = [:color]
-get_property_hint(data::PointDrawData, property::Symbol) = property == :color ? PROPERTY_HINT_COLOR : PROPERTY_HINT_NONE
-
+Base.propertynames(data::PointDrawData) = [:color, :style, :size]
+function get_property_hint(data::PointDrawData, property::Symbol)
+    property == :color ? PropertyHintColor() : nothing
+end
 function reconstruct_node(element::PointDrawData, properties::Dict{Symbol, Any})
-
-    if !haskey(properties, :color)
-        properties[:color] = element.color
-    end
     return PointDrawData(
-        element.handle,
-        properties[:color],
-        element.style,
-        element.size,
-        element.constraints)
+        get(properties,:handle, element.handle),
+        get(properties, :color, element.color),
+        get(properties, :style, element.style),
+        get(properties, :size, element.size),
+        get(properties, :constraints, element.constraints)
+        )
 end
 
-function rerender_node(render_data::PointDrawData, renderers::Dict{DataType, Renderer}, handle::NodeHandle)
+function rerender_node(render_data::PointDrawData, renderers::Dict{DataType, Renderer})
     update_colors!(renderers[PointRenderer]::PointRenderer,render_data.handle,render_data.color)
+    update_styles!(renderers[PointRenderer]::PointRenderer, render_data.handle, render_data.style)
+    update_sizes!(renderers[PointRenderer]::PointRenderer, render_data.handle, render_data.size)
 end
 
 function Point(callback::Function, parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;

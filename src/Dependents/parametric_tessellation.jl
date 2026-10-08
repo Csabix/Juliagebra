@@ -376,6 +376,7 @@ function eval_geometry_node(ts::TessellationSynchronizer, node::GeometryPlotNode
         reserve!(ts.readback_buffer, param_tess_data.sample_count, 0)
     end
 
+    @time_cpu_begin ParamTess GPU Sync
     @time_gpu_begin ParamTess GPU Sync Copy
     glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT)
     glCopyNamedBufferSubData(gpu_data.tess_buffer._id, ts.readback_buffer._id, 0, 0, size(gpu_data.tess_buffer))
@@ -389,6 +390,7 @@ function eval_geometry_node(ts::TessellationSynchronizer, node::GeometryPlotNode
     @time_cpu_begin ParamTess GPU Sync ProcessData
     convert_gpu_result!(target, ts.readback_buffer)
     @time_cpu_end ParamTess GPU Sync ProcessData
+    @time_cpu_end ParamTess GPU Sync
 
     return ts
 end

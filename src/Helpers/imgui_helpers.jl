@@ -37,14 +37,12 @@ function slider(label::String,self::Vec2T{T},min::Real=0,max::Real=1)::Vec2T{Int
 end
 
 function slider(label::String,self::Vec3T{T},min::Real=0,max::Real=1)::Vec3T{Int32} where T <: Integer
-    Integer
     self_ref = Ref(Vec3T{Int32}(self.x, self.y, self.z))
     CImGui.SliderInt3(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
 
 function slider(label::String,self::Vec4T{T},min::Real=0,max::Real=1)::Vec4T{Int32} where T <: Integer
-    Integer
     self_ref = Ref(Vec4T{Int32}(self.x, self.y, self.z, self.w))
     CImGui.SliderInt4(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
@@ -119,15 +117,14 @@ end
 
 function input_bitflags(label::String, value::Integer, used_bits::Unsigned=ndigits(typemax(typeof(value)), 2))
     bits_left::Unsigned = used_bits
-    rt =0
+    rt = 0
     while bits_left >0
         bitcount = used_bits-bits_left
-        out = (2^bitcount & value) != 0
-        CImGui.Checkbox(label*(used_bits>1 ? "$bitcount" : ""), Ref(out))
-        rt |= Int(out) << bitcount
+        out = Ref((2^bitcount & value) != 0)
+        CImGui.Checkbox(label*(used_bits>1 ? "$bitcount" : ""), out)
+        rt |= Int(out[]) << bitcount
         bits_left-=1
     end
-    println(value)
     return rt
 end
 

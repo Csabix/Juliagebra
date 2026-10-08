@@ -44,6 +44,7 @@ mutable struct ParamTessData
     
     # mode switching requires deferring, since only eval is guaranteed to run on the main thread
     # Union{..., Nothing} instead of being identical to `current_mode` in the idle case to allow reinitialization to same state
+    # when setting this to GPU mode, NODE_EVAL_ON_MAIN should also be added to the node's flags so that the next eval can already make GL calls
     next_mode::Union{ParamTessMode.EnumType,Nothing}
 
     # stores the current GPU-representable form of arguments, mainly useful to reduce allocations per eval
@@ -86,19 +87,20 @@ function cleanup_gpu_data!(param_tess_data::ParamTessData)
 end
 
 switch_mode!(::ParamTessData, ::Val{ParamTessMode.Uninitalized}) = 
-    error("Cannot manually switch to the Uninitialized state!")
+    error("Cannot manually switch to the Uninitialized state")
 
 # main thread only iff GPU cleanup is needed
-function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.CPU})::ParamTessMode.EnumType
+function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.CPU}, node::GeometryPlotNode)::ParamTessMode.EnumType
     cleanup_gpu_data!(param_tess_data)
 
+    unset_geom_flags!(node, NODE_EVAL_ON_MAIN)
     param_tess_data.current_mode = ParamTessMode.CPU
 
     return ParamTessMode.CPU
 end
 
 # main thread only
-function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, gpu_argument_values::Dict{NodeHandle,Any})::ParamTessMode.EnumType
+function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, node::GeometryPlotNode, gpu_argument_values::Dict{NodeHandle,Any})::ParamTessMode.EnumType
     # we don't clean GPU data here, since the buffer might be reusable
     # fallback path early returns that switch to CPU mode clean up potential GPU resources automatically
 
@@ -109,7 +111,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
 
     if param_tess_data.transpilation_src === nothing
         dbg && println("Transpilation source data not available, falling back to CPU...")
-        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
+        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
     # if the first is ever an issue, transpilation can be modified to use 2D dispatch like triangle_renderer compute passes
@@ -119,7 +121,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
     
     if hits_device_limits
         dbg && println("Compute work group size or tessellation buffer size exceeds device limits, falling back to CPU...")
-        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
+        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
     has_gpu_compatible_args = true
@@ -142,7 +144,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
 
     if !has_gpu_compatible_args
         dbg && println("Node has GPU incompatible argument entry types, falling back to CPU...")
-        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
+        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
     gpu_argument_types = Dict{NodeHandle,DataType}(handle => typeof(value) for (handle, value) in gpu_argument_values)
@@ -151,7 +153,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
 
     if shader === nothing
         dbg && println("Shader transpilation failed, falling back to CPU...")
-        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
+        return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
     # if previous mode is GPU and tess_buffer properties match, we can just steal the already allocated buffer
@@ -229,9 +231,9 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
 
     target_mode !== nothing && dbg && println("New target mode: $target_mode, switching...")
     if target_mode === ParamTessMode.CPU
-        switch_mode!(param_tess_data, Val(ParamTessMode.CPU))
+        switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     elseif target_mode === ParamTessMode.GPU
-        switch_mode!(param_tess_data, Val(ParamTessMode.GPU), gpu_argument_values())
+        switch_mode!(param_tess_data, Val(ParamTessMode.GPU), node, gpu_argument_values())
     end
 
     # if the argument types changed since transpilation, retry transpilation. if that fails, we fall back to the CPU
@@ -248,7 +250,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
 
         if has_stale_gpu_data
             dbg && println("GPU data is stale, reinitializing GPU state...")
-            switch_mode!(param_tess_data, Val(ParamTessMode.GPU), gpu_arg_vals)
+            switch_mode!(param_tess_data, Val(ParamTessMode.GPU), node, gpu_arg_vals)
             if param_tess_data.current_mode === ParamTessMode.GPU
                 gpu_data = param_tess_data.gpu_data # refetch GPU data so that it doesn't leave this if stmt stale
             end
@@ -294,12 +296,16 @@ end
 
 # helper for providing an editor for general parametric tessellation properties
 function edit_param_tess_data!(param_tess_data::ParamTessData,handle::NodeHandle)::Int
+    global implicitApp
+    app::App = implicitApp::App
+    
     result = EDIT_NODE_NONE
 
     CImGui.Text("Tessellation Mode: $(param_tess_data.current_mode)")
 
     CImGui.SameLine()
     if CImGui.Button("-> CPU##$(handle.value)")
+        # we don't unset NODE_EVAL_ON_MAIN here since GPU cleanup still needs to happen in the next eval
         param_tess_data.next_mode = ParamTessMode.CPU
         result |= EDIT_NODE_INVALIDATE
     end
@@ -307,6 +313,7 @@ function edit_param_tess_data!(param_tess_data::ParamTessData,handle::NodeHandle
     CImGui.BeginDisabled(param_tess_data.transpilation_src === nothing)
     CImGui.SameLine()
     if CImGui.Button("-> GPU##$(handle.value)")
+        set_geom_flags!(app.graph.nodes[handle], NODE_EVAL_ON_MAIN)
         param_tess_data.next_mode = ParamTessMode.GPU
         result |= EDIT_NODE_INVALIDATE
     end

@@ -141,8 +141,6 @@ function ParametricCurve(callback::Function, range::AbstractRange{Float64},
         ParamTessData(length(range))
     end
 
-    # TODO: unpin main thread requirement dynamically
-    # currently pins main thread when there's any possibility GPU tessellation will be possible
     curve_h = add_node!(callback, ParametricCurve(range,param_tess_data); draw_data=draw_data, parents=parents,
                         use_main_thread=(param_tess_data.transpilation_src !== nothing))
 

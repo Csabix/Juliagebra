@@ -6,7 +6,6 @@ const GPU_TESS_COORD_ARR = :JG_TESS_COORD_ARRAY
 const GPU_TESS_CB = :JG_TESS_CALLBACK
 const GPU_TESS_ID = :JG_TESS_ID
 
-# ! TODO: place in a more relevant file
 const GPU_TESS_DEBUG_ARG = "--debug-gpu-tess"
 const GPU_TESS_BUF_BINDING_IDX = 0
 

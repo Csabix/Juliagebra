@@ -97,9 +97,9 @@ struct PropertyHintTextMultiline <: PropertyHint
 end
 
 struct PropertyHintBitFlags <: PropertyHint
-    bitcount::Unsigned
-    function PropertyHintBitFlags(bitcount::Unsigned = 32)
-        new(bitcount)
+    bitcount::UInt32
+    function PropertyHintBitFlags(bitcount::Integer = 32)
+        new(UInt32(bitcount))
     end
 end
 

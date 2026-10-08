@@ -51,7 +51,7 @@ function get_property_hint(data::PointDrawData, property::Symbol)
     elseif property == :size
         return PropertyHintSlider(0,255)
     elseif property == :constraints
-        return PropertyHintBitFlags(UInt8(3))
+        return PropertyHintBitFlags(3)
     end
 end
 function reconstruct_node(element::PointDrawData, properties::Dict{Symbol, Any})

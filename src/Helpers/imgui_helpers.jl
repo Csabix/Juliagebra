@@ -153,7 +153,7 @@ function input_multiline(label::String,text::String,buf_size=1024,size=CImGui.Im
     return result
 end
 
-function get_bytebuffer(text::String,buf_size::Unsigned=1024)::Vector{UInt8}
+function get_bytebuffer(text::String,buf_size::Integer=1024)::Vector{UInt8}
     buf = Vector{UInt8}(undef, buf_size)
     units = codeunits(text)
 

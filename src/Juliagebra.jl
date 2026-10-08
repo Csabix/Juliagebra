@@ -43,8 +43,6 @@ global _task::Any = nothing
 
 include("Generated/LibAssimp.jl")
 
-include("Helpers/flat_matrix_manager.jl")
-include("Helpers/flat_matrix.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/scene.jl")
 include("Helpers/infer.jl")

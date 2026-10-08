@@ -21,31 +21,17 @@ function convert_result(::PPlane,uf::Real,vf::Real,origin::Vec3D,dir1::Vec3D,dir
 end
 function render_node(plane::PPlane, pdata::PlaneDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::PlaneDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
-
-    vertices = FlatMatrixManager{Vec3F}()
-    indexes = Vector{UInt32}()
-    uvValues = FlatMatrix{Vec3D}(length(PLANE_RANGE), length(PLANE_RANGE))
-
+    
     origin = plane.p
     dir1 = normalize(perpendicular_vector(plane.n))
     dir2 = normalize(cross(dir1, plane.n))
-    for (v, vf) in enumerate(PLANE_RANGE), (u, uf) in enumerate(PLANE_RANGE)
-        uvValues[u,v] = convert_result(plane, uf, vf, origin, dir1, dir2)
-    end
-
-    width = length(PLANE_RANGE)
-    height = length(PLANE_RANGE)
-    initMatrix(vertices, width, height, Vec3FNan)
+    values = @SMatrix [convert_result(plane, uf, vf, origin, dir1, dir2) for uf in PLANE_RANGE, vf in PLANE_RANGE]
+    triangles = get_triangulated(values)
 
     if pdata.handle == 0
-        triangulateInto!(indexes, vertices, layers(vertices))
-        copy!(uvValues, vertices, layers(vertices))
-        triangles = get_triangulated(data(vertices, layers(vertices)), vertices, layers(vertices))
         handle = add!(triangle_renderer, triangles, mat4(1.0f0), pdata.color, true, id)
         return PlaneDrawData(handle, pdata.color)
     else
-        copy!(uvValues, vertices, layers(vertices))
-        triangles = get_triangulated(data(vertices, layers(vertices)), vertices, layers(vertices))
         update_coords!(triangle_renderer, pdata.handle, triangles)
         return pdata
     end

@@ -25,7 +25,6 @@ end
 
 function slider(label::String,self::Integer,min::Real=0,max::Real=1)::Int32
     self_ref = Ref(Int32(self))
-    CImGui.InputFloat
     CImGui.SliderInt(label, self_ref, Int32(min), Int32(max))
     return self_ref[]
 end
@@ -128,6 +127,11 @@ function input_bitflags(label::String, value::Integer, used_bits::Unsigned=ndigi
     return rt
 end
 
+function input_boolean(label::String, value::Bool)::Bool
+    out = Ref(value)
+    CImGui.Checkbox(label, out)
+    return out[]
+end
 
 function input(label::String,text::String,buf_size=1024)::String
     result::String = text

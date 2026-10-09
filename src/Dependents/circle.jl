@@ -32,25 +32,6 @@ function render_node(circle::PCircle, data::CircleDrawData, renderers::Dict{Data
     end
     return data
 end
-edit_node_overload(::PCircle) = true
-edit_node_type_string(::PCircle) = "Circle"
-Base.propertynames(::CircleDrawData) = [:colors]
-
-function get_property_hint(::CircleDrawData, property::Symbol)
-    if property == :colors
-        return PropertyHintColor()
-    end
-
-return nothing
-end
-
-function reconstruct_node(element::PCircle, properties::Dict{Symbol, Any})
-    return PCircle(
-        get(properties, :center, element.center),
-        get(properties, :radius, element.radius),
-        get(properties, :normal, element.normal)
-    )
-end
 
 # ? ---------------------------------
 # ! Circle intersection

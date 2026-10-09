@@ -42,6 +42,10 @@ const EDIT_NODE_NONE::Int = 0
 const EDIT_NODE_RERENDER::Int = 1
 const EDIT_NODE_INVALIDATE::Int = 2
 function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
+    if element isa Primitive
+        CImGui.Text("This node derives its properties from its parents")
+        return (element, render_data, EDIT_NODE_NONE)
+    end
     result_element, element = modify_properties(element, handle, EDIT_NODE_INVALIDATE)
     CImGui.Separator()
     CImGui.Text("Render Data")
@@ -52,8 +56,6 @@ function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Rend
     end
     return element, render_data, result
 end
-
-
 
 abstract type PropertyHint end
 

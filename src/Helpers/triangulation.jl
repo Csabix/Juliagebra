@@ -1,4 +1,4 @@
-function get_triangulated(values::Matrix{T}) where T
+function get_triangulated(values::AbstractMatrix{T}) where T
     h, w = Base.size(values)
     return Base.Iterators.flatten((
         (

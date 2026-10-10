@@ -254,9 +254,10 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
     @assert param_tess_data.current_mode != ParamTessMode.Uninitalized
 
     eval_result = if param_tess_data.current_mode === ParamTessMode.CPU
-        @time_cpu_begin ParamTess CPU Eval
+        on_main_thread = Threads.threadid() == 1
+        on_main_thread && @time_cpu_begin ParamTess CPU Eval
         cpu_result = eval_node(element, node.callback, arguments)
-        @time_cpu_end ParamTess CPU Eval
+        on_main_thread && @time_cpu_end ParamTess CPU Eval
 
         cpu_result
     else

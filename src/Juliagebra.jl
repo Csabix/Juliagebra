@@ -168,7 +168,6 @@ function _add_and_validate!(element::Any,draw_data::Any,parents::Union{Vector{No
         wait(app.graph.wait_pool, app.graph.nodes[handle], Int(handle.value))
     end
 
-
     return handle
 end
 
@@ -188,16 +187,6 @@ end
 # adapter for macro ctor signature
 function _add_node!(callback::Function,parents::Vector{NodeHandle};draw_data::Any=nothing,use_main_thread::Bool=false)
     plot()
-    # ?? is there a reason this didn't get the same validate! treatment as the other add_node!-s methods?
-    # global implicitApp
-    # app::App = implicitApp::App
-    # value = if parents === nothing
-    #     callback()
-    # else
-    #     arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
-    #     callback(arguments...)
-    # end
-    # return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
     return _add_and_validate!(nothing,draw_data,parents,callback,use_main_thread)
 end
 macro add_node!(callback::Expr, args...)

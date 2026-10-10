@@ -1,10 +1,11 @@
 mutable struct ParametricCurve
     range::AbstractRange{Float64}
     values::Vector{Vec3D}
+    param_tess_data::ParamTessData
 
-    function ParametricCurve(range::AbstractRange{Float64})
+    function ParametricCurve(range::AbstractRange{Float64}, param_tess_data::ParamTessData)
         values = Vector{Vec3D}(undef, length(range))
-        new(range, values)
+        new(range, values, param_tess_data)
     end
 end
 
@@ -15,29 +16,46 @@ struct ParametricCurveDrawData
     size::Float32
 end
 
+const GPU_TESS_CURVE_T_RANGE = :JG_TESS_T_RANGE
+const GPU_TESS_CURVE_NODE_UNIFORMS = Dict{Symbol,DataType}(GPU_TESS_CURVE_T_RANGE => Vec2F)
+
 # convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
 convert_callback_entry(self::ParametricCurve)::ParametricCurve = self
 
-function convert_result(pc::ParametricCurve,v,index)
+function convert_result!(pc::ParametricCurve,v,index)
     if length(v) == 3
         pc.values[index] = Vec3D(v[1],v[2],v[3])
     else
         pc.values[index] = Vec3D(v[1],v[2],0.0)
     end
 end
-convert_result(pc::ParametricCurve,v::Tuple{Any,Any},index)     = pc.values[index] = Vec3D(v[1],v[2],0.0)
-convert_result(pc::ParametricCurve,v::Tuple{Any,Any,Any},index) = pc.values[index] = Vec3D(v[1],v[2],v[3])
-convert_result(pc::ParametricCurve,v::Vec3D,index)              = pc.values[index] = v
-convert_result(pc::ParametricCurve,v::Vec3F,index)              = pc.values[index] = Vec3D(v)
-convert_result(pc::ParametricCurve,v::Vec2D,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
-convert_result(pc::ParametricCurve,v::Vec2F,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
-convert_result(pc::ParametricCurve,v::Nothing,index)            = pc.values[index] = Vec3DNan
+convert_result!(pc::ParametricCurve,v::Tuple{Any,Any},index)     = pc.values[index] = Vec3D(v[1],v[2],0.0)
+convert_result!(pc::ParametricCurve,v::Tuple{Any,Any,Any},index) = pc.values[index] = Vec3D(v[1],v[2],v[3])
+convert_result!(pc::ParametricCurve,v::Vec3D,index)              = pc.values[index] = v
+convert_result!(pc::ParametricCurve,v::Vec3F,index)              = pc.values[index] = Vec3D(v)
+convert_result!(pc::ParametricCurve,v::Vec2D,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
+convert_result!(pc::ParametricCurve,v::Vec2F,index)              = pc.values[index] = Vec3D(v[1],v[2],0.0)
+convert_result!(pc::ParametricCurve,v::Nothing,index)            = pc.values[index] = Vec3DNan
 
-function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::Any
+eval_geometry_node(element::ParametricCurve, node::GeometryPlotNode, elements::Vector{Any}) = handle_param_tess!(element.param_tess_data, element, node, elements)
+
+function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::ParametricCurve
     for index in eachindex(element.range)
-        convert_result(element,callback(element.range[index],arguments...),index)
+        convert_result!(element,callback(element.range[index],arguments...),index)
     end
     return element
+end
+
+function update_node_uniforms!(uniform_values::Dict{Symbol,Any}, element::ParametricCurve)
+    uniform_values[GPU_TESS_CURVE_T_RANGE] = Vec2F(first(element.range), step(element.range))
+end
+
+get_param_tess_data(pc::ParametricCurve)::ParamTessData = pc.param_tess_data
+
+function convert_gpu_result!(element::ParametricCurve,tess_buffer::MappedBuffer{Vec4})
+    @inbounds for (index, v4) in enumerate(tess_buffer._mapped)
+        convert_result!(element,v4.xyz,index)
+    end
 end
 
 function render_node(pc::ParametricCurve, data::ParametricCurveDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::ParametricCurveDrawData
@@ -75,19 +93,73 @@ function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
     end
 end
 
+function wrap_curve_callback(callback_ast::Expr)::Union{Expr,Nothing}
+    dbg::Bool = (GPU_TESS_DEBUG_ARG in ARGS)
+
+    if !_is_normalized_callback(callback_ast)
+        dbg && @log "Cannot transpile callback AST that has not been normalized"
+        return nothing
+    end
+
+    if isempty(callback_ast.args[1].args)
+        dbg && @log "Cannot transpile zero-argument callback as a curve"
+        return nothing
+    end
+
+    result = deepcopy(callback_ast)
+
+    t_varname = result.args[1].args[1]
+    popfirst!(result.args[1].args)
+
+    pushfirst!(result.args[2].args, :(
+        $t_varname = $(GPU_TESS_CURVE_T_RANGE).x + Float32(JG_TESS_ID) * $(GPU_TESS_CURVE_T_RANGE).y
+    ))
+
+    return result
+end
+
+edit_node_overload(::ParametricCurve)::Bool = true
+edit_node(pc::ParametricCurve,data::ParametricCurveDrawData,::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = pc, data, edit_param_tess_data!(pc.param_tess_data,handle)
+
 function ParametricCurve(callback::Function, range::AbstractRange{Float64},
                 parents::Union{Vector{NodeHandle},Nothing}=nothing, color_style::Union{Nothing,String}=nothing;
-                color="c", style="-", size=5.0f0)::NodeHandle
+                color="c", style="-", size=5.0f0, callback_ast::Union{Expr,Nothing}=nothing,
+                argument_bindings::Union{Dict{Symbol,NodeHandle},Nothing}=nothing,
+                enable_gpu_tessellation::Bool=false)::NodeHandle
     (c, s) = parse_line_colors_style(color_style, color, style)
     draw_data = ParametricCurveDrawData(LineHandle(), c, s, Float32(size))
-    return add_node!(callback, ParametricCurve(range); draw_data=draw_data, parents=parents)
+    
+    if !enable_gpu_tessellation
+        callback_ast = nothing
+        argument_bindings = nothing
+    elseif callback_ast !== nothing
+        callback_ast = wrap_curve_callback(callback_ast) # may return nothing and invalidate callback_ast
+    end
+    param_tess_data = if callback_ast !== nothing && argument_bindings !== nothing
+        ParamTessData(callback_ast, argument_bindings, GPU_TESS_CURVE_NODE_UNIFORMS, length(range))
+    else
+        ParamTessData(length(range))
+    end
+
+    curve_h = add_node!(callback, ParametricCurve(range,param_tess_data); draw_data=draw_data, parents=parents,
+                        use_main_thread=(param_tess_data.transpilation_src !== nothing))
+
+    # ugly temporary workaround hack until GPU tessellation is connected to the line renderer (rendering always requires syncing)
+    if param_tess_data.transpilation_src !== nothing
+        syncer_h = _get_tess_synchronizer!(curve_h)
+        app::App = implicitApp::App
+        invalidate!(app.graph, curve_h)
+        wait(app.graph.wait_pool, app.graph.nodes[syncer_h], Int(syncer_h.value))
+    end
+
+    return curve_h
 end
 
 macro ParametricCurve(callback::Expr,range,args...)
-    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size), args...)
+    (positional_args, kw_args) = _parse_macro_arguments((:color_style,),(:color, :style, :size, :enable_gpu_tessellation), args...)
     callback = _validate_callback_expr(callback, 1)
     return _create_ctor_wrapper(callback, __module__, Juliagebra.ParametricCurve,
-                                positional_args, kw_args, (cb, deps) -> (cb, range, deps))
+                                positional_args, kw_args, (cb, deps) -> (cb, range, deps), true)
 end
 
 function ParametricCurve(func_handle::NodeHandle,

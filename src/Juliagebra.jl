@@ -11,6 +11,7 @@ using ThreadPinning
 using BitFlags
 #pinthreads(:cores)
 import MacroTools
+import ShaderTranspiler
 
 include("logger.jl")
 include("profiling.jl")
@@ -51,6 +52,9 @@ include("Helpers/infer.jl")
 include("Helpers/dependency_lookup.jl")
 
 include("Graph/graph.jl")
+
+include("Helpers/transpilation.jl")
+include("Helpers/gpu_tessellation.jl")
 
 # ? ---------------------------------
 # ! Primitives
@@ -139,42 +143,51 @@ function get_element(handle::NodeHandle)::Any
     return app.graph.elements[handle]
 end
 
-function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
-    plot()
+function _add_and_validate!(element::Any,draw_data::Any,parents::Union{Vector{NodeHandle},Nothing},callback::Union{Function,Nothing},use_main_thread::Bool)::NodeHandle
     global implicitApp
     app::App = implicitApp::App
-    node = add!(app.graph,element,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
-    validate!(app.graph, node, true)
-    return node
+
+    graph_parents = nothing
+    if parents !== nothing
+        graph_parents = copy(parents)
+        for i in eachindex(graph_parents)
+            p_h = graph_parents[i]
+            if _needs_tess_synchronizer(app.graph.elements[p_h]) && !isa(element, TessellationSynchronizer)
+                graph_parents[i] = _get_tess_synchronizer!(p_h)
+            end
+        end
+    end
+
+    handle = add!(app.graph,element,draw_data,graph_parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : zero(UInt64))
+
+    if !use_main_thread
+        validate!(app.graph,handle,true)
+    else
+        # for GL-context-needing nodes, we wait for next play! iteration to validate them
+        # otherwise we'd have to perform some additional synchronization for the GL context, which would result in a similar waiting time
+        wait(app.graph.wait_pool, app.graph.nodes[handle], Int(handle.value))
+    end
+
+    return handle
+end
+
+function add_node!(callback::Function,element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
+    plot()
+    return _add_and_validate!(element,draw_data,parents,callback,use_main_thread)
 end
 function add_node!(callback::Function;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
-    global implicitApp
-    app::App = implicitApp::App
-    node =  add!(app.graph,nothing,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
-    validate!(app.graph, node, true)
-    return node
+    return _add_and_validate!(nothing,draw_data,parents,callback,use_main_thread)
 end
 function add_node!(element::Any;draw_data::Any=nothing,parents::Union{Vector{NodeHandle},Nothing}=nothing,use_main_thread::Bool=false)
     plot()
-    global implicitApp
-    app::App = implicitApp::App
-    node = add!(app.graph,element,draw_data,parents,nothing,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
-    validate!(app.graph, node, true)
-    return node
+    return _add_and_validate!(element,draw_data,parents,nothing,use_main_thread)
 end
 
+# adapter for macro ctor signature
 function _add_node!(callback::Function,parents::Vector{NodeHandle};draw_data::Any=nothing,use_main_thread::Bool=false)
     plot()
-    global implicitApp
-    app::App = implicitApp::App
-    value = if parents === nothing
-        callback()
-    else
-        arguments = [convert_callback_entry(get_element(handle)) for handle in parents]
-        callback(arguments...)
-    end
-    return add!(app.graph,value,draw_data,parents,callback,use_main_thread ? NODE_EVAL_ON_MAIN : UInt64(0))
+    return _add_and_validate!(nothing,draw_data,parents,callback,use_main_thread)
 end
 macro add_node!(callback::Expr, args...)
     (positional_args, kw_args) = _parse_macro_arguments((), (:draw_data, :use_main_thread), args...)

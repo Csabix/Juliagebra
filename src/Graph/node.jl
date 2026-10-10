@@ -41,11 +41,8 @@ render_node_gui(element::Any)::Tuple{Any,Bool} = element, false
 const EDIT_NODE_NONE::Int = 0
 const EDIT_NODE_RERENDER::Int = 1
 const EDIT_NODE_INVALIDATE::Int = 2
+
 function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int}
-    if element isa Primitive
-        CImGui.Text("This node derives its properties from its parents")
-        return (element, render_data, EDIT_NODE_NONE)
-    end
     result_element, element = modify_properties(element, handle, EDIT_NODE_INVALIDATE)
     CImGui.Separator()
     CImGui.Text("Render Data")
@@ -107,7 +104,9 @@ end
 
 get_property_hint(element::Any, property::Symbol)::Union{PropertyHint, Nothing} = nothing
 
-function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T<:Any
+modify_properties(element::Nothing, handle::NodeHandle, flag::Int)::Tuple{Int, Nothing} = EDIT_NODE_NONE, nothing
+
+function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T
     result::Int = EDIT_NODE_NONE
     properties::Dict{Symbol, Any} = Dict{Symbol, Any}()
     for f::Symbol in propertynames(element)
@@ -126,14 +125,25 @@ function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int
     return result, element
 end
 
-function input_property(label::String, value::T, property_hint::Union{PropertyHint, Nothing} = nothing)::T where T
-    if value isa Vector
+function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T <: Primitive
+    CImGui.Text("This node derives its properties from its parents")
+    return EDIT_NODE_NONE, element
+end
+
+function modify_properties(element::Real, handle::NodeHandle, flag::Int)::Tuple{Int, Real}
+    new = input_property("value", element)
+    return (flag * (element != new), new)
+end
+
+function input_property(label::String, value::Vector, property_hint::Union{PropertyHint, Nothing} = nothing)::Vector
         rt::Vector = []
         for v in eachindex(value)
             push!(rt, input_property(label*"$v", value[v], property_hint))
         end
         return rt
-    end
+end
+
+function input_property(label::String, value::T, property_hint::Union{PropertyHint, Nothing} = nothing)::T where T
     if property_hint isa PropertyHintColor
         if (property_hint::PropertyHintColor).input_alpha
             return color_edit4(label, value)
@@ -156,12 +166,17 @@ function input_property(label::String, value::T, property_hint::Union{PropertyHi
         pb::PropertyHintBitFlags = property_hint
         return input_bitflags(label, value, pb.bitcount)
     else
-        return input(label, value)
+        if hasmethod(input, Tuple{String, T})
+            return input(label, value)
+        else
+            CImGui.Text("$label: $value")
+            return value
+        end
     end
 end
 
 function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end
-rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}) = false
+rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}) = nothing
 edit_node_overload(element::Any)::Bool = false
 edit_node_type_string(element::Any)::String = string(typeof(element))
 

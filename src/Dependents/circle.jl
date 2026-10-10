@@ -12,6 +12,25 @@ mutable struct CircleDrawData
     size::Float32
 end
 
+function get_property_hint(::CircleDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :colors
+        return PropertyHintColor()
+    elseif s==:style
+        return PropertyHintSlider(0,1)
+    elseif s == :size
+        return PropertyHintSlider(0,10)
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::CircleDrawData, renderers::Dict{DataType, Renderer})
+    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
+    update_size!(line_renderer, data.handle, data.size)
+    update_style!(line_renderer, data.handle, data.style)
+end
+
 convert_callback_result(::PCircle, result::PCircle)                    = result
 convert_callback_result(::PCircle, result::Tuple{Vec3D,Float64,Vec3D}) = PCircle(result[1],result[2],normalize(result[3]))
 convert_callback_result(::PCircle, ::Nothing)                          = PCircle(Vec3DNan,NaN64,Vec3DNan)

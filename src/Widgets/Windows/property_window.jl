@@ -61,7 +61,6 @@ function renderContent(property_window::PropertyWindow)
             end
             CImGui.Separator()
             CImGui.Text("Parents")
-            CImGui.Separator()
             if geom_node.parent_h !== nothing
                 for n::NodeHandle in geom_node.parent_h
                     if CImGui.Button(element_labels[n.value])
@@ -69,8 +68,8 @@ function renderContent(property_window::PropertyWindow)
                     end
                 end
             end
-            CImGui.Text("Children")
             CImGui.Separator()
+            CImGui.Text("Children")
             if geom_node.child_h !== nothing
                 for n::NodeHandle in geom_node.child_h
                     if CImGui.Button(element_labels[n.value])

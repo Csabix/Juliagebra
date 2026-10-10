@@ -15,6 +15,27 @@ struct ParametricCurveDrawData
     size::Float32
 end
 
+
+function get_property_hint(::ParametricCurveDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :colors
+        return PropertyHintColor()
+    elseif s==:style
+        return PropertyHintSlider(0,1)
+    elseif s == :size
+        return PropertyHintSlider(0,10)
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::ParametricCurveDrawData, renderers::Dict{DataType, Renderer})
+    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
+    update_size!(line_renderer, data.handle, data.size)
+    update_style!(line_renderer, data.handle, data.style)
+end
+
+
 # convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
 convert_callback_entry(self::ParametricCurve)::ParametricCurve = self
 

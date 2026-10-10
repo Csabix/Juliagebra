@@ -5,6 +5,22 @@ struct SphereDrawData
     color::UInt32
 end
 
+function get_property_hint(::SphereDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :color
+        return PropertyHintColor()
+    elseif s==:handle
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::SphereDrawData, renderers::Dict{DataType, Renderer})
+    sphere_renderer::SphereRenderer = renderers[SphereRenderer]::SphereRenderer
+    # update_color!(sphere_renderer, data.handle, data.color) not a thing for some reason
+end
+
+
 convert_callback_result(::PSphere, result::PSphere)              = result
 convert_callback_result(::PSphere, result::Tuple{Vec3D,Float64}) = PSphere(result[1],result[2])
 convert_callback_result(::PSphere, ::Nothing)                    = PSphere(Vec3DNan,NaN64)

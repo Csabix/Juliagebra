@@ -25,7 +25,7 @@ function renderContent(property_window::PropertyWindow)
         CImGui.BeginChild("Scene Elements", (CImGui.GetContentRegionAvail().x * 0.5, 0.0))
         for i in sorted_indices
             element = elements[i]
-            #if !edit_node_overload(element) continue end
+            if !edit_node_overload(element) continue end
 
             element_type_name = type_names[i]
             if element_type_name != current_type

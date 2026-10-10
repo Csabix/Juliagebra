@@ -64,6 +64,12 @@ struct PropertyHintSlider <: PropertyHint
     end
 end
 
+struct PropertyHintNoEdit <: PropertyHint
+    function PropertyHintNoEdit()
+        new()
+    end
+end
+
 struct PropertyHintColor <: PropertyHint
     input_alpha::Bool
     function PropertyHintColor(input_alpha::Bool = false)
@@ -165,19 +171,17 @@ function input_property(label::String, value::T, property_hint::Union{PropertyHi
     elseif property_hint isa PropertyHintBitFlags
         pb::PropertyHintBitFlags = property_hint
         return input_bitflags(label, value, pb.bitcount)
+    elseif property_hint isa PropertyHintNoEdit || !hasmethod(input, Tuple{String, T})
+        CImGui.Text("$label: $value")
+        return value
     else
-        if hasmethod(input, Tuple{String, T})
-            return input(label, value)
-        else
-            CImGui.Text("$label: $value")
-            return value
-        end
+        return input(label, value)
     end
 end
 
 function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end
 rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}) = nothing
-edit_node_overload(element::Any)::Bool = false
+edit_node_overload(element::Any)::Bool = true
 edit_node_type_string(element::Any)::String = string(typeof(element))
 
 

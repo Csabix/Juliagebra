@@ -7,7 +7,7 @@ eval_node: calls the callback
 render_node: Used when the node is visible in the scene e.g Point
 render_node_gui: Used when the node is visible in the gui e.g Slider
 edit_node: If you want your node to be editable from the gui
-edit_node_overload: set it true if edit_node is overloaded
+edit_node_overload: set it false to prevent node from appearing in the Property Window
 
 on_gizmo_select: Called when the user right clicks the object
 on_gizmo_move: Called when the gizmo is moved

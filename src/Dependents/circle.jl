@@ -16,7 +16,7 @@ function get_property_hint(::CircleDrawData, s::Symbol)::Union{PropertyHint, Not
     if s== :colors
         return PropertyHintColor()
     elseif s==:style
-        return PropertyHintSlider(0,1)
+        return PropertyHintSlider(1,_LINE_STYLE_COUNT)
     elseif s == :size
         return PropertyHintSlider(0,10)
     else

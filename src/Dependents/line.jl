@@ -12,6 +12,26 @@ struct LineDrawData
     size::Float32
 end
 
+function get_property_hint(::LineDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :colors
+        return PropertyHintColor()
+    elseif s==:style
+        return PropertyHintSlider(1,_LINE_STYLE_COUNT)
+    elseif s == :size
+        return PropertyHintSlider(0,10)
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::LineDrawData, renderers::Dict{DataType, Renderer})
+    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
+    update_size!(line_renderer, data.handle, data.size)
+    update_style!(line_renderer, data.handle, data.style)
+end
+
+
 convert_callback_result(::PLine, result::PLine)              = result
 convert_callback_result(::PLine, result::LinePrimitive)      = PLine(p0(result),p1(result))
 convert_callback_result(::PLine, result::Tuple{Vec3D,Vec3D}) = PLine(result[1],result[2])

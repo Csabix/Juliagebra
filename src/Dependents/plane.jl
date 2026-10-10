@@ -10,6 +10,22 @@ struct PlaneDrawData
     color::UInt32
 end
 
+function get_property_hint(::PlaneDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :color
+        return PropertyHintColor()
+    elseif s==:handle
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::PlaneDrawData, renderers::Dict{DataType, Renderer})
+    tri_renderer::TriangleRenderer = renderers[TriangleRenderer]::TriangleRenderer
+    update_color!(tri_renderer, data.handle, data.color)
+end
+
+
 convert_callback_result(::PPlane, result::PPlane)             = result
 convert_callback_result(::PPlane, result::Tuple{Vec3D,Vec3D}) = PPlane(result[1],normalize(result[2]))
 convert_callback_result(::PPlane, ::Nothing)                  = PPlane(Vec3DNan,Vec3DNan)

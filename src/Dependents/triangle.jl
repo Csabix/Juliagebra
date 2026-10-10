@@ -8,6 +8,22 @@ struct TriangleDrawData
     color::UInt32
 end
 
+function get_property_hint(::TriangleDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :color
+        return PropertyHintColor()
+    elseif s==:handle
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::TriangleDrawData, renderers::Dict{DataType, Renderer})
+    tri_renderer::TriangleRenderer = renderers[TriangleRenderer]::TriangleRenderer
+    update_color!(tri_renderer, data.handle, data.color)
+end
+
+
 convert_callback_result(::PTriangle, result::PTriangle)                = result
 convert_callback_result(::PTriangle, result::Tuple{Vec3D,Vec3D,Vec3D}) = PTriangle(result[1],result[2],result[3])
 convert_callback_result(::PTriangle, ::Nothing)                        = PTriangle(Vec3DNan,Vec3DNan,Vec3DNan)

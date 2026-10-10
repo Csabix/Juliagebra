@@ -117,7 +117,7 @@ function color_edit4(label::String,color::UInt32)::UInt32
 end
 
 function input_bitflags(label::String, value::Integer, used_bits::Unsigned=ndigits(typemax(typeof(value)), 2))
-    bits_left::Unsigned = used_bits
+    bits_left = Int(used_bits)
     rt = 0
     while bits_left >0
         bitcount = used_bits-bits_left

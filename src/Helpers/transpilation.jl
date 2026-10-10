@@ -96,7 +96,7 @@ function transpile_tess_shader(src::TranspilationSource, argument_types::Dict{No
     pipe = Pipe()
     glsl_code::Union{String,Nothing} =
         try
-            redirect_stderr(pipe) do
+            redirect_stdio(; stdout = pipe, stderr = pipe) do
                 ShaderTranspiler.transpile(translation_unit; run_benchmarks=dbg, cfg)
             end
         catch ex

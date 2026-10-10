@@ -110,7 +110,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
     dbg::Bool = GPU_TESS_DEBUG_ARG in ARGS
 
     if param_tess_data.transpilation_src === nothing
-        dbg && println("Transpilation source data not available, falling back to CPU...")
+        @log "Transpilation source data not available for parametric node, falling back to CPU..." WARN
         return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
@@ -120,30 +120,24 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
         param_tess_data.sample_count * sizeof(Vec4F) > ogl_data._max_shader_storage_block_size
     
     if hits_device_limits
-        dbg && println("Compute work group size or tessellation buffer size exceeds device limits, falling back to CPU...")
+        @log "Compute work group size or tessellation buffer size exceeds device limits for parametric node, falling back to CPU..." WARN
         return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
     has_gpu_compatible_args = true
     for (handle, value) in gpu_argument_values
-        if value === nothing
-            has_gpu_compatible_args = false
+        value !== nothing && continue
 
-            if dbg
-                sym_idx = findfirst(binding -> binding[2] == handle, param_tess_data.transpilation_src.argument_bindings)
-                sym = sym_idx !== nothing ? param_tess_data.transpilation_src.argument_bindings[sym_idx][1] : :UNKNOWN
+        has_gpu_compatible_args = false
 
-                entry_type = typeof(convert_callback_entry(get_element(handle)))
-                println("A callback argument (named $sym, pointing to $handle) has an entry type that is not GPU compatible ($entry_type)")
-            end
-
-            # allows all problematic arguments to be logged at once during debugging
-            !dbg && break
-        end
+        sym_idx = findfirst(binding -> binding[2] == handle, param_tess_data.transpilation_src.argument_bindings)
+        sym = sym_idx !== nothing ? param_tess_data.transpilation_src.argument_bindings[sym_idx][1] : :UNKNOWN
+        entry_type = typeof(convert_callback_entry(get_element(handle)))
+        @log "A callback argument (named $sym, pointing to handle #$(handle.value)) has an entry type that is not GPU compatible ($entry_type)" WARN
     end
 
     if !has_gpu_compatible_args
-        dbg && println("Node has GPU incompatible argument entry types, falling back to CPU...")
+        @log "Parametric node has GPU incompatible argument entry types, falling back to CPU..." WARN
         return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 
@@ -152,7 +146,7 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
     shader = transpile_tess_shader(param_tess_data.transpilation_src, gpu_argument_types)
 
     if shader === nothing
-        dbg && println("Shader transpilation failed, falling back to CPU...")
+        @log "Shader transpilation for parametric node failed, run with --debug-gpu-tess to get the detailed transpiler error messages. Falling back to CPU..." WARN
         return switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     end
 

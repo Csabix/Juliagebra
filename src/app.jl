@@ -32,6 +32,9 @@ mutable struct App <: AppDNA
     _frame_gc_count::Int64
     _frame_gc_full::Int64
     _frame_gc_time_ns::Int64
+    
+    _transpiler_cfg::ShaderTranspiler.ConfigHandle
+    _callback_helpers::Vector{Expr}
 
     function App(
         name::String="Juliagebra",
@@ -55,11 +58,21 @@ mutable struct App <: AppDNA
         delta_time = 0.0
         vsync_state = Int32(1)
 
+        transpiler_cfg = ShaderTranspiler.ConfigHandle()
+        ShaderTranspiler.set_config_opts!(transpiler_cfg;
+            target_version = "460",
+            code_gen_indent = zero(UInt16),
+            local_size = (GPU_TESS_LOCAL_SIZE, one(UInt32), one(UInt32)),
+        )
+
+        callback_helpers = Expr[]
+
         new(
             glfw,inputs,opengl,imgui,
             nothing,nothing,cam,manipulator,
             graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
-            0,0,0,0,0)
+            0,0,0,0,0,
+            transpiler_cfg,callback_helpers)
     end
 end
 
@@ -171,7 +184,7 @@ function play!(self::App)
 
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
         update!(self,iconified)
-        
+
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         swap_buffers(self._glfw)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end

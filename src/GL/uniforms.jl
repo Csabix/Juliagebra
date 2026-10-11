@@ -35,7 +35,7 @@ end
 for (jltype,glsuffix) in ((Float32,"fv"), (Float64,"dv")) #no int support
     for N = 2:4, M = 2:4
         gltype = StaticMatrix{N,M,jltype}
-        sizestr= N==M ? string(N) : string(N)*string(M)
+        sizestr= N==M ? string(N) : string(N)*"x"*string(M)
         glfunc = Symbol("glUniformMatrix"*sizestr*glsuffix)
         # println(glfunc)
         @eval glUniform(loc::LocType, data::$gltype)::Nothing = $glfunc(loc, 1, GL_FALSE, data)  
@@ -56,3 +56,7 @@ for (jltype,glsuffix) in ((Float32,"fv"), (Float64,"dv")) #no int support
         end
     end
 end
+
+# add forwarding Bool methods manually since they don't have their own GL func
+glUniform(loc::LocType, data::Bool)::Nothing = glUniform(loc, Int32(data))
+glUniform(loc::LocType, data::StaticVector{N, Bool}) where {N} = glUniform(loc, similar_type(data, Int32)(data))

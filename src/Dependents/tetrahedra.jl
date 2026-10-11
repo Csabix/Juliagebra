@@ -37,12 +37,12 @@ function render_node(t::Tetrahedron, data::TetrahedronDrawData, renderers::Dict{
     b = Vec3F(t.b)
     c = Vec3F(t.c)
     d = Vec3F(t.d)
-    triangles = Vec3F[a, c, b, a, b, d, a, d, c, b, c, d]
-    line = Vec3F[a, b, c, d, a, c, Vec3FNan, b, d]
+    triangles = @SVector Vec3F[a, c, b, a, b, d, a, d, c, b, c, d]
+    line = @SVector Vec3F[a, b, c, d, a, c, Vec3FNan, b, d]
 
     if data.face_handle == 0
         face_handle = add!(triangle_renderer, triangles, mat4(1.0f0), data.color, false, id)
-        border_handle = add!(line_renderer, line, [data.border_color], [id], data.border_style, data.border_size)
+        border_handle = add!(line_renderer, line, (data.border_color,), (id,), data.border_style, data.border_size)
         return TetrahedronDrawData(face_handle, border_handle, data.color, data.border_color, data.border_size, data.border_style)
     else
         update_coords!(triangle_renderer, data.face_handle, triangles)

@@ -2,8 +2,8 @@ struct _TriangleTransform
     M::Mat4T{Float32}
     MIT::Mat4T{Float32}
     IsInfinite::Int32
-    _TriangleTransform(M::Mat4T{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
-    _TriangleTransform(M::Mat4T{Float32},IsInfinite::Int32) = new(M,inv(transpose(M)),IsInfinite)
+    _TriangleTransform(M::AbstractMatrix{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
+    _TriangleTransform(M::AbstractMatrix{Float32},IsInfinite::Int32) = new(M,inv(transpose(M)),IsInfinite)
 end
 
 mutable struct TriangleRenderer <: Renderer
@@ -71,7 +71,7 @@ end
 
 function update_transform!(self::TriangleRenderer, ref::UInt32, transform)
     _transform::_TriangleTransform = self.transforms[ref]
-    self.transforms[ref] = _TriangleTransform(transform,_transform.IsInfinite)
+    self.transforms[ref] = _TriangleTransform(Mat4T{Float32}(transform),_transform.IsInfinite)
 end
 
 function _triangle_renderer_buffer_array()

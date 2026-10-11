@@ -14,20 +14,16 @@ struct SegmentSequenceDrawData
     style::UInt8
 end
 
-function convert_callback_result(s::SegmentSequence,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
-    s.values = [Vec3D(coord...) for coord in coords]
+function convert_callback_result(s::SegmentSequence,coords)
+    Base.resize!(s.values,length(coords))
+    index = 1
+    for coord in coords
+        @inbounds s.values[index] = Vec3D(coord...)
+        index += 1
+    end
     return s
 end
-function convert_callback_result(s::SegmentSequence,coords::Vector{T}) where T <: Tuple{Any, Any}
-    s.values = [Vec3D(coord...,0.0) for coord in coords]
-    return s
-end
-convert_callback_result(s::SegmentSequence,coords::Vector{Vec3D})  = (s.values = coords; s)
-convert_callback_result(s::SegmentSequence,coords::Vector{Vec2D})  = (s.values = [Vec3D(coord...,0.0) for coord in coords]; s)
-convert_callback_result(s::SegmentSequence,coords::Vector{Vec3F})  = (s.values = [Vec3D(coord...) for coord in coords]; s)
-convert_callback_result(s::SegmentSequence,coords::Vector{Vec2F})  = (s.values = [Vec3D(coord...,0.0) for coord in coords]; s)
-convert_callback_result(s::SegmentSequence,coords::Vector{Vector}) = (s.values = [length(c) == 3 ? Vec3D(c[1],c[2],c[3]) : Vec3D(c[1],c[2],0.0) for c in coords]; s)
-convert_callback_result(s::SegmentSequence,::Nothing) = (s.values = Vec3D[];s)
+convert_callback_result(s::SegmentSequence,::Nothing) = (empty!(s.values);s)
 
 struct PSegmentsOfSegmentSequence <: PrimitivesOf{PSegment}
     segseq::SegmentSequence
@@ -74,20 +70,29 @@ end
 Base.IteratorSize(::Type{<:PSegmentsOfSegmentSequence}) = Base.HasLength()
 Base.eltype(::Type{PSegmentsOfSegmentSequence}) = PSegment
 
-function custom_interleaver(vec, insert_val::T, n) where T
-    new_len = length(vec) + div(length(vec), n)
-    dest = Vector{T}(undef, new_len)
+struct _NanInterleaver
+    vec::Vector{Vec3D}
+    n::Int32
+end
+
+Base.eltype(::Type{_NanInterleaver}) = Vec3F
+Base.length(it::_NanInterleaver) = length(it.vec) + div(length(it.vec), it.n)
+
+function Base.iterate(it::_NanInterleaver, state=(1, false))
+    i, inserting = state
     
-    dest_idx = 1
-    for (i,e) in enumerate(vec)
-        dest[dest_idx] = e
-        dest_idx += 1
-        if i % n == 0
-            dest[dest_idx] = insert_val
-            dest_idx += 1
+    if inserting
+        return (Vec3FNan, (i + 1, false))
+    else
+        i > length(it.vec) && return nothing
+
+        @inbounds val = Vec3F(it.vec[i])
+        if i % it.n == 0
+            return (val, (i, true))
+        else
+            return (val, (i + 1, false))
         end
     end
-    return dest
 end
 
 function render_node(segseq::SegmentSequence, data::SegmentSequenceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SegmentSequenceDrawData
@@ -95,17 +100,17 @@ function render_node(segseq::SegmentSequence, data::SegmentSequenceDrawData, ren
     if is_null(data.handle)
         handle = if data.break_every >= 2
             add!(line_renderer,
-                custom_interleaver(segseq.values, Vec3FNan, data.break_every),
+                _NanInterleaver(segseq.values, data.break_every),
                 data.colors,
-                [id],
+                (id,),
                 data.style,
                 data.size
             )
         else
             add!(line_renderer,
-                [Vec3F(coord) for coord in segseq.values],
+                (Vec3F(coord) for coord in segseq.values),
                 data.colors,
-                [id],
+                (id,),
                 data.style,
                 data.size
             )
@@ -114,7 +119,7 @@ function render_node(segseq::SegmentSequence, data::SegmentSequenceDrawData, ren
     else
         if data.break_every >= 2
             @inbounds update_coords!(line_renderer, data.handle,
-                custom_interleaver(segseq.values, Vec3FNan, data.break_every))
+                _NanInterleaver(segseq.values, data.break_every))
         else
             @inbounds update_coords!(line_renderer, data.handle,segseq.values)
         end

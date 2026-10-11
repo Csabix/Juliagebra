@@ -62,16 +62,21 @@ end
 
 function render_node(triangles::TriangleCluster, data::TriangleClusterDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::TriangleClusterDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
-    triangulated = if isnothing(triangles.mesh.indices)
-            [Vec3F(pos) for pos in triangles.mesh.positions]
-        else
-            [Vec3F(triangles.mesh.positions[ind+1]) for ind in triangles.mesh.indices]
-        end
     if data.handle == 0
-        handle = add!(triangle_renderer, triangulated, Mat4T{Float32}(triangles.transform), data.color, false, id)
+        handle = if isnothing(triangles.mesh.indices)
+            add!(triangle_renderer, (Vec3F(pos) for pos in triangles.mesh.positions), Mat4T{Float32}(triangles.transform), data.color, false, id)
+        else
+            indices_i::Vector{UInt32} = triangles.mesh.indices
+            add!(triangle_renderer, (Vec3F(@inbounds triangles.mesh.positions[ind+1]) for ind in indices_i), Mat4T{Float32}(triangles.transform), data.color, false, id)
+        end
         return TriangleClusterDrawData(handle, data.color)
     else
-        update_coords!(triangle_renderer, data.handle, triangulated)
+        if isnothing(triangles.mesh.indices)
+            update_coords!(triangle_renderer, data.handle, (Vec3F(pos) for pos in triangles.mesh.positions))
+        else
+            indices_u::Vector{UInt32} = triangles.mesh.indices
+            update_coords!(triangle_renderer, data.handle, (Vec3F(@inbounds triangles.mesh.positions[ind+1]) for ind in indices_u))
+        end
         update_color!(triangle_renderer, data.handle, data.color)
         update_transform!(triangle_renderer, data.handle, triangles.transform)
         return data

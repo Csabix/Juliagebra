@@ -83,7 +83,7 @@ function _time_cpu_end(index::UInt)
 end
 
 function _gpu_collect_at_tail!(gpu::GPU_times)
-    time_ns = GLuint64[0]
+    time_ns = Ref{GLuint64}(0)
     glGetQueryObjectui64v(gpu.querry_objects[gpu.tail], GL_QUERY_RESULT, time_ns)
 
     gpu.times[gpu.current_index] = time_ns[]
@@ -95,9 +95,9 @@ end
 
 function _gpu_noblock_get_times(gpu::GPU_times)
     while gpu.count > 0
-        available = GLint[0]
+        available = Ref{GLint}(0)
         glGetQueryObjectiv(gpu.querry_objects[gpu.tail], GL_QUERY_RESULT_AVAILABLE, available)
-        if available[1] == GL_TRUE _gpu_collect_at_tail!(gpu)
+        if available[] == GL_TRUE _gpu_collect_at_tail!(gpu)
         else break end
     end
 end

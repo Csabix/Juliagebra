@@ -14,16 +14,30 @@ end
 
 convert_callback_entry(t::TriangleCluster)::TriangleCluster = t
 
-convert_callback_result(t::TriangleCluster,triangles::Vector{Vec3D}) = (t.mesh = Mesh(triangles);t)
-convert_callback_result(t::TriangleCluster,triangles::Vector) = (t.mesh = Mesh([Vec3D(v[1],v[2],v[3]) for v in triangles]);t)
-function convert_callback_result(t::TriangleCluster,position_indices::Tuple{Any,Vector{UInt32}})
-    convert_callback_result(t, position_indices[1])
-    t.mesh = Mesh(triangles.mesh.positions,position_indices[2])
+function convert_callback_result(t::TriangleCluster,triangles)
+    Base.resize!(t.mesh.positions, length(triangles))
+    index = 1
+    for v in triangles
+        @inbounds t.mesh.positions[index] = Vec3D(v...)
+        index += 1
+    end
     return t
 end
-function convert_callback_result(t::TriangleCluster,position_indices::Tuple{Any,Vector})
-    convert_callback_result(t, position_indices[1])
-    t.mesh = Mesh(t.mesh.positions,UInt32.(position_indices[2]))
+function convert_callback_result(t::TriangleCluster,position_indices::Tuple)
+    positions, indices = position_indices
+    Base.resize!(t.mesh.positions, length(positions))
+    indices::Vector{UInt32} = t.mesh.indices !== nothing ? t.mesh.indices::Vector{UInt32} : Vector{UInt32}()
+    Base.resize!(indices, length(indices))
+    index = 1
+    for v in positions
+        @inbounds t.mesh.positions[index] = Vec3D(v...)
+        index += 1
+    end
+    index = 1
+    for i in indices
+        @inbounds indices[index] = UInt32(i)
+        index += 1
+    end
     return t
 end
 convert_callback_result(t::TriangleCluster,v::Mesh) = (t.mesh = v;t)

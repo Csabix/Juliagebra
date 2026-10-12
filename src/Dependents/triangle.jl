@@ -27,7 +27,7 @@ end
 convert_callback_result(::PTriangle, result::PTriangle)                = result
 convert_callback_result(::PTriangle, result::Tuple{Vec3D,Vec3D,Vec3D}) = PTriangle(result[1],result[2],result[3])
 convert_callback_result(::PTriangle, ::Nothing)                        = PTriangle(Vec3DNan,Vec3DNan,Vec3DNan)
-
+convert_callback_entry(self::PTriangle)::Tuple{Vec3D,Vec3D,Vec3D} = (self.v0,self.v1,self.v2)
 function render_node(triangle::PTriangle, draw_data::TriangleDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::TriangleDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
     vertices = [triangle.v0, triangle.v1, triangle.v2]
@@ -73,15 +73,15 @@ function Triangle(callback::Function, parents::Union{Vector{NodeHandle},Nothing}
         push!(result, triangle)
     end
     if (edges)
-        AB = Segment(t -> (t.v0,t.v1),[triangle]; color=color)
-        BC = Segment(t -> (t.v1,t.v2),[triangle]; color=color)
-        CA = Segment(t -> (t.v2,t.v0),[triangle]; color=color)
+        AB = Segment(t -> (t[1],t[2]),[triangle]; color=color)
+        BC = Segment(t -> (t[2],t[3]),[triangle]; color=color)
+        CA = Segment(t -> (t[3],t[1]),[triangle]; color=color)
         push!(result, (AB,BC,CA))
     end
     if (vertices)
-        A = add_node!(t -> t.v0,Vec3DNan; parents=[triangle])
-        B = add_node!(t -> t.v1,Vec3DNan; parents=[triangle])
-        C = add_node!(t -> t.v2,Vec3DNan; parents=[triangle])
+        A = add_node!(t -> t[1],Vec3DNan; parents=[triangle])
+        B = add_node!(t -> t[2],Vec3DNan; parents=[triangle])
+        C = add_node!(t -> t[3],Vec3DNan; parents=[triangle])
         push!(result, (A,B,C))
     end
 

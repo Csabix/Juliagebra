@@ -128,4 +128,14 @@ n(circle::PCircle)::Vec3D     = circle.normal
 r(sphere::PSphere)::Float64 = sphere.r
 r(circle::PCircle)::Float64 = circle.radius
 
+function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T <: Primitive
+    CImGui.Text("This node derives its properties from its parents")
+    return EDIT_NODE_NONE, element
+end
+
+function get_property_hint(element::T,::Symbol)::PropertyHint where {S <:Primitive, T <: PrimitivesOf{S}}
+    return PropertyHintNoEdit()
+end
+
+
 export p0,p1,v,n,r,ParameterInside,ClampParameter

@@ -131,9 +131,19 @@ function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int
     return result, element
 end
 
-function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T <: Primitive
-    CImGui.Text("This node derives its properties from its parents")
-    return EDIT_NODE_NONE, element
+function edit_node(element::Vec2T, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec2F,Any,Int}
+    rt = input(edit_node_type_string(element), element)
+    return rt, render_data, (rt!=element) * EDIT_NODE_INVALIDATE
+end
+
+function edit_node(element::Vec3T, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec3F,Any,Int}
+    rt = input(edit_node_type_string(element), element)
+    return rt, render_data, (rt!=element)* EDIT_NODE_INVALIDATE
+end
+
+function edit_node(element::Vec4T, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec4F,Any,Int}
+    rt = input(edit_node_type_string(element), element)
+    return rt, render_data, (rt!=element)* EDIT_NODE_INVALIDATE
 end
 
 function modify_properties(element::Real, handle::NodeHandle, flag::Int)::Tuple{Int, Real}

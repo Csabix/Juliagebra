@@ -13,6 +13,24 @@ struct PointSequenceDrawData
     size::UInt8
 end
 
+function get_property_hint(data::PointSequenceDrawData, property::Symbol)
+    if property == :color
+        return PropertyHintColor()
+    elseif property == :style
+        return PropertyHintSlider(0,1)
+    elseif property == :size
+        return PropertyHintSlider(0,255)
+    elseif property==:handle
+        return PropertyHintNoEdit()
+    end
+end
+
+function rerender_node(render_data::PointSequenceDrawData, renderers::Dict{DataType, Renderer})
+    update_colors!(renderers[PointRenderer]::PointRenderer,render_data.handle,render_data.color)
+    update_styles!(renderers[PointRenderer]::PointRenderer, render_data.handle, render_data.style)
+    update_sizes!(renderers[PointRenderer]::PointRenderer, render_data.handle, render_data.size)
+end
+
 convert_callback_entry(ps::PointSequence)::Vector{Vec3D} = ps.coords
 
 convert_callback_result(ps::PointSequence,coords::Vector{Vec3D})   = (ps.coords = coords;ps)

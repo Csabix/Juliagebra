@@ -7,6 +7,7 @@ mutable struct ParametricCurve{R <: AbstractRange{Float64}}
         new{R}(range, Vector{Vec3D}(undef, length(range)), param_tess_data)
     end
 end
+edit_node_name(::ParametricCurve)::String = "ParametricCurve"
 
 struct ParametricCurveDrawData
     handle::LineHandle

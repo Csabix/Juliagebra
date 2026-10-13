@@ -190,10 +190,10 @@ end
 function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::GeometryPlotNode, elements::Vector{Any})
     dbg::Bool = GPU_TESS_DEBUG_ARG in ARGS
 
-    arguments::Vector{Any} = if node.parent_h === nothing
-        Any[]
-    else
-        Any[convert_callback_entry(elements[p_h]) for p_h in node.parent_h]
+    if node.parent_h !== nothing
+        for p_h in node.parent_h::Vector{NodeHandle}
+            push!(node.converted_parents,convert_callback_entry(elements[p_h]))
+        end
     end
 
     # GPU argument projection is only updated lazily, if it's actually needed
@@ -203,7 +203,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
         _updated_gpu_value_list && return param_tess_data.gpu_argument_values
 
         empty!(param_tess_data.gpu_argument_values)
-        for (par_idx, arg_val) in enumerate(arguments)
+        for (par_idx, arg_val) in enumerate(node.converted_parents)
             param_tess_data.gpu_argument_values[node.parent_h[par_idx]] = convert_argument_gpu(arg_val)
         end
 
@@ -256,7 +256,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
     eval_result = if param_tess_data.current_mode === ParamTessMode.CPU
         on_main_thread = Threads.threadid() == 1
         on_main_thread && @time_cpu_begin ParamTess CPU Eval
-        cpu_result = eval_node(element, node.callback, arguments)
+        cpu_result = eval_node(element, node.callback, node.converted_parents)
         on_main_thread && @time_cpu_end ParamTess CPU Eval
 
         cpu_result
@@ -285,6 +285,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
 
         element
     end
+    empty!(node.converted_parents)
 
     return convert_callback_result(element, eval_result)
 end

@@ -29,6 +29,15 @@ function rerender_node(data::SegmentDrawData, renderers::Dict{DataType, Renderer
     update_style!(line_renderer, data.handle, data.style)
 end
 
+function reconstruct_node(data::SegmentDrawData, properties::Dict{Symbol, Any})::SegmentDrawData
+    return SegmentDrawData(
+        data.handle,
+        get(properties, :colors, data.colors),
+        get(properties, :style, data.style),
+        get(properties, :size, data.size)
+    )
+end
+
 convert_callback_result(::PSegment, result::PSegment)           = result
 convert_callback_result(::PSegment, result::LinePrimitive)      = PSegment(p0(result),p1(result))
 convert_callback_result(::PSegment, result::Tuple{Vec3D,Vec3D}) = PSegment(result[1],result[2])

@@ -129,7 +129,7 @@ function input_bitflags(label::String, value::Integer, used_bits::Unsigned=ndigi
     return rt
 end
 
-function input_boolean(label::String, value::Bool)::Bool
+function input(label::String, value::Bool)::Bool
     out = Ref(value)
     CImGui.Checkbox(label, out)
     return out[]

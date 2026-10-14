@@ -9,6 +9,23 @@ struct Stepper
     Stepper(s::Stepper, value::Float64, playing::Bool) = new(value, s.start_value, s.label, playing)
 end
 
+function reconstruct_node(node::Stepper, p::Dict{Symbol, Any})::Stepper
+   
+    return Stepper(
+        node.value,
+        get(p, :start_value, node.start_value),
+        get(p, :label, node.label),
+        node.playing
+    )
+end
+
+function get_property_hint(::Stepper, s::Symbol)
+    if s== :value || s== :playing
+        return PropertyHintNoEdit()
+    end
+end
+
+
 convert_callback_entry(stepper::Stepper)::Float64 = stepper.value
 
 convert_callback_result(stepper::Stepper, result) = Stepper(stepper, Float64(result))

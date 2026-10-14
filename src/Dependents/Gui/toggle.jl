@@ -5,6 +5,8 @@ struct ToggleNode
     ToggleNode(value::Bool) = new(value)
 end
 
+get_property_hint(::ToggleNode, ::Symbol) = PropertyHintNoEdit()
+
 convert_callback_entry(toggle::ToggleNode)::Bool = toggle.value
 
 function render_node_gui(toggle::ToggleNode)::Tuple{Any,Bool}

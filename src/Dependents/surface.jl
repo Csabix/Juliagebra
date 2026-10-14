@@ -15,9 +15,33 @@ mutable struct ParametricSurface{Range<:AbstractRange}
     end
 end
 
+get_property_hint(::ParametricSurface, ::Symbol) = PropertyHintNoEdit()
+
 struct ParametricSurfaceDrawData
     handle::UInt32
     color::UInt32
+end
+
+function get_property_hint(::ParametricSurfaceDrawData, s::Symbol)
+    if s==:handle
+        return PropertyHintNoEdit()
+    elseif s==:color
+        return PropertyHintColor()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::ParametricSurfaceDrawData, r::Dict{DataType, Renderer})
+    tri_renderer::TriangleRenderer = r[TriangleRenderer]::TriangleRenderer
+    update_color!(tri_renderer, data.handle, data.color)
+end
+
+function  reconstruct_node(data::ParametricSurfaceDrawData, p::Dict{Symbol, Any})
+    return ParametricSurfaceDrawData(
+        data.handle,
+        get(p, :color, data.color)
+    )
 end
 
 convert_result(ps::ParametricSurface,result,u,v) = (ps.uvValues[u,v] = Vec3D(result);ps)

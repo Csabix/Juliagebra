@@ -25,6 +25,12 @@ function rerender_node(data::PlaneDrawData, renderers::Dict{DataType, Renderer})
     update_color!(tri_renderer, data.handle, data.color)
 end
 
+function reconstruct_node(data::PlaneDrawData, p::Dict{Symbol, Any})::PlaneDrawData
+    return PlaneDrawData(
+        data.handle,
+        get(p, :color, data.color)
+    )
+end
 
 convert_callback_result(::PPlane, result::PPlane)             = result
 convert_callback_result(::PPlane, result::Tuple{Vec3D,Vec3D}) = PPlane(result[1],normalize(result[2]))

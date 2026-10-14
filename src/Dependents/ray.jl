@@ -23,6 +23,16 @@ function get_property_hint(::RayDrawData, s::Symbol)::Union{PropertyHint, Nothin
     end
 end
 
+
+function reconstruct_node(data::RayDrawData, properties::Dict{Symbol, Any})::RayDrawData
+    return RayDrawData(
+        data.handle,
+        get(properties, :colors, data.colors),
+        get(properties, :style, data.style),
+        get(properties, :size, data.size)
+    )
+end
+
 function rerender_node(data::RayDrawData, renderers::Dict{DataType, Renderer})
     line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
     update_colors!(line_renderer, data.handle, data.colors)

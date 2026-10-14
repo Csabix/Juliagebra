@@ -131,17 +131,32 @@ function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int
     return result, element
 end
 
-function edit_node(element::Vec2T, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec2F,Any,Int}
+function edit_node(element::Vec2D, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec2D,Any,Int}
+    rt = input(edit_node_type_string(element), element)
+    return Vec2D(Float64(rt.x), Float64(rt.y)), render_data, (rt!=element) * EDIT_NODE_INVALIDATE
+end
+
+function edit_node(element::Vec3D, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec3D,Any,Int}
+    rt = input(edit_node_type_string(element), element)
+    return Vec3D(Float64(rt.x), Float64(rt.y), Float64(rt.z)), render_data, (rt!=element)* EDIT_NODE_INVALIDATE
+end
+
+function edit_node(element::Vec4D, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec4D,Any,Int}
+    rt = input(edit_node_type_string(element), element)
+    return Vec4D(Float64(rt.x), Float64(rt.y), Float64(rt.z), Float64(rt.w)), render_data, (rt!=element)* EDIT_NODE_INVALIDATE
+end
+
+function edit_node(element::Vec2F, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec2F,Any,Int}
     rt = input(edit_node_type_string(element), element)
     return rt, render_data, (rt!=element) * EDIT_NODE_INVALIDATE
 end
 
-function edit_node(element::Vec3T, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec3F,Any,Int}
+function edit_node(element::Vec3F, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec3F,Any,Int}
     rt = input(edit_node_type_string(element), element)
     return rt, render_data, (rt!=element)* EDIT_NODE_INVALIDATE
 end
 
-function edit_node(element::Vec4T, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec4F,Any,Int}
+function edit_node(element::Vec4F, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec4F,Any,Int}
     rt = input(edit_node_type_string(element), element)
     return rt, render_data, (rt!=element)* EDIT_NODE_INVALIDATE
 end

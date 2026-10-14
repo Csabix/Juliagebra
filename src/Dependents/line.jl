@@ -31,6 +31,16 @@ function rerender_node(data::LineDrawData, renderers::Dict{DataType, Renderer})
     update_style!(line_renderer, data.handle, data.style)
 end
 
+function reconstruct_node(data::LineDrawData, properties::Dict{Symbol, Any})::LineDrawData
+    return LineDrawData(
+        data.handle,
+        get(properties, :colors, data.colors),
+        get(properties, :style, data.style),
+        get(properties, :size, data.size)
+    )
+end
+
+
 
 convert_callback_result(::PLine, result::PLine)              = result
 convert_callback_result(::PLine, result::LinePrimitive)      = PLine(p0(result),p1(result))

@@ -35,6 +35,14 @@ function rerender_node(data::ParametricCurveDrawData, renderers::Dict{DataType, 
     update_style!(line_renderer, data.handle, data.style)
 end
 
+function reconstruct_node(data::ParametricCurveDrawData, p::Dict{Symbol, Any})::ParametricCurveDrawData
+    return ParametricCurveDrawData(
+        data.handle,
+        get(p, :colors, data.colors),
+        get(p, :style, data.style),
+        get(p, :size, data.size)
+    )
+end
 
 # convert_callback_entry(pc::ParametricCurve)::Vector{Vec3D} = pc.values
 convert_callback_entry(self::ParametricCurve)::ParametricCurve = self

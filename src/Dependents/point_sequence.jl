@@ -31,6 +31,15 @@ function rerender_node(render_data::PointSequenceDrawData, renderers::Dict{DataT
     update_sizes!(renderers[PointRenderer]::PointRenderer, render_data.handle, render_data.size)
 end
 
+function reconstruct_node(data::PointSequenceDrawData, p::Dict{Symbol, Any})::PointSequenceDrawData
+    return PointSequenceDrawData(
+        data.handle,
+        get(p, :color, data.color),
+        get(p, :style, data.style),
+        get(p, :size, data.size)
+    )
+end
+
 convert_callback_entry(ps::PointSequence)::Vector{Vec3D} = ps.coords
 
 convert_callback_result(ps::PointSequence,coords::Vector{Vec3D})   = (ps.coords = coords;ps)

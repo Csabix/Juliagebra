@@ -13,6 +13,36 @@ struct PointSetDrawData
     size::UInt8
 end
 
+function get_property_hint(data::PointSetDrawData, property::Symbol)
+    if property == :color
+        return PropertyHintColor()
+    elseif property == :style
+        return PropertyHintSlider(0,1)
+    elseif property == :size
+        return PropertyHintSlider(0,255)
+    elseif property==:handle
+        return PropertyHintNoEdit()
+    end
+end
+
+
+function rerender_node(data::PointSetDrawData, renderers::Dict{DataType, Renderer})
+    point_renderer::PointRenderer = renderers[PointRenderer]::PointRenderer
+    update_colors!(point_renderer, data.handle, data.color)
+    update_styles!(point_renderer, data.handle, data.style)
+    update_sizes!(point_renderer, data.handle, data.size)
+end
+
+
+function reconstruct_node(data::PointSetDrawData, p::Dict{Symbol, Any})
+    return PointSetDrawData(
+        data.handle,
+        get(p, :color, data.color),
+        get(p, :style, data.style),
+        get(p, :size, data.size)
+        )
+end
+
 convert_callback_entry(ps::PointSet)::Vector{Vec3D} = ps.coords
 
 function convert_callback_result(ps::PointSet,coords::Vector{Vec3D})

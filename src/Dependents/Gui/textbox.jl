@@ -5,6 +5,8 @@ struct TextBoxNode
     TextBoxNode(text::String) = new(text)
 end
 
+get_property_hint(::TextBoxNode, ::Symbol) = PropertyHintNoEdit()
+
 convert_callback_entry(textbox::TextBoxNode)::String = textbox.value
 
 convert_callback_result(::TextBoxNode, result) = TextBoxNode(String(result))

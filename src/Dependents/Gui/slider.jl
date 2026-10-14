@@ -11,6 +11,28 @@ struct Slider
     Slider(s::Slider,value::Float64,playing::Bool) = new(value,s.min_value,s.max_value,s.start_value,s.label,playing)
 end
 
+function reconstruct_node(node::Slider, p::Dict{Symbol, Any})::Slider
+    maxv = get(p, :max_value, node.max_value)
+    minv = get(p, :min_value, node.min_value)
+    if minv >= maxv
+        maxv = minv+1
+    end
+    return Slider(
+        clamp(node.value, minv, maxv),
+        minv,
+        maxv,
+        get(p, :start_value, node.start_value),
+        get(p, :label, node.label),
+        node.playing
+    )
+end
+
+function get_property_hint(::Slider, s::Symbol)
+    if s== :value || s== :playing
+        return PropertyHintNoEdit()
+    end
+end
+
 convert_callback_entry(slider::Slider)::Float64 = slider.value
 
 convert_callback_result(slider::Slider, result) = Slider(slider,clamp(Float64(result),slider.min_value,slider.max_value))

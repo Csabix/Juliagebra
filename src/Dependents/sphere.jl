@@ -20,6 +20,12 @@ function rerender_node(data::SphereDrawData, renderers::Dict{DataType, Renderer}
     # update_color!(sphere_renderer, data.handle, data.color) not a thing for some reason
 end
 
+function reconstruct_node(data::SphereDrawData, p::Dict{Symbol, Any})::SphereDrawData
+    return SphereDrawData(
+        data.handle,
+        get(p, :color, data.color)
+    )
+end
 
 convert_callback_result(::PSphere, result::PSphere)              = result
 convert_callback_result(::PSphere, result::Tuple{Vec3D,Float64}) = PSphere(result[1],result[2])

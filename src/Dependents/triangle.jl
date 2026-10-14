@@ -23,6 +23,9 @@ function rerender_node(data::TriangleDrawData, renderers::Dict{DataType, Rendere
     update_color!(tri_renderer, data.handle, data.color)
 end
 
+function reconstruct_node(data::TriangleDrawData, properties::Dict{Symbol, Any})::TriangleDrawData
+    return TriangleDrawData(data.handle, get(properties, :color, data.color))
+end
 
 convert_callback_result(::PTriangle, result::PTriangle)                = result
 convert_callback_result(::PTriangle, result::Tuple{Vec3D,Vec3D,Vec3D}) = PTriangle(result[1],result[2],result[3])

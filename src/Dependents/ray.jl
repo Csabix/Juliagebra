@@ -21,7 +21,7 @@ function render_node(ray::PRay, data::RayDrawData, renderers::Dict{DataType,Rend
 
     p = ray.p0
     v = normalize(ray.p1 - p)
-    values = [p + v * sign(t) * 4^abs(t) for t in RAY_RANGE]
+    values = (p + v * sign(t) * 4^abs(t) for t in RAY_RANGE)
 
     if is_null(data.handle)
         handle = add!(line_renderer, values, data.colors, [id], data.style, data.size)

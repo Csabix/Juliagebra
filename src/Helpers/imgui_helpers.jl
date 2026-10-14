@@ -94,3 +94,21 @@ function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGu
 
     return result
 end
+
+struct CStrBuf <: IO
+    v::Vector{UInt8}
+end
+CStrBuf(capacity::Integer = 256) = CStrBuf(sizehint!(UInt8[], capacity))
+
+Base.write(b::CStrBuf, x::UInt8) = (push!(b.v, x); 1)
+
+function Base.unsafe_write(b::CStrBuf, p::Ptr{UInt8}, n::UInt)
+    old = length(b.v)
+    Base.resize!(b.v, old + n)
+    unsafe_copyto!(pointer(b.v, old + 1), p, n)
+    return Int(n)
+end
+
+reset!(b::CStrBuf) = (empty!(b.v); b)
+resize!(b::CStrBuf,size) = (Base.resize!(b.v,size); b)
+terminate!(b::CStrBuf) = (push!(b.v, 0x00); b)

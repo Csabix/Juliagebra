@@ -15,14 +15,16 @@ end
 
 convert_callback_entry(ps::PointSet)::Vector{Vec3D} = ps.coords
 
-function convert_callback_result(ps::PointSet,coords::Vector{Vec3D})
+function convert_callback_result(ps::PointSet,coords)
     @assert length(ps.coords) == length(coords) || length(ps.coords) == 0
-    ps.coords = coords
+    Base.resize!(ps.coords,length(coords))
+    index = 1
+    for coord in coords
+        @inbounds ps.coords[index] = Vec3D(coord...)
+        index += 1
+    end
     return ps
 end
-convert_callback_result(ps::PointSet,coords::Vector{Vec3F})  = convert_callback_result(ps,Vec3D.(coords))
-convert_callback_result(ps::PointSet,coords::Vector{<:Tuple})  = convert_callback_result(ps,[Vec3D(coord...) for coord in coords])
-convert_callback_result(ps::PointSet,coords::Vector{<:Vector}) = convert_callback_result(ps,[Vec3D(coord...) for coord in coords])
 convert_callback_result(ps::PointSet,::Nothing) = (fill!(ps.coords, Vec3DNan);ps)
 
 function render_node(ps::PointSet, data::PointSetDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::PointSetDrawData
@@ -30,10 +32,10 @@ function render_node(ps::PointSet, data::PointSetDrawData, renderers::Dict{DataT
     if data.handle == 0
         handle = add!(point_renderer,
             (Vec3F(coord) for coord in ps.coords),
-            Iterators.cycle([data.color]),
-            Iterators.cycle([data.style]),
-            Iterators.cycle([UInt8(data.size)]),
-            Iterators.cycle([id]))
+            Iterators.cycle((data.color,)),
+            Iterators.cycle((data.style,)),
+            Iterators.cycle((UInt8(data.size),)),
+            Iterators.cycle((id,)))
         return PointSetDrawData(handle, data.color, data.style, data.size)
     else
         update_coords!(point_renderer, data.handle, ps.coords)

@@ -17,7 +17,7 @@ convert_callback_result(::PSegment, ::Nothing)                  = PSegment(Vec3D
 
 function render_node(segment::PSegment, data::SegmentDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::SegmentDrawData
     line_renderer::LineRenderer = renderers[LineRenderer]
-    values = [segment.p0, segment.p1]
+    values = @SVector [segment.p0, segment.p1]
     if is_null(data.handle)
         handle = add!(line_renderer, values, data.colors, [id], data.style, data.size)
         return SegmentDrawData(handle, data.colors, data.style, data.size)

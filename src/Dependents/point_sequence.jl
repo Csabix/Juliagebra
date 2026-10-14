@@ -15,29 +15,34 @@ end
 
 convert_callback_entry(ps::PointSequence)::Vector{Vec3D} = ps.coords
 
-convert_callback_result(ps::PointSequence,coords::Vector{Vec3D})   = (ps.coords = coords;ps)
-convert_callback_result(ps::PointSequence,coords::Vector{Vec3F})   = (ps.coords = Vec3D.(coords);ps)
-convert_callback_result(ps::PointSequence,coords::Vector{<:Tuple}) = (ps.coords = [Vec3D(coord...) for coord in coords];ps)
-convert_callback_result(ps::PointSequence,coords::Vector{<:AbstractVector}) = (ps.coords = [Vec3D(coord...) for coord in coords];ps)
-convert_callback_result(ps::PointSequence,::Nothing) = (ps.coords = Vec3D[];ps)
+function convert_callback_result(ps::PointSequence,coords)
+    Base.resize!(ps.coords,length(coords))
+    index = 1
+    for coord in coords
+        @inbounds ps.coords[index] = Vec3D(coord...)
+        index += 1
+    end
+    return ps
+end
+convert_callback_result(ps::PointSequence,::Nothing) = (empty(ps.coords);ps)
 
 function render_node(ps::PointSequence, data::PointSequenceDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::PointSequenceDrawData
     point_renderer::PointRenderer = renderers[PointRenderer]
     if data.handle == 0
         handle = add_dynamic!(point_renderer,
             (Vec3F(coord) for coord in ps.coords),
-            Iterators.cycle([data.color]),
-            Iterators.cycle([data.style]),
-            Iterators.cycle([UInt8(data.size)]),
-            Iterators.cycle([id]))
+            Iterators.cycle((data.color,)),
+            Iterators.cycle((data.style,)),
+            Iterators.cycle((UInt8(data.size),)),
+            Iterators.cycle((id,)))
         return PointSequenceDrawData(handle, data.color, data.style, data.size)
     else
         update_dyncamic!(point_renderer, data.handle,
             (Vec3F(coord) for coord in ps.coords),
-            Iterators.cycle([data.color]),
-            Iterators.cycle([data.style]),
-            Iterators.cycle([UInt8(data.size)]),
-            Iterators.cycle([id]))
+            Iterators.cycle((data.color,)),
+            Iterators.cycle((data.style,)),
+            Iterators.cycle((UInt8(data.size),)),
+            Iterators.cycle((id,)))
         return data
     end
 end

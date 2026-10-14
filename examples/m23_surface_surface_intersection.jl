@@ -1,5 +1,5 @@
 using Juliagebra
-##GC.enable_logging(true)
+
 MAX_INTERSECTIONS = 1000
 
 a = Point(0.0, 0.0, 5.0)

@@ -1,7 +1,7 @@
 using Juliagebra
 using Profile
-for i in 1:2
-    Profile.clear_malloc_data()
+
+Juliagebra.Window() do
     cursor = Point(0,0,5)
 
     function wave(xf,yf,zf,cap,xc,yc,zc)

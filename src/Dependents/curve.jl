@@ -98,15 +98,14 @@ function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
 end
 
 function wrap_curve_callback(callback_ast::Expr)::Union{Expr,Nothing}
-    dbg::Bool = (GPU_TESS_DEBUG_ARG in ARGS)
 
     if !_is_normalized_callback(callback_ast)
-        dbg && @log "Cannot transpile callback AST that has not been normalized"
+        DBG_TESS && @log "Cannot transpile callback AST that has not been normalized"
         return nothing
     end
 
     if isempty(callback_ast.args[1].args)
-        dbg && @log "Cannot transpile zero-argument callback as a curve"
+        DBG_TESS && @log "Cannot transpile zero-argument callback as a curve"
         return nothing
     end
 

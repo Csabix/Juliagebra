@@ -23,7 +23,7 @@ function _define_accelerator(primitives::PrimitivesOf{<:AABBPrimitive3D}, lbvh::
     return tuple(cache,primitives)
 end
 
-get_property_hint(self::IntersectionCalculator, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
+
 
 _reuse_lbvh(::Any) = nothing
 _reuse_lbvh(accelerator::Tuple{LBVHCache{3},<:PrimitivesOf}) = accelerator[1]
@@ -45,6 +45,8 @@ struct IntersectionCalculator{T}
         new(sizehint!(T[],maxIntersectionNum),maxIntersectionNum)
     end
 end
+
+get_property_hint(self::IntersectionCalculator, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
 
 # Brute-force
 function FindIntersections(self::IntersectionCalculator{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}

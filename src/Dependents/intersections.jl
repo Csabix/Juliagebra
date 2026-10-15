@@ -17,7 +17,7 @@ mutable struct IntersectionCalculator{T}
     end
 end
 
-get_property_hint(self::IntersectionCalculator, ::Symbol) = PropertyHintNoEdit()
+get_property_hint(self::IntersectionCalculator, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
 
 convert_callback_entry(self::IntersectionCalculator)::IntersectionCalculator = return self
 

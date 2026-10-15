@@ -23,6 +23,12 @@ function get_property_hint(::RayDrawData, s::Symbol)::Union{PropertyHint, Nothin
     end
 end
 
+function rerender_node(data::RayDrawData, renderers::Dict{DataType, Renderer})
+    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
+    update_size!(line_renderer, data.handle, data.size)
+    update_style!(line_renderer, data.handle, data.style)
+end
 
 function reconstruct_node(data::RayDrawData, properties::Dict{Symbol, Any})::RayDrawData
     return RayDrawData(
@@ -32,14 +38,6 @@ function reconstruct_node(data::RayDrawData, properties::Dict{Symbol, Any})::Ray
         get(properties, :size, data.size)
     )
 end
-
-function rerender_node(data::RayDrawData, renderers::Dict{DataType, Renderer})
-    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
-    update_colors!(line_renderer, data.handle, data.colors)
-    update_size!(line_renderer, data.handle, data.size)
-    update_style!(line_renderer, data.handle, data.style)
-end
-
 
 convert_callback_result(::PRay, result::PRay)               = result
 convert_callback_result(::PRay, result::LinePrimitive)      = PRay(p0(result),p1(result))

@@ -13,7 +13,7 @@ struct PointSetDrawData
     size::UInt8
 end
 
-function get_property_hint(data::PointSetDrawData, property::Symbol)
+function get_property_hint(data::PointSetDrawData, property::Symbol)::Union{PropertyHint,Nothing}
     if property == :color
         return PropertyHintColor()
     elseif property == :style
@@ -22,6 +22,8 @@ function get_property_hint(data::PointSetDrawData, property::Symbol)
         return PropertyHintSlider(0,255)
     elseif property==:handle
         return PropertyHintNoEdit()
+    else
+        return nothing
     end
 end
 
@@ -34,7 +36,7 @@ function rerender_node(data::PointSetDrawData, renderers::Dict{DataType, Rendere
 end
 
 
-function reconstruct_node(data::PointSetDrawData, p::Dict{Symbol, Any})
+function reconstruct_node(data::PointSetDrawData, p::Dict{Symbol, Any})::PointSetDrawData
     return PointSetDrawData(
         data.handle,
         get(p, :color, data.color),

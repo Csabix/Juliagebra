@@ -27,9 +27,11 @@ function reconstruct_node(node::Slider, p::Dict{Symbol, Any})::Slider
     )
 end
 
-function get_property_hint(::Slider, s::Symbol)
+function get_property_hint(::Slider, s::Symbol)::Union{PropertyHint,Nothing}
     if s== :value || s== :playing
         return PropertyHintNoEdit()
+    else
+        return nothing
     end
 end
 

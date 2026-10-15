@@ -5,7 +5,7 @@ struct TextBoxNode
     TextBoxNode(text::String) = new(text)
 end
 
-get_property_hint(::TextBoxNode, ::Symbol) = PropertyHintNoEdit()
+get_property_hint(::TextBoxNode, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
 
 convert_callback_entry(textbox::TextBoxNode)::String = textbox.value
 

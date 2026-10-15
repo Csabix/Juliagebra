@@ -23,7 +23,7 @@ struct TetrahedronDrawData
     border_style::UInt8
 end
 
-function get_property_hint(::TetrahedronDrawData, s::Symbol)
+function get_property_hint(::TetrahedronDrawData, s::Symbol)::Union{PropertyHint, Nothing}
     if s == :color || s==border_color
         return PropertyHintColor()
     elseif s==:border_style
@@ -32,6 +32,8 @@ function get_property_hint(::TetrahedronDrawData, s::Symbol)
         return PropertyHintSlider(0,10)
     elseif s== :face_handle
         return PropertyHintNoEdit()
+    else
+        return nothing
     end
 end
 

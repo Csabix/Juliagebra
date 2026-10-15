@@ -18,7 +18,7 @@ function Base.show(io::IO, indexer::NodeIndexer)
     print(io, ")")
 end
 
-get_property_hint(self::NodeIndexer, ::Symbol) = PropertyHintNoEdit()
+get_property_hint(self::NodeIndexer, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
 
 _empty_indexer_func(::Any) = nothing # Hack for now
 function Base.getindex(handle::NodeHandle,index::Int)::NodeHandle

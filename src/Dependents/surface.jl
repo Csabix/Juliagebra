@@ -15,14 +15,14 @@ mutable struct ParametricSurface{Range<:AbstractRange}
     end
 end
 
-get_property_hint(::ParametricSurface, ::Symbol) = PropertyHintNoEdit()
+get_property_hint(::ParametricSurface, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint, Nothing}
 
 struct ParametricSurfaceDrawData
     handle::UInt32
     color::UInt32
 end
 
-function get_property_hint(::ParametricSurfaceDrawData, s::Symbol)
+function get_property_hint(::ParametricSurfaceDrawData, s::Symbol)::Union{PropertyHint, Nothing}
     if s==:handle
         return PropertyHintNoEdit()
     elseif s==:color

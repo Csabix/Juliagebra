@@ -5,7 +5,7 @@ struct ToggleNode
     ToggleNode(value::Bool) = new(value)
 end
 
-get_property_hint(::ToggleNode, ::Symbol) = PropertyHintNoEdit()
+get_property_hint(::ToggleNode, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
 
 convert_callback_entry(toggle::ToggleNode)::Bool = toggle.value
 

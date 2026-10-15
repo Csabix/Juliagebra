@@ -1,5 +1,3 @@
-
-
 struct SphereDrawData
     handle::UInt32
     color::UInt32

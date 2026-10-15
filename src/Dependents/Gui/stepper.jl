@@ -19,9 +19,11 @@ function reconstruct_node(node::Stepper, p::Dict{Symbol, Any})::Stepper
     )
 end
 
-function get_property_hint(::Stepper, s::Symbol)
+function get_property_hint(::Stepper, s::Symbol)::Union{PropertyHint,Nothing}
     if s== :value || s== :playing
         return PropertyHintNoEdit()
+    else
+        return nothing
     end
 end
 

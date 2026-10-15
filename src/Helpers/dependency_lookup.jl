@@ -197,6 +197,22 @@ function _validate_callback_expr(callback, arg_count::Integer)
     return callback
 end
 
+"""
+Checks whether `ast` has the normalized callback shape produced by `_validate_callback_expr`,
+that is `function (arg_syms...) body end`.
+
+MacroTools.splitdef is too slow to use for normalization every the form is assumed, and while
+macro ctors already produce this form, I didn't wanna keep direct calls bypassing those unguarded
+"""
+function _is_normalized_callback(ast::Expr)::Bool
+    return ast.head === :function &&
+           length(ast.args) == 2 &&
+           Meta.isexpr(ast.args[1], :tuple) &&
+           all(arg -> arg isa Symbol, ast.args[1].args) &&
+           Meta.isexpr(ast.args[2], :block)
+end
+_is_normalized_callback(ast)::Bool = false
+
 """Extracts symbols being defined/declared in lhs and adds them to current_scope"""
 function _process_lhs!(lhs, current_scope::Set{Symbol}, walk_fn)
     if lhs isa Symbol
@@ -470,13 +486,17 @@ function _collect_free_vars(def::Expr, mod::Module)
     return free_vars
 end
 
+"""Helper for the macro ctor wrapped callbacks, which helps keep callback arguments type stable"""
+_callback_arg(args::Tuple, ::Val{I}) where {I} = args[I]
+
 """Helper for generating the code returned by macro ctors"""
-function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_args::Vector{Any}, ctor_kw_args::Dict{Symbol,Any}, get_ctor_args = tuple)
+function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_args::Vector{Any}, ctor_kw_args::Dict{Symbol,Any}, get_ctor_args = tuple, pass_gpu_tess_args::Bool = false)
     free_syms = _collect_free_vars(callback, mod)
 
     body = callback.args[2]
 
     gs_captured_deps = gensym(:captured_deps)
+    gs_argument_bindings = gensym(:argument_bindings)
     gs_callback_args = gensym(:callback_args)
     gs_callback_wrapper = gensym(:callback_wrapper)
 
@@ -486,16 +506,17 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
         sym_gs = gensym(Symbol(:ctor_arg_, sym))
 
         push!(init_block.args, quote
-            $sym_gs = 0
-
-            if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
+            $sym_gs = if $(esc(:(@isdefined($sym)))) && $(esc(sym)) isa NodeHandle
                 push!($gs_captured_deps, $(esc(sym)))
-                $sym_gs = length($gs_captured_deps)
+                $gs_argument_bindings[$(QuoteNode(sym))] = $(esc(sym))
+                Val(length($gs_captured_deps))
+            else
+                Val(0)
             end
         end)
 
-        inner_let_rhs = :($sym_gs > 0 ?
-            $gs_callback_args[$sym_gs] :
+        inner_let_rhs = :(!isa($sym_gs, Val{0}) ?
+            $(_callback_arg)($gs_callback_args, $sym_gs) :
             ($(esc(:(@isdefined($sym)))) ?
                 $(esc(sym)) :
                 @warn "Failed to find symbol '" * String($(QuoteNode(sym))) * "' in the defining context of a macro constructor. This could be because of an internal deficiency of the macro system, but it could be a user-side error as well. Execution will continue, as things may work without any problems, especially if the symbol does not refer to a dependent. Use the constructors with explicit dependency lists if experiencing any errors, or incorrect behavior, and please open an issue in the Juliagebra github repo."
@@ -504,24 +525,42 @@ function _create_ctor_wrapper(callback, mod::Module, base_ctor, ctor_optional_ar
         push!(inner_let_bindings.args, Expr(:(=), esc(sym), inner_let_rhs))
     end
 
-    base_ctor_args = [:($arg) for arg in get_ctor_args(gs_callback_wrapper, gs_captured_deps)]
+    base_ctor_args = [
+        (arg === gs_callback_wrapper || arg === gs_captured_deps) ? :($arg) : :($(esc(arg)))
+        for arg in get_ctor_args(gs_callback_wrapper, gs_captured_deps)
+    ]
+
     base_ctor_optional_args = [:($(esc(v))) for v in ctor_optional_args]
     base_ctor_kw_args = [:($(esc(k)) = $(esc(v))) for (k, v) in ctor_kw_args]
     base_ctor_call = :($base_ctor($(base_ctor_args...), $(base_ctor_optional_args...); $(base_ctor_kw_args...)))
 
+    if pass_gpu_tess_args
+        if !Meta.isexpr(base_ctor_call.args[2], :parameters)
+            insert!(base_ctor_call.args[2], 2, Expr(:parameters))
+        end
+
+        push!(base_ctor_call.args[2].args,
+            Expr(:kw, :callback_ast, QuoteNode(callback)),
+            Expr(:kw, :argument_bindings, gs_argument_bindings)
+        )
+    end
+
     base_cb_args = [esc(arg_sym) for arg_sym in callback.args[1].args]
 
     return quote
-        $gs_captured_deps = Vector{NodeHandle}()
+        let
+            $gs_captured_deps = Vector{NodeHandle}()
+            $gs_argument_bindings = Dict{Symbol, NodeHandle}()
 
-        $init_block
+            $init_block
 
-        $gs_callback_wrapper = ($(base_cb_args...), $gs_callback_args...) -> begin
-            let $(inner_let_bindings.args...);
-                $(esc(body))
+            $gs_callback_wrapper = ($(base_cb_args...), $gs_callback_args...) -> begin
+                let $(inner_let_bindings.args...);
+                    $(esc(body))
+                end
             end
-        end
 
-        $base_ctor_call
+            $base_ctor_call
+        end
     end
 end

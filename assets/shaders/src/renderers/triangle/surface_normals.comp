@@ -1,0 +1,28 @@
+#version 460 core
+
+// Currently unused, planned to be integrated into triangle renderer for surfaces
+// that needs some rewriting with the buffers and indexing though
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std430, binding = 0) restrict readonly buffer TessellationBuffer {
+    vec4 grid[];
+};
+
+layout(std430, binding = 1) restrict writeonly buffer NormalBuffer {
+    vec4 normals[]; 
+};
+
+layout(location = 0) uniform ivec2 uvGridSize;
+
+int grid_idx(int u, int v) { return v * uvGridSize.x + u; }
+
+void main() {
+    int u = int(gl_GlobalInvocationID.x);
+    int v = int(gl_GlobalInvocationID.y);
+
+    vec3 du = grid[grid_idx(min(u+1,uvGridSize.x-1), v)].xyz - grid[grid_idx(max(u-1,0), v)].xyz;
+    vec3 dv = grid[grid_idx(u, min(v+1,uvGridSize.y-1))].xyz - grid[grid_idx(u, max(v-1,0))].xyz;
+
+    normals[flat_idx(u, v)] = vec4(normalize(cross(du, dv)), 0);
+}

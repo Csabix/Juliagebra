@@ -43,8 +43,6 @@ function reconstruct_node(data::SegmentSequenceDrawData, p::Dict{Symbol, Any})::
     )
 end
 
-convert_callback_entry(s::SegmentSequence)::Vec3D = s.values
-
 function convert_callback_result(s::SegmentSequence,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
     s.values = [Vec3D(coord...) for coord in coords]
     return s

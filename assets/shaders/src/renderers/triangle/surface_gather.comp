@@ -1,0 +1,50 @@
+#version 460 core
+
+// performs the same kind of triangulation as get_triangulated in flat_matrix_manager.jl
+// it avoids having to copy the GPU buffer to the CPU, or upload a CPU index buffer for triangulation
+// NOTE: winding matches get_triangulated exactly, which means it currently differs from triangulateInto!
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+// input produced by GPU tessellation, indexed by u varying
+layout(std430, binding = 0) restrict readonly buffer TessellationBuffer {
+    vec4 grid[]; // vec4(x, y, z, 1.0) format is already assumed
+};
+
+// output, triangulated
+layout(std430, binding = 1) restrict writeonly buffer CoordsBuffer {
+    vec4 coords[];
+};
+
+layout(location = 0) uniform uint vertex_count;
+layout(location = 1) uniform uint grid_width;
+
+// (du, dv)
+const uvec2 VERTEX_OFFSETS[6] = {
+    // UPPER (get_triangulated 1st loop)
+    uvec2(0, 0), uvec2(0, 1), uvec2(1,  0),
+    // LOWER (get_triangulated 2nd loop)
+    uvec2(0, 0), uvec2(1, 0), uvec2(1, -1) // -1 becomes 0xFFFFFFFF and acts as -1 thx to uint overflow
+};
+
+// one invocation per output vertex
+void main() {
+    // flatten idx, 2D dispatch only used to reduce per-axis workgroup count for large surfaces
+    uint idx = (gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x) * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+    if (idx >= vertex_count)
+        return;
+
+    uint tris_per_half = vertex_count / 6u;
+
+    uint tri_idx = idx / 3u;
+    uint lower   = uint(tri_idx >= tris_per_half);
+
+    uint rel_tri_idx = min(tri_idx, tri_idx - tris_per_half); // uint underflow trick to get idx relative to upper/lower half
+
+    uint base_u = rel_tri_idx % (grid_width - 1u);
+    uint base_v = rel_tri_idx / (grid_width - 1u) + lower; // v is offset by 1 for lower triangles, since they read v - 1
+
+    uvec2 offsets = VERTEX_OFFSETS[3u * lower + idx % 3u];
+
+    coords[idx] = grid[(base_v + offsets.y) * grid_width + base_u + offsets.x];
+}

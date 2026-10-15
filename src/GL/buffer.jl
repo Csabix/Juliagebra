@@ -21,12 +21,17 @@ mutable struct MappedBuffer{T} <: BufferBase{T}
     _size::Int
     _mapped::Vector{T}
     _sync::GLsync
+    
+    # these two control GL_MAP_WRITE_BIT and GL_MAP_READ_BIT usage in methods
+    _write::Bool
+    _read::Bool
 
-    function MappedBuffer{T}() where {T}
+    function MappedBuffer{T}(; write::Bool = true, read::Bool = false) where {T}
         @assert isbitstype(T) "OpenGL requires bitstypes."
+        @assert (write || read) "OpenGL requires buffer mappings to be writable, readable or both."
         id = Ref{GLuint}()
         glCreateBuffers(1, id)
-        new{T}(id[], 0, Vector{T}(), C_NULL)
+        new{T}(id[], 0, Vector{T}(), C_NULL, write, read)
     end
 end
 
@@ -96,18 +101,18 @@ end
 # ? ---------------------------------
 
 @inline function reserve!(self::MappedBuffer{T}, count::Int, flags)::Bool where {T}
-    new_storage = _reserve!(self, count, GLbitfield(flags) | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    new_storage = _reserve!(self, count, GLbitfield(flags) | _map_flags(self))
     if new_storage
-        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), _map_flags(self))
         self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     end
     return new_storage
 end
 
 @inline function upload!(self::MappedBuffer{T}, data::AbstractVector{T}, flags)::Bool where {T}
-    new_storage = _upload!(self, data, GLbitfield(flags) | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    new_storage = _upload!(self, data, GLbitfield(flags) | _map_flags(self))
     if new_storage
-        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+        ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), _map_flags(self))
         self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     end
     return new_storage
@@ -115,9 +120,9 @@ end
 
 @inline function upload!(self::MappedBuffer{T}, data::AbstractVector{T})::Bool where {T}
     if length(data) == 0 return false end
-    glUnmapBuffer(self._id)
+    glUnmapNamedBuffer(self._id)
     glNamedBufferSubData(self._id, 0, length(data) * sizeof(T), data)
-    ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+    ptr = glMapNamedBufferRange(self._id, 0, length(self) * sizeof(T), _map_flags(self))
     self._mapped = unsafe_wrap(Array, Ptr{T}(ptr), (length(self),); own = false)
     return false
 end
@@ -127,6 +132,8 @@ function Base.setindex!(self::MappedBuffer{T}, value, index::Int) where {T}
     self._mapped[index] = val_converted
     return self
 end
+
+Base.getindex(self::MappedBuffer{T}, index::Int) where {T} = self._mapped[index]
 
 function Base.lock(self::MappedBuffer)
     if self._sync != C_NULL
@@ -250,4 +257,11 @@ end
     glNamedBufferStorage(self._id, bytes, data, flags)
     self._size = bytes
     return true
+end
+
+@inline function _map_flags(self::MappedBuffer{T})::GLbitfield where {T}
+    bits = GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
+    self._read  && (bits |= GL_MAP_READ_BIT)
+    self._write && (bits |= GL_MAP_WRITE_BIT)
+    return bits
 end

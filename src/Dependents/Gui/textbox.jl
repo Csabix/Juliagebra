@@ -5,6 +5,8 @@ struct TextBoxNode
     TextBoxNode(text::String) = new(text)
 end
 
+get_property_hint(::TextBoxNode, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
+
 convert_callback_entry(textbox::TextBoxNode)::String = textbox.value
 
 convert_callback_result(::TextBoxNode, result) = TextBoxNode(String(result))
@@ -12,7 +14,7 @@ convert_callback_result(::TextBoxNode, ::Nothing) = TextBoxNode()
 
 function render_node_gui(textbox::TextBoxNode)::Tuple{Any,Bool}
     CImGui.SetNextItemWidth(-1)
-    proposed_text = txtbox("##textbox", textbox.value)
+    proposed_text = input_multiline("##textbox", textbox.value)
 
     invalidate = if isnothing(proposed_text)
         false

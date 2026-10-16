@@ -1,6 +1,6 @@
 
 #region Midpoint
-midpoint_count(p::Vec3D)::Tuple{Vec3D,Integer} = (p,1)
+midpoint_count(p::Vec3T)::Tuple{Vec3T,Integer} = (p,1)
 midpoint_count(p::Point)::Tuple{Vec3D,Integer} = (p.coord,1)
 midpoint_count(coords::AbstractVector{Vec3D})::Tuple{Vec3D,Integer} = (sum(coords),length(coords))
 midpoint_count(point_sequence::PointSequence)::Tuple{Vec3D,Integer} = midpoint_count(point_sequence.coords)

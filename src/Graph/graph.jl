@@ -5,6 +5,8 @@ include("graph_helpers.jl")
     lck::LockRW = LockRW()
     elements::Vector{Any} = Vector{Any}()
     render_data::Vector{Any} = Vector{Any}()
+    element_labels::Vector{String} = Vector{String}()
+    label_count::Dict{String, Int} = Dict{String, Int}()
     nodes::Vector{GeometryPlotNode} = Vector{GeometryPlotNode}()
     invalidate_stack::Vector{NodeHandle} = Vector{NodeHandle}()
     wait_pool::WaitPool = WaitPool()
@@ -19,12 +21,18 @@ function clear!(graph::GeometryPlotGraph)::Nothing
     empty!(graph.elements)
     empty!(graph.render_data)
     empty!(graph.nodes)
+    empty!(graph.element_labels)
     return nothing
 end
 
 function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
-    parents::Union{Vector{NodeHandle},Nothing}, callback::Union{Function,Nothing}, flags::NodeFlag)::NodeHandle
+    parents::Union{Vector{NodeHandle},Nothing}, callback::Union{Function,Nothing}, flags::NodeFlag, element_name::Union{String, Nothing} = nothing)::NodeHandle
 
+    name::String = 
+        element_name === nothing ?
+        calc_element_label(graph, edit_node_type_string(element)) :
+        calc_element_label(graph, element_name)
+    push!(graph.element_labels, name)
     push!(graph.elements, element)
     push!(graph.render_data, render_data)
     handle::NodeHandle = NodeHandle(UInt32(length(graph.elements)))
@@ -47,6 +55,12 @@ function add!(graph::GeometryPlotGraph, element::Any, render_data::Any,
     end
 
     return handle
+end
+
+function calc_element_label(graph::GeometryPlotGraph, intended_name::String)::String
+    count::Int = get(graph.label_count, intended_name, 0) + 1
+    graph.label_count[intended_name] = count
+    return intended_name * string(count)
 end
 
 function set_geom_flags!(node::GeometryPlotNode, flags::NodeFlag)::NodeFlag

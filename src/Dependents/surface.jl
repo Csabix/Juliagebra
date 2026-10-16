@@ -14,9 +14,33 @@ mutable struct ParametricSurface{Range<:AbstractRange}
     end
 end
 
+get_property_hint(::ParametricSurface, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint, Nothing}
+
 struct ParametricSurfaceDrawData
     handle::UInt32
     color::UInt32
+end
+
+function get_property_hint(::ParametricSurfaceDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s==:handle
+        return PropertyHintNoEdit()
+    elseif s==:color
+        return PropertyHintColor()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::ParametricSurfaceDrawData, r::Dict{DataType, Renderer})
+    tri_renderer::TriangleRenderer = r[TriangleRenderer]::TriangleRenderer
+    update_color!(tri_renderer, data.handle, data.color)
+end
+
+function  reconstruct_node(data::ParametricSurfaceDrawData, p::Dict{Symbol, Any})
+    return ParametricSurfaceDrawData(
+        data.handle,
+        get(p, :color, data.color)
+    )
 end
 
 const GPU_TESS_SURFACE_UV_RANGE = :JG_TESS_UV_RANGE
@@ -122,7 +146,7 @@ function wrap_surface_callback(callback_ast::Expr)::Union{Expr,Nothing}
     return result
 end
 
-edit_node_overload(::ParametricSurface)::Bool = true
+edit_node_enabled(::ParametricSurface)::Bool = true
 edit_node_name(::ParametricSurface)::String = "ParametricSurface" # drop range type params
 edit_node(ps::ParametricSurface,data::ParametricSurfaceDrawData,::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = ps, data, edit_param_tess_data!(ps.param_tess_data,handle)
 

@@ -11,6 +11,28 @@ struct Slider
     Slider(s::Slider,value::Float64,playing::Bool) = new(value,s.min_value,s.max_value,s.start_value,s.label,playing)
 end
 
+function reconstruct_node(node::Slider, p::Dict{Symbol, Any})::Slider
+    maxv = get(p, :max_value, node.max_value)
+    minv = get(p, :min_value, node.min_value)
+    if minv >= maxv
+        maxv = minv+1
+    end
+    return Slider(
+        clamp(node.value, minv, maxv),
+        minv,
+        maxv,
+        get(p, :label, node.label),
+    )
+end
+
+function get_property_hint(::Slider, s::Symbol)::Union{PropertyHint,Nothing}
+    if s== :value || s== :playing || s== :start_value
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
 convert_callback_entry(slider::Slider)::Float64 = slider.value
 
 convert_callback_result(slider::Slider, result) = Slider(slider,clamp(Float64(result),slider.min_value,slider.max_value))
@@ -32,12 +54,12 @@ function update(slider::Slider,delta_time::Float64)::Tuple{Any,Bool}
     end
 end
 
-function render_node_gui(slider::Slider)::Any
+function render_node_gui(s::Slider)::Any
     global implicitApp
     app::App = implicitApp
     imgui::ImGuiData = getImGui(app)
 
-    playing = slider.playing
+    playing = s.playing
     playButtonChar= playing ? "\ue034" : "\ue037"
 
     CImGui.PushFont(imgui._iconFont, 21)
@@ -46,18 +68,18 @@ function render_node_gui(slider::Slider)::Any
     CImGui.PopStyleVar()
     CImGui.PopFont()
 
-    if (slider.label === nothing)
+    if (s.label === nothing)
         CImGui.SameLine(0.0,5.0)
     else
         CImGui.SameLine(0.0,5.0)
-        CImGui.Text(slider.label)
+        CImGui.Text(s.label)
         CImGui.SameLine(0.0,5.0)
     end
 
     CImGui.SetNextItemWidth(-1)
-    value::Float64 = slider1(slider.value,"",slider.min_value,slider.max_value)
-    invalidate = slider.value != value
-    return Slider(slider,value,playing), invalidate
+    value::Float64 = slider("",s.value,s.min_value,s.max_value)
+    invalidate = s.value != value
+    return Slider(s,value,playing), invalidate
 end
 
 Slider(; label::Union{String,Nothing}=nothing)::NodeHandle = add_node!(Slider(0.5,0.0,1.0,label))

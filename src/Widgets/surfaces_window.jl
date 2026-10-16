@@ -44,7 +44,7 @@ function renderContent(self::SurfacesWindow)
         CImGui.Text("$id")
 
         CImGui.TableNextColumn()
-        new_color = color_edit4(node._color, "##scol$id")
+        new_color = color_edit4("##scol$id", node._color)
         if new_color !== nothing
             node._color = new_color
             set_color(self._renderer,node)

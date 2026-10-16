@@ -16,6 +16,35 @@ struct ParametricCurveDrawData
     size::Float32
 end
 
+
+function get_property_hint(::ParametricCurveDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :colors
+        return PropertyHintColor()
+    elseif s==:style
+        return PropertyHintSlider(0,1)
+    elseif s == :size
+        return PropertyHintSlider(0,10)
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::ParametricCurveDrawData, renderers::Dict{DataType, Renderer})
+    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
+    update_size!(line_renderer, data.handle, data.size)
+    update_style!(line_renderer, data.handle, data.style)
+end
+
+function reconstruct_node(data::ParametricCurveDrawData, p::Dict{Symbol, Any})::ParametricCurveDrawData
+    return ParametricCurveDrawData(
+        data.handle,
+        get(p, :colors, data.colors),
+        get(p, :style, data.style),
+        get(p, :size, data.size)
+    )
+end
+
 const GPU_TESS_CURVE_T_RANGE = :JG_TESS_T_RANGE
 const GPU_TESS_CURVE_NODE_UNIFORMS = Dict{Symbol,DataType}(GPU_TESS_CURVE_T_RANGE => Vec2F)
 
@@ -118,7 +147,6 @@ function wrap_curve_callback(callback_ast::Expr)::Union{Expr,Nothing}
     return result
 end
 
-edit_node_overload(::ParametricCurve)::Bool = true
 edit_node(pc::ParametricCurve,data::ParametricCurveDrawData,::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = pc, data, edit_param_tess_data!(pc.param_tess_data,handle)
 
 function ParametricCurve(callback::Function, range::AbstractRange{Float64},

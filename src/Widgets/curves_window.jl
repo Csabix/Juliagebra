@@ -81,7 +81,7 @@ function renderContent(self::CurvesWindow)
 
         # 1. Inline Color Pickers (Limited)
         for i in 1:min(num_colors, display_limit)
-            new_color = color_edit3(node._colors[i], "##ccol$(id)_$i")
+            new_color = color_edit3("##ccol$(id)_$i", node._colors[i])
             
             if new_color !== nothing
                 node._colors[i] = new_color
@@ -127,7 +127,7 @@ function renderContent(self::CurvesWindow)
                 for i in 1:length(node._colors) # length might have changed via buttons
                     CImGui.Text("$i:") 
                     CImGui.SameLine()
-                    new_color = color_edit3(node._colors[i], "##pcol$(id)_$i")
+                    new_color = color_edit3("##pcol$(id)_$i", node._colors[i])
                     if new_color !== nothing
                         node._colors[i] = new_color
                         changed = true

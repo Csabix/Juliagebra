@@ -14,6 +14,35 @@ struct SegmentSequenceDrawData
     style::UInt8
 end
 
+function get_property_hint(::SegmentSequenceDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :colors
+        return PropertyHintColor()
+    elseif s==:style
+        return PropertyHintSlider(1,_LINE_STYLE_COUNT)
+    elseif s == :size
+        return PropertyHintSlider(0,10)
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::SegmentSequenceDrawData, r::Dict{DataType, Renderer})
+    line_renderer::LineRenderer = r[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
+    update_size!(line_renderer, data.handle, data.size)
+    update_style!(line_renderer, data.handle, data.style)
+end
+
+function reconstruct_node(data::SegmentSequenceDrawData, p::Dict{Symbol, Any})::SegmentSequenceDrawData
+    return SegmentSequenceDrawData(
+        data.handle,
+        get(p, :colors, data.colors),
+        get(p, :break_every, data.break_every),
+        get(p, :size, data.size),
+        get(p, :style, data.style)
+    )
+end
+
 function convert_callback_result(s::SegmentSequence,coords::Vector{T}) where T <: Tuple{Any, Any, Any}
     s.values = [Vec3D(coord...) for coord in coords]
     return s

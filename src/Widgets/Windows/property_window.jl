@@ -25,7 +25,7 @@ function renderContent(property_window::PropertyWindow)
         CImGui.BeginChild("Scene Elements", (CImGui.GetContentRegionAvail().x * 0.5, 0.0))
         for i in sorted_indices
             element = elements[i]
-            if !edit_node_overload(element) continue end
+            if !edit_node_enabled(element) continue end
 
             element_type_name = type_names[i]
             if element_type_name != current_type
@@ -63,6 +63,7 @@ function renderContent(property_window::PropertyWindow)
             CImGui.Text("Parents")
             if geom_node.parent_h !== nothing
                 for n::NodeHandle in geom_node.parent_h
+                    if !edit_node_enabled(elements[n.value]) continue end
                     if CImGui.Button(element_labels[n.value])
                         selection = n.value
                     end
@@ -72,6 +73,7 @@ function renderContent(property_window::PropertyWindow)
             CImGui.Text("Children")
             if geom_node.child_h !== nothing
                 for n::NodeHandle in geom_node.child_h
+                    if !edit_node_enabled(elements[n.value]) continue end
                     if CImGui.Button(element_labels[n.value])
                         selection = n.value
                     end

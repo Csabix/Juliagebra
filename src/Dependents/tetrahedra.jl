@@ -24,7 +24,7 @@ struct TetrahedronDrawData
 end
 
 function get_property_hint(::TetrahedronDrawData, s::Symbol)::Union{PropertyHint, Nothing}
-    if s == :color || s==border_color
+    if s == :color || s==:border_color
         return PropertyHintColor()
     elseif s==:border_style
         return PropertyHintSlider(1,_LINE_STYLE_COUNT)

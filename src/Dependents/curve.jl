@@ -147,7 +147,6 @@ function wrap_curve_callback(callback_ast::Expr)::Union{Expr,Nothing}
     return result
 end
 
-edit_node_overload(::ParametricCurve)::Bool = true
 edit_node(pc::ParametricCurve,data::ParametricCurveDrawData,::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Any,Any,Int} = pc, data, edit_param_tess_data!(pc.param_tess_data,handle)
 
 function ParametricCurve(callback::Function, range::AbstractRange{Float64},

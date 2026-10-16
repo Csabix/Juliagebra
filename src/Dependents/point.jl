@@ -40,7 +40,7 @@ end
 on_gizmo_select(point::Point,data::PointDrawData)::Tuple{UInt32,Vec3D,Any} = (UInt32(data.constraints), point.coord, nothing)
 on_gizmo_move(point::Point, position::Vec3D, data::Any)::Tuple{Any,Any} = (point.coord = position;(point, nothing))
 
-edit_node_overload(point::Point)::Bool = true
+edit_node_enabled(point::Point)::Bool = true
 Base.propertynames(data::Point) = [:coord]
 Base.propertynames(data::PointDrawData) = [:color, :style, :size, :constraints]
 function get_property_hint(data::PointDrawData, property::Symbol)::Union{PropertyHint,Nothing}

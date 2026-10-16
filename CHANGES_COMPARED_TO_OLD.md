@@ -6,7 +6,7 @@ convert_callback_result: Convert the callback to appropriate type e.g Vec3D (fro
 eval_node: calls the callback
 render_node: Used when the node is visible in the scene e.g Point
 render_node_gui: Used when the node is visible in the gui e.g Slider
-edit_node_overload: set it false to prevent node from appearing in the Property Window
+edit_node_enabled: set it false to prevent node from appearing in the Property Window
 edit_node_type_string: the node will be displayed under the returned category
 edit_node: override this to create a custom editor for your node
 

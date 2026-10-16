@@ -75,7 +75,7 @@ end
 
 struct PropertyHintColor <: PropertyHint
     input_alpha::Bool
-    function PropertyHintColor(input_alpha::Bool = false)
+    function PropertyHintColor(input_alpha::Bool = true)
         new(input_alpha)
     end
 end
@@ -209,7 +209,7 @@ end
 
 function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end
 rerender_node(render_data::Any, renderes::Dict{DataType, Renderer}) = nothing
-edit_node_overload(element::Any)::Bool = true
+edit_node_enabled(element::Any)::Bool = true
 edit_node_type_string(element::Any)::String = string(typeof(element))
 
 
@@ -231,6 +231,6 @@ get_parent_node(parent::NodeHandle)::NodeHandle = parent
 get_parent_nodes(parents::Any...)::Vector{NodeHandle} = [get_parent_node(parent) for parent in parents]
 (handle::NodeHandle)(args::Any...) = get_element(handle)(handle, args...)
 
-export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_overload, reconstruct_node, rerender_node, get_property_hint, property_hint_params
+export update, convert_callback_entry, convert_callback_result, eval_node, render_node, render_node_gui, edit_node, edit_node_enabled, reconstruct_node, rerender_node, get_property_hint, property_hint_params
 export on_gizmo_select, on_gizmo_move
 export eval_geometry_node, GeometryPlotNode

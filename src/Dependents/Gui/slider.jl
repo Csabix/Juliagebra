@@ -21,14 +21,12 @@ function reconstruct_node(node::Slider, p::Dict{Symbol, Any})::Slider
         clamp(node.value, minv, maxv),
         minv,
         maxv,
-        get(p, :start_value, node.start_value),
         get(p, :label, node.label),
-        node.playing
     )
 end
 
 function get_property_hint(::Slider, s::Symbol)::Union{PropertyHint,Nothing}
-    if s== :value || s== :playing
+    if s== :value || s== :playing || s== :start_value
         return PropertyHintNoEdit()
     else
         return nothing

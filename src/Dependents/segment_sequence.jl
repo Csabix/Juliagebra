@@ -27,8 +27,8 @@ function get_property_hint(::SegmentSequenceDrawData, s::Symbol)::Union{Property
 end
 
 function rerender_node(data::SegmentSequenceDrawData, r::Dict{DataType, Renderer})
-    line_renderer::LineRenderer = renderers[LineRenderer]::LineRenderer
-    update_colors!(line_renderer, data.handle, length(data.colors), data.colors)
+    line_renderer::LineRenderer = r[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.handle, data.colors)
     update_size!(line_renderer, data.handle, data.size)
     update_style!(line_renderer, data.handle, data.style)
 end

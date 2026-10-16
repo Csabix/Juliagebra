@@ -10,17 +10,14 @@ struct Stepper
 end
 
 function reconstruct_node(node::Stepper, p::Dict{Symbol, Any})::Stepper
-   
     return Stepper(
         node.value,
-        get(p, :start_value, node.start_value),
-        get(p, :label, node.label),
-        node.playing
+        get(p, :label, node.label)
     )
 end
 
 function get_property_hint(::Stepper, s::Symbol)::Union{PropertyHint,Nothing}
-    if s== :value || s== :playing
+    if s== :value || s== :playing || s==:start_value
         return PropertyHintNoEdit()
     else
         return nothing

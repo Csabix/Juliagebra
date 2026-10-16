@@ -32,6 +32,8 @@ struct _UndefinedAccelerator end
 eval_geometry_node(element::Union{_UndefinedAccelerator, PrimitivesOf, Tuple{LBVHCache{3},<:PrimitivesOf}}, node::GeometryPlotNode, elements::Vector{Any}) =
     _define_accelerator(PrimitivesOf(elements[node.parent_h[1]]), _reuse_lbvh(element))
 
+edit_node_enabled(::Tuple{LBVHCache{3},<:PrimitivesOf}) = false ::Bool
+
 # ? ---------------------------------
 # ! IntersectionCalculator{T}
 # ? ---------------------------------

@@ -26,6 +26,9 @@ include("commons.jl")
 
 include("glfw_data.jl")
 
+include("settings.jl")
+init_settings()
+
 include("camera.jl")
 include("camera_manipulator.jl")
 

@@ -1,4 +1,3 @@
-
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
 
@@ -10,7 +9,6 @@ mutable struct OptionsWindow <: WindowDNA
 
     _aabbMin::Array{Cfloat}
     _aabbMax::Array{Cfloat}
-
     function OptionsWindow(color,aabbMin,aabbMax)
         whitebg = false
         bgColor = Cfloat[color[1], color[2], color[3]]

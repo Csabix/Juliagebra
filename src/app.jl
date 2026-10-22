@@ -230,7 +230,7 @@ function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
-    
+    init_settings()
     init!(self._glfw, true)
     self._cam.aspect = self._glfw.width / self._glfw.height
     calculate_projection_matrix!(self._cam)

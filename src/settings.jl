@@ -5,6 +5,7 @@ struct GlobalSettings
     scratch_path::String
     toml_file::String
     settings::Dict{String, Any}
+    settings_hints::Dict{String, PropertyHint}
 end
 
 global_settings::Union{GlobalSettings, Nothing} = nothing
@@ -13,22 +14,64 @@ modified_notification::Dict{String, Set{Function}} = Dict()
 
 function default_settings()::Dict{String,Any}
     return Dict{String,Any}(
-        "a" => 7,
-        "b"=> Dict(
-            "c"=>true
+        "Graphics" => Dict{String, Any}(
+            "Display" => Dict{String, Any}(
+                "Enable VSync" => true,
+                "Max FPS" => 60,
+                "Background color" => UInt32(0xFFFFFFFF)
+            ),
+            "Renderers" => Dict{String, Any}(
+
             )
+        ),
+        "Evaluator" => Dict{String, Any}(
+
+        ),
+        "Controls" => Dict{String, Any}(
+            "Invert camera" => Dict{String, Any}(
+                "Panning" => Dict{String, Any}(
+                    "X" => false,
+                    "Y" => false
+                ),
+                "Rotation" => Dict{String, Any}(
+                    "X" => false,
+                    "Y" => false
+                )
+            ),
+            "Mouse sensitivity" => Dict{String, Any}(
+                    "X" => 1.0,
+                    "Y" => 1.0
+            ),
+            "Keybinds" => Dict{String, Any}(
+                 
+            )
+        ),
+        "Geometry" => Dict{String, Any}(
+
         )
+    )
 end
 
-function init_settings(scratch_path::String = "global_settings", toml_file::String="settings.toml", default=default_settings())
+function settings_hints()::Dict{String, PropertyHint}
+    return Dict{String, PropertyHint}(
+        "Graphics/Display/Background color" => PropertyHintColor(false)
+    )
+end
+
+function get_Setting_hint(path::String)::Union{PropertyHint, Nothing}
+    @assert global_settings !== nothing "Settings are uninitialized"
+    return get(global_settings.settings_hints, path, nothing)
+end
+
+function init_settings(scratch_path::String = "global_settings", toml_file::String="settings.toml", default=default_settings(), edit_hints=settings_hints())
     path = @get_scratch!(scratch_path) *"/"*toml_file
     # if file exists -> read file
     if isfile(path)
         d = TOML.parsefile(path)
-        global global_settings = GlobalSettings(scratch_path, toml_file, d)
+        global global_settings = GlobalSettings(scratch_path, toml_file, d, edit_hints)
     # else -> generate dict, write file
     else
-        global global_settings = GlobalSettings(scratch_path, toml_file, default)
+        global global_settings = GlobalSettings(scratch_path, toml_file, default,edit_hints)
         save_settings()
     end
     println(path)

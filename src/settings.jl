@@ -58,7 +58,7 @@ function settings_hints()::Dict{String, PropertyHint}
     )
 end
 
-function get_Setting_hint(path::String)::Union{PropertyHint, Nothing}
+function get_setting_hint(path::String)::Union{PropertyHint, Nothing}
     @assert global_settings !== nothing "Settings are uninitialized"
     return get(global_settings.settings_hints, path, nothing)
 end

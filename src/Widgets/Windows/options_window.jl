@@ -50,6 +50,12 @@ function _setInfiniteAABBSize(self::OptionsWindow, app)
 end
 
 function renderContent(self::OptionsWindow, app::AppDNA)
+    @assert global_settings !== nothing "Settings are uninitialized"
+    for a in keys(global_settings.settings)
+        CImGui.Text(a)
+    end
+
+    return
     if (CImGui.Checkbox("White background", self._whitebg))
         _setBackground(self, app)
     end

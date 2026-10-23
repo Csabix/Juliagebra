@@ -34,16 +34,31 @@ end
 
 convert_callback_entry(t::TriangleCluster)::TriangleCluster = t
 
-convert_callback_result(t::TriangleCluster,triangles::Vector{Vec3D}) = (t.mesh = Mesh(triangles);t)
-convert_callback_result(t::TriangleCluster,triangles::Vector) = (t.mesh = Mesh([Vec3D(v[1],v[2],v[3]) for v in triangles]);t)
-function convert_callback_result(t::TriangleCluster,position_indices::Tuple{Any,Vector{UInt32}})
-    convert_callback_result(t, position_indices[1])
-    t.mesh = Mesh(triangles.mesh.positions,position_indices[2])
+function convert_callback_result(t::TriangleCluster,triangles)
+    Base.resize!(t.mesh.positions, length(triangles))
+    index = 1
+    for v in triangles
+        @inbounds t.mesh.positions[index] = Vec3D(v...)
+        index += 1
+    end
     return t
 end
-function convert_callback_result(t::TriangleCluster,position_indices::Tuple{Any,Vector})
-    convert_callback_result(t, position_indices[1])
-    t.mesh = Mesh(t.mesh.positions,UInt32.(position_indices[2]))
+function convert_callback_result(t::TriangleCluster,position_indices::Tuple)
+    positions, indices = position_indices
+    Base.resize!(t.mesh.positions, length(positions))
+    mesh_indices::Vector{UInt32} = t.mesh.indices !== nothing ? t.mesh.indices::Vector{UInt32} : Vector{UInt32}()
+    Base.resize!(mesh_indices, length(indices))
+    index = 1
+    for v in positions
+        @inbounds t.mesh.positions[index] = Vec3D(v...)
+        index += 1
+    end
+    index = 1
+    for i in indices
+        @inbounds mesh_indices[index] = UInt32(i)
+        index += 1
+    end
+    t.mesh.indices === nothing && (t.mesh = Mesh(t.mesh.positions, mesh_indices))
     return t
 end
 convert_callback_result(t::TriangleCluster,v::Mesh) = (t.mesh = v;t)
@@ -82,16 +97,21 @@ end
 
 function render_node(triangles::TriangleCluster, data::TriangleClusterDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::TriangleClusterDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
-    triangulated = if isnothing(triangles.mesh.indices)
-            [Vec3F(pos) for pos in triangles.mesh.positions]
-        else
-            [Vec3F(triangles.mesh.positions[ind+1]) for ind in triangles.mesh.indices]
-        end
     if data.handle == 0
-        handle = add!(triangle_renderer, triangulated, Mat4T{Float32}(triangles.transform), data.color, false, id)
+        handle = if isnothing(triangles.mesh.indices)
+            add!(triangle_renderer, (Vec3F(pos) for pos in triangles.mesh.positions), Mat4T{Float32}(triangles.transform), data.color, false, id)
+        else
+            indices_i::Vector{UInt32} = triangles.mesh.indices
+            add!(triangle_renderer, (Vec3F(@inbounds triangles.mesh.positions[ind+1]) for ind in indices_i), Mat4T{Float32}(triangles.transform), data.color, false, id)
+        end
         return TriangleClusterDrawData(handle, data.color)
     else
-        update_coords!(triangle_renderer, data.handle, triangulated)
+        if isnothing(triangles.mesh.indices)
+            update_coords!(triangle_renderer, data.handle, (Vec3F(pos) for pos in triangles.mesh.positions))
+        else
+            indices_u::Vector{UInt32} = triangles.mesh.indices
+            update_coords!(triangle_renderer, data.handle, (Vec3F(@inbounds triangles.mesh.positions[ind+1]) for ind in indices_u))
+        end
         update_color!(triangle_renderer, data.handle, data.color)
         update_transform!(triangle_renderer, data.handle, triangles.transform)
         return data

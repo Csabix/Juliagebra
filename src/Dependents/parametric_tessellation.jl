@@ -107,7 +107,6 @@ function switch_mode!(param_tess_data::ParamTessData, ::Val{ParamTessMode.GPU}, 
     global implicitApp
     ogl_data::OpenGLData = implicitApp._opengl::OpenGLData
 
-    dbg::Bool = GPU_TESS_DEBUG_ARG in ARGS
 
     if param_tess_data.transpilation_src === nothing
         @log "Transpilation source data not available for parametric node, falling back to CPU..." WARN
@@ -188,12 +187,10 @@ end
 # meant to be invoked from eval_geometry_node
 # acts a helper for cpu/gpu tessellation
 function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::GeometryPlotNode, elements::Vector{Any})
-    dbg::Bool = GPU_TESS_DEBUG_ARG in ARGS
-
-    arguments::Vector{Any} = if node.parent_h === nothing
-        Any[]
-    else
-        Any[convert_callback_entry(elements[p_h]) for p_h in node.parent_h]
+    if node.parent_h !== nothing
+        for p_h in node.parent_h::Vector{NodeHandle}
+            push!(node.converted_parents,convert_callback_entry(elements[p_h]))
+        end
     end
 
     # GPU argument projection is only updated lazily, if it's actually needed
@@ -203,7 +200,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
         _updated_gpu_value_list && return param_tess_data.gpu_argument_values
 
         empty!(param_tess_data.gpu_argument_values)
-        for (par_idx, arg_val) in enumerate(arguments)
+        for (par_idx, arg_val) in enumerate(node.converted_parents)
             param_tess_data.gpu_argument_values[node.parent_h[par_idx]] = convert_argument_gpu(arg_val)
         end
 
@@ -223,7 +220,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
         target_mode = param_tess_data.transpilation_src !== nothing ? ParamTessMode.GPU : ParamTessMode.CPU
     end
 
-    target_mode !== nothing && dbg && println("New target mode: $target_mode, switching...")
+    target_mode !== nothing && DBG_TESS && println("New target mode: $target_mode, switching...")
     if target_mode === ParamTessMode.CPU
         switch_mode!(param_tess_data, Val(ParamTessMode.CPU), node)
     elseif target_mode === ParamTessMode.GPU
@@ -243,7 +240,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
             length(gpu_data.tess_buffer) != param_tess_data.sample_count
 
         if has_stale_gpu_data
-            dbg && println("GPU data is stale, reinitializing GPU state...")
+            DBG_TESS && println("GPU data is stale, reinitializing GPU state...")
             switch_mode!(param_tess_data, Val(ParamTessMode.GPU), node, gpu_arg_vals)
             if param_tess_data.current_mode === ParamTessMode.GPU
                 gpu_data = param_tess_data.gpu_data # refetch GPU data so that it doesn't leave this if stmt stale
@@ -256,7 +253,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
     eval_result = if param_tess_data.current_mode === ParamTessMode.CPU
         on_main_thread = Threads.threadid() == 1
         on_main_thread && @time_cpu_begin ParamTess CPU Eval
-        cpu_result = eval_node(element, node.callback, arguments)
+        cpu_result = eval_node(element, node.callback, node.converted_parents)
         on_main_thread && @time_cpu_end ParamTess CPU Eval
 
         cpu_result
@@ -285,6 +282,7 @@ function handle_param_tess!(param_tess_data::ParamTessData, element::Any, node::
 
         element
     end
+    empty!(node.converted_parents)
 
     return convert_callback_result(element, eval_result)
 end

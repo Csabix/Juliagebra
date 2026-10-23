@@ -188,3 +188,21 @@ function get_button_size(text::String)::Tuple{Float32, Float32}
 
     return (size_x,size_y)
 end
+
+struct CStrBuf <: IO
+    v::Vector{UInt8}
+end
+CStrBuf(capacity::Integer = 256) = CStrBuf(sizehint!(UInt8[], capacity))
+
+Base.write(b::CStrBuf, x::UInt8) = (push!(b.v, x); 1)
+
+function Base.unsafe_write(b::CStrBuf, p::Ptr{UInt8}, n::UInt)
+    old = length(b.v)
+    Base.resize!(b.v, old + n)
+    unsafe_copyto!(pointer(b.v, old + 1), p, n)
+    return Int(n)
+end
+
+reset!(b::CStrBuf) = (empty!(b.v); b)
+resize!(b::CStrBuf,size) = (Base.resize!(b.v,size); b)
+terminate!(b::CStrBuf) = (push!(b.v, 0x00); b)

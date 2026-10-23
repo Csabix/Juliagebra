@@ -52,7 +52,7 @@ function render_node(line::PLine, data::LineDrawData, renderers::Dict{DataType,R
 
     p = line.p0
     v = normalize(line.p1 - p)
-    values = [p + v * sign(t) * 4^abs(t) for t in LINE_RANGE]
+    values = (p + v * sign(t) * 4^abs(t) for t in LINE_RANGE)
 
     if is_null(data.handle)
         handle = add!(line_renderer, values, data.colors, [id], data.style, data.size)

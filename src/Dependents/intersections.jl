@@ -23,12 +23,16 @@ function _define_accelerator(primitives::PrimitivesOf{<:AABBPrimitive3D}, lbvh::
     return tuple(cache,primitives)
 end
 
+
+
 _reuse_lbvh(::Any) = nothing
 _reuse_lbvh(accelerator::Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf}) = accelerator[1]
 
 struct _UndefinedAccelerator end
 eval_geometry_node(element::Union{_UndefinedAccelerator, PrimitivesOf, Tuple{LBVHCache{3,MORTON_CODE_TYPE},<:PrimitivesOf}}, node::GeometryPlotNode, elements::Vector{Any}) =
     _define_accelerator(PrimitivesOf(elements[node.parent_h[1]]), _reuse_lbvh(element))
+
+edit_node_enabled(::Tuple{LBVHCache{3},<:PrimitivesOf}) = false ::Bool
 
 # ? ---------------------------------
 # ! IntersectionCalculator{T}
@@ -43,6 +47,8 @@ struct IntersectionCalculator{T}
         new(sizehint!(T[],maxIntersectionNum),maxIntersectionNum)
     end
 end
+
+get_property_hint(self::IntersectionCalculator, ::Symbol) = PropertyHintNoEdit() ::Union{PropertyHint,Nothing}
 
 # Brute-force
 function FindIntersections(self::IntersectionCalculator{T}, shapes_a::PrimitivesOf{U}, shapes_b::PrimitivesOf{V}) where {T,U,V}

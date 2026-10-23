@@ -151,7 +151,7 @@ function renderContent(self::PointsWindow)
         end
 
         CImGui.TableNextColumn()
-        new_color = color_edit3(node._color, "##pcol$id")
+        new_color = color_edit3("##pcol$id", node._color)
         if new_color !== nothing
             set_color(self._renderer, node, new_color)
         end

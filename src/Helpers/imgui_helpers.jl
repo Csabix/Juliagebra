@@ -1,41 +1,179 @@
 
-function slider1(value::AbstractFloat,text::String,min::AbstractFloat,max::AbstractFloat)::Float32
+function slider(label::String,value::AbstractFloat,min::Real=0,max::Real=1)::Float32
     value_ref = Ref(Float32(value))
-    CImGui.SliderFloat(text,value_ref,min,max)
+    CImGui.SliderFloat(label, value_ref, Float32(min), Float32(max))
     return value_ref[]
 end
 
-function slider3(self::Vec3T,text::String,min::AbstractFloat,max::AbstractFloat)::Vec3T
-    self_ref = Ref(self)
-    CImGui.SliderFloat3(text,self_ref,min,max)
+function slider(label::String,self::Vec2T,min::Real=0,max::Real=1)::Vec2F
+    self_ref = Ref(Vec2F(self.x, self.y))
+    CImGui.SliderFloat2(label, self_ref, Float32(min), Float32(max))
     return self_ref[]
 end
 
-function slider1i(self,text::String,min::Integer,max::Integer)
-    self_ref = Ref(self)
-    CImGui.SliderInt(text,self_ref,min,max)
+function slider(label::String,self::Vec3T,min::Real=0,max::Real=1)::Vec3F
+    self_ref = Ref(Vec3F(self.x, self.y, self.z))
+    CImGui.SliderFloat3(label, self_ref, Float32(min), Float32(max))
     return self_ref[]
 end
 
-function input1(self::Float32, label::String, step::Float32, step_fast::Float32)::Union{Float32, Nothing}
-    self_ref = Ref(self)
-    if (CImGui.InputFloat(label, self_ref, step, step_fast))
-        return self_ref[]
-    end
-
-    return nothing
+function slider(label::String,self::Vec4T,min::Real=0,max::Real=1)::Vec4F
+    self_ref = Ref(Vec4F(self.x, self.y, self.z, self.w))
+    CImGui.SliderFloat4(label, self_ref, Float32(min), Float32(max))
+    return self_ref[]
 end
 
-function input1i(self::Int, label::String, step::Int, step_fast::Int)::Union{Int, Nothing}
+function slider(label::String,self::Integer,min::Real=0,max::Real=1)::Int32
     self_ref = Ref(Int32(self))
-    if (CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast)))
-        return Int(self_ref[])
-    end
-
-    return nothing
+    CImGui.SliderInt(label, self_ref, Int32(min), Int32(max))
+    return self_ref[]
 end
 
-function getButtonSize(text::String)
+function slider(label::String,self::Vec2T{T},min::Real=0,max::Real=1)::Vec2T{Int32} where T <: Integer
+    self_ref = Ref(Vec2T{Int32}(Int32(self.x), Int32(self.y)))
+    CImGui.SliderInt2(label, self_ref, Int32(min), Int32(max))
+    return self_ref[]
+end
+
+function slider(label::String,self::Vec3T{T},min::Real=0,max::Real=1)::Vec3T{Int32} where T <: Integer
+    self_ref = Ref(Vec3T{Int32}(self.x, self.y, self.z))
+    CImGui.SliderInt3(label, self_ref, Int32(min), Int32(max))
+    return self_ref[]
+end
+
+function slider(label::String,self::Vec4T{T},min::Real=0,max::Real=1)::Vec4T{Int32} where T <: Integer
+    self_ref = Ref(Vec4T{Int32}(self.x, self.y, self.z, self.w))
+    CImGui.SliderInt4(label, self_ref, Int32(min), Int32(max))
+    return self_ref[]
+end
+
+input(::String, ::Nothing) = nothing
+
+function input(label::String,self::AbstractFloat,step::Real=1,step_fast::Real=5)::Float32
+    self_ref = Ref(Float32(self))
+    CImGui.InputFloat(label,self_ref, Float32(step), Float32(step_fast))
+    return self_ref[]
+end
+
+function input(label::String,self::Vec2T)::Vec2F
+    vec = @MVector[Float32(self.x), Float32(self.y)]
+    CImGui.InputFloat2(label, vec)
+    return Vec2F(vec[1], vec[2])
+end
+
+function input(label::String,self::Vec3T)::Vec3F
+    vec = @MVector[Float32(self.x), Float32(self.y), Float32(self.z)]
+    CImGui.InputFloat3(label, vec)
+    return Vec3F(vec[1], vec[2], vec[3])
+end
+
+function input(label::String,self::Vec4T)::Vec4F
+    vec = @MVector[Float32(self.x), Float32(self.y), Float32(self.z), Float32(self.w)]
+    CImGui.InputFloat4(label, vec)
+    return Vec4F(vec[1], vec[2], vec[3], vec[4])
+end
+
+function input(label::String,self::Integer,step::Real=1,step_fast::Real=5)::Int32
+    self_ref = Ref(Int32(self))
+    CImGui.InputInt(label, self_ref, Int32(step), Int32(step_fast))
+    return Int(self_ref[])
+end
+
+function input(label::String,self::Vec2T{T})::Vec2T{Int32} where T <: Integer
+    vec = @MVector[Int32(self.x), Int32(self.y)]
+    CImGui.InputInt2(label, vec)
+    return Vec2T(vec[1], vec[2])
+end
+
+function input(label::String,self::Vec3T{T})::Vec3T{Int32} where T <: Integer
+    vec = @MVector[Int32(self.x), Int32(self.y), Int32(self.z)]
+    CImGui.InputInt3(label, vec)
+    return Vec3T(vec[1], vec[2], vec[3])
+end
+
+function input(label::String,self::Vec4T{T})::Vec4T{Int32} where T <: Integer
+    vec = @MVector[Int32(self.x), Int32(self.y), Int32(self.z), Int32(self.w)]
+    CImGui.InputInt4(label, vec)
+    return Vec4T(vec[1], vec[2], vec[3], vec[4])
+end
+
+function color_edit3(label::String,color::UInt32)::UInt32
+    c4 = unpack_color(color)
+    col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3])]
+    flags = CImGui.ImGuiColorEditFlags_NoInputs |
+            CImGui.ImGuiColorEditFlags_NoLabel
+    CImGui.ColorEdit3(label, col, flags)
+    return get_color((col[1],col[2],col[3]))
+end
+
+function color_edit4(label::String,color::UInt32)::UInt32
+    c4 = unpack_color(color)
+    col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3]), Float32(c4[4])]
+    flags = CImGui.ImGuiColorEditFlags_NoInputs |
+        CImGui.ImGuiColorEditFlags_AlphaBar     |
+        CImGui.ImGuiColorEditFlags_NoLabel
+    CImGui.ColorEdit4(label, col, flags)
+    return get_color((col[1], col[2], col[3], col[4]))
+end
+
+function input_bitflags(label::String, value::Integer, used_bits::Unsigned=ndigits(typemax(typeof(value)), 2))
+    bits_left = Int(used_bits)
+    rt = 0
+    while bits_left >0
+        bitcount = used_bits-bits_left
+        out = Ref((2^bitcount & value) != 0)
+        CImGui.Checkbox(label*(used_bits>1 ? "$bitcount" : ""), out)
+        rt |= Int(out[]) << bitcount
+        bits_left-=1
+    end
+    return rt
+end
+
+function input(label::String, value::Bool)::Bool
+    out = Ref(value)
+    CImGui.Checkbox(label, out)
+    return out[]
+end
+
+function input(label::String,text::String,buf_size=1024)::String
+    result::String = text
+    buf = get_bytebuffer(text, buf_size)
+    if (CImGui.InputText(label,buf,length(buf)))
+        GC.@preserve buf result = unsafe_string(pointer(buf), buf_size)
+    end
+
+    return result
+end
+
+function input_multiline(label::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::String
+    result::String = text
+    buf = get_bytebuffer(text, buf_size)
+    
+    if (CImGui.InputTextMultiline(label, buf, length(buf), size))
+        GC.@preserve buf result = unsafe_string(pointer(buf), buf_size)
+    end
+
+    return result
+end
+
+function get_bytebuffer(text::String,buf_size::Integer=1024)::Vector{UInt8}
+    buf = Vector{UInt8}(undef, buf_size)
+    units = codeunits(text)
+
+    copy_end = min(length(units), buf_size-1)
+
+    while !isvalid(String(view(units, 1:copy_end)))
+        copy_end-=1
+    end
+
+    if !isempty(units)
+        copyto!(buf, view(units,1:copy_end))
+    end
+    buf[copy_end+1] = 0
+    return buf
+end
+
+function get_button_size(text::String)::Tuple{Float32, Float32}
     size = CImGui.CalcTextSize(text)
     padding = CImGui.GetStyle().FramePadding
 
@@ -49,50 +187,6 @@ function getButtonSize(text::String)
     size_y += padding_y * 2
 
     return (size_x,size_y)
-end
-
-# ? Could microoptimize this by not creating buffers everytime if necessary
-function color_edit3(color::UInt32, label::String)::Union{UInt32,Nothing}
-    c4 = unpack_color(color)
-    col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3])]
-    flags = CImGui.ImGuiColorEditFlags_NoInputs |
-            CImGui.ImGuiColorEditFlags_NoLabel
-    if CImGui.ColorEdit3(label, col, flags)
-        return get_color((col[1],col[2],col[3]))
-    end
-    return nothing
-end
-
-function color_edit4(color::UInt32, label::String)::Union{UInt32,Nothing}
-    c4 = unpack_color(color)
-    col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3]), Float32(c4[4])]
-    flags = CImGui.ImGuiColorEditFlags_NoInputs |
-        CImGui.ImGuiColorEditFlags_AlphaBar     |
-        CImGui.ImGuiColorEditFlags_NoLabel
-    if CImGui.ColorEdit4(label, col, flags)
-        return get_color((col[1], col[2], col[3], col[4]))
-    end
-    return nothing
-end
-
-function txtbox(name::String,text::String,buf_size=1024,size=CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))::Union{String,Nothing}
-    result::Union{String,Nothing} = nothing
-    buf = Vector{UInt8}(undef,buf_size)
-    units = codeunits(text)
-    
-    # Not ideal because it can cut a character in half
-    copy_end = min(length(units),buf_size-1)
-    if !isempty(units)
-        copyto!(buf,view(units,1:copy_end))
-    end
-    buf[copy_end+1] = 0
-    
-
-    if (CImGui.InputTextMultiline(name,buf,length(buf),size))
-        GC.@preserve buf result = unsafe_string(pointer(buf))
-    end
-
-    return result
 end
 
 struct CStrBuf <: IO

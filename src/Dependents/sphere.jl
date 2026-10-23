@@ -1,8 +1,28 @@
-
-
 struct SphereDrawData
     handle::UInt32
     color::UInt32
+end
+
+function get_property_hint(::SphereDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :color
+        return PropertyHintColor()
+    elseif s==:handle
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::SphereDrawData, renderers::Dict{DataType, Renderer})
+    sphere_renderer::SphereRenderer = renderers[SphereRenderer]::SphereRenderer
+    # update_color!(sphere_renderer, data.handle, data.color) not a thing for some reason
+end
+
+function reconstruct_node(data::SphereDrawData, p::Dict{Symbol, Any})::SphereDrawData
+    return SphereDrawData(
+        data.handle,
+        get(p, :color, data.color)
+    )
 end
 
 convert_callback_result(::PSphere, result::PSphere)              = result

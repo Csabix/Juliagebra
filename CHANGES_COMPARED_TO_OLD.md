@@ -6,8 +6,14 @@ convert_callback_result: Convert the callback to appropriate type e.g Vec3D (fro
 eval_node: calls the callback
 render_node: Used when the node is visible in the scene e.g Point
 render_node_gui: Used when the node is visible in the gui e.g Slider
-edit_node: If you want your node to be editable from the gui
-edit_node_overload: set it true if edit_node is overloaded
+edit_node_enabled: set it false to prevent node from appearing in the Property Window
+edit_node_type_string: the node will be displayed under the returned category
+edit_node: override this to create a custom editor for your node
+
+The default editor uses the following functions:
+get_property_hint: decides how to input a given property. If nothing is returned, a default method is chosen based on type
+rerender_node: override this to update the relevant renderers when the draw data is changed
+reconstruct_node: if your node or draw data is immutable, use this to create and return the modified version
 
 on_gizmo_select: Called when the user right clicks the object
 on_gizmo_move: Called when the gizmo is moved

@@ -23,6 +23,40 @@ struct TetrahedronDrawData
     border_style::UInt8
 end
 
+function get_property_hint(::TetrahedronDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s == :color || s==:border_color
+        return PropertyHintColor()
+    elseif s==:border_style
+        return PropertyHintSlider(1,_LINE_STYLE_COUNT)
+    elseif s == :border_size
+        return PropertyHintSlider(0,10)
+    elseif s== :face_handle
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::TetrahedronDrawData, r::Dict{DataType, Renderer})
+    tri_renderer::TriangleRenderer = r[TriangleRenderer]::TriangleRenderer
+    update_color!(tri_renderer, data.face_handle, data.color)
+    line_renderer::LineRenderer = r[LineRenderer]::LineRenderer
+    update_colors!(line_renderer, data.border_handle, data.border_color)
+    update_size!(line_renderer, data.border_handle, data.border_size)
+    update_style!(line_renderer, data.border_handle, data.border_style)
+end
+
+function reconstruct_node(data::TetrahedronDrawData, p::Dict{Symbol, Any})::TetrahedronDrawData
+    return TetrahedronDrawData(
+        data.face_handle,
+        data.border_handle,
+        get(p, :color, data.color),
+        get(p, :border_color, data.border_color),
+        get(p, :border_size, data.border_size),
+        get(p, :border_style, data.border_style)
+    )
+end
+
 convert_callback_entry(t::Tetrahedron)::NTuple{4,Vec3D} = ((t.a,t.b,t.c,t.d);t)
 
 convert_callback_result(t::Tetrahedron, result::NTuple{4,Vec3D}) = (t.a=result[1];t.b=result[2];t.c=result[3];t.d=result[4]; t)

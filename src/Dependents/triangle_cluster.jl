@@ -12,6 +12,26 @@ struct TriangleClusterDrawData
     color::UInt32
 end
 
+function get_property_hint(::TriangleClusterDrawData, s::Symbol)::Union{PropertyHint, Nothing}
+    if s== :color
+        return PropertyHintColor()
+    elseif s==:handle
+        return PropertyHintNoEdit()
+    else
+        return nothing
+    end
+end
+
+function rerender_node(data::TriangleClusterDrawData, renderers::Dict{DataType, Renderer})
+    tri_renderer::TriangleRenderer = renderers[TriangleRenderer]::TriangleRenderer
+    update_color!(tri_renderer, data.handle, data.color)
+end
+
+function reconstruct_node(data::TriangleClusterDrawData, properties::Dict{Symbol, Any})::TriangleClusterDrawData
+    return TriangleClusterDrawData(data.handle, get(properties, :color, data.color))
+end
+
+
 convert_callback_entry(t::TriangleCluster)::TriangleCluster = t
 
 function convert_callback_result(t::TriangleCluster,triangles)

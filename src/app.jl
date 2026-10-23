@@ -203,7 +203,7 @@ end
 function update!(self::App, iconified::Bool)
     update!(self.graph, self._delta_time, NodeHandle(4))
     thread_count::Int64 = Base.Threads.nthreads()
-    if self.graph.invalid_count != 0
+    if self.graph.invalid_count[] != 0
         if thread_count == 1
             lock_read(self.graph.lck)
             try

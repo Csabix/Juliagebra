@@ -5,7 +5,7 @@ struct GlobalSettings
     scratch_path::String
     toml_file::String
     settings::Dict{String, Any}
-    settings_hints::Dict{String, PropertyHint}
+    settings_hints::Dict{String, Any}
 end
 
 global_settings::Union{GlobalSettings, Nothing} = nothing
@@ -52,9 +52,43 @@ function default_settings()::Dict{String,Any}
     )
 end
 
-function settings_hints()::Dict{String, PropertyHint}
-    return Dict{String, PropertyHint}(
-        "Graphics/Display/Background color" => PropertyHintColor(false)
+function settings_hints()::Dict{String, Any}
+    return Dict{String,Any}(
+        "Graphics" => Dict{String, Any}(
+            "Display" => Dict{String, Any}(
+                "Enable VSync" => nothing,
+                "Max FPS" => PropertyHintNumber(),
+                "Background color" => PropertyHintColor(false)
+            ),
+            "Renderers" => Dict{String, Any}(
+
+            )
+        ),
+        "Evaluator" => Dict{String, Any}(
+
+        ),
+        "Controls" => Dict{String, Any}(
+            "Invert camera" => Dict{String, Any}(
+                "Panning" => Dict{String, Any}(
+                    "X" => nothing,
+                    "Y" => nothing
+                ),
+                "Rotation" => Dict{String, Any}(
+                    "X" => nothing,
+                    "Y" => nothing
+                )
+            ),
+            "Mouse sensitivity" => Dict{String, Any}(
+                    "X" => PropertyHintSlider(0.1,10.0),
+                    "Y" => PropertyHintSlider(0.1,10.0)
+            ),
+            "Keybinds" => Dict{String, Any}(
+                 
+            )
+        ),
+        "Geometry" => Dict{String, Any}(
+
+        )
     )
 end
 

@@ -62,7 +62,7 @@ abstract type PropertyHint end
 struct PropertyHintSlider <: PropertyHint
     min::Real
     max::Real
-    function PropertyHintSlider(min::Real = 0f, max::Real = 1f)
+    function PropertyHintSlider(min::Real = 0.0, max::Real = 1.0)
         new(min, max)
     end
 end
@@ -83,7 +83,7 @@ end
 struct PropertyHintNumber <: PropertyHint
     step::Real
     step_fast::Real
-    function PropertyHintNumber(step::Real=1f, step_fast::Real=5f)
+    function PropertyHintNumber(step::Real=1.0, step_fast::Real=5.0)
         new(step, step_fast)
     end
 end

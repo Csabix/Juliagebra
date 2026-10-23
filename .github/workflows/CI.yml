@@ -1,0 +1,70 @@
+name: Pkg Test Runner
+
+on:
+  push:
+    branches:
+      - master
+      - node_interface
+    tags: ['*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # cancel intermediate builds on PRs if new commits are pushed
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1.12'
+          - '1.13'
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      
+      # 1. Install Mesa3D software renderer on Windows so OpenGL/GLFW contexts can initialize
+      - name: Install Mesa for Windows OpenGL Support
+        if: runner.os == 'Windows'
+        uses: f3d-app/install-mesa-windows-action@v1
+        with:
+          path: ${{ github.workspace }}
+
+      # 2. Force Windows to use Mesa's opengl32.dll instead of System32
+      - name: Copy Mesa DLLs to Julia Bin Directory
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $juliaBin = & julia -e "print(Sys.BINDIR)"
+          Write-Host "Julia bin directory: $juliaBin"
+          Get-ChildItem -Path "${{ github.workspace }}" -Recurse -Filter "opengl32.dll" | ForEach-Object {
+              Copy-Item $_.FullName -Destination $juliaBin -Force
+              Write-Host "Copied $($_.FullName) to $juliaBin"
+          }
+
+      # 3. Run tests (Linux uses xvfb-run, Windows uses the local Mesa DLLs)
+      - uses: julia-actions/julia-runtest@v1
+        with:
+            prefix: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }}
+            
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src
+      - uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }} 
+          fail_ci_if_error: false

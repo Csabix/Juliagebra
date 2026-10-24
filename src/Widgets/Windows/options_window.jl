@@ -50,17 +50,18 @@ function _setInfiniteAABBSize(self::OptionsWindow, app)
     _updateScene!(app)
 end
 
-function _render_option(name::String, subcategory::Dict{String, Any}, defaults::Dict{String, Any}, hints::Dict{String, Any}, path::String)
+function _render_option(name::String, subcategory::Dict{String, Any}, defaults::Dict{String, Any}, hints::Union{Dict{String, Any}, Nothing}, path::String)
     if CImGui.TreeNode(name)
         options = collect(keys(subcategory))
         indices = sortperm(options)
         for i in indices
             o = options[i]
             v = subcategory[o]
+            h = hints !== nothing ? get(hints, o, nothing) : nothing
             if v isa Dict
-                _render_option(o, v, defaults[o], hints[o], path*"/$o")
+                _render_option(o, v, defaults[o], h, path*"/$o")
             else
-                result = input_property(o,v, hints[o])
+                result = input_property(o,v, h)
                 if v!=result
                     set_global_setting(path*"/$o", result)
                 end
@@ -76,10 +77,11 @@ function _render_option(name::String, subcategory::Dict{String, Any}, defaults::
         CImGui.TreePop()
     end
 end
+
 selected_category::Int = -1 # @cstatic doesn't work for some reaon?
 function renderContent(self::OptionsWindow, app::AppDNA)
     @assert global_settings !== nothing "Settings are uninitialized"
-    #=@cstatic selected_category::Int=-1=# begin
+    #=@cstatic selected_category::Int = -1=# begin
         CImGui.BeginChild("Option Categories",(CImGui.GetContentRegionAvail().x * 0.2, 0.0))
         categories = collect(keys(global_settings.settings))
         category_indices = sortperm(categories)
@@ -96,10 +98,6 @@ function renderContent(self::OptionsWindow, app::AppDNA)
             _render_option(categories[i], global_settings.settings[categories[i]], default_settings()[categories[selected_category]], global_settings.settings_hints[categories[i]], categories[i])
         end
         CImGui.EndChild()
-        # for a in keys(global_settings.settings)
-        #     CImGui.Text(a)
-        # end
-    
         return
     end
     # if (CImGui.Checkbox("White background", self._whitebg))

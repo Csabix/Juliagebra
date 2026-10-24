@@ -18,7 +18,11 @@ function default_settings()::Dict{String,Any}
             "Display" => Dict{String, Any}(
                 "Enable VSync" => true,
                 "Max FPS" => 60,
-                "Background color" => UInt32(0xFFFFFFFF)
+                "Background color" => UInt32(0xFFFFFFFF),
+                "Infinite AABB" => Dict{String, Any}(
+                    "Minimum" => Vec3D(-10.0,-10.0,-10.0),
+                    "Maximum" => Vec3D(10.0,10.0,10.0)
+                )
             ),
             "Renderers" => Dict{String, Any}(
 
@@ -58,7 +62,7 @@ function settings_hints()::Dict{String, Any}
             "Display" => Dict{String, Any}(
                 "Enable VSync" => nothing,
                 "Max FPS" => PropertyHintNumber(),
-                "Background color" => PropertyHintColor(false)
+                "Background color" => PropertyHintColor(false),
             ),
             "Renderers" => Dict{String, Any}(
 

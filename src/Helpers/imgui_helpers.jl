@@ -97,8 +97,8 @@ function input(label::String,self::Vec4T{T})::Vec4T{Int32} where T <: Integer
     return Vec4T(vec[1], vec[2], vec[3], vec[4])
 end
 
-function color_edit3(label::String,color::UInt32)::UInt32
-    c4 = unpack_color(color)
+function color_edit3(label::String,color::Integer)::UInt32
+    c4 = unpack_color(UInt32(color))
     col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
             CImGui.ImGuiColorEditFlags_NoLabel
@@ -106,8 +106,8 @@ function color_edit3(label::String,color::UInt32)::UInt32
     return get_color((col[1],col[2],col[3]))
 end
 
-function color_edit4(label::String,color::UInt32)::UInt32
-    c4 = unpack_color(color)
+function color_edit4(label::String,color::Integer)::UInt32
+    c4 = unpack_color(UInt32(color))
     col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3]), Float32(c4[4])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
         CImGui.ImGuiColorEditFlags_AlphaBar     |

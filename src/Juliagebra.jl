@@ -13,6 +13,8 @@ using BitFlags
 import MacroTools
 import ShaderTranspiler
 
+include("settings.jl")
+
 include("logger.jl")
 include("profiling.jl")
 include("performance_metrics.jl")
@@ -25,6 +27,7 @@ include("GL/gl.jl")
 include("commons.jl")
 
 include("glfw_data.jl")
+
 
 include("camera.jl")
 include("camera_manipulator.jl")
@@ -118,6 +121,8 @@ include("Widgets/Windows/property_window.jl")
 include("imgui_data.jl")
 
 include("app.jl")
+
+
 
 function plot()::Nothing
     global implicitApp

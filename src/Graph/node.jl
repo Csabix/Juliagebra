@@ -68,7 +68,7 @@ abstract type PropertyHint end
 struct PropertyHintSlider <: PropertyHint
     min::Real
     max::Real
-    function PropertyHintSlider(min::Real = 0f, max::Real = 1f)
+    function PropertyHintSlider(min::Real = 0.0, max::Real = 1.0)
         new(min, max)
     end
 end
@@ -89,7 +89,7 @@ end
 struct PropertyHintNumber <: PropertyHint
     step::Real
     step_fast::Real
-    function PropertyHintNumber(step::Real=1f, step_fast::Real=5f)
+    function PropertyHintNumber(step::Real=1.0, step_fast::Real=5.0)
         new(step, step_fast)
     end
 end
@@ -176,6 +176,25 @@ function modify_properties(element::Real, handle::NodeHandle, flag::Int)::Tuple{
 end
 
 function input_property(label::String, value::Vector, property_hint::Union{PropertyHint, Nothing} = nothing)::Vector
+        if length(value) == 1
+            return [input_property(label, value[1], property_hint)]
+        elseif 2<=length(value) <= 4 && (property_hint === nothing || property_hint isa PropertyHintNumber)
+            types = map(v->typeof(v), value)
+            if all(t -> t<:Real, types) && allequal(types)
+                vec = nothing
+                type = types[1]
+                if length(value) == 2
+                    vec = Vec2T{type}(value[1], value[2])
+                elseif length(value)==3
+                    vec = Vec3T{type}(value[1], value[2], value[3])
+                else
+                    vec = Vec3T{type}(value[1], value[2], value[3], value[4])
+                end
+                res = input_property(label, vec, property_hint)
+                return [v for v in res]
+            end
+        end
+
         rt::Vector = []
         for v in eachindex(value)
             push!(rt, input_property(label*"$v", value[v], property_hint))

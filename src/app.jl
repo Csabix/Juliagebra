@@ -243,12 +243,47 @@ function update!(self::App, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
+function _setBackground(color::Integer, self::Vector{Any})
+    c = unpack_color(UInt32(trunc(unsigned(color); digits = 32, base = 2)))
+    glClearColor(c[1], c[2], c[3], c[4])
+    # ? updates so that the background changes instantly, instead of waiting for an actual scene_change
+    _updateScene!(self[1])
+end
+
+function _setGizmoLength(len, self)
+    gizmo::GizmoRenderer = self[1]._opengl._renderers[GizmoRenderer]
+    gizmo.ubo_size[1] = len
+    _updateScene!(self[1])
+end
+
+function _setGizmoThickness(thickness, self)
+    gizmo::GizmoRenderer = self[1]._opengl._renderers[GizmoRenderer]
+    gizmo.ubo_size[2] = thickness
+    _updateScene!(self[1])
+end
+
+function _setInfiniteAABBSize(size, app)
+    size = get_global_setting("Graphics/Display/Infinite AABB")
+    min = size["Minimum"]
+    max = size["Maximum"]
+    app[1]._opengl._ubo_aabb[1] = UBO_AABB(
+        Vec4F(min[1],min[2],min[3],0.0),
+        Vec4F(max[1],max[2],max[3],0.0)
+    )
+    _updateScene!(app[1])
+end
+
+function _updateScene!(app::AppDNA)
+    app._scene_change = true
+end
 
 function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
+    init_settings()
     
+
     init!(self._glfw, true)
     self._cam.aspect = self._glfw.width / self._glfw.height
     calculate_projection_matrix!(self._cam)
@@ -257,6 +292,14 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
+    on_setting_changed("Graphics/Display/Background color", _setBackground, [self])
+    on_setting_changed("Graphics/Display/Gizmo/Length", _setGizmoLength, [self])
+    on_setting_changed("Graphics/Display/Gizmo/Thickness", _setGizmoThickness, [self])
+    on_setting_changed("Graphics/Display/Infinite AABB/Minimum", _setInfiniteAABBSize, [self])
+    on_setting_changed("Graphics/Display/Infinite AABB/Maximum", _setInfiniteAABBSize, [self])
+
+    apply_settings()
+
     clear!(self)
 end
 

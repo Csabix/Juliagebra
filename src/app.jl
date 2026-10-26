@@ -244,6 +244,17 @@ function _setGizmoThickness(thickness, self)
     _updateScene!(self[1])
 end
 
+function _setInfiniteAABBSize(size, app)
+    size = get_global_setting("Graphics/Display/Infinite AABB")
+    min = size["Minimum"]
+    max = size["Maximum"]
+    app[1]._opengl._ubo_aabb[1] = UBO_AABB(
+        Vec4F(min[1],min[2],min[3],0.0),
+        Vec4F(max[1],max[2],max[3],0.0)
+    )
+    _updateScene!(app[1])
+end
+
 function _updateScene!(app::AppDNA)
     app._scene_change = true
 end
@@ -253,7 +264,7 @@ function init!(self::App)
         error("Window is already created, can't init! again.")
     end
     init_settings()
-    on_setting_changed("Graphics/Display/Background color", _setBackground, [self])
+    
 
     init!(self._glfw, true)
     self._cam.aspect = self._glfw.width / self._glfw.height
@@ -263,9 +274,11 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
-
+    on_setting_changed("Graphics/Display/Background color", _setBackground, [self])
     on_setting_changed("Graphics/Display/Gizmo/Length", _setGizmoLength, [self])
     on_setting_changed("Graphics/Display/Gizmo/Thickness", _setGizmoThickness, [self])
+    on_setting_changed("Graphics/Display/Infinite AABB/Minimum", _setInfiniteAABBSize, [self])
+    on_setting_changed("Graphics/Display/Infinite AABB/Maximum", _setInfiniteAABBSize, [self])
 
     apply_settings()
 

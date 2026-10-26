@@ -2,26 +2,13 @@ using CImGui.CSyntax.CStatic
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
 
-    _aabbMin::Array{Cfloat}
-    _aabbMax::Array{Cfloat}
-    function OptionsWindow(aabbMin,aabbMax)
-        aabbMin = Cfloat[aabbMin[1],aabbMin[2],aabbMin[3]]
-        aabbMax = Cfloat[aabbMax[1],aabbMax[2],aabbMax[3]]
-        new(Window(),aabbMin,aabbMax)
+    function OptionsWindow()
+        new(Window())
     end
 end
 
 _Window_(self::OptionsWindow)::Window = self._window
 getWindowName(self::OptionsWindow) = "Options"
-
-
-function _setInfiniteAABBSize(self::OptionsWindow, app)
-    app._opengl._ubo_aabb[1] = UBO_AABB(
-        Vec4F(self._aabbMin[1],self._aabbMin[2],self._aabbMin[3],0.0),
-        Vec4F(self._aabbMax[1],self._aabbMax[2],self._aabbMax[3],0.0)
-    )
-    _updateScene!(app)
-end
 
 function _render_option(name::String, subcategory::Dict{String, Any}, defaults::Dict{String, Any}, hints::Union{Dict{String, Any}, Nothing}, path::String)
     if CImGui.TreeNode(name)

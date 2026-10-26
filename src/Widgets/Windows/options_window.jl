@@ -2,22 +2,12 @@ using CImGui.CSyntax.CStatic
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
 
-    _whitebg::Ref{Bool}
-    _bgColor::Array{Cfloat}
-
-    _gizmoLength::Ref{Float32}
-    _gizmoThickness::Ref{Float32}
-
     _aabbMin::Array{Cfloat}
     _aabbMax::Array{Cfloat}
-    function OptionsWindow(color,aabbMin,aabbMax)
-        whitebg = false
-        bgColor = Cfloat[color[1], color[2], color[3]]
-        gizmoLength = 1.0
-        gizmoThickness = 1.0
+    function OptionsWindow(aabbMin,aabbMax)
         aabbMin = Cfloat[aabbMin[1],aabbMin[2],aabbMin[3]]
         aabbMax = Cfloat[aabbMax[1],aabbMax[2],aabbMax[3]]
-        new(Window(), whitebg, bgColor, gizmoLength, gizmoThickness,aabbMin,aabbMax)
+        new(Window(),aabbMin,aabbMax)
     end
 end
 
@@ -25,12 +15,6 @@ _Window_(self::OptionsWindow)::Window = self._window
 getWindowName(self::OptionsWindow) = "Options"
 
 
-function _setGizmo(self::OptionsWindow, app)
-    gizmo::GizmoRenderer = app._opengl._renderers[GizmoRenderer]
-    gizmo.ubo_size[1] = self._gizmoLength[]
-    gizmo.ubo_size[2] = self._gizmoThickness[]
-    _updateScene!(app)
-end
 function _setInfiniteAABBSize(self::OptionsWindow, app)
     app._opengl._ubo_aabb[1] = UBO_AABB(
         Vec4F(self._aabbMin[1],self._aabbMin[2],self._aabbMin[3],0.0),
@@ -89,20 +73,7 @@ function renderContent(self::OptionsWindow, app::AppDNA)
         CImGui.EndChild()
         return
     end
-    # if (CImGui.Checkbox("White background", self._whitebg))
-    #     _setBackground(self, app)
-    # end
-    # CImGui.BeginDisabled(self._whitebg[])
-    # if (CImGui.ColorEdit3("Custom background color", self._bgColor, CImGui.ImGuiColorEditFlags_NoInputs))
-    #     _setBackground(self, app)
-    # end
-    # CImGui.EndDisabled()
-    # CImGui.SameLine()
-    # if (CImGui.Button("Default"))
-    #     defcol = getOpenGL(app)._backgroundCol
-    #     self._bgColor = Cfloat[defcol[1], defcol[2], defcol[3]]
-    #     _setBackground(self, app)
-    # end
+
     # if (CImGui.CollapsingHeader("Gizmo settings"))
     #     if (CImGui.SliderFloat("Length", self._gizmoLength, 0.5, 2.0))
     #         _setGizmo(self, app)

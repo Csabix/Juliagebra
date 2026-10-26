@@ -7,7 +7,7 @@ struct GlobalSettings
     settings::Dict{String, Any}
     settings_hints::Dict{String, Any}
     modified_notification::Dict{String, Set{Function}}
-    modified_bindings::Dict{Function, Vector{Any}}
+    modified_bindings::Dict{Pair{Function, String}, Vector{Any}}
 end
 
 global_settings::Union{GlobalSettings, Nothing} = nothing
@@ -22,6 +22,10 @@ function default_settings()::Dict{String,Any}
                 "Infinite AABB" => Dict{String, Any}(
                     "Minimum" => Vec3D(-10.0,-10.0,-10.0),
                     "Maximum" => Vec3D(10.0,10.0,10.0)
+                ),
+                "Gizmo" => Dict{String, Any}(
+                    "Length" => 1.0,
+                    "Thickness" => 1.0
                 )
             ),
             "Renderers" => Dict{String, Any}(
@@ -63,6 +67,10 @@ function settings_hints()::Dict{String, Any}
                 "Enable VSync" => nothing,
                 "Max FPS" => PropertyHintNumber(),
                 "Background color" => PropertyHintColor(false),
+                "Gizmo" => Dict{String, Any}(
+                    "Length" => PropertyHintSlider(0.0, 10.0),
+                    "Thickness" => PropertyHintSlider(0.0, 10.0)
+                )
             ),
             "Renderers" => Dict{String, Any}(
 
@@ -150,8 +158,9 @@ function set_global_setting(path::String, value::Any)
     # callback
     if haskey(global_settings.modified_notification, path)
         for f::Function in global_settings.modified_notification[path]
-            if haskey(global_settings.modified_bindings, f) && length(global_settings.modified_bindings[f]) > 0
-                f(value,global_settings.modified_bindings[f])
+            fpair = Pair(f, path)
+            if haskey(global_settings.modified_bindings, fpair) && length(global_settings.modified_bindings[fpair]) > 0
+                f(value, global_settings.modified_bindings[fpair])
             else
                 f(value)
             end
@@ -173,7 +182,7 @@ function on_setting_changed(setting::String, func::Function, binds::Union{Vector
     func_set = get(global_settings.modified_notification, setting, Set{Function}())
     global_settings.modified_notification[setting] = func_set
     if binds !== nothing
-        global_settings.modified_bindings[func] = binds
+        global_settings.modified_bindings[Pair(func, setting)] = binds
     end
     push!(func_set, func)
 end

@@ -232,6 +232,18 @@ function _setBackground(color::Integer, self::Vector{Any})
     _updateScene!(self[1])
 end
 
+function _setGizmoLength(len, self)
+    gizmo::GizmoRenderer = self[1]._opengl._renderers[GizmoRenderer]
+    gizmo.ubo_size[1] = len
+    _updateScene!(self[1])
+end
+
+function _setGizmoThickness(thickness, self)
+    gizmo::GizmoRenderer = self[1]._opengl._renderers[GizmoRenderer]
+    gizmo.ubo_size[2] = thickness
+    _updateScene!(self[1])
+end
+
 function _updateScene!(app::AppDNA)
     app._scene_change = true
 end
@@ -251,6 +263,9 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
+
+    on_setting_changed("Graphics/Display/Gizmo/Length", _setGizmoLength, [self])
+    on_setting_changed("Graphics/Display/Gizmo/Thickness", _setGizmoThickness, [self])
 
     apply_settings()
 

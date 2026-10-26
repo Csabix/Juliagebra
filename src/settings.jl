@@ -6,11 +6,11 @@ struct GlobalSettings
     toml_file::String
     settings::Dict{String, Any}
     settings_hints::Dict{String, Any}
+    modified_notification::Dict{String, Set{Function}}
+    modified_bindings::Dict{Function, Vector{Any}}
 end
 
 global_settings::Union{GlobalSettings, Nothing} = nothing
-
-modified_notification::Dict{String, Set{Function}} = Dict()
 
 function default_settings()::Dict{String,Any}
     return Dict{String,Any}(
@@ -106,14 +106,13 @@ function init_settings(scratch_path::String = "global_settings", toml_file::Stri
     # if file exists -> read file
     if isfile(path)
         d = TOML.parsefile(path)
-        global global_settings = GlobalSettings(scratch_path, toml_file, d, edit_hints)
+        global global_settings = GlobalSettings(scratch_path, toml_file, d, edit_hints, Dict(), Dict())
     # else -> generate dict, write file
     else
-        global global_settings = GlobalSettings(scratch_path, toml_file, default,edit_hints)
+        global global_settings = GlobalSettings(scratch_path, toml_file, default,edit_hints, Dict(), Dict())
         save_settings()
     end
-    println(path)
-    println(global_settings)
+
 end
 
 function get_global_setting(path::String)::Any
@@ -149,9 +148,13 @@ function set_global_setting(path::String, value::Any)
     # serialize
     save_settings()
     # callback
-    if haskey(modified_notification, path)
-        for f::Function in modified_notification[path]
-            f()
+    if haskey(global_settings.modified_notification, path)
+        for f::Function in global_settings.modified_notification[path]
+            if haskey(global_settings.modified_bindings, f) && length(global_settings.modified_bindings[f]) > 0
+                f(value,global_settings.modified_bindings[f])
+            else
+                f(value)
+            end
         end
     end
 end
@@ -165,8 +168,31 @@ function save_settings()
     close(file)
 end
 
-function on_setting_changed(setting::String, func::Function)
-    func_set = get(modified_notification, setting, Set{Function}())
-    modified_notification[setting] = func_set
+function on_setting_changed(setting::String, func::Function, binds::Union{Vector, Nothing}=nothing)
+    @assert global_settings !== nothing "Settings are uninitialized"
+    func_set = get(global_settings.modified_notification, setting, Set{Function}())
+    global_settings.modified_notification[setting] = func_set
+    if binds !== nothing
+        global_settings.modified_bindings[func] = binds
+    end
     push!(func_set, func)
+end
+
+function apply_settings()
+    @assert global_settings !== nothing "Settings are uninitialized"
+    for n in keys(global_settings.settings)
+        _apply_settings(n, global_settings.settings, n)
+    end
+
+end
+
+function _apply_settings(setting::String, options::Dict{String, Any}, path::String)
+    @assert global_settings !== nothing "Settings are uninitialized"
+    if options[setting] isa Dict
+        for n in keys(options[setting])
+            _apply_settings(n, options[setting], path*"/$n")
+        end
+    else
+        set_global_setting(path, options[setting])
+    end
 end

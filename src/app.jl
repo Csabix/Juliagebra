@@ -225,12 +225,24 @@ function update!(self::App, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
+function _setBackground(color::Integer, self::Vector{Any})
+    c = unpack_color(UInt32(trunc(unsigned(color); digits = 32, base = 2)))
+    glClearColor(c[1], c[2], c[3], c[4])
+    # ? updates so that the background changes instantly, instead of waiting for an actual scene_change
+    _updateScene!(self[1])
+end
+
+function _updateScene!(app::AppDNA)
+    app._scene_change = true
+end
 
 function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
     init_settings()
+    on_setting_changed("Graphics/Display/Background color", _setBackground, [self])
+
     init!(self._glfw, true)
     self._cam.aspect = self._glfw.width / self._glfw.height
     calculate_projection_matrix!(self._cam)
@@ -239,6 +251,9 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
+
+    apply_settings()
+
     clear!(self)
 end
 

@@ -13,6 +13,8 @@ using BitFlags
 import MacroTools
 import ShaderTranspiler
 
+include("settings.jl")
+
 include("logger.jl")
 include("profiling.jl")
 include("performance_metrics.jl")
@@ -121,7 +123,7 @@ include("imgui_data.jl")
 
 include("app.jl")
 
-include("settings.jl")
+
 
 function plot()::Nothing
     global implicitApp

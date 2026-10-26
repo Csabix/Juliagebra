@@ -24,18 +24,7 @@ end
 _Window_(self::OptionsWindow)::Window = self._window
 getWindowName(self::OptionsWindow) = "Options"
 
-function _updateScene!(app::AppDNA)
-    app._scene_change = true
-end
-function _setBackground(self::OptionsWindow, app::AppDNA)
-    if (self._whitebg[])
-        glClearColor(1.0f0, 1.0f0, 1.0f0, 1.0f0)
-    else
-        glClearColor(self._bgColor[1], self._bgColor[2], self._bgColor[3], 1.0f0)
-    end
-    # ? updates so that the background changes instantly, instead of waiting for an actual scene_change
-    _updateScene!(app)
-end
+
 function _setGizmo(self::OptionsWindow, app)
     gizmo::GizmoRenderer = app._opengl._renderers[GizmoRenderer]
     gizmo.ubo_size[1] = self._gizmoLength[]

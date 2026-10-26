@@ -172,7 +172,7 @@ end
 function input_property(label::String, value::Vector, property_hint::Union{PropertyHint, Nothing} = nothing)::Vector
         if length(value) == 1
             return [input_property(label, value[1], property_hint)]
-        elseif 2<=length(value) <= 4
+        elseif 2<=length(value) <= 4 && (property_hint === nothing || property_hint isa PropertyHintNumber)
             types = map(v->typeof(v), value)
             if all(t -> t<:Real, types) && allequal(types)
                 vec = nothing

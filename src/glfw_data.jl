@@ -36,6 +36,8 @@ const KEY_MOD_CONTROL::UInt8    = 0x02
 const KEY_MOD_ALT::UInt8        = 0x04
 const KEY_MOD_SUPER::UInt8      = 0x08
 
+const ACTION_CAM_FORWARD::UInt32 = 0
+
 struct Event
     type::UInt8
     key_mod::UInt8
@@ -54,11 +56,14 @@ mutable struct Inputs
     last_y::Cdouble
     window::GLFWData
 
+    action_map::Dict{Tuple{UInt8, Cint}, UInt32} # mod + keycode -> action
+
     button_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     button_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     mouse_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     mouse_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
 
+    action_handler_map::Dict{Tuple{UInt8, UInt32}, Vector{Function}} # type + action -> handler
     handle_map::Vector{Tuple{UInt8,Cint,UInt8,Function}}
 
     function Inputs(window::GLFWData)
@@ -67,10 +72,12 @@ mutable struct Inputs
             0.0,
             0.0,
             window,
+            Dict{Tuple{UInt8, Cint}, UInt32}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
+            Dict{Tuple{UInt8, UInt32}, Vector{Function}}(),
             Vector{Tuple{UInt8,Cint,UInt8,Function}}()
         )
     end
@@ -217,6 +224,10 @@ function _rebuild_inputs!(inputs::Inputs)::Nothing
     return nothing
 end
 
+function set_action_input(inputs::Inputs, action::UInt32, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+    inputs.action_map[(mod, code)] = action
+end
+
 function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::Cint = Cint(0), mod::UInt8 = UInt8(KEY_MOD_NONE))::Int32
     push!(inputs.handle_map, (type, Cint(code), mod, func))
     push!(inputs.event_callbacks[type], (mod, func))
@@ -230,6 +241,12 @@ function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::C
         push!(vec, (mod, func))
     end
     return Int32(length(inputs.handle_map))
+end
+
+function register_callback_for_action(func::Function, inputs::Inputs, type::UInt8, action::UInt32)
+    @assert type in (KEY_UP, KEY_DOWN) "input actions only upport keyboard events"
+    vec = get!(inputs.action_handler_map, (type, action), [])
+    push!(vec, func)
 end
 
 function change_callback!(func::Function, inputs::Inputs, handle::Int32, type::UInt8; code::Cint = 0, mod::UInt8 = KEY_MOD_NONE)::Nothing
@@ -281,6 +298,14 @@ function _input_call(inputs::Inputs,event::Event)::Nothing
         end
     end
 
+    if event.type in (KEY_DOWN, KEY_UP) && haskey(inputs.action_map, (event.key_mod, event.scancode))
+        action = inputs.action_map[(event.key_mod, event.scancode)]
+        for callback in get(inputs.action_handler_map, (event.type, action), [])
+            if callback(action, event)
+                break
+            end
+        end
+    end
     return nothing
 end
 

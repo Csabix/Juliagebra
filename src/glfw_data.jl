@@ -36,7 +36,10 @@ const KEY_MOD_CONTROL::UInt8    = 0x02
 const KEY_MOD_ALT::UInt8        = 0x04
 const KEY_MOD_SUPER::UInt8      = 0x08
 
-const ACTION_CAM_FORWARD::UInt32 = 0
+@enum InputAction::UInt32 begin
+    ACTION_CAM_FORWARD
+end
+
 
 struct Event
     type::UInt8
@@ -56,14 +59,14 @@ mutable struct Inputs
     last_y::Cdouble
     window::GLFWData
 
-    action_map::Dict{Tuple{UInt8, Cint}, UInt32} # mod + keycode -> action
+    action_map::Dict{Tuple{UInt8, Cint}, InputAction} # mod + keycode -> action
 
     button_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     button_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     mouse_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     mouse_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
 
-    action_handler_map::Dict{Tuple{UInt8, UInt32}, Vector{Function}} # type + action -> handler
+    action_handler_map::Dict{Tuple{UInt8, InputAction}, Vector{Function}} # type + action -> handler
     handle_map::Vector{Tuple{UInt8,Cint,UInt8,Function}}
 
     function Inputs(window::GLFWData)
@@ -72,12 +75,12 @@ mutable struct Inputs
             0.0,
             0.0,
             window,
-            Dict{Tuple{UInt8, Cint}, UInt32}(),
+            Dict{Tuple{UInt8, Cint}, InputAction}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
-            Dict{Tuple{UInt8, UInt32}, Vector{Function}}(),
+            Dict{Tuple{UInt8, InputAction}, Vector{Function}}(),
             Vector{Tuple{UInt8,Cint,UInt8,Function}}()
         )
     end
@@ -114,6 +117,14 @@ function init!(w::GLFWData,debug::Bool)::Nothing
 end
 
 is_open(window::GLFWData) = return window._window.handle != C_NULL
+
+function get_input_action_name(action::InputAction)
+    if action == CAM_FORWARD
+        return "Move Camera Forward"
+    else
+        throw(ArgumentError("Invalid input action $action"))
+    end
+end
 
 function deinit!(w::GLFWData)
     stop_swap_thread!(w)
@@ -224,7 +235,7 @@ function _rebuild_inputs!(inputs::Inputs)::Nothing
     return nothing
 end
 
-function set_action_input(inputs::Inputs, action::UInt32, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+function set_action_input(inputs::Inputs, action::InputAction, code::Cint, mod::UInt8 = KEY_MOD_NONE)
     inputs.action_map[(mod, code)] = action
 end
 
@@ -243,7 +254,7 @@ function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::C
     return Int32(length(inputs.handle_map))
 end
 
-function register_callback_for_action(func::Function, inputs::Inputs, type::UInt8, action::UInt32)
+function register_callback_for_action(func::Function, inputs::Inputs, type::UInt8, action::InputAction)
     @assert type in (KEY_UP, KEY_DOWN) "input actions only upport keyboard events"
     vec = get!(inputs.action_handler_map, (type, action), [])
     push!(vec, func)

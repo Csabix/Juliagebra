@@ -7,7 +7,7 @@ struct GlobalSettings
     settings::Dict{String, Any}
     settings_hints::Dict{String, Any}
     modified_notification::Dict{String, Set{Function}}
-    modified_bindings::Dict{Pair{Function, String}, Vector{Any}}
+    modified_bindings::Dict{Pair{Function, String}, Vector{Vector{Any}}}
 end
 
 global_settings::Union{GlobalSettings, Nothing} = nothing
@@ -168,7 +168,9 @@ function set_global_setting(path::String, value::Any)
         for f::Function in global_settings.modified_notification[path]
             fpair = Pair(f, path)
             if haskey(global_settings.modified_bindings, fpair) && length(global_settings.modified_bindings[fpair]) > 0
-                f(value, global_settings.modified_bindings[fpair])
+                for b in global_settings.modified_bindings[fpair]
+                    f(value, b)
+                end
             else
                 f(value)
             end
@@ -191,7 +193,13 @@ function on_setting_changed(setting::String, func::Function, binds::Union{Vector
     func_set = get(global_settings.modified_notification, setting, Set{Function}())
     global_settings.modified_notification[setting] = func_set
     if binds !== nothing
-        global_settings.modified_bindings[Pair(func, setting)] = binds
+        p = Pair(func, setting)
+        if get(global_settings.modified_bindings, p, nothing) ===nothing
+            global_settings.modified_bindings[p] = [binds]
+        else
+            push!(global_settings.modified_bindings[p], binds)
+        end
+        
     end
     push!(func_set, func)
 end

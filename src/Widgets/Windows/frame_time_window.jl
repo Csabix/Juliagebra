@@ -79,34 +79,5 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
         ImPlot.PlotLine("Target render time", [-60.0, 0.0], [target_frametime, target_frametime], 2)
         ImPlot.EndPlot()
     end
-
-    if CImGui.Checkbox("Framerate Limit",gui.limit_framerate)
-        if gui.limit_framerate[]
-            app._frame_limiter = FrameLimiter(Float64(gui.target_fps[]))
-        else
-            app._frame_limiter = nothing
-        end
-    end
-    if CImGui.SliderFloat("Target Framerate", gui.target_fps, 10.0, 144.0)
-        set_limit!(app._frame_limiter, Float64(gui.target_fps[]))
-    end
-
-    items = ("Adaptive (-1)", "Off (0)", "On (1)")
-    current_idx = app._vsync_state == -1 ? 0 : (app._vsync_state == 0 ? 1 : 2)
-
-    if CImGui.BeginCombo("VSync Interval", items[current_idx + 1])
-        for i in 0:2
-            is_selected = (current_idx == i)
-            if CImGui.Selectable(items[i+1], is_selected)
-                new_val = i == 0 ? -1 : (i == 1 ? 0 : 1)
-                app._vsync_state = new_val
-                GLFW.SwapInterval(new_val) 
-            end
-            if is_selected
-                CImGui.SetItemDefaultFocus()
-            end
-        end
-        CImGui.EndCombo()
-    end
     return nothing
 end

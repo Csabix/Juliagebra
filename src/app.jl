@@ -255,6 +255,23 @@ function _setInfiniteAABBSize(size, app)
     _updateScene!(app[1])
 end
 
+function _setTargetFramerate(value, self)
+    set_limit!(self[1]._frame_limiter, Float64(value))
+end
+
+function _setLimitFramerate(value, self)
+    if value
+        self[1]._frame_limiter = FrameLimiter(Float64(get_global_setting("Graphics/Display/Framerate/Max FPS")))
+    else
+        self[1]._frame_limiter = nothing
+    end
+end
+
+function _setVSyncInterval(value, self)
+    self[1]._vsync_state = value - 2
+    GLFW.SwapInterval(value - 2)
+end
+
 function _updateScene!(app::AppDNA)
     app._scene_change = true
 end
@@ -279,6 +296,9 @@ function init!(self::App)
     on_setting_changed("Graphics/Display/Gizmo/Thickness", _setGizmoThickness, [self])
     on_setting_changed("Graphics/Display/Infinite AABB/Minimum", _setInfiniteAABBSize, [self])
     on_setting_changed("Graphics/Display/Infinite AABB/Maximum", _setInfiniteAABBSize, [self])
+    on_setting_changed("Graphics/Display/Framerate/Max FPS", _setTargetFramerate, [self])
+    on_setting_changed("Graphics/Display/Framerate/Limit Framerate", _setTargetFramerate, [self])
+    on_setting_changed("Graphics/Display/Framerate/Enable VSync", _setVSyncInterval, [self])
 
     apply_settings()
 

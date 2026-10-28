@@ -16,8 +16,12 @@ function default_settings()::Dict{String,Any}
     return Dict{String,Any}(
         "Graphics" => Dict{String, Any}(
             "Display" => Dict{String, Any}(
-                "Enable VSync" => true,
-                "Max FPS" => 60,
+                "Framerate" => Dict{String, Any}(
+                    "Enable VSync" => 2,
+                    "Limit Framerate" => false,
+                    "Max FPS" => 60
+                ),
+                
                 "Background color" => UInt32(0xFFFFFFFF),
                 "Infinite AABB" => Dict{String, Any}(
                     "Minimum" => Vec3D(-10.0,-10.0,-10.0),
@@ -64,8 +68,12 @@ function settings_hints()::Dict{String, Any}
     return Dict{String,Any}(
         "Graphics" => Dict{String, Any}(
             "Display" => Dict{String, Any}(
-                "Enable VSync" => nothing,
-                "Max FPS" => PropertyHintNumber(),
+                "Framerate" =>Dict{String, Any}(
+                    "Enable VSync" => PropertyHintEnum(["Adaptive (-1)", "Off (0)", "On (1)"]),
+                    "Max FPS" => PropertyHintSlider(10.0, 144.0),
+                    "Limit Framerate"=> nothing
+                ),
+                
                 "Background color" => PropertyHintColor(false),
                 "Gizmo" => Dict{String, Any}(
                     "Length" => PropertyHintSlider(0.0, 10.0),
@@ -179,6 +187,7 @@ end
 
 function on_setting_changed(setting::String, func::Function, binds::Union{Vector, Nothing}=nothing)
     @assert global_settings !== nothing "Settings are uninitialized"
+    @assert !isa(get_global_setting(setting), Dict) "Path leads to category, not string"
     func_set = get(global_settings.modified_notification, setting, Set{Function}())
     global_settings.modified_notification[setting] = func_set
     if binds !== nothing

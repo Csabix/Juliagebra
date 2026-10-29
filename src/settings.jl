@@ -54,9 +54,7 @@ function default_settings()::Dict{String,Any}
                     "X" => 1.0,
                     "Y" => 1.0
             ),
-            "Keybinds" => Dict{String, Any}(
-                 
-            )
+            "Keybinds" => [] # Vector{Tuple{InputAction, UInt8, Cint}}
         ),
         "Geometry" => Dict{String, Any}(
 
@@ -102,9 +100,7 @@ function settings_hints()::Dict{String, Any}
                     "X" => PropertyHintSlider(0.1,10.0),
                     "Y" => PropertyHintSlider(0.1,10.0)
             ),
-            "Keybinds" => Dict{String, Any}(
-                 
-            )
+            "Keybinds" => nothing
         ),
         "Geometry" => Dict{String, Any}(
 
@@ -119,6 +115,7 @@ end
 
 function init_settings(scratch_path::String = "global_settings", toml_file::String="settings.toml", default=default_settings(), edit_hints=settings_hints())
     path = @get_scratch!(scratch_path) *"/"*toml_file
+    println("settings path: $path")
     # if file exists -> read file
     if isfile(path)
         d = TOML.parsefile(path)

@@ -38,8 +38,12 @@ const KEY_MOD_SUPER::UInt8      = 0x08
 
 @enum InputAction::UInt32 begin
     ACTION_CAM_FORWARD
+    ACTION_CAM_BACK
+    ACTION_CAM_LEFT
+    ACTION_CAM_RIGHT
+    ACTION_CAM_UP
+    ACTION_CAM_DOWN
 end
-
 
 struct Event
     type::UInt8
@@ -66,6 +70,10 @@ mutable struct Inputs
     mouse_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     mouse_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
 
+    keys_pressed::Dict{GLFW.Key, Event}
+    keys_held::Dict{GLFW.Key, Event}
+    keys_released::Dict{GLFW.Key, Event}
+
     action_handler_map::Dict{Tuple{UInt8, InputAction}, Vector{Function}} # type + action -> handler
     handle_map::Vector{Tuple{UInt8,Cint,UInt8,Function}}
 
@@ -80,6 +88,9 @@ mutable struct Inputs
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
+            Dict{GLFW.Key, Event}(),
+            Dict{GLFW.Key, Event}(),
+            Dict{GLFW.Key, Event}(),
             Dict{Tuple{UInt8, InputAction}, Vector{Function}}(),
             Vector{Tuple{UInt8,Cint,UInt8,Function}}()
         )
@@ -140,7 +151,11 @@ get_shouldclose(w::GLFWData)::Bool = GLFW.WindowShouldClose(w._window)
 set_shouldclose(w::GLFWData,should_close::Bool)::Nothing = (GLFW.SetWindowShouldClose(w._window,should_close); nothing)
 get_resolution(w::GLFWData)::Tuple{Int32,Int32} = tuple(w.width,w.height)
 
-poll_events(::GLFWData)::Nothing = GLFW.PollEvents()
+function poll_events(::GLFWData, inputs::Inputs)::Nothing
+    inputs.keys_pressed = Dict()
+    inputs.keys_released = Dict()
+    GLFW.PollEvents()
+end
 
 function _swap_loop(w::GLFWData)::Nothing
     window = w._window
@@ -239,6 +254,10 @@ function set_action_input(inputs::Inputs, action::InputAction, code::Cint, mod::
     inputs.action_map[(mod, code)] = action
 end
 
+function delete_action_input(inputs::Inputs, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+    delete!(inputs.action_map, (mod, code))
+end
+
 function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::Cint = Cint(0), mod::UInt8 = UInt8(KEY_MOD_NONE))::Int32
     push!(inputs.handle_map, (type, Cint(code), mod, func))
     push!(inputs.event_callbacks[type], (mod, func))
@@ -333,6 +352,15 @@ function _key_callback(window::GLFW.Window, key::GLFW.Key, scancode::Cint, actio
         Cint(0),Cint(0)
     )
 
+    if event.type == KEY_UP
+        delete!(inputs.keys_held, key)
+        inputs.keys_released[key] = event
+    else
+        if !haskey(inputs.keys_held, key)
+            inputs.keys_pressed[key] = event
+        end
+        inputs.keys_held[key] = event
+    end
     _input_call(inputs,event)
 end
 

@@ -171,7 +171,7 @@ function play!(self::App)
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         swap_buffers(self._glfw)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
-        poll_events(self._glfw)
+        poll_events(self._glfw, self._inputs)
         self._need_clear && clear!(self)
     end
     destroy!(self)

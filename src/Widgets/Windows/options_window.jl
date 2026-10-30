@@ -1,9 +1,10 @@
 using CImGui.CSyntax.CStatic
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
-
+    selected_category::Int
+    input_record_mode::Union{Nothing, InputAction}
     function OptionsWindow()
-        new(Window())
+        new(Window(), -1, nothing)
     end
 end
 
@@ -38,43 +39,94 @@ function _render_option(name::String, subcategory::Dict{String, Any}, defaults::
     end
 end
 
-selected_category::Int = -1 # @cstatic doesn't work for some reaon?
-function renderContent(self::OptionsWindow, app::AppDNA)
-    @assert global_settings !== nothing "Settings are uninitialized"
-    #=@cstatic selected_category::Int = -1=# begin
-        CImGui.BeginChild("Option Categories",(CImGui.GetContentRegionAvail().x * 0.2, 0.0))
-        categories = collect(keys(global_settings.settings))
-        category_indices = sortperm(categories)
-        for i in category_indices
-            if CImGui.Selectable(categories[i], selected_category == i)
-                global selected_category = i
+function _render_keybinds(window::OptionsWindow, inputs::Inputs)
+    if window.input_record_mode ===nothing
+        actions = collect(keys(inputs.reverse_action_map))
+        idx = sortperm(actions)
+        for i in idx
+            a = actions[i]
+            if CImGui.TreeNode("$a")
+                for kb in inputs.reverse_action_map[a]
+                    CImGui.Text(keypress_name(kb[1], kb[2]))
+                    CImGui.SameLine()
+                    if CImGui.Button("Delete##$kb")
+                        delete_action_input(inputs, kb[2], kb[1])
+                    end
+                end
+                if CImGui.Button("Add Keybind")
+                    window.input_record_mode = a
+                    inputs.pause_key_callbacks = true
+                end
+                CImGui.TreePop()
             end
         end
-        CImGui.EndChild()
-        CImGui.SameLine()
-        CImGui.BeginChild("Options", (0.0,0.0))
-        if checkbounds(Bool, categories, selected_category)
-            i = selected_category
-            _render_option(categories[i], global_settings.settings[categories[i]], default_settings()[categories[selected_category]], global_settings.settings_hints[categories[i]], categories[i])
+    else
+        action = window.input_record_mode
+        CImGui.Text("Binding input to $action")
+        if CImGui.Button("Cancel")
+            window.input_record_mode = nothing
+            inputs.pause_key_callbacks = false
+            return
         end
-        CImGui.EndChild()
-        return
+        key = keys(inputs.keys_pressed)
+        for k in key
+            if !is_valid_key(k)
+                continue
+            end
+            event = inputs.keys_pressed[k]
+            set_action_input(inputs, action, event.scancode, event.key_mod)
+            window.input_record_mode = nothing
+            inputs.pause_key_callbacks = false
+        end 
+        
+    end
+end
+
+function render(self::OptionsWindow, app::AppDNA)
+    if (isVisible(self))
+        isVisible_Ref = Ref(isVisible(self))
+
+        CImGui.Begin(getWindowName(self),isVisible_Ref)
+        
+        renderContent(self, app)
+
+        CImGui.End()
+
+        setVisible(self,isVisible_Ref[])
+    else
+        self.input_record_mode = nothing
+        self.selected_category = -1
+        app._inputs.pause_key_callbacks = false
+    end
+end
+
+function renderContent(self::OptionsWindow, app::AppDNA)
+    @assert global_settings !== nothing "Settings are uninitialized"
+
+    CImGui.BeginChild("Option Categories",(CImGui.GetContentRegionAvail().x * 0.2, 0.0))
+
+    categories = collect(keys(global_settings.settings))
+    category_indices = sortperm(categories)
+    for i in category_indices
+        if CImGui.Selectable(categories[i], self.selected_category == i)
+            self.selected_category = i
+        end
     end
 
-    # if (CImGui.CollapsingHeader("Gizmo settings"))
-    #     if (CImGui.SliderFloat("Length", self._gizmoLength, 0.5, 2.0))
-    #         _setGizmo(self, app)
-    #     end
-    #     if (CImGui.SliderFloat("Thickness", self._gizmoThickness, 0.5, 2.0))
-    #         _setGizmo(self, app)
-    #     end
-    # end
-    # if (CImGui.CollapsingHeader("Infinite AABB settings"))
-    #     if (CImGui.DragFloat3("Minimum", self._aabbMin, 1.0, -100.0, -1.0))
-    #         _setInfiniteAABBSize(self, app)
-    #     end
-    #     if (CImGui.DragFloat3("Maximum", self._aabbMax, 1.0, 1.0, 100.0))
-    #         _setInfiniteAABBSize(self, app)
-    #     end
-    # end
+    CImGui.Separator()
+    if CImGui.Selectable("Edit keybinds", self.selected_category == -2)
+            self.selected_category = -2
+    end
+    CImGui.EndChild()
+
+    CImGui.SameLine()
+    CImGui.BeginChild("Options", (0.0,0.0))
+
+    if checkbounds(Bool, categories, self.selected_category)
+        i = self.selected_category
+        _render_option(categories[i], global_settings.settings[categories[i]], default_settings()[categories[self.selected_category]], global_settings.settings_hints[categories[i]], categories[i])
+    elseif self.selected_category == -2
+        _render_keybinds(self, app._inputs)
+    end
+    CImGui.EndChild()
 end

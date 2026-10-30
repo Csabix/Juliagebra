@@ -65,7 +65,11 @@ mutable struct Inputs
 
     scratch_path::String
     toml_file::String
+
     action_map::Dict{Tuple{UInt8, Cint}, InputAction} # mod + keycode -> action
+    reverse_action_map::Dict{InputAction, Vector{Tuple{UInt8, Cint}}}
+
+    pause_key_callbacks::Bool
 
     button_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
     button_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
@@ -85,6 +89,15 @@ mutable struct Inputs
         scratch = @get_scratch!(path)
         println("keybinds file: $scratch/$file")
         kb = load_keybinds("$scratch/$file")
+        rkb = Dict{InputAction, Vector{Tuple{UInt8, Cint}}}()
+        for k in keys(kb)
+            if haskey(rkb, kb[k])
+                push!(rkb[kb[k]], k)
+            else
+                rkb[kb[k]] = [k]
+            end
+        end
+
         rt = new(
             SVector{8}([Vector{Tuple{UInt8,Function}}() for _ in 1:8]), 
             0.0,
@@ -93,6 +106,8 @@ mutable struct Inputs
             path,
             file,
             kb,
+            rkb,
+            false,
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
@@ -272,22 +287,27 @@ function load_keybinds(path::String)::Dict{Tuple{UInt8, Cint}, InputAction}
         end
         return rt
     else
-        return default_keybinds()
+        rt = default_keybinds()
+        save_keybinds(rt, path)
+        return rt
     end
 end
 
 function save_keybinds(inputs::Inputs)
-    path = @get_scratch!(inputs.scratch_path)
-    path = touch(path*"/"*inputs.toml_file)
+    save_keybinds(inputs.action_map, @get_scratch!(inputs.scratch_path)*"/"*inputs.toml_file)
+end
+
+function save_keybinds(map::Dict{Tuple{UInt8, Cint}, InputAction}, path::String)
+    path = touch(path)
     file = open(path, "w")
     dict = Dict{String, Any}(
         "keys" => [],
         "values" => []
     )
 
-    for k in keys(inputs.action_map)
+    for k in keys(map)
         push!(dict["keys"], [k[1], k[2]])
-        push!(dict["values"], UInt32(inputs.action_map[k]))
+        push!(dict["values"], UInt32(map[k]))
     end
 
     TOML.print(file, dict)
@@ -310,12 +330,61 @@ function default_keybinds()::Dict{Tuple{UInt8, Cint}, InputAction}
 end
 
 function set_action_input(inputs::Inputs, action::InputAction, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+    if haskey(inputs.action_map, (mod, code))
+        delete_action_input(inputs, code, mod)
+    end
     inputs.action_map[(mod, code)] = action
+    
+    if haskey(inputs.reverse_action_map, action)
+        push!(inputs.reverse_action_map[action], (mod, code))
+    else
+        inputs.reverse_action_map[action] = [(mod, code)]
+    end
     save_keybinds(inputs)
 end
 
+function keypress_name(mod::UInt8, key::Cint)::String
+    rt = ""
+    if mod & KEY_MOD_CONTROL == KEY_MOD_CONTROL
+        rt *= "Ctrl + "
+    end
+    if mod & KEY_MOD_ALT == KEY_MOD_ALT
+        rt *= "Alt + "
+    end
+    if mod & KEY_MOD_SHIFT == KEY_MOD_SHIFT
+        rt *= "Shift + "
+    end
+    if mod & KEY_MOD_SUPER == KEY_MOD_SUPER
+        rt *= "Win + "
+    end
+    name = GLFW.Key(key)
+    name = "$name"
+    name = collect(String(name[5:end]))
+    replace!(name, '_'=>' ')
+    name = String(name)
+    name = titlecase(name)
+    rt *= name
+    return rt
+end
+
+function is_valid_key(key::GLFW.Key)
+    return (
+        key != GLFW.KEY_LEFT_ALT &&
+        key != GLFW.KEY_RIGHT_ALT &&
+        key != GLFW.KEY_LEFT_SHIFT &&
+        key != GLFW.KEY_RIGHT_SHIFT &&
+        key != GLFW.KEY_LEFT_CONTROL &&
+        key != GLFW.KEY_RIGHT_CONTROL &&
+        key != GLFW.KEY_LEFT_SUPER &&
+        key != GLFW.KEY_RIGHT_SUPER
+    )
+end
+
 function delete_action_input(inputs::Inputs, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+    action = inputs.action_map[(mod, code)]
+    deleteat!(inputs.reverse_action_map[action], indexin([(mod, code)], inputs.reverse_action_map[action])[1])
     delete!(inputs.action_map, (mod, code))
+
     save_keybinds(inputs)
 end
 
@@ -422,6 +491,11 @@ function _key_callback(window::GLFW.Window, key::GLFW.Key, scancode::Cint, actio
         end
         inputs.keys_held[key] = event
     end
+
+    if inputs.pause_key_callbacks
+        return
+    end
+
     _input_call(inputs,event)
 end
 

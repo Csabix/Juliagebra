@@ -35,6 +35,7 @@ mutable struct App <: AppDNA
         width::Int32=Int32(1280),
         height::Int32=Int32(720)
     )
+        init_settings()
         glfw = GLFWData(name,width,height)
         inputs = Inputs(glfw)
         opengl = nothing
@@ -279,8 +280,6 @@ function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
-    init_settings()
-    
 
     init!(self._glfw, true)
     self._cam.aspect = self._glfw.width / self._glfw.height

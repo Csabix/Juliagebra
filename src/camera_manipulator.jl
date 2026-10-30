@@ -20,10 +20,15 @@ mutable struct OrbitalCamera <: CameraManipulator
     _up::Int8
     _down::Int8
 
+    sensitivity::Vec2D
+    flip_rotation::Vec2T{Bool}
+    flip_panning::Vec2T{Bool}
+
     _move_state::Int8
     _capture_mouse::Bool
     _mouse_hidden::Bool
 end
+
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     to_aim = camera.at - camera.eye
@@ -32,7 +37,25 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     u = atan(to_aim.y, to_aim.x)
     v = acos(to_aim.z / distance)
 
-    return OrbitalCamera(camera,u,v,log1p(distance),Float32(0.5),0,0,0,0,0,0,_ORBITAL_NONE,false,false)
+    
+    sensitivity = get_global_setting("Controls/Mouse sensitivity")
+    sensitivity = Vec2D(sensitivity["X"], sensitivity["Y"])
+    flip = get_global_setting("Controls/Invert camera")
+    flipr = Vec2T{Bool}(flip["Rotation"]["X"], flip["Rotation"]["Y"])
+    flipp = Vec2T{Bool}(flip["Panning"]["X"], flip["Panning"]["Y"])
+
+    rt = OrbitalCamera(camera,u,v,log1p(distance),Float32(0.5),0,0,0,0,0,0,sensitivity,flipr,flipp,_ORBITAL_NONE,false,false)
+
+    on_setting_changed("Controls/Invert camera/Panning/X", v -> rt.flip_panning=Vec2T{Bool}(v, rt.flip_panning.y))
+    on_setting_changed("Controls/Invert camera/Panning/Y", v -> rt.flip_panning=Vec2T{Bool}(rt.flip_panning.x, v))
+
+    on_setting_changed("Controls/Invert camera/Rotation/X", v -> rt.flip_rotation=Vec2T{Bool}(v, rt.flip_rotation.y))
+    on_setting_changed("Controls/Invert camera/Rotation/Y", v -> rt.flip_rotation=Vec2T{Bool}(rt.flip_rotation.x, v))
+
+    on_setting_changed("Controls/Mouse sensitivity/X", v -> rt.sensitivity=Vec2D(v, rt.sensitivity.y))
+    on_setting_changed("Controls/Mouse sensitivity/Y", v -> rt.sensitivity=Vec2D(rt.sensitivity.x, v))
+
+    return rt
 end
 
 function reset!(self::OrbitalCamera, camera::Camera)
@@ -237,16 +260,16 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
 
     # --- MOUSE MOVE EVENT ---
     register_callback!(inputs, MOUSE_MOVE) do ev
-        du = -Float32(ev.dx) / 100.0f0
-        dv = -Float32(ev.dy) / 100.0f0
+        du = -Float32(ev.dx) / 100.0f0 * cam.sensitivity.x
+        dv = -Float32(ev.dy) / 100.0f0 * cam.sensitivity.y
 
         if cam._move_state == _ORBITAL_ORBIT || cam._move_state == _ORBITAL_LOOK
-            cam._u += du
-            cam._v = clamp(cam._v + dv, 0.0f0, Float32(π))
+            cam._u += du * (cam.flip_rotation.x ? -1 : 1)
+            cam._v = clamp(cam._v + dv * (cam.flip_rotation.y ? -1 : 1), 0.0f0, Float32(π))
         elseif cam._move_state == _ORBITAL_PAN
             lookat = normalize(cam._cam.at - cam._cam.eye)
-            right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0)
-            up = normalize(cross(right, lookat))
+            right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0) * (cam.flip_panning.x ? -1 : 1)
+            up = normalize(cross(right, lookat)) * (cam.flip_panning.y ? -1 : 1)
             delta = up * dv + right * du
             delta *= (exp(cam._zoom) - 1.0f0) / 15.0f0
 

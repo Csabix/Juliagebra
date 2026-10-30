@@ -110,27 +110,27 @@ function setup_callbacks(self::App)::Nothing
     end, self._inputs, MOUSE_MOVE)
 
     # --- KEYBOARD DOWN EVENTS ---
-    register_callback!(event ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, Cint(GLFW.KEY_F5))
-    register_callback!(event -> begin
+    register_callback_for_action((ac, ev) ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, ACTION_RECOMP_SHADERS)
+    register_callback_for_action((ac, ev) -> begin
         drag = on_gizmo_drag_axis_start!(self, AXIS_X)
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
-    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_X))
-    register_callback!(event -> begin
+    end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_X)
+    register_callback_for_action((ac, ev) -> begin
         drag = on_gizmo_drag_axis_start!(self, AXIS_Y)
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
-    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Y))
-    register_callback!(event -> begin
+    end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_Y)
+    register_callback_for_action((ac, ev) -> begin
         drag = on_gizmo_drag_axis_start!(self, AXIS_Z)
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
-    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Z))
+    end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_Z)
     
     # --- KEYBOARD UP EVENTS ---
-    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, Cint(GLFW.KEY_X))
-    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, Cint(GLFW.KEY_Y))
-    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, Cint(GLFW.KEY_Z))
+    register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_X)
+    register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Y)
+    register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Z)
 
     register_callbacks!(self._inputs, self._manipulator)
     return nothing

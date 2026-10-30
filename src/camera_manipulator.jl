@@ -138,49 +138,49 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
     register_callback_for_action((ac, ev) -> (cam._down = -1; true), inputs, KEY_DOWN, ACTION_CAM_DOWN)
     register_callback_for_action((ac, ev) -> (cam._up = 1; true), inputs, KEY_DOWN, ACTION_CAM_UP)
     
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_FLIP_VIEW) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_FLIP_VIEW) do ac, ev
         cam._u += Float32(π)
         cam._v = Float32(π) - cam._v
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_Y) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_Y) do ac, ev
         cam._u = 3.0f0 / 2.0f0 * Float32(π)
         cam._v = 0.0f0
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_Y) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_Y) do ac, ev
         cam._u = 3.0f0 / 2.0f0 * Float32(π)
         cam._v = Float32(π)
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_Z) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_Z) do ac, ev
         cam._u = Float32(π) + Float32(π) / 2.0f0
         cam._v = Float32(π) / 2.0f0
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_Z) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_Z) do ac, ev
         cam._u = Float32(π) / 2.0f0
         cam._v = Float32(π) / 2.0f0
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_X) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_X) do ac, ev
         cam._u = 2.0f0 * Float32(π)
         cam._v = Float32(π) / 2.0f0
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_X) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_X) do ac, ev
         cam._u = Float32(π)
         cam._v = Float32(π) / 2.0f0
         return true
     end
 
-    register_callback_for_action(inputs, KEY_DOWN, ACTION_SWAP_PROJECTION_MODE) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SWAP_PROJECTION_MODE) do ac, ev
         swap_projection!(cam._cam)
         return true
     end

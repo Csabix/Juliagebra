@@ -43,6 +43,14 @@ const KEY_MOD_SUPER::UInt8      = 0x08
     ACTION_CAM_RIGHT
     ACTION_CAM_UP
     ACTION_CAM_DOWN
+    ACTION_SET_VIEW_AXIS_POS_X
+    ACTION_SET_VIEW_AXIS_NEG_X
+    ACTION_SET_VIEW_AXIS_POS_Y
+    ACTION_SET_VIEW_AXIS_NEG_Y
+    ACTION_SET_VIEW_AXIS_POS_Z
+    ACTION_SET_VIEW_AXIS_NEG_Z
+    ACTION_FLIP_VIEW
+    ACTION_SWAP_PROJECTION_MODE
 end
 
 struct Event
@@ -156,11 +164,7 @@ end
 is_open(window::GLFWData) = return window._window.handle != C_NULL
 
 function get_input_action_name(action::InputAction)
-    if action == CAM_FORWARD
-        return "Move Camera Forward"
-    else
-        throw(ArgumentError("Invalid input action $action"))
-    end
+    return "$action"
 end
 
 function deinit!(w::GLFWData)
@@ -318,14 +322,31 @@ function default_keybinds()::Dict{Tuple{UInt8, Cint}, InputAction}
     return Dict{Tuple{UInt8, Cint}, InputAction}(
         (KEY_MOD_NONE, Cint(GLFW.KEY_W)) => ACTION_CAM_FORWARD,
         (KEY_MOD_NONE, Cint(GLFW.KEY_UP)) => ACTION_CAM_FORWARD,
+
         (KEY_MOD_NONE, Cint(GLFW.KEY_D)) => ACTION_CAM_RIGHT,
         (KEY_MOD_NONE, Cint(GLFW.KEY_RIGHT)) => ACTION_CAM_RIGHT,
+
         (KEY_MOD_NONE, Cint(GLFW.KEY_S)) => ACTION_CAM_BACK,
         (KEY_MOD_NONE, Cint(GLFW.KEY_DOWN)) => ACTION_CAM_BACK,
+
         (KEY_MOD_NONE, Cint(GLFW.KEY_A)) => ACTION_CAM_LEFT,
         (KEY_MOD_NONE, Cint(GLFW.KEY_LEFT)) => ACTION_CAM_LEFT,
+
         (KEY_MOD_NONE, Cint(GLFW.KEY_Q)) => ACTION_CAM_DOWN,
         (KEY_MOD_NONE, Cint(GLFW.KEY_E)) => ACTION_CAM_UP,
+
+        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_9)) => ACTION_FLIP_VIEW,
+
+        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_7)) => ACTION_SET_VIEW_AXIS_POS_Y,
+        (KEY_MOD_ALT, Cint(GLFW.KEY_KP_7)) => ACTION_SET_VIEW_AXIS_NEG_Y,
+
+        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_1)) => ACTION_SET_VIEW_AXIS_POS_Z,
+        (KEY_MOD_ALT, Cint(GLFW.KEY_KP_1)) => ACTION_SET_VIEW_AXIS_NEG_Z,
+
+        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_3)) => ACTION_SET_VIEW_AXIS_POS_X,
+        (KEY_MOD_ALT, Cint(GLFW.KEY_KP_3)) => ACTION_SET_VIEW_AXIS_NEG_X,
+
+        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_5)) => ACTION_SWAP_PROJECTION_MODE,
     )
 end
 

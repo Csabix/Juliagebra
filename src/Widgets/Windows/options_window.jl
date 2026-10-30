@@ -41,16 +41,18 @@ end
 
 function _render_keybinds(window::OptionsWindow, inputs::Inputs)
     if window.input_record_mode ===nothing
-        actions = collect(keys(inputs.reverse_action_map))
+        actions = collect(instances(InputAction))
         idx = sortperm(actions)
         for i in idx
             a = actions[i]
             if CImGui.TreeNode("$a")
-                for kb in inputs.reverse_action_map[a]
-                    CImGui.Text(keypress_name(kb[1], kb[2]))
-                    CImGui.SameLine()
-                    if CImGui.Button("Delete##$kb")
-                        delete_action_input(inputs, kb[2], kb[1])
+                if haskey(inputs.reverse_action_map, a)
+                    for kb in inputs.reverse_action_map[a]
+                        CImGui.Text(keypress_name(kb[1], kb[2]))
+                        CImGui.SameLine()
+                        if CImGui.Button("Delete##$kb")
+                            delete_action_input(inputs, kb[2], kb[1])
+                        end
                     end
                 end
                 if CImGui.Button("Add Keybind")

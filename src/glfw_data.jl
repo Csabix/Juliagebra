@@ -85,7 +85,7 @@ mutable struct Inputs
         scratch = @get_scratch!(path)
         println("keybinds file: $scratch/$file")
         kb = load_keybinds("$scratch/$file")
-        new(
+        rt = new(
             SVector{8}([Vector{Tuple{UInt8,Function}}() for _ in 1:8]), 
             0.0,
             0.0,
@@ -103,6 +103,8 @@ mutable struct Inputs
             Dict{Tuple{UInt8, InputAction}, Vector{Function}}(),
             Vector{Tuple{UInt8,Cint,UInt8,Function}}()
         )
+        save_keybinds(rt)
+        return rt
     end
 end
 
@@ -294,7 +296,16 @@ end
 
 function default_keybinds()::Dict{Tuple{UInt8, Cint}, InputAction}
     return Dict{Tuple{UInt8, Cint}, InputAction}(
-
+        (KEY_MOD_NONE, Cint(GLFW.KEY_W)) => ACTION_CAM_FORWARD,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_UP)) => ACTION_CAM_FORWARD,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_D)) => ACTION_CAM_RIGHT,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_RIGHT)) => ACTION_CAM_RIGHT,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_S)) => ACTION_CAM_BACK,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_DOWN)) => ACTION_CAM_BACK,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_A)) => ACTION_CAM_LEFT,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_LEFT)) => ACTION_CAM_LEFT,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_Q)) => ACTION_CAM_DOWN,
+        (KEY_MOD_NONE, Cint(GLFW.KEY_E)) => ACTION_CAM_UP,
     )
 end
 

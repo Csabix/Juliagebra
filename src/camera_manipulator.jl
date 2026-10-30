@@ -131,19 +131,12 @@ end
 
 function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
     # --- KEYBOARD DOWN EVENTS ---
-    #set_action_input(inputs, ACTION_CAM_FORWARD, Cint(GLFW.KEY_W))
-    #set_action_input(inputs, ACTION_CAM_FORWARD, Cint(GLFW.KEY_UP))
     register_callback_for_action((ac, ev) -> (cam._forward = 1; true), inputs, KEY_DOWN, ACTION_CAM_FORWARD)
-    # register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_W))
-    # register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_UP))
-    register_callback!(ev -> (cam._left = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_A))
-    register_callback!(ev -> (cam._left = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_LEFT))
-    register_callback!(ev -> (cam._right = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_D))
-    register_callback!(ev -> (cam._right = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_RIGHT))
-    register_callback!(ev -> (cam._backward = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_S))
-    register_callback!(ev -> (cam._backward = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_DOWN))
-    register_callback!(ev -> (cam._down = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_Q))
-    register_callback!(ev -> (cam._up = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_E))
+    register_callback_for_action((ac, ev) -> (cam._left = 1; true), inputs, KEY_DOWN, ACTION_CAM_LEFT)
+    register_callback_for_action((ac, ev) -> (cam._right = -1; true), inputs, KEY_DOWN, ACTION_CAM_RIGHT)
+    register_callback_for_action((ac, ev) -> (cam._backward = -1; true), inputs, KEY_DOWN, ACTION_CAM_BACK)
+    register_callback_for_action((ac, ev) -> (cam._down = -1; true), inputs, KEY_DOWN, ACTION_CAM_DOWN)
+    register_callback_for_action((ac, ev) -> (cam._up = 1; true), inputs, KEY_DOWN, ACTION_CAM_UP)
     
     register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_9)) do ev
         cam._u += Float32(π)
@@ -176,16 +169,12 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
 
 
     # --- KEYBOARD UP EVENTS ---
-    register_callback!(ev -> (cam._forward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_W))
-    register_callback!( ev -> (cam._forward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_UP))
-    register_callback!( ev -> (cam._left = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_A))
-    register_callback!( ev -> (cam._left = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_LEFT))
-    register_callback!( ev -> (cam._right = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_D))
-    register_callback!( ev -> (cam._right = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_RIGHT))
-    register_callback!( ev -> (cam._backward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_S))
-    register_callback!( ev -> (cam._backward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_DOWN))
-    register_callback!( ev -> (cam._down = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_Q))
-    register_callback!( ev -> (cam._up = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_E))
+    register_callback_for_action( (ac, ev) -> (cam._forward = 0; true), inputs, KEY_UP, ACTION_CAM_FORWARD)
+    register_callback_for_action( (ac, ev) -> (cam._left = 0; true), inputs, KEY_UP, ACTION_CAM_LEFT)
+    register_callback_for_action( (ac, ev) -> (cam._right = 0; true), inputs, KEY_UP, ACTION_CAM_RIGHT)
+    register_callback_for_action( (ac, ev) -> (cam._backward = 0; true), inputs, KEY_UP, ACTION_CAM_BACK)
+    register_callback_for_action( (ac, ev) -> (cam._down = 0; true), inputs, KEY_UP, ACTION_CAM_DOWN)
+    register_callback_for_action( (ac, ev) -> (cam._up = 0; true), inputs, KEY_UP, ACTION_CAM_UP)
 
 
     # --- MOUSE BUTTON DOWN EVENTS ---

@@ -63,6 +63,8 @@ mutable struct Inputs
     last_y::Cdouble
     window::GLFWData
 
+    scratch_path::String
+    toml_file::String
     action_map::Dict{Tuple{UInt8, Cint}, InputAction} # mod + keycode -> action
 
     button_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
@@ -78,12 +80,19 @@ mutable struct Inputs
     handle_map::Vector{Tuple{UInt8,Cint,UInt8,Function}}
 
     function Inputs(window::GLFWData)
+        path = "input_map"
+        file = "inputs.toml"
+        scratch = @get_scratch!(path)
+        println("keybinds file: $scratch/$file")
+        kb = load_keybinds("$scratch/$file")
         new(
             SVector{8}([Vector{Tuple{UInt8,Function}}() for _ in 1:8]), 
             0.0,
             0.0,
             window,
-            Dict{Tuple{UInt8, Cint}, InputAction}(),
+            path,
+            file,
+            kb,
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
             Dict{Cint, Vector{Tuple{UInt8,Function}}}(),
@@ -250,12 +259,53 @@ function _rebuild_inputs!(inputs::Inputs)::Nothing
     return nothing
 end
 
+function load_keybinds(path::String)::Dict{Tuple{UInt8, Cint}, InputAction}
+    if isfile(path)
+        d = TOML.parsefile(path)
+        rt::Dict{Tuple{UInt8, Cint}, InputAction} = Dict()
+        for i in eachindex(d["keys"])
+            k = d["keys"][i]
+            k = (UInt8(k[1]), Cint(k[2]))
+            rt[k] = InputAction(d["values"][i])
+        end
+        return rt
+    else
+        return default_keybinds()
+    end
+end
+
+function save_keybinds(inputs::Inputs)
+    path = @get_scratch!(inputs.scratch_path)
+    path = touch(path*"/"*inputs.toml_file)
+    file = open(path, "w")
+    dict = Dict{String, Any}(
+        "keys" => [],
+        "values" => []
+    )
+
+    for k in keys(inputs.action_map)
+        push!(dict["keys"], [k[1], k[2]])
+        push!(dict["values"], UInt32(inputs.action_map[k]))
+    end
+
+    TOML.print(file, dict)
+    close(file)
+end
+
+function default_keybinds()::Dict{Tuple{UInt8, Cint}, InputAction}
+    return Dict{Tuple{UInt8, Cint}, InputAction}(
+
+    )
+end
+
 function set_action_input(inputs::Inputs, action::InputAction, code::Cint, mod::UInt8 = KEY_MOD_NONE)
     inputs.action_map[(mod, code)] = action
+    save_keybinds(inputs)
 end
 
 function delete_action_input(inputs::Inputs, code::Cint, mod::UInt8 = KEY_MOD_NONE)
     delete!(inputs.action_map, (mod, code))
+    save_keybinds(inputs)
 end
 
 function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::Cint = Cint(0), mod::UInt8 = UInt8(KEY_MOD_NONE))::Int32

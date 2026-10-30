@@ -131,8 +131,8 @@ end
 
 function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
     # --- KEYBOARD DOWN EVENTS ---
-    set_action_input(inputs, ACTION_CAM_FORWARD, Cint(GLFW.KEY_W))
-    set_action_input(inputs, ACTION_CAM_FORWARD, Cint(GLFW.KEY_UP))
+    #set_action_input(inputs, ACTION_CAM_FORWARD, Cint(GLFW.KEY_W))
+    #set_action_input(inputs, ACTION_CAM_FORWARD, Cint(GLFW.KEY_UP))
     register_callback_for_action((ac, ev) -> (cam._forward = 1; true), inputs, KEY_DOWN, ACTION_CAM_FORWARD)
     # register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_W))
     # register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_UP))

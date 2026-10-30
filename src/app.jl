@@ -167,7 +167,6 @@ function play!(self::App)
 
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
         update!(self,iconified)
-
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         swap_buffers(self._glfw)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end

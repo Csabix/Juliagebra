@@ -54,7 +54,7 @@ function default_settings()::Dict{String,Any}
                     "X" => 1.0,
                     "Y" => 1.0
             ),
-            "Keybinds" => [] # Vector{Tuple{InputAction, UInt8, Cint}}
+            
         ),
         "Geometry" => Dict{String, Any}(
 
@@ -100,7 +100,7 @@ function settings_hints()::Dict{String, Any}
                     "X" => PropertyHintSlider(0.1,10.0),
                     "Y" => PropertyHintSlider(0.1,10.0)
             ),
-            "Keybinds" => nothing
+            
         ),
         "Geometry" => Dict{String, Any}(
 

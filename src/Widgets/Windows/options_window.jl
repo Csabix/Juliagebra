@@ -76,11 +76,19 @@ function _render_keybinds(window::OptionsWindow, inputs::Inputs)
                 continue
             end
             event = inputs.keys_pressed[k]
-            set_action_input(inputs, action, event.scancode, event.key_mod)
+            set_action_input(inputs, action, k, event.key_mod)
             window.input_record_mode = nothing
             inputs.pause_key_callbacks = false
-        end 
-        
+            return
+        end
+        button = keys(inputs.mouse_pressed)
+        for k in button
+            event = inputs.mouse_pressed[k]
+            set_action_input(inputs, action, k, event.key_mod)
+            window.input_record_mode = nothing
+            inputs.pause_key_callbacks = false
+            return
+        end
     end
 end
 

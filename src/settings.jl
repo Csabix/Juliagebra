@@ -54,7 +54,7 @@ function default_settings()::Dict{String,Any}
                     "X" => 1.0,
                     "Y" => 1.0
             ),
-            
+
         ),
         "Geometry" => Dict{String, Any}(
 

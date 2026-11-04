@@ -78,19 +78,23 @@ mutable struct Inputs
     scratch_path::String
     toml_file::String
 
-    action_map::Dict{Tuple{UInt8, Cint}, InputAction} # mod + keycode -> action
-    reverse_action_map::Dict{InputAction, Vector{Tuple{UInt8, Cint}}}
+    action_map::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}, InputAction} # mod + keycode -> action
+    reverse_action_map::Dict{InputAction, Vector{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}}}
 
     pause_key_callbacks::Bool
 
-    button_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
-    button_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
-    mouse_press::Dict{Cint,Vector{Tuple{UInt8,Function}}}
-    mouse_release::Dict{Cint,Vector{Tuple{UInt8,Function}}}
+    button_press_handlers::Dict{Cint,Vector{Tuple{UInt8,Function}}}
+    button_release_handlers::Dict{Cint,Vector{Tuple{UInt8,Function}}}
+    mouse_press_handlers::Dict{Cint,Vector{Tuple{UInt8,Function}}}
+    mouse_release_handlers::Dict{Cint,Vector{Tuple{UInt8,Function}}}
 
     keys_pressed::Dict{GLFW.Key, Event}
     keys_held::Dict{GLFW.Key, Event}
     keys_released::Dict{GLFW.Key, Event}
+
+    mouse_pressed::Dict{GLFW.MouseButton, Event}
+    mouse_held::Dict{GLFW.MouseButton, Event}
+    mouse_released::Dict{GLFW.MouseButton, Event}
 
     action_handler_map::Dict{Tuple{UInt8, InputAction}, Vector{Function}} # type + action -> handler
     handle_map::Vector{Tuple{UInt8,Cint,UInt8,Function}}
@@ -101,7 +105,7 @@ mutable struct Inputs
         scratch = @get_scratch!(path)
         println("keybinds file: $scratch/$file")
         kb = load_keybinds("$scratch/$file")
-        rkb = Dict{InputAction, Vector{Tuple{UInt8, Cint}}}()
+        rkb = Dict{InputAction, Vector{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}}}()
         for k in keys(kb)
             if haskey(rkb, kb[k])
                 push!(rkb[kb[k]], k)
@@ -127,6 +131,9 @@ mutable struct Inputs
             Dict{GLFW.Key, Event}(),
             Dict{GLFW.Key, Event}(),
             Dict{GLFW.Key, Event}(),
+            Dict{GLFW.MouseButton, Event}(),
+            Dict{GLFW.MouseButton, Event}(),
+            Dict{GLFW.MouseButton, Event}(),
             Dict{Tuple{UInt8, InputAction}, Vector{Function}}(),
             Vector{Tuple{UInt8,Cint,UInt8,Function}}()
         )
@@ -188,6 +195,8 @@ get_resolution(w::GLFWData)::Tuple{Int32,Int32} = tuple(w.width,w.height)
 function poll_events(::GLFWData, inputs::Inputs)::Nothing
     inputs.keys_pressed = Dict()
     inputs.keys_released = Dict()
+    inputs.mouse_pressed = Dict()
+    inputs.mouse_released = Dict()
     GLFW.PollEvents()
 end
 
@@ -263,19 +272,19 @@ end
 function _rebuild_inputs!(inputs::Inputs)::Nothing
     foreach(empty!,inputs.event_callbacks)
 
-    empty!(inputs.button_press)
-    empty!(inputs.button_release)
-    empty!(inputs.mouse_press)
-    empty!(inputs.mouse_release)
+    empty!(inputs.button_press_handlers)
+    empty!(inputs.button_release_handlers)
+    empty!(inputs.mouse_press_handlers)
+    empty!(inputs.mouse_release_handlers)
 
     for (type, code, mod, func) in inputs.handle_map
         push!(inputs.event_callbacks[type], (mod, func))
         
         if type in (KEY_DOWN, KEY_UP, MOUSE_BUTTON_DOWN, MOUSE_BUTTON_UP)
-            dict = if type == KEY_DOWN; inputs.button_press
-                   elseif type == KEY_UP; inputs.button_release
-                   elseif type == MOUSE_BUTTON_DOWN; inputs.mouse_press
-                   else; inputs.mouse_release end
+            dict = if type == KEY_DOWN; inputs.button_press_handlers
+                   elseif type == KEY_UP; inputs.button_release_handlers
+                   elseif type == MOUSE_BUTTON_DOWN; inputs.mouse_press_handlers
+                   else; inputs.mouse_release_handlers end
             
             vec = get!(dict, code, Tuple{UInt8, Function}[])
             push!(vec, (mod, func))
@@ -284,14 +293,19 @@ function _rebuild_inputs!(inputs::Inputs)::Nothing
     return nothing
 end
 
-function load_keybinds(path::String)::Dict{Tuple{UInt8, Cint}, InputAction}
+function load_keybinds(path::String)::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}, InputAction}
     if isfile(path)
         d = TOML.parsefile(path)
-        rt::Dict{Tuple{UInt8, Cint}, InputAction} = Dict()
+        rt::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}, InputAction} = Dict()
         for i in eachindex(d["keys"])
             k = d["keys"][i]
-            k = (UInt8(k[1]), Cint(k[2]))
-            rt[k] = InputAction(d["values"][i])
+            k = (UInt8(k[1]), GLFW.Key(k[2]))
+            rt[k] = InputAction(d["key_actions"][i])
+        end
+        for i in eachindex(d["mouse"])
+            k = d["mouse"][i]
+            k = (UInt8(k[1]), GLFW.MouseButton(k[2]))
+            rt[k] = InputAction(d["mouse_actions"][i])
         end
         return rt
     else
@@ -305,62 +319,71 @@ function save_keybinds(inputs::Inputs)
     save_keybinds(inputs.action_map, @get_scratch!(inputs.scratch_path)*"/"*inputs.toml_file)
 end
 
-function save_keybinds(map::Dict{Tuple{UInt8, Cint}, InputAction}, path::String)
+function save_keybinds(map::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}, InputAction}, path::String)
     path = touch(path)
     file = open(path, "w")
     dict = Dict{String, Any}(
         "keys" => [],
-        "values" => []
+        "key_actions" => [],
+        "mouse" => [],
+        "mouse_actions" =>[]
     )
 
     for k in keys(map)
-        push!(dict["keys"], [k[1], k[2]])
-        push!(dict["values"], UInt32(map[k]))
+        if k[2] isa GLFW.Key
+            push!(dict["keys"], [k[1], Cint(k[2])])
+            push!(dict["key_actions"], UInt32(map[k]))
+        elseif k[2] isa GLFW.MouseButton
+            push!(dict["mouse"], [k[1], Cint(k[2])])
+            push!(dict["mouse_actions"], UInt32(map[k]))
+        else 
+            error("keypress $k is not valid type")
+        end
     end
 
     TOML.print(file, dict)
     close(file)
 end
 
-function default_keybinds()::Dict{Tuple{UInt8, Cint}, InputAction}
-    return Dict{Tuple{UInt8, Cint}, InputAction}(
-        (KEY_MOD_NONE, Cint(GLFW.KEY_W)) => ACTION_CAM_FORWARD,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_UP)) => ACTION_CAM_FORWARD,
+function default_keybinds()::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}, InputAction}
+    return Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}}, InputAction}(
+        (KEY_MOD_NONE, GLFW.KEY_W) => ACTION_CAM_FORWARD,
+        (KEY_MOD_NONE, GLFW.KEY_UP) => ACTION_CAM_FORWARD,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_D)) => ACTION_CAM_RIGHT,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_RIGHT)) => ACTION_CAM_RIGHT,
+        (KEY_MOD_NONE, GLFW.KEY_D) => ACTION_CAM_RIGHT,
+        (KEY_MOD_NONE, GLFW.KEY_RIGHT) => ACTION_CAM_RIGHT,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_S)) => ACTION_CAM_BACK,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_DOWN)) => ACTION_CAM_BACK,
+        (KEY_MOD_NONE, GLFW.KEY_S) => ACTION_CAM_BACK,
+        (KEY_MOD_NONE, GLFW.KEY_DOWN) => ACTION_CAM_BACK,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_A)) => ACTION_CAM_LEFT,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_LEFT)) => ACTION_CAM_LEFT,
+        (KEY_MOD_NONE, GLFW.KEY_A) => ACTION_CAM_LEFT,
+        (KEY_MOD_NONE, GLFW.KEY_LEFT) => ACTION_CAM_LEFT,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_Q)) => ACTION_CAM_DOWN,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_E)) => ACTION_CAM_UP,
+        (KEY_MOD_NONE, GLFW.KEY_Q) => ACTION_CAM_DOWN,
+        (KEY_MOD_NONE, GLFW.KEY_E) => ACTION_CAM_UP,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_9)) => ACTION_FLIP_VIEW,
+        (KEY_MOD_NONE, GLFW.KEY_KP_9) => ACTION_FLIP_VIEW,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_7)) => ACTION_SET_VIEW_AXIS_POS_Y,
-        (KEY_MOD_ALT, Cint(GLFW.KEY_KP_7)) => ACTION_SET_VIEW_AXIS_NEG_Y,
+        (KEY_MOD_NONE, GLFW.KEY_KP_7) => ACTION_SET_VIEW_AXIS_POS_Y,
+        (KEY_MOD_ALT, GLFW.KEY_KP_7) => ACTION_SET_VIEW_AXIS_NEG_Y,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_1)) => ACTION_SET_VIEW_AXIS_POS_Z,
-        (KEY_MOD_ALT, Cint(GLFW.KEY_KP_1)) => ACTION_SET_VIEW_AXIS_NEG_Z,
+        (KEY_MOD_NONE, GLFW.KEY_KP_1) => ACTION_SET_VIEW_AXIS_POS_Z,
+        (KEY_MOD_ALT, GLFW.KEY_KP_1) => ACTION_SET_VIEW_AXIS_NEG_Z,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_3)) => ACTION_SET_VIEW_AXIS_POS_X,
-        (KEY_MOD_ALT, Cint(GLFW.KEY_KP_3)) => ACTION_SET_VIEW_AXIS_NEG_X,
+        (KEY_MOD_NONE, GLFW.KEY_KP_3) => ACTION_SET_VIEW_AXIS_POS_X,
+        (KEY_MOD_ALT, GLFW.KEY_KP_3) => ACTION_SET_VIEW_AXIS_NEG_X,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_KP_5)) => ACTION_SWAP_PROJECTION_MODE,
+        (KEY_MOD_NONE, GLFW.KEY_KP_5) => ACTION_SWAP_PROJECTION_MODE,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_X)) => ACTION_DRAG_GIZMO_AXIS_X,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_Y)) => ACTION_DRAG_GIZMO_AXIS_Y,
-        (KEY_MOD_NONE, Cint(GLFW.KEY_Z)) => ACTION_DRAG_GIZMO_AXIS_Z,
+        (KEY_MOD_NONE, GLFW.KEY_X) => ACTION_DRAG_GIZMO_AXIS_X,
+        (KEY_MOD_NONE, GLFW.KEY_Y) => ACTION_DRAG_GIZMO_AXIS_Y,
+        (KEY_MOD_NONE, GLFW.KEY_Z) => ACTION_DRAG_GIZMO_AXIS_Z,
 
-        (KEY_MOD_NONE, Cint(GLFW.KEY_F5)) => ACTION_RECOMP_SHADERS,
+        (KEY_MOD_NONE, GLFW.KEY_F5) => ACTION_RECOMP_SHADERS,
     )
 end
 
-function set_action_input(inputs::Inputs, action::InputAction, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+function set_action_input(inputs::Inputs, action::InputAction, code::Union{GLFW.Key, GLFW.MouseButton}, mod::UInt8 = KEY_MOD_NONE)
     if haskey(inputs.action_map, (mod, code))
         delete_action_input(inputs, code, mod)
     end
@@ -374,7 +397,8 @@ function set_action_input(inputs::Inputs, action::InputAction, code::Cint, mod::
     save_keybinds(inputs)
 end
 
-function keypress_name(mod::UInt8, key::Cint)::String
+
+function modifier_name(mod::UInt8)::String
     rt = ""
     if mod & KEY_MOD_CONTROL == KEY_MOD_CONTROL
         rt *= "Ctrl + "
@@ -388,12 +412,30 @@ function keypress_name(mod::UInt8, key::Cint)::String
     if mod & KEY_MOD_SUPER == KEY_MOD_SUPER
         rt *= "Win + "
     end
-    name = GLFW.Key(key)
+    return rt
+end
+
+function keypress_name(mod::UInt8, key::GLFW.Key)::String
+    rt = modifier_name(mod)
+    name = key
     name = "$name"
     name = collect(String(name[5:end]))
     replace!(name, '_'=>' ')
     name = String(name)
     name = titlecase(name)
+    rt *= name
+    return rt
+end
+
+function keypress_name(mod::UInt8, key::GLFW.MouseButton)::String
+    rt = modifier_name(mod)
+    name = key
+    name = "$name"
+    name = collect(String(name[14:end]))
+    replace!(name, '_'=>' ')
+    name = String(name)
+    name = titlecase(name)
+    name *= " Mouse Button"
     rt *= name
     return rt
 end
@@ -411,7 +453,7 @@ function is_valid_key(key::GLFW.Key)
     )
 end
 
-function delete_action_input(inputs::Inputs, code::Cint, mod::UInt8 = KEY_MOD_NONE)
+function delete_action_input(inputs::Inputs, code::Union{GLFW.Key, GLFW.MouseButton}, mod::UInt8 = KEY_MOD_NONE)
     action = inputs.action_map[(mod, code)]
     deleteat!(inputs.reverse_action_map[action], indexin([(mod, code)], inputs.reverse_action_map[action])[1])
     delete!(inputs.action_map, (mod, code))
@@ -423,10 +465,10 @@ function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::C
     push!(inputs.handle_map, (type, Cint(code), mod, func))
     push!(inputs.event_callbacks[type], (mod, func))
     if type in (KEY_DOWN, KEY_UP, MOUSE_BUTTON_DOWN, MOUSE_BUTTON_UP)
-        dict = if type == KEY_DOWN; inputs.button_press
-               elseif type == KEY_UP; inputs.button_release
-               elseif type == MOUSE_BUTTON_DOWN; inputs.mouse_press
-               else; inputs.mouse_release end
+        dict = if type == KEY_DOWN; inputs.button_press_handlers
+               elseif type == KEY_UP; inputs.button_release_handlers
+               elseif type == MOUSE_BUTTON_DOWN; inputs.mouse_press_handlers
+               else; inputs.mouse_release_handlers end
             
         vec = get!(dict, code, Tuple{UInt8, Function}[])
         push!(vec, (mod, func))
@@ -435,7 +477,7 @@ function register_callback!(func::Function, inputs::Inputs, type::UInt8, code::C
 end
 
 function register_callback_for_action(func::Function, inputs::Inputs, type::UInt8, action::InputAction)
-    @assert type in (KEY_UP, KEY_DOWN) "input actions only upport keyboard events"
+    @assert type in (KEY_UP, KEY_DOWN) "input actions can only be KEY_UP ($KEY_UP) or KEY_DOWN ($KEY_DOWN)"
     vec = get!(inputs.action_handler_map, (type, action), [])
     push!(vec, func)
 end
@@ -448,28 +490,28 @@ end
 
 function _input_call(inputs::Inputs,event::Event)::Nothing
     callbacks::Vector{Tuple{UInt8, Function}} = if event.type == KEY_DOWN
-        if haskey(inputs.button_press,event.scancode)
-            inputs.button_press[event.scancode]
+        if haskey(inputs.button_press_handlers,event.scancode)
+            inputs.button_press_handlers[event.scancode]
         else
             Tuple{UInt8, Function}[]
         end
     elseif event.type == KEY_UP
-        if haskey(inputs.button_release,event.scancode)
-            inputs.button_release[event.scancode]
+        if haskey(inputs.button_release_handlers,event.scancode)
+            inputs.button_release_handlers[event.scancode]
         else
             Tuple{UInt8, Function}[]
         end
     elseif event.type == MOUSE_MOVE
         inputs.event_callbacks[MOUSE_MOVE]
     elseif event.type == MOUSE_BUTTON_DOWN
-        if haskey(inputs.mouse_press,event.scancode)
-            inputs.mouse_press[event.scancode]
+        if haskey(inputs.mouse_press_handlers,event.scancode)
+            inputs.mouse_press_handlers[event.scancode]
         else
             Tuple{UInt8, Function}[]
         end
     elseif event.type == MOUSE_BUTTON_UP
-        if haskey(inputs.mouse_release,event.scancode)
-            inputs.mouse_release[event.scancode]
+        if haskey(inputs.mouse_release_handlers,event.scancode)
+            inputs.mouse_release_handlers[event.scancode]
         else
             Tuple{UInt8, Function}[]
         end
@@ -489,9 +531,14 @@ function _input_call(inputs::Inputs,event::Event)::Nothing
         end
     end
 
-    if event.type in (KEY_DOWN, KEY_UP) && haskey(inputs.action_map, (event.key_mod, event.scancode))
-        action = inputs.action_map[(event.key_mod, event.scancode)]
-        for callback in get(inputs.action_handler_map, (event.type, action), [])
+    if event.type in (KEY_DOWN, KEY_UP, MOUSE_BUTTON_DOWN, MOUSE_BUTTON_UP)
+        input_type = event.type in (KEY_DOWN, MOUSE_BUTTON_DOWN) ? KEY_DOWN : KEY_UP
+        event_scancode = event.type in (KEY_DOWN, KEY_UP) ? GLFW.Key(event.scancode) : GLFW.MouseButton(event.scancode)
+        if !haskey(inputs.action_map, (event.key_mod, event_scancode))
+            return
+        end
+        action = inputs.action_map[(event.key_mod, event_scancode)]
+        for callback in get(inputs.action_handler_map, (input_type, action), [])
             if callback(action, event)
                 break
             end
@@ -563,6 +610,21 @@ function _mouse_button_callback(window::GLFW.Window, button::GLFW.MouseButton, a
         0.0,0.0,
         Cint(0),Cint(0)
     )
+
+    if event.type == MOUSE_BUTTON_UP
+        delete!(inputs.mouse_held, button)
+        inputs.mouse_released[button] = event
+    else
+        if !haskey(inputs.mouse_held, button)
+            inputs.mouse_pressed[button] = event
+        end
+        inputs.mouse_held[button] = event
+    end
+
+
+    if inputs.pause_key_callbacks
+        return
+    end
 
     _input_call(inputs,event)
 end

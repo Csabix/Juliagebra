@@ -9,17 +9,13 @@ mutable struct FrameTime <: WindowDNA
 
     function FrameTime()
         rt =new(Window(),Vector{Float64}[],Vector{Float64}[],Float64[],Float64[],get_global_setting("Graphics/Display/Framerate/Max FPS"))
-        on_setting_changed("Graphics/Display/Framerate/Max FPS", _update_target_framerate, [rt])
+        on_setting_changed(v -> rt.target_fps = v, "Graphics/Display/Framerate/Max FPS")
         return rt
     end
 end
 
 _Window_(gui::FrameTime)::Window = gui.window
 getWindowName(gui::FrameTime) = "Frame Time"
-
-function _update_target_framerate(value, window)
-    window[1].target_fps = value
-end
 
 function renderContent(gui::FrameTime, app::AppDNA)::Nothing
     opengl_data::OpenGLData = getOpenGL(app)

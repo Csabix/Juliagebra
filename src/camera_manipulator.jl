@@ -46,14 +46,14 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
 
     rt = OrbitalCamera(camera,u,v,log1p(distance),Float32(0.5),0,0,0,0,0,0,sensitivity,flipr,flipp,_ORBITAL_NONE,false,false)
 
-    on_setting_changed("Controls/Invert camera/Panning/X", v -> rt.flip_panning=Vec2T{Bool}(v, rt.flip_panning.y))
-    on_setting_changed("Controls/Invert camera/Panning/Y", v -> rt.flip_panning=Vec2T{Bool}(rt.flip_panning.x, v))
+    on_setting_changed(v -> rt.flip_panning=Vec2T{Bool}(v, rt.flip_panning.y), "Controls/Invert camera/Panning/X")
+    on_setting_changed(v -> rt.flip_panning=Vec2T{Bool}(rt.flip_panning.x, v), "Controls/Invert camera/Panning/Y")
 
-    on_setting_changed("Controls/Invert camera/Rotation/X", v -> rt.flip_rotation=Vec2T{Bool}(v, rt.flip_rotation.y))
-    on_setting_changed("Controls/Invert camera/Rotation/Y", v -> rt.flip_rotation=Vec2T{Bool}(rt.flip_rotation.x, v))
+    on_setting_changed(v -> rt.flip_rotation=Vec2T{Bool}(v, rt.flip_rotation.y), "Controls/Invert camera/Rotation/X")
+    on_setting_changed(v -> rt.flip_rotation=Vec2T{Bool}(rt.flip_rotation.x, v), "Controls/Invert camera/Rotation/Y")
 
-    on_setting_changed("Controls/Mouse sensitivity/X", v -> rt.sensitivity=Vec2D(v, rt.sensitivity.y))
-    on_setting_changed("Controls/Mouse sensitivity/Y", v -> rt.sensitivity=Vec2D(rt.sensitivity.x, v))
+    on_setting_changed(v -> rt.sensitivity=Vec2D(v, rt.sensitivity.y), "Controls/Mouse sensitivity/X")
+    on_setting_changed(v -> rt.sensitivity=Vec2D(rt.sensitivity.x, v), "Controls/Mouse sensitivity/Y")
 
     return rt
 end
@@ -268,9 +268,9 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
             cam._v = clamp(cam._v + dv * (cam.flip_rotation.y ? -1 : 1), 0.0f0, Float32(π))
         elseif cam._move_state == _ORBITAL_PAN
             lookat = normalize(cam._cam.at - cam._cam.eye)
-            right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0) * (cam.flip_panning.x ? -1 : 1)
-            up = normalize(cross(right, lookat)) * (cam.flip_panning.y ? -1 : 1)
-            delta = up * dv + right * du
+            right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0)
+            up = normalize(cross(right, lookat))
+            delta = up * dv * (cam.flip_panning.y ? -1 : 1) + right * du * (cam.flip_panning.x ? -1 : 1)
             delta *= (exp(cam._zoom) - 1.0f0) / 15.0f0
 
             cam._cam.eye += delta

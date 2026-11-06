@@ -225,24 +225,6 @@ function update!(self::App, iconified::Bool)
         frame_end(self._opengl._profiler)
     end
 end
-function _setBackground(color::Integer, self::Vector{Any})
-    c = unpack_color(UInt32(trunc(unsigned(color); digits = 32, base = 2)))
-    glClearColor(c[1], c[2], c[3], c[4])
-    # ? updates so that the background changes instantly, instead of waiting for an actual scene_change
-    _updateScene!(self[1])
-end
-
-function _setGizmoLength(len, self)
-    gizmo::GizmoRenderer = self[1]._opengl._renderers[GizmoRenderer]
-    gizmo.ubo_size[1] = len
-    _updateScene!(self[1])
-end
-
-function _setGizmoThickness(thickness, self)
-    gizmo::GizmoRenderer = self[1]._opengl._renderers[GizmoRenderer]
-    gizmo.ubo_size[2] = thickness
-    _updateScene!(self[1])
-end
 
 function _setInfiniteAABBSize(size, app)
     size = get_global_setting("Graphics/Display/Infinite AABB")
@@ -253,23 +235,6 @@ function _setInfiniteAABBSize(size, app)
         Vec4F(max[1],max[2],max[3],0.0)
     )
     _updateScene!(app[1])
-end
-
-function _setTargetFramerate(value, self)
-    set_limit!(self[1]._frame_limiter, Float64(value))
-end
-
-function _setLimitFramerate(value, self)
-    if value
-        self[1]._frame_limiter = FrameLimiter(Float64(get_global_setting("Graphics/Display/Framerate/Max FPS")))
-    else
-        self[1]._frame_limiter = nothing
-    end
-end
-
-function _setVSyncInterval(value, self)
-    self[1]._vsync_state = value - 2
-    GLFW.SwapInterval(value - 2)
 end
 
 function _updateScene!(app::AppDNA)
@@ -289,14 +254,42 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
-    on_setting_changed("Graphics/Display/Background color", _setBackground, [self])
-    on_setting_changed("Graphics/Display/Gizmo/Length", _setGizmoLength, [self])
-    on_setting_changed("Graphics/Display/Gizmo/Thickness", _setGizmoThickness, [self])
-    on_setting_changed("Graphics/Display/Infinite AABB/Minimum", _setInfiniteAABBSize, [self])
-    on_setting_changed("Graphics/Display/Infinite AABB/Maximum", _setInfiniteAABBSize, [self])
-    on_setting_changed("Graphics/Display/Framerate/Max FPS", _setTargetFramerate, [self])
-    on_setting_changed("Graphics/Display/Framerate/Limit Framerate", _setTargetFramerate, [self])
-    on_setting_changed("Graphics/Display/Framerate/Enable VSync", _setVSyncInterval, [self])
+
+    on_setting_changed("Graphics/Display/Background color") do color
+         c = unpack_color(UInt32(trunc(unsigned(color); digits = 32, base = 2)))
+         glClearColor(c[1], c[2], c[3], c[4])
+        _updateScene!(self)
+    end
+
+    on_setting_changed("Graphics/Display/Gizmo/Length") do len
+        gizmo::GizmoRenderer = self._opengl._renderers[GizmoRenderer]
+        gizmo.ubo_size[1] = len
+        _updateScene!(self)
+    end
+
+    on_setting_changed("Graphics/Display/Gizmo/Thickness") do thickness
+        gizmo::GizmoRenderer = self._opengl._renderers[GizmoRenderer]
+        gizmo.ubo_size[2] = thickness
+        _updateScene!(self)
+    end
+
+    on_setting_changed(_setInfiniteAABBSize, "Graphics/Display/Infinite AABB/Minimum", [self])
+    on_setting_changed(_setInfiniteAABBSize, "Graphics/Display/Infinite AABB/Maximum", [self])
+
+    on_setting_changed(v -> set_limit!(self._frame_limiter, Float64(v)), "Graphics/Display/Framerate/Max FPS")
+    
+    on_setting_changed("Graphics/Display/Framerate/Limit Framerate") do value
+        if value
+            self._frame_limiter = FrameLimiter(Float64(get_global_setting("Graphics/Display/Framerate/Max FPS")))
+        else
+            self._frame_limiter = nothing
+        end
+    end
+
+    on_setting_changed("Graphics/Display/Framerate/Enable VSync") do value
+        self._vsync_state = value - 2
+        GLFW.SwapInterval(value - 2)
+    end
 
     apply_settings()
 

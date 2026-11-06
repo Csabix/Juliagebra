@@ -7,7 +7,7 @@ struct GlobalSettings
     settings::Dict{String, Any}
     settings_hints::Dict{String, Any}
     modified_notification::Dict{String, Set{Function}}
-    modified_bindings::Dict{Pair{Function, String}, Vector{Vector{Any}}}
+    modified_bindings::Dict{Pair{Function, String}, Vector{Union{Vector{Any}, Nothing}}}
 end
 
 global_settings::Union{GlobalSettings, Nothing} = nothing
@@ -36,9 +36,6 @@ function default_settings()::Dict{String,Any}
 
             )
         ),
-        "Evaluator" => Dict{String, Any}(
-
-        ),
         "Controls" => Dict{String, Any}(
             "Invert camera" => Dict{String, Any}(
                 "Panning" => Dict{String, Any}(
@@ -56,9 +53,6 @@ function default_settings()::Dict{String,Any}
             ),
 
         ),
-        "Geometry" => Dict{String, Any}(
-
-        )
     )
 end
 
@@ -82,9 +76,6 @@ function settings_hints()::Dict{String, Any}
 
             )
         ),
-        "Evaluator" => Dict{String, Any}(
-
-        ),
         "Controls" => Dict{String, Any}(
             "Invert camera" => Dict{String, Any}(
                 "Panning" => Dict{String, Any}(
@@ -102,9 +93,6 @@ function settings_hints()::Dict{String, Any}
             ),
             
         ),
-        "Geometry" => Dict{String, Any}(
-
-        )
     )
 end
 
@@ -119,13 +107,29 @@ function init_settings(scratch_path::String = "global_settings", toml_file::Stri
     # if file exists -> read file
     if isfile(path)
         d = TOML.parsefile(path)
+        _apply_default(d, default)
         global global_settings = GlobalSettings(scratch_path, toml_file, d, edit_hints, Dict(), Dict())
-    # else -> generate dict, write file
+    # else -> generate dict
     else
-        global global_settings = GlobalSettings(scratch_path, toml_file, default,edit_hints, Dict(), Dict())
-        save_settings()
+        global global_settings = GlobalSettings(scratch_path, toml_file, default, edit_hints, Dict(), Dict())
     end
+    save_settings()
+end
 
+function _apply_default(settings::Dict, default::Dict)
+    for k in keys(default)
+        if !haskey(settings, k) # loaded settings do not have expected value
+            settings[k] = default[k]
+        elseif default[k] isa Dict # expected category
+            if settings[k] isa Dict # got category -> check category
+                _apply_default(settings[k], default[k])
+            else # got value -> replace with default category
+                settings[k] = default[k]
+            end
+        elseif settings[k] isa Dict # expected value, got category -> replace with default value
+            settings[k] = default[k]
+        end
+    end
 end
 
 function get_global_setting(path::String)::Any
@@ -160,14 +164,21 @@ function set_global_setting(path::String, value::Any)
     current[names[end]] = value
     # serialize
     save_settings()
+    
+    if !haskey(global_settings.modified_notification, path)
+        return 
+    end
+
     # callback
-    if haskey(global_settings.modified_notification, path)
-        for f::Function in global_settings.modified_notification[path]
-            fpair = Pair(f, path)
-            if haskey(global_settings.modified_bindings, fpair) && length(global_settings.modified_bindings[fpair]) > 0
-                for b in global_settings.modified_bindings[fpair]
-                    f(value, b)
-                end
+    for f::Function in global_settings.modified_notification[path]
+        fpair = Pair(f, path)
+        if !haskey(global_settings.modified_bindings, fpair) || length(global_settings.modified_bindings[fpair]) == 0
+            continue
+        end
+
+        for b in global_settings.modified_bindings[fpair]
+            if b !== nothing
+                f(value, b)
             else
                 f(value)
             end
@@ -184,20 +195,18 @@ function save_settings()
     close(file)
 end
 
-function on_setting_changed(setting::String, func::Function, binds::Union{Vector, Nothing}=nothing)
+function on_setting_changed(func::Function, setting::String, binds::Union{Vector, Nothing}=nothing)
     @assert global_settings !== nothing "Settings are uninitialized"
     @assert !isa(get_global_setting(setting), Dict) "Path leads to category, not string"
     func_set = get(global_settings.modified_notification, setting, Set{Function}())
     global_settings.modified_notification[setting] = func_set
-    if binds !== nothing
-        p = Pair(func, setting)
-        if get(global_settings.modified_bindings, p, nothing) ===nothing
-            global_settings.modified_bindings[p] = [binds]
-        else
-            push!(global_settings.modified_bindings[p], binds)
-        end
-        
+    p = Pair(func, setting)
+    if get(global_settings.modified_bindings, p, nothing) === nothing
+        global_settings.modified_bindings[p] = [binds]
+    else
+        push!(global_settings.modified_bindings[p], binds)
     end
+
     push!(func_set, func)
 end
 

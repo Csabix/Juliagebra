@@ -193,10 +193,11 @@ set_shouldclose(w::GLFWData,should_close::Bool)::Nothing = (GLFW.SetWindowShould
 get_resolution(w::GLFWData)::Tuple{Int32,Int32} = tuple(w.width,w.height)
 
 function poll_events(::GLFWData, inputs::Inputs)::Nothing
-    inputs.keys_pressed = Dict()
-    inputs.keys_released = Dict()
-    inputs.mouse_pressed = Dict()
-    inputs.mouse_released = Dict()
+    empty!(inputs.keys_pressed)
+    empty!(inputs.keys_released)
+    empty!(inputs.mouse_pressed)
+    empty!(inputs.mouse_released)
+
     GLFW.PollEvents()
 end
 
@@ -417,8 +418,7 @@ end
 
 function keypress_name(mod::UInt8, key::GLFW.Key)::String
     rt = modifier_name(mod)
-    name = key
-    name = "$name"
+    name = "$key"
     name = collect(String(name[5:end]))
     replace!(name, '_'=>' ')
     name = String(name)
@@ -429,8 +429,7 @@ end
 
 function keypress_name(mod::UInt8, key::GLFW.MouseButton)::String
     rt = modifier_name(mod)
-    name = key
-    name = "$name"
+    name = "$key"
     name = collect(String(name[14:end]))
     replace!(name, '_'=>' ')
     name = String(name)

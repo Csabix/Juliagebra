@@ -1,7 +1,8 @@
 using CImGui.CSyntax.CStatic
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
-    selected_category::Int
+    
+    selected_subcategory::Int
     input_record_mode::Union{Nothing, InputAction}
     function OptionsWindow()
         new(Window(), -1, nothing)
@@ -105,7 +106,7 @@ function render(self::OptionsWindow, app::AppDNA)
         setVisible(self,isVisible_Ref[])
     else
         self.input_record_mode = nothing
-        self.selected_category = -1
+        self.selected_subcategory = -1
         app._inputs.pause_key_callbacks = false
     end
 end
@@ -116,26 +117,56 @@ function renderContent(self::OptionsWindow, app::AppDNA)
     CImGui.BeginChild("Option Categories",(CImGui.GetContentRegionAvail().x * 0.2, 0.0))
 
     categories = collect(keys(global_settings.settings))
+    subcategories = []
+    cat_segments = Dict()
+    reverse_cat_segments = Dict()
     category_indices = sortperm(categories)
+    begin
+        a = 1
+        b = 1
+        for i in category_indices
+    
+            k = collect(keys(global_settings.settings[categories[i]]))
+
+            for j in sortperm(k)
+                push!(subcategories, k[j])
+                
+                b+=1
+            end
+            cat_segments[categories[i]] = (a,b-1)
+            reverse_cat_segments[(a,b-1)] = categories[i]
+            a=b
+            b=a
+        end
+    end
     for i in category_indices
-        if CImGui.Selectable(categories[i], self.selected_category == i)
-            self.selected_category = i
+        if CImGui.TreeNode(categories[i])
+            c = categories[i]
+            subs = cat_segments[c]
+
+            for j in subs[1]:subs[2]
+                sc = subcategories[j]
+                if CImGui.Selectable("$sc##$j", self.selected_subcategory == j)
+                    self.selected_subcategory = j
+                end
+            end
+            CImGui.TreePop()
         end
     end
 
     CImGui.Separator()
-    if CImGui.Selectable("Edit keybinds", self.selected_category == -2)
-            self.selected_category = -2
+    if CImGui.Selectable("Edit keybinds", self.selected_subcategory == -2)
+            self.selected_subcategory = -2
     end
     CImGui.EndChild()
-
+    return
     CImGui.SameLine()
     CImGui.BeginChild("Options", (0.0,0.0))
 
-    if checkbounds(Bool, categories, self.selected_category)
-        i = self.selected_category
+    if checkbounds(Bool, categories, self.selected_subcategory)
+        i = self.selected_subcategory
         _render_option(categories[i], global_settings.settings[categories[i]], default_settings()[categories[self.selected_category]], global_settings.settings_hints[categories[i]], categories[i])
-    elseif self.selected_category == -2
+    elseif self.selected_subcategory == -2
         _render_keybinds(self, app._inputs)
     end
     CImGui.EndChild()

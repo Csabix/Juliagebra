@@ -37,24 +37,24 @@ const KEY_MOD_ALT::UInt8        = 0x04
 const KEY_MOD_SUPER::UInt8      = 0x08
 
 @enum InputAction::UInt32 begin
-    ACTION_CAM_FORWARD
-    ACTION_CAM_BACK
-    ACTION_CAM_LEFT
-    ACTION_CAM_RIGHT
-    ACTION_CAM_UP
-    ACTION_CAM_DOWN
-    ACTION_SET_VIEW_AXIS_POS_X
-    ACTION_SET_VIEW_AXIS_NEG_X
-    ACTION_SET_VIEW_AXIS_POS_Y
-    ACTION_SET_VIEW_AXIS_NEG_Y
-    ACTION_SET_VIEW_AXIS_POS_Z
-    ACTION_SET_VIEW_AXIS_NEG_Z
-    ACTION_FLIP_VIEW
-    ACTION_SWAP_PROJECTION_MODE
-    ACTION_DRAG_GIZMO_AXIS_X
-    ACTION_DRAG_GIZMO_AXIS_Y
-    ACTION_DRAG_GIZMO_AXIS_Z
-    ACTION_RECOMP_SHADERS
+    ACTION_CAM_FORWARD = 0
+    ACTION_CAM_BACK = 1
+    ACTION_CAM_LEFT = 2
+    ACTION_CAM_RIGHT = 3
+    ACTION_CAM_UP = 4
+    ACTION_CAM_DOWN = 5
+    ACTION_SET_VIEW_AXIS_POS_X = 6
+    ACTION_SET_VIEW_AXIS_NEG_X = 7
+    ACTION_SET_VIEW_AXIS_POS_Y = 8
+    ACTION_SET_VIEW_AXIS_NEG_Y = 9
+    ACTION_SET_VIEW_AXIS_POS_Z = 10
+    ACTION_SET_VIEW_AXIS_NEG_Z = 11
+    ACTION_FLIP_VIEW = 12
+    ACTION_SWAP_PROJECTION_MODE = 13
+    ACTION_DRAG_GIZMO_AXIS_X = 14
+    ACTION_DRAG_GIZMO_AXIS_Y = 15
+    ACTION_DRAG_GIZMO_AXIS_Z = 16
+    ACTION_RECOMP_SHADERS = 17
 end
 
 struct Event
@@ -308,6 +308,13 @@ function load_keybinds(path::String)::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.Mou
             k = (UInt8(k[1]), GLFW.MouseButton(k[2]))
             rt[k] = InputAction(d["mouse_actions"][i])
         end
+        d = default_keybinds()
+        for k in keys(d)
+            if !haskey(rt, k)
+                rt[k] = d[k]
+            end
+        end
+        save_keybinds(rt, path)
         return rt
     else
         rt = default_keybinds()

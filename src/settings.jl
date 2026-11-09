@@ -130,6 +130,18 @@ function _apply_default(settings::Dict, default::Dict)
             settings[k] = default[k]
         end
     end
+
+    _remove_unused(settings, default)
+end
+
+function _remove_unused(settings::Dict, default::Dict)
+    for k in keys(settings)
+        if !haskey(default, k)
+            delete!(settings, k)
+        elseif settings[k] isa Dict
+            _remove_unused(settings[k], default[k])
+        end
+    end
 end
 
 function get_global_setting(path::String)::Any

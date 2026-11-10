@@ -175,7 +175,72 @@ end
 is_open(window::GLFWData) = return window._window.handle != C_NULL
 
 function get_input_action_name(action::InputAction)
-    return "$action"
+    if action == ACTION_CAM_UP
+        return "Move Camera Up"
+    elseif action == ACTION_CAM_BACK
+        return "Move Camera Backward"
+    elseif action == ACTION_CAM_DOWN
+        return "Move Camera Down"
+    elseif action == ACTION_CAM_LEFT
+        return "Move Camera Left"
+    elseif action == ACTION_CAM_RIGHT
+        return "Move Camera Right"
+    elseif action == ACTION_CAM_FORWARD
+        return "Move Camera Forward"
+    elseif action == ACTION_RECOMP_SHADERS
+        return "Recompile Shaders"
+    elseif action == ACTION_FLIP_VIEW
+        return "Flip View"
+    elseif action == ACTION_DRAG_GIZMO_AXIS_X
+        return "Drag Gizmo on X Axis"
+    elseif action == ACTION_DRAG_GIZMO_AXIS_Y
+        return "Drag Gizmo on Y Axis"
+    elseif action == ACTION_DRAG_GIZMO_AXIS_Z
+        return "Drag Gizmo on Z Axis"
+    elseif action == ACTION_SET_VIEW_AXIS_NEG_X
+        return "Move Camera to Left View Axis"
+    elseif action == ACTION_SET_VIEW_AXIS_POS_X
+        return "Move Camera to Right View Axis"
+    elseif action == ACTION_SET_VIEW_AXIS_NEG_Y
+        return "Move Camera to Bottom View Axis"
+    elseif action == ACTION_SET_VIEW_AXIS_POS_Y
+        return "Move Camera to Top View Axis"
+    elseif action == ACTION_SET_VIEW_AXIS_NEG_Z
+        return "Move Camera to Back View Axis"
+    elseif action == ACTION_SET_VIEW_AXIS_POS_Z
+        return "Move Camera to Front View Axis"
+    elseif action == ACTION_SWAP_PROJECTION_MODE
+        return "Swap Projection Mode"
+    else return "$action"
+    end
+end
+
+function input_category(input::InputAction)::String
+    if input in (
+        ACTION_CAM_FORWARD,
+        ACTION_CAM_BACK,
+        ACTION_CAM_LEFT,
+        ACTION_CAM_RIGHT,
+        ACTION_CAM_UP,
+        ACTION_CAM_DOWN,
+        ACTION_SET_VIEW_AXIS_POS_X,
+        ACTION_SET_VIEW_AXIS_NEG_X,
+        ACTION_SET_VIEW_AXIS_POS_Y,
+        ACTION_SET_VIEW_AXIS_NEG_Y,
+        ACTION_SET_VIEW_AXIS_POS_Z,
+        ACTION_SET_VIEW_AXIS_NEG_Z,
+        ACTION_FLIP_VIEW,
+        ACTION_SWAP_PROJECTION_MODE
+        )
+        return "Camera"
+    elseif input in (
+        ACTION_DRAG_GIZMO_AXIS_X,
+        ACTION_DRAG_GIZMO_AXIS_Y,
+        ACTION_DRAG_GIZMO_AXIS_Z
+        )
+        return "Gizmo"
+    else return "Misc"
+    end
 end
 
 function deinit!(w::GLFWData)

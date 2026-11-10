@@ -6,6 +6,7 @@ mutable struct OptionsWindow <: WindowDNA
     cat_segments::Dict
     reverse_cat_segments::Dict
     selected_subcategory::Int
+    input_actions::Dict{String, Vector{InputAction}}
     input_record_mode::Union{Nothing, InputAction}
     function OptionsWindow()
         categories = collect(keys(global_settings.settings))
@@ -13,6 +14,12 @@ mutable struct OptionsWindow <: WindowDNA
         cat_segments = Dict()
         reverse_cat_segments = Dict()
         category_indices = sortperm(categories)
+        input_actions = Dict{String, Vector{InputAction}}()
+        for a in collect(instances(InputAction))
+            v = get!(input_actions, input_category(a), [])
+            push!(v, a)
+        end
+
         begin
             a = 1
             b = 1
@@ -31,7 +38,7 @@ mutable struct OptionsWindow <: WindowDNA
                 b=a
             end
         end
-        new(Window(), categories, subcategories, cat_segments, reverse_cat_segments, -1, nothing)
+        new(Window(), categories, subcategories, cat_segments, reverse_cat_segments, -1, input_actions, nothing)
     end
 end
 
@@ -69,26 +76,41 @@ end
 
 function _render_keybinds(window::OptionsWindow, inputs::Inputs)
     if window.input_record_mode ===nothing
-        actions = collect(instances(InputAction))
-        idx = sortperm(actions)
-        for i in idx
-            a = actions[i]
-            if CImGui.TreeNode("$a")
-                if haskey(inputs.reverse_action_map, a)
-                    for kb in inputs.reverse_action_map[a]
-                        CImGui.Text(keypress_name(kb[1], kb[2]))
-                        CImGui.SameLine()
-                        if CImGui.Button("Delete##$kb")
-                            delete_action_input(inputs, kb[2], kb[1])
+        cats = collect(keys(window.input_actions))
+        cat_idx = sortperm(cats)
+
+        for c in cat_idx
+            category = cats[c]
+            CImGui.Text(category)
+            CImGui.Indent()
+
+            actions = window.input_actions[category]
+            idx = sortperm(actions)
+
+            for i in idx
+                a = actions[i]
+                name = get_input_action_name(a)
+
+                if CImGui.TreeNode("$name")
+                    if haskey(inputs.reverse_action_map, a)
+
+                        for kb in inputs.reverse_action_map[a]
+                            CImGui.Text(keypress_name(kb[1], kb[2]))
+                            CImGui.SameLine()
+                            if CImGui.Button("Delete##$kb")
+                                delete_action_input(inputs, kb[2], kb[1])
+                            end
                         end
+
                     end
+                    if CImGui.Button("Add Keybind")
+                        window.input_record_mode = a
+                        inputs.pause_key_callbacks = true
+                    end
+                    CImGui.TreePop()
                 end
-                if CImGui.Button("Add Keybind")
-                    window.input_record_mode = a
-                    inputs.pause_key_callbacks = true
-                end
-                CImGui.TreePop()
             end
+            CImGui.Unindent()
         end
     else
         action = window.input_record_mode
@@ -173,12 +195,8 @@ function renderContent(self::OptionsWindow, app::AppDNA)
         cat = self.reverse_cat_segments[i]
         subcat = self.subcategories[i]
         settings = global_settings.settings[cat][subcat]
-        k = collect(keys(settings))
-        idx = sortperm(k)
-        
             
-            _render_option("$cat/$subcat", settings, default_settings()[cat][subcat], global_settings.settings_hints[cat][subcat], "$cat/$subcat")
-        
+        _render_option("$cat/$subcat", settings, default_settings()[cat][subcat], global_settings.settings_hints[cat][subcat], "$cat/$subcat")
         
     elseif self.selected_subcategory == -2
         _render_keybinds(self, app._inputs)

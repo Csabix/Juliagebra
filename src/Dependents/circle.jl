@@ -42,7 +42,7 @@ function render_node(circle::PCircle, data::CircleDrawData, renderers::Dict{Data
     v = normalize(cross(n(circle),u))
     offset = p0(circle)
     radius = r(circle)
-    values = [u * c_angle + v * s_angle for (c_angle, s_angle) in zip(cos.(CIRCLE_RANGE), sin.(CIRCLE_RANGE))] .* radius .+ [offset]
+    values = ((u * cos(angle) + v * sin(angle)) * radius + offset for (angle, angle) in zip(CIRCLE_RANGE, CIRCLE_RANGE))
 
     if is_null(data.handle)
         data.handle = add!(line_renderer,values,data.colors,[id],data.style,data.size)

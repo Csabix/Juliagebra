@@ -33,7 +33,7 @@ convert_callback_result(::PTriangle, ::Nothing)                        = PTriang
 convert_callback_entry(self::PTriangle)::Tuple{Vec3D,Vec3D,Vec3D} = (self.v0,self.v1,self.v2)
 function render_node(triangle::PTriangle, draw_data::TriangleDrawData, renderers::Dict{DataType,Renderer}, id::UInt32)::TriangleDrawData
     triangle_renderer::TriangleRenderer = renderers[TriangleRenderer]
-    vertices = [triangle.v0, triangle.v1, triangle.v2]
+    vertices = @SVector [triangle.v0, triangle.v1, triangle.v2]
     if draw_data.handle == 0
         handle = add!(triangle_renderer, vertices, mat4(1.0f0), draw_data.color, false, id)
         return TriangleDrawData(handle, draw_data.color)

@@ -67,7 +67,7 @@ function render(self::Dock, app::AppDNA)
     for window in self._windows
         CImGui.SameLine()
         
-        windowName = getWindowName(window)
+        windowName::String = getWindowName(window)::String
         size = get_button_size(windowName) .* 1.15
 
         if(CImGui.Button(windowName,size))

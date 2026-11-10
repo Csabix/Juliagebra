@@ -11,15 +11,17 @@ mutable struct CoordinatesWidget <: ImGuiWidgetDNA
 
     _padding::Int
 
+    _buffer::CStrBuf
+
     function CoordinatesWidget(gizmo::GizmoRenderer)
-        new(ImGuiWidget(),gizmo,0,0,0,0,0)
+        new(ImGuiWidget(),gizmo,0,0,0,0,0,CStrBuf())
     end
 end
 
 _ImGuiWidget_(self::CoordinatesWidget)::ImGuiWidget = return self._widget
 
-function format_float(x::Real,n::Integer)
-    sign_str = x < 0 ? "-" : ""
+function format_float(buff::CStrBuf, x::Real,n::Integer)
+    if x < 0 print(buff, '-') end
     x_abs = abs(x)
     int_part = trunc(Int, x_abs)
     frac_part = round(Int, (x_abs - int_part) * 10^n)
@@ -27,8 +29,10 @@ function format_float(x::Real,n::Integer)
         int_part += 1
         frac_part = 0
     end
-    frac_str = lpad(string(frac_part), n, '0')
-    return sign_str * string(int_part) * "." * frac_str
+    print(buff, int_part, '.')
+    for _ in 1:(n - ndigits(frac_part)) write(buff, '0') end
+    print(buff, frac_part)
+    return buff
 end
 
 function render(self::CoordinatesWidget, app::AppDNA)
@@ -47,10 +51,16 @@ function render(self::CoordinatesWidget, app::AppDNA)
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoCollapse |
             CImGui.ImGuiWindowFlags_NoDecoration)
 
-        coords = "(" * format_float(self._gizmo.position[1],8) * ", " *
-                       format_float(self._gizmo.position[2],8) * ", " *
-                       format_float(self._gizmo.position[3],8) * ")"
-        CImGui.Text(coords)
+        reset!(self._buffer)
+        write(self._buffer, '(')
+        format_float(self._buffer,self._gizmo.position[1],8)
+        write(self._buffer, ", ")
+        format_float(self._buffer,self._gizmo.position[1],8)
+        write(self._buffer, ", ")
+        format_float(self._buffer,self._gizmo.position[1],8)
+        write(self._buffer, ')')
+        terminate!(self._buffer)
+        CImGui.Text(self._buffer.v)
         
         CImGui.End()
         CImGui.PopStyleVar(2)

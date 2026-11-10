@@ -203,15 +203,15 @@ function _process_spec_constants(glsl_source::String, spec_constants::Dict{GLuin
     pattern = r"layout\s*\(\s*constant_id\s*=\s*(\d+)\s*\)\s*const\s+(\w+)\s+(\w+)\s*=\s*([^;]+);"
 
     out = IOBuffer()
-    last_idx = 1
+    last_idx::Int = 1
 
     for m in eachmatch(pattern, glsl_source)
         write(out, SubString(glsl_source, last_idx, prevind(glsl_source, m.offset)))
 
-        id = parse(GLuint, m.captures[1])
-        type_str = m.captures[2]
-        var_name = m.captures[3]
-        default_val = strip(m.captures[4])
+        id = parse(GLuint, m.captures[1]::SubString{String})
+        type_str = m.captures[2]::SubString{String}
+        var_name = m.captures[3]::SubString{String}
+        default_val = strip(m.captures[4]::SubString{String})
 
         if haskey(spec_constants, id)
             val = spec_constants[id]

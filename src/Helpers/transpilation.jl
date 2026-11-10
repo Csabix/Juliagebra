@@ -7,6 +7,7 @@ const GPU_TESS_CB = :JG_TESS_CALLBACK
 const GPU_TESS_ID = :JG_TESS_ID
 
 const GPU_TESS_DEBUG_ARG = "--debug-gpu-tess"
+const DBG_TESS::Bool = GPU_TESS_DEBUG_ARG in ARGS
 const GPU_TESS_BUF_BINDING_IDX = 0
 
 mutable struct TranspilationSource

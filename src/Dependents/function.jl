@@ -25,18 +25,18 @@ struct FuncDrawData <: GraphDrawData
     graph_colors::Union{ImPlot.ImPlotColormap_,String}
 end
 
-struct CallableFunc
-    callback::Function
+struct CallableFunc{F,P<:Tuple}
+    callback::F
+    parents::P
     domain::Vector{Tuple{Float64,Float64}}
     input_count::Int
     output_count::Int
-
-    function CallableFunc(func::Func)
-        new((args...) -> evaluate(func, args...),func.domain,func.input_count,func.output_count)
-    end
 end
+(cf::CallableFunc)(args...) = cf.callback(args..., cf.parents...)
 
-(callable_func::CallableFunc)(args...) = callable_func.callback(args...)
+CallableFunc(func::Func) = _callable(func, func.callback, _get_func_parents(func.parents)...)
+_callable(func::Func, callback::F, parents::Vararg{Any,N}) where {F,N} =
+    CallableFunc(callback, parents, func.domain, func.input_count, func.output_count)
 
 convert_callback_entry(func::Func)::CallableFunc = CallableFunc(func)
 convert_callback_result(func::Func, ::Any) = func

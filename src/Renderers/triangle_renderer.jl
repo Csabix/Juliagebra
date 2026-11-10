@@ -2,7 +2,8 @@ struct _TriangleTransform
     M::Mat4T{Float32}
     MIT::Mat4T{Float32}
     IsInfinite::Int32
-    _TriangleTransform(M::Mat4T{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
+    _TriangleTransform(M::AbstractMatrix{Float32},IsInfinite::Bool) = new(M,inv(transpose(M)),Int32(IsInfinite))
+    _TriangleTransform(M::AbstractMatrix{Float32},IsInfinite::Int32) = new(M,inv(transpose(M)),IsInfinite)
 end
 
 const GatherRequests = Dict{UInt32,Tuple{BufferBase{Vec4},Int}}
@@ -16,11 +17,10 @@ mutable struct TriangleRenderer <: Renderer
     UBO::RepeatBufferUBO{_TriangleTransform}
     buffers::Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}} # position normal color id
 
-    matrices::Vector{Mat4T{Float32}}
+    transforms::Vector{_TriangleTransform}
     coords::Vector{Vector{Vec4F}}
     coords_lengths::Vector{Int}
     color_ids::Vector{Vec2T{UInt32}}
-    infinite_ids::Vector{Bool}
 
     gather_coords::GatherRequests # handle => (tess buffer, grid width), Dict because new entries should invalidate old ones
     update_normals::Vector{UInt32}
@@ -45,7 +45,7 @@ mutable struct TriangleRenderer <: Renderer
         new(calc_normals,opaque,transparent,surface_gather,
             RepeatBufferUBO{_TriangleTransform}(),
             Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}(),
-            Vector{Mat4T{Float32}}(),Vector{Vector{Vec4F}}(),Vector{Int}(),Vector{Vec2T{UInt32}}(),Vector{Bool}(),
+            Vector{_TriangleTransform}(),Vector{Vector{Vec4F}}(),Vector{Int}(),Vector{Vec2T{UInt32}}(),
             GatherRequests(),
             Vector{UInt32}(),
             Vector{UInt32}(),
@@ -58,14 +58,13 @@ function clear!(self::TriangleRenderer)::Nothing
     foreach(destroy!, self.buffers)
 
     self.buffers = Vector{BufferArray{Tuple{Buffer{Vec4F},Buffer{Vec4F},Buffer{Vec2T{UInt32}}}}}()
-    self.matrices = Vector{Mat4T{Float32}}()
+    self.transforms = Vector{_TriangleTransform}()
     self.coords = Vector{Vector{Vec4F}}()
     self.coords_lengths = Vector{Int}()
     self.color_ids = Vector{Vec2T{UInt32}}()
     self.gather_coords = GatherRequests()
     self.update_normals = Vector{UInt32}()
     self.color_updates = Vector{UInt32}()
-    self.infinite_ids = Vector{Bool}()
     return nothing
 end
 
@@ -74,11 +73,11 @@ function destroy!(self::TriangleRenderer)::Nothing
 end
 
 function add!(self::TriangleRenderer,coords,matrix::Mat4T{Float32},color::UInt32,isInfinite::Bool,id::UInt32)::UInt32
-    push!(self.coords, [Vec4F(c[1],c[2],c[3],1.0f0) for c in coords])
-    push!(self.coords_lengths, length(coords))
-    push!(self.matrices, matrix)
+    push!(self.transforms, _TriangleTransform(matrix, isInfinite))
+    vertices = collect((Vec4F(c[1],c[2],c[3],1.0f0) for c in coords))
+    push!(self.coords, vertices)
+    push!(self.coords_lengths, length(vertices))
     push!(self.color_ids,UVec2(color,id))
-    push!(self.infinite_ids,isInfinite)
     return UInt32(length(self.coords))
 end
 
@@ -88,9 +87,8 @@ function add!(self::TriangleRenderer,tess_buffer::BufferBase{Vec4},grid_width::I
     grid_height = div(length(tess_buffer), grid_width)
     push!(self.coords, Vec4F[])
     push!(self.coords_lengths, _triangulated_size(grid_width,grid_height))
-    push!(self.matrices, matrix)
+    push!(self.transforms, _TriangleTransform(matrix, false)) # GPU tessellated surfaces can't be infinite
     push!(self.color_ids,UVec2(color,id))
-    push!(self.infinite_ids,false) # GPU tessellated surfaces can't be infinite
     ref = UInt32(length(self.coords))
     self.gather_coords[ref] = (tess_buffer, grid_width)
     return ref
@@ -103,7 +101,8 @@ function update_color!(self::TriangleRenderer, ref::UInt32, color::UInt32)
 end
 
 function update_transform!(self::TriangleRenderer, ref::UInt32, transform)
-    self.matrices[ref] = Mat4T{Float32}(transform)
+    _transform::_TriangleTransform = self.transforms[ref]
+    self.transforms[ref] = _TriangleTransform(Mat4T{Float32}(transform),_transform.IsInfinite)
 end
 
 function _triangle_renderer_buffer_array()
@@ -129,11 +128,6 @@ function update_coords!(self::TriangleRenderer,ref::UInt32,tess_buffer::BufferBa
     self.coords_lengths[ref] = _triangulated_size(grid_width, div(length(tess_buffer), grid_width))
     self.gather_coords[ref] = (tess_buffer, grid_width)
     push!(self.update_normals,ref)
-    return nothing
-end
-
-function update_matrix!(self::TriangleRenderer,ref::UInt32,matrix::Mat4T{Float32})::Nothing
-    self.matrices[ref] = matrix
     return nothing
 end
 
@@ -206,11 +200,10 @@ function pre_draw!(self::TriangleRenderer,cam::Camera,window::GLFWData)::Nothing
         glDispatchCompute(_wg_split(self,cld(div(N,3),64))...); # normal shader writes 3 vertices per invocation
     end
 
-    transforms = _TriangleTransform[_TriangleTransform(M,is_infinite) for (M,is_infinite) in zip(self.matrices,self.infinite_ids)]
-    if length(self.UBO) != length(transforms)
-        upload!(self.UBO,transforms,GL_DYNAMIC_STORAGE_BIT)
+    if length(self.UBO) != length(self.transforms)
+        upload!(self.UBO,self.transforms,GL_DYNAMIC_STORAGE_BIT)
     else
-        upload!(self.UBO,transforms)
+        upload!(self.UBO,self.transforms)
     end
 
     return nothing

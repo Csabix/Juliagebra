@@ -47,8 +47,6 @@ global _task::Any = nothing
 
 include("Generated/LibAssimp.jl")
 
-include("Helpers/flat_matrix_manager.jl")
-include("Helpers/flat_matrix.jl")
 include("Helpers/imgui_helpers.jl")
 include("Helpers/scene.jl")
 include("Helpers/infer.jl")
@@ -64,6 +62,7 @@ include("Helpers/gpu_tessellation.jl")
 # ? ---------------------------------
 
 include("Primitives/primitives.jl")
+include("Helpers/triangulation.jl")
 include("Primitives/primitive_intersections.jl")
 include("Primitives/primitive_constructors.jl")
 

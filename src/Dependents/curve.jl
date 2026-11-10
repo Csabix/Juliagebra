@@ -1,13 +1,13 @@
-mutable struct ParametricCurve
-    range::AbstractRange{Float64}
+mutable struct ParametricCurve{R <: AbstractRange{Float64}}
+    range::R
     values::Vector{Vec3D}
     param_tess_data::ParamTessData
 
-    function ParametricCurve(range::AbstractRange{Float64}, param_tess_data::ParamTessData)
-        values = Vector{Vec3D}(undef, length(range))
-        new(range, values, param_tess_data)
+    function ParametricCurve(range::R, param_tess_data::ParamTessData) where {R<:AbstractRange{Float64}}
+        new{R}(range, Vector{Vec3D}(undef, length(range)), param_tess_data)
     end
 end
+edit_node_name(::ParametricCurve)::String = "ParametricCurve"
 
 struct ParametricCurveDrawData
     handle::LineHandle
@@ -68,11 +68,15 @@ convert_result!(pc::ParametricCurve,v::Nothing,index)            = pc.values[ind
 
 eval_geometry_node(element::ParametricCurve, node::GeometryPlotNode, elements::Vector{Any}) = handle_param_tess!(element.param_tess_data, element, node, elements)
 
-function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::ParametricCurve
-    for index in eachindex(element.range)
-        convert_result!(element,callback(element.range[index],arguments...),index)
-    end
+function eval_node(element::ParametricCurve, callback::Function, arguments::Vector{Any})::Any
+    _fill_curve!(element, callback, arguments...)
     return element
+end
+function _fill_curve!(pc::ParametricCurve, callback::F, args::Vararg{Any,N}) where {F,N}
+    for i in eachindex(pc.range)
+        convert_result!(pc, callback(pc.range[i], args...), i)
+    end
+    return pc
 end
 
 function update_node_uniforms!(uniform_values::Dict{Symbol,Any}, element::ParametricCurve)
@@ -123,15 +127,14 @@ function Base.iterate(self::PSegmentsOfCurve, index::Integer = 1)
 end
 
 function wrap_curve_callback(callback_ast::Expr)::Union{Expr,Nothing}
-    dbg::Bool = (GPU_TESS_DEBUG_ARG in ARGS)
 
     if !_is_normalized_callback(callback_ast)
-        dbg && @log "Cannot transpile callback AST that has not been normalized"
+        DBG_TESS && @log "Cannot transpile callback AST that has not been normalized"
         return nothing
     end
 
     if isempty(callback_ast.args[1].args)
-        dbg && @log "Cannot transpile zero-argument callback as a curve"
+        DBG_TESS && @log "Cannot transpile zero-argument callback as a curve"
         return nothing
     end
 

@@ -17,7 +17,7 @@ function default_settings()::Dict{String,Any}
         "Graphics" => Dict{String, Any}(
             "Display" => Dict{String, Any}(
                 "Framerate" => Dict{String, Any}(
-                    "Enable VSync" => 2,
+                    "Enable VSync" => 3,
                     "Limit Framerate" => false,
                     "Max FPS" => 60
                 ),

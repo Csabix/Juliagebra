@@ -7,6 +7,7 @@ mutable struct OptionsWindow <: WindowDNA
     reverse_cat_segments::Dict
     selected_subcategory::Int
     input_actions::Dict{String, Vector{InputAction}}
+    action_names::Dict{InputAction, String}
     input_record_mode::Union{Nothing, InputAction}
     function OptionsWindow()
         categories = collect(keys(global_settings.settings))
@@ -38,7 +39,7 @@ mutable struct OptionsWindow <: WindowDNA
                 b=a
             end
         end
-        new(Window(), categories, subcategories, cat_segments, reverse_cat_segments, -1, input_actions, nothing)
+        new(Window(), categories, subcategories, cat_segments, reverse_cat_segments, -1, input_actions, get_input_action_names(), nothing)
     end
 end
 
@@ -89,7 +90,7 @@ function _render_keybinds(window::OptionsWindow, inputs::Inputs)
 
             for i in idx
                 a = actions[i]
-                name = get_input_action_name(a)
+                name = get!(window.action_names, a, "$a")
 
                 if CImGui.TreeNode("$name")
                     if haskey(inputs.reverse_action_map, a)

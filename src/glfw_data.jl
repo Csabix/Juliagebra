@@ -176,45 +176,31 @@ end
 
 is_open(window::GLFWData) = return window._window.handle != C_NULL
 
-function get_input_action_name(action::InputAction)
-    if action == ACTION_CAM_UP
-        return "Move Camera Up"
-    elseif action == ACTION_CAM_BACK
-        return "Move Camera Backward"
-    elseif action == ACTION_CAM_DOWN
-        return "Move Camera Down"
-    elseif action == ACTION_CAM_LEFT
-        return "Move Camera Left"
-    elseif action == ACTION_CAM_RIGHT
-        return "Move Camera Right"
-    elseif action == ACTION_CAM_FORWARD
-        return "Move Camera Forward"
-    elseif action == ACTION_RECOMP_SHADERS
-        return "Recompile Shaders"
-    elseif action == ACTION_FLIP_VIEW
-        return "Flip View"
-    elseif action == ACTION_DRAG_GIZMO_AXIS_X
-        return "Drag Gizmo on X Axis"
-    elseif action == ACTION_DRAG_GIZMO_AXIS_Y
-        return "Drag Gizmo on Y Axis"
-    elseif action == ACTION_DRAG_GIZMO_AXIS_Z
-        return "Drag Gizmo on Z Axis"
-    elseif action == ACTION_SET_VIEW_AXIS_NEG_X
-        return "Move Camera to Left View Axis"
-    elseif action == ACTION_SET_VIEW_AXIS_POS_X
-        return "Move Camera to Right View Axis"
-    elseif action == ACTION_SET_VIEW_AXIS_NEG_Y
-        return "Move Camera to Bottom View Axis"
-    elseif action == ACTION_SET_VIEW_AXIS_POS_Y
-        return "Move Camera to Top View Axis"
-    elseif action == ACTION_SET_VIEW_AXIS_NEG_Z
-        return "Move Camera to Back View Axis"
-    elseif action == ACTION_SET_VIEW_AXIS_POS_Z
-        return "Move Camera to Front View Axis"
-    elseif action == ACTION_SWAP_PROJECTION_MODE
-        return "Swap Projection Mode"
-    else return "$action"
-    end
+function get_input_action_names()::Dict{InputAction, String}
+    return Dict(
+        ACTION_CAM_UP => "Move Camera Up",
+        ACTION_CAM_BACK => "Move Camera Backward",
+        ACTION_CAM_DOWN => "Move Camera Down",
+        ACTION_CAM_LEFT => "Move Camera Left",
+        ACTION_CAM_RIGHT => "Move Camera Right",
+        ACTION_CAM_FORWARD => "Move Camera Forward",
+
+        ACTION_SWAP_PROJECTION_MODE => "Swap Projection Mode",
+
+        ACTION_DRAG_GIZMO_AXIS_X => "Drag Gizmo on X Axis",
+        ACTION_DRAG_GIZMO_AXIS_Y => "Drag Gizmo on Y Axis",
+        ACTION_DRAG_GIZMO_AXIS_Z => "Drag Gizmo on Z Axis",
+
+        ACTION_FLIP_VIEW => "Flip View",
+        ACTION_SET_VIEW_AXIS_NEG_X => "Move Camera to Left View Axis",
+        ACTION_SET_VIEW_AXIS_POS_X => "Move Camera to Right View Axis",
+        ACTION_SET_VIEW_AXIS_NEG_Y => "Move Camera to Bottom View Axis",
+        ACTION_SET_VIEW_AXIS_POS_Y => "Move Camera to Top View Axis",
+        ACTION_SET_VIEW_AXIS_NEG_Z => "Move Camera to Back View Axis",
+        ACTION_SET_VIEW_AXIS_POS_Z => "Move Camera to Front View Axis",
+
+        ACTION_RECOMP_SHADERS => "Recompile Shaders",
+    )
 end
 
 function input_category(input::InputAction)::String

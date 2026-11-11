@@ -290,39 +290,23 @@ function get_vecnt(value::Vector)::Union{Nothing, VecNT}
 end
 
 function input_property(label::String, value::Vector, property_hint::Nothing = nothing)::Vector
-        if length(value) == 1
-            return [input_property(label, value[1], property_hint)]
-        end
-
         vec = get_vecnt(value)
         if vec !==nothing
             res = input_property(label, vec)
             return [v for v in res]
         end
 
-        rt::Vector = []
-        for v in eachindex(value)
-            push!(rt, input_property(label*"$v", value[v], property_hint))
-        end
-        return rt
+        return input_property_vec(label, value)
 end
 
 function input_property(label::String, value::Vector, property_hint::PropertyHintNumber)::Vector
-        if length(value) == 1
-            return [input_property(label, value[1], property_hint)]
-        end
-
         vec = get_vecnt(value)
         if vec !==nothing
             res = input_property(label, vec, property_hint)
             return [v for v in res]
         end
 
-        rt::Vector = []
-        for v in eachindex(value)
-            push!(rt, input_property(label*"$v", value[v], property_hint))
-        end
-        return rt
+        return input_property_vec(label, value, property_hint)
 end
 
 input_property(label::String, value::Vector, property_hint::PropertyHintColor) = input_property_vec(label, value, property_hint)
@@ -333,7 +317,7 @@ input_property(label::String, value::Vector, property_hint::PropertyHintText) = 
 input_property(label::String, value::Vector, property_hint::PropertyHintTextMultiline) = input_property_vec(label, value, property_hint)
 input_property(label::String, value::Vector, property_hint::PropertyHintNoEdit) = input_property_vec(label, value, property_hint)
 
-function input_property_vec(label::String, value::Vector, property_hint::PropertyHint)::Vector
+function input_property_vec(label::String, value::Vector, property_hint::Union{PropertyHint, Nothing} = nothing)::Vector
         if length(value) == 1
             return [input_property(label, value[1], property_hint)]
         end

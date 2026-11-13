@@ -1,5 +1,6 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
 
+
 # ? ---------------------------------
 # ! App
 # ? ---------------------------------
@@ -238,6 +239,9 @@ function update!(self::App, iconified::Bool)
     if !iconified
         # ? Render scene and dock.
         update!(self._opengl,self._cam,self._scene_change,self._hovered)
+
+       
+
         self._scene_change = false
         render!(self._imgui,self)
         frame_end(self._opengl._profiler)

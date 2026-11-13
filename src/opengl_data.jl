@@ -2,7 +2,9 @@
 # ? ---------------------------------
 # ! OpenGLData
 # ? ---------------------------------
-
+using FileIO
+using ImageIO
+using Colors
 function debug_callback(source::GLenum, typ::GLenum, id::GLuint, severity::GLenum, 
                         len::GLsizei, message::Ptr{GLchar}, userParam::Ptr{Cvoid})::Nothing
     if glGetError() != 0
@@ -464,6 +466,14 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool,hovered::UInt32
     blit_scene!(self,cam,hovered)
     end_gpu(self._profiler,self._passes.post_process)
 
+    #glFinish()
+    pixel_buf = zeros(Vec3F, self._window.height * self._window.width)
+    glReadnPixels(0, 0, self._window.width, self._window.height, GL_RGB, GL_FLOAT, sizeof(pixel_buf), pixel_buf)
+    glFinish()
+    
+    output_buf = [RGB(a.x, a.y, a.z) for a in pixel_buf]
+    output_buf = reshape(output_buf, self._window.width, self._window.height)
+    save("out.png", output_buf)
     lock(self._ubo)
     end_cpu(self._profiler, self._cpu_stopwatch)
 end

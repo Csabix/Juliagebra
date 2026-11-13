@@ -252,6 +252,8 @@ function save_image(self::App)
         pixel_buf = screen_capture(self._opengl, self._cam, self._hovered)
         output_buf = [RGB(a.x, a.y, a.z) for a in pixel_buf[1]]
         output_buf = reshape(output_buf, pixel_buf[2], pixel_buf[3])
+        reverse!(output_buf; dims = 2)
+        output_buf = output_buf'
         save("out.png", output_buf)
 end
 

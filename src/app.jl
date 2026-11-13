@@ -1,5 +1,7 @@
 #the manager's logic is defined here, who manages the logic and graphics for juliagebra.
-
+using FileIO
+using ImageIO
+using Colors
 
 # ? ---------------------------------
 # ! App
@@ -239,13 +241,18 @@ function update!(self::App, iconified::Bool)
     if !iconified
         # ? Render scene and dock.
         update!(self._opengl,self._cam,self._scene_change,self._hovered)
-
-       
-
+        save_image(self)
         self._scene_change = false
         render!(self._imgui,self)
         frame_end(self._opengl._profiler)
     end
+end
+
+function save_image(self::App)
+        pixel_buf = screen_capture(self._opengl, self._cam, self._hovered)
+        output_buf = [RGB(a.x, a.y, a.z) for a in pixel_buf[1]]
+        output_buf = reshape(output_buf, pixel_buf[2], pixel_buf[3])
+        save("out.png", output_buf)
 end
 
 function _setInfiniteAABBSize(size, app)

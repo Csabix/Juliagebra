@@ -2,7 +2,7 @@
 using FileIO
 using ImageIO
 using Colors
-
+using NativeFileDialog
 # ? ---------------------------------
 # ! App
 # ? ---------------------------------
@@ -39,8 +39,8 @@ mutable struct App <: AppDNA
     _transpiler_cfg::ShaderTranspiler.ConfigHandle
     _callback_helpers::Vector{Expr}
 
-
-    screenshot_in_progress::Bool
+    _screenshot_in_progress::Bool
+    _last_saved_path::String
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -79,7 +79,7 @@ mutable struct App <: AppDNA
             graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
             0,0,0,0,0,
             transpiler_cfg,callback_helpers,
-            false)
+            false,"")
     end
 end
 
@@ -141,8 +141,8 @@ function setup_callbacks(self::App)::Nothing
         return drag
     end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_Z)
     register_callback_for_action(self._inputs, KEY_DOWN, ACTION_TAKE_SCREENSHOT) do ac, ev
-        if !self.screenshot_in_progress
-            self.screenshot_in_progress = true
+        if !self._screenshot_in_progress
+            self._screenshot_in_progress = true
             save_image(self)
         end
         return false
@@ -152,7 +152,7 @@ function setup_callbacks(self::App)::Nothing
     register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_X)
     register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Y)
     register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Z)
-    register_callback_for_action((ac, ev) -> (self.screenshot_in_progress = false; return false), self._inputs, KEY_UP, ACTION_TAKE_SCREENSHOT)
+    register_callback_for_action((ac, ev) -> (self._screenshot_in_progress = false; return false), self._inputs, KEY_UP, ACTION_TAKE_SCREENSHOT)
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
 end
@@ -260,11 +260,15 @@ end
 function save_image(self::App)
         pixel_buf = screen_capture(self._opengl, self._cam, UInt32(0))
         output_buf = [RGB(a.x, a.y, a.z) for a in pixel_buf[1]]
-        output_buf = reshape(output_buf, pixel_buf[2], pixel_buf[3])
-        reverse!(output_buf; dims = 2)
-        output_buf = output_buf'
-        save("out.png", output_buf)
-        _updateScene!(self)
+        path = save_file(self._last_saved_path)
+        if path != ""
+            self._last_saved_path = path
+            output_buf = reshape(output_buf, pixel_buf[2], pixel_buf[3])
+            reverse!(output_buf; dims = 2)
+            output_buf = output_buf'
+            save(path, output_buf)
+            _updateScene!(self)
+        end
 end
 
 function _setInfiniteAABBSize(size, app)

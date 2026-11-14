@@ -41,6 +41,7 @@ mutable struct App <: AppDNA
         width::Int32=Int32(1280),
         height::Int32=Int32(720)
     )
+        init_settings()
         glfw = GLFWData(name,width,height)
         inputs = Inputs(glfw)
         opengl = nothing
@@ -117,27 +118,27 @@ function setup_callbacks(self::App)::Nothing
     end, self._inputs, MOUSE_MOVE)
 
     # --- KEYBOARD DOWN EVENTS ---
-    register_callback!(event ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, Cint(GLFW.KEY_F5))
-    register_callback!(event -> begin
+    register_callback_for_action((ac, ev) ->  (recompile_shaders(self._opengl._pipeline_loader); false), self._inputs, KEY_DOWN, ACTION_RECOMP_SHADERS)
+    register_callback_for_action((ac, ev) -> begin
         drag = on_gizmo_drag_axis_start!(self, AXIS_X)
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
-    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_X))
-    register_callback!(event -> begin
+    end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_X)
+    register_callback_for_action((ac, ev) -> begin
         drag = on_gizmo_drag_axis_start!(self, AXIS_Y)
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
-    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Y))
-    register_callback!(event -> begin
+    end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_Y)
+    register_callback_for_action((ac, ev) -> begin
         drag = on_gizmo_drag_axis_start!(self, AXIS_Z)
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
-    end, self._inputs, KEY_DOWN, Cint(GLFW.KEY_Z))
+    end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_Z)
     
     # --- KEYBOARD UP EVENTS ---
-    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, Cint(GLFW.KEY_X))
-    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, Cint(GLFW.KEY_Y))
-    register_callback!(event -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, Cint(GLFW.KEY_Z))
+    register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_X)
+    register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Y)
+    register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Z)
 
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
@@ -184,11 +185,10 @@ function play!(self::App)
 
         iconified = Bool(GLFW.GetWindowAttrib(self._glfw._window, GLFW.ICONIFIED))
         update!(self,iconified)
-
         if self._frame_limiter !== nothing before_buffer_swap!(self._frame_limiter) end
         swap_buffers(self._glfw)
         if self._frame_limiter !== nothing after_buffer_swap!(self._frame_limiter) end
-        poll_events(self._glfw)
+        poll_events(self._glfw, self._inputs)
         self._need_clear && clear!(self)
     end
     destroy!(self)
@@ -244,11 +244,26 @@ function update!(self::App, iconified::Bool)
     end
 end
 
+function _setInfiniteAABBSize(size, app)
+    size = get_global_setting("Graphics/Display/Infinite AABB")
+    min = size["Minimum"]
+    max = size["Maximum"]
+    app[1]._opengl._ubo_aabb[1] = UBO_AABB(
+        Vec4F(min[1],min[2],min[3],0.0),
+        Vec4F(max[1],max[2],max[3],0.0)
+    )
+    _updateScene!(app[1])
+end
+
+function _updateScene!(app::AppDNA)
+    app._scene_change = true
+end
+
 function init!(self::App)
     if is_open(self._glfw)
         error("Window is already created, can't init! again.")
     end
-    
+
     init!(self._glfw, true)
     self._cam.aspect = self._glfw.width / self._glfw.height
     calculate_projection_matrix!(self._cam)
@@ -257,6 +272,45 @@ function init!(self::App)
     setup_event_handles(self._glfw,self._inputs)
     self._imgui = ImGuiData(self)
     perf_init_gpu()
+
+    on_setting_changed("Graphics/Display/Background color") do color
+         c = unpack_color(UInt32(trunc(unsigned(color); digits = 32, base = 2)))
+         glClearColor(c[1], c[2], c[3], c[4])
+        _updateScene!(self)
+    end
+
+    on_setting_changed("Graphics/Display/Gizmo/Length") do len
+        gizmo::GizmoRenderer = self._opengl._renderers[GizmoRenderer]
+        gizmo.ubo_size[1] = len
+        _updateScene!(self)
+    end
+
+    on_setting_changed("Graphics/Display/Gizmo/Thickness") do thickness
+        gizmo::GizmoRenderer = self._opengl._renderers[GizmoRenderer]
+        gizmo.ubo_size[2] = thickness
+        _updateScene!(self)
+    end
+
+    on_setting_changed(_setInfiniteAABBSize, "Graphics/Display/Infinite AABB/Minimum", [self])
+    on_setting_changed(_setInfiniteAABBSize, "Graphics/Display/Infinite AABB/Maximum", [self])
+
+    on_setting_changed(v -> set_limit!(self._frame_limiter, Float64(v)), "Graphics/Display/Framerate/Max FPS")
+    
+    on_setting_changed("Graphics/Display/Framerate/Limit Framerate") do value
+        if value
+            self._frame_limiter = FrameLimiter(Float64(get_global_setting("Graphics/Display/Framerate/Max FPS")))
+        else
+            self._frame_limiter = nothing
+        end
+    end
+
+    on_setting_changed("Graphics/Display/Framerate/Enable VSync") do value
+        self._vsync_state = value - 2
+        GLFW.SwapInterval(value - 2)
+    end
+
+    apply_settings()
+
     clear!(self)
 end
 

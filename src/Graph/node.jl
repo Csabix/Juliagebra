@@ -63,83 +63,6 @@ function edit_node(element::Any, render_data::Any, renderers::Dict{DataType,Rend
     return element, render_data, result
 end
 
-abstract type PropertyHint end
-
-struct PropertyHintSlider <: PropertyHint
-    min::Real
-    max::Real
-    function PropertyHintSlider(min::Real = 0f, max::Real = 1f)
-        new(min, max)
-    end
-end
-
-struct PropertyHintNoEdit <: PropertyHint
-    function PropertyHintNoEdit()
-        new()
-    end
-end
-
-struct PropertyHintColor <: PropertyHint
-    input_alpha::Bool
-    function PropertyHintColor(input_alpha::Bool = true)
-        new(input_alpha)
-    end
-end
-
-struct PropertyHintNumber <: PropertyHint
-    step::Real
-    step_fast::Real
-    function PropertyHintNumber(step::Real=1f, step_fast::Real=5f)
-        new(step, step_fast)
-    end
-end
-
-
-struct PropertyHintText <: PropertyHint
-    buffer_size::Int
-    function PropertyHintText(buffer_size::Int=1024)
-        new(buffer_size)
-    end
-end
-
-struct PropertyHintTextMultiline <: PropertyHint
-    buffer_size::Int
-    textbox_size::Vec2F
-    function PropertyHintTextMultiline(buffer_size::Int=1024, textbox_size::CImGui.ImVec2 = CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))
-        new(buffer_size, textbox_size)
-    end
-end
-
-struct PropertyHintBitFlags <: PropertyHint
-    bitcount::UInt32
-    function PropertyHintBitFlags(bitcount::Integer = 32)
-        new(UInt32(bitcount))
-    end
-end
-
-get_property_hint(element::Any, property::Symbol)::Union{PropertyHint, Nothing} = nothing
-
-modify_properties(element::Nothing, handle::NodeHandle, flag::Int)::Tuple{Int, Nothing} = EDIT_NODE_NONE, nothing
-
-function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T
-    result::Int = EDIT_NODE_NONE
-    properties::Dict{Symbol, Any} = Dict{Symbol, Any}()
-    for f::Symbol in propertynames(element)
-        old = getproperty(element, f)
-        new = input_property(String(f), old, get_property_hint(element, f))
-        if ismutable(element)
-            setproperty!(element, f, new)
-        else
-            properties[f] = new
-        end
-        result |= flag * (old != new)
-    end
-    if !ismutable(element)
-        element = reconstruct_node(element, properties)
-    end
-    return result, element
-end
-
 function edit_node(element::Vec2D, render_data::Any, renderers::Dict{DataType,Renderer},handle::NodeHandle)::Tuple{Vec2D,Any,Int}
     rt = input(edit_node_type_string(element), element)
     return Vec2D(Float64(rt.x), Float64(rt.y)), render_data, (rt!=element) * EDIT_NODE_INVALIDATE
@@ -170,47 +93,30 @@ function edit_node(element::Vec4F, render_data::Any, renderers::Dict{DataType,Re
     return rt, render_data, (rt!=element)* EDIT_NODE_INVALIDATE
 end
 
+modify_properties(element::Nothing, handle::NodeHandle, flag::Int)::Tuple{Int, Nothing} = EDIT_NODE_NONE, nothing
+
+function modify_properties(element::T, handle::NodeHandle, flag::Int)::Tuple{Int, T} where T
+    result::Int = EDIT_NODE_NONE
+    properties::Dict{Symbol, Any} = Dict{Symbol, Any}()
+    for f::Symbol in propertynames(element)
+        old = getproperty(element, f)
+        new = input_property(String(f), old, get_property_hint(element, f))
+        if ismutable(element)
+            setproperty!(element, f, new)
+        else
+            properties[f] = new
+        end
+        result |= flag * (old != new)
+    end
+    if !ismutable(element)
+        element = reconstruct_node(element, properties)
+    end
+    return result, element
+end
+
 function modify_properties(element::Real, handle::NodeHandle, flag::Int)::Tuple{Int, Real}
     new = input_property("value", element)
     return (flag * (element != new), new)
-end
-
-function input_property(label::String, value::Vector, property_hint::Union{PropertyHint, Nothing} = nothing)::Vector
-        rt::Vector = []
-        for v in eachindex(value)
-            push!(rt, input_property(label*"$v", value[v], property_hint))
-        end
-        return rt
-end
-
-function input_property(label::String, value::T, property_hint::Union{PropertyHint, Nothing} = nothing)::T where T
-    if property_hint isa PropertyHintColor
-        if (property_hint::PropertyHintColor).input_alpha
-            return color_edit4(label, value)
-        else
-            return color_edit3(label, value)
-        end
-    elseif property_hint isa PropertyHintSlider
-        ps::PropertyHintSlider = property_hint::PropertyHintSlider
-        return slider(label, value, ps.min, ps.max)
-    elseif property_hint isa PropertyHintNumber
-        pn::PropertyHintNumber = property_hint
-        return input(label, value, pn.step, pn.step_fast)
-    elseif property_hint isa PropertyHintText
-        pt::PropertyHintText = property_hint
-        return input(label, value, pt.buffer_size)
-    elseif property_hint isa PropertyHintTextMultiline
-        pm::PropertyHintTextMultiline = property_hint
-        return input_multiline(label, value, pm.buffer_size, pm.textbox_size)
-    elseif property_hint isa PropertyHintBitFlags
-        pb::PropertyHintBitFlags = property_hint
-        return input_bitflags(label, value, pb.bitcount)
-    elseif property_hint isa PropertyHintNoEdit || !hasmethod(input, Tuple{String, T})
-        CImGui.Text("$label: $value")
-        return value
-    else
-        return input(label, value)
-    end
 end
 
 function reconstruct_node(element::T, properties::Dict{Symbol, Any})::T where T <:Any return element end

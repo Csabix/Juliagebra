@@ -97,8 +97,25 @@ function input(label::String,self::Vec4T{T})::Vec4T{Int32} where T <: Integer
     return Vec4T(vec[1], vec[2], vec[3], vec[4])
 end
 
-function color_edit3(label::String,color::UInt32)::UInt32
-    c4 = unpack_color(color)
+function input_enum(label::String, names::Vector{String}, selection::T)::T where T <: Integer
+    selection -=1
+    if CImGui.BeginCombo(label, names[selection+1])
+        for i in 0:length(names)-1
+            is_selected = (selection == i)
+            if CImGui.Selectable(names[i+1], is_selected)
+                selection = i
+            end
+            if is_selected
+                CImGui.SetItemDefaultFocus()
+            end
+        end
+        CImGui.EndCombo()
+    end
+    return selection +1
+end
+
+function color_edit3(label::String,color::Integer)::UInt32
+    c4 = unpack_color(UInt32(color))
     col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
             CImGui.ImGuiColorEditFlags_NoLabel
@@ -106,8 +123,8 @@ function color_edit3(label::String,color::UInt32)::UInt32
     return get_color((col[1],col[2],col[3]))
 end
 
-function color_edit4(label::String,color::UInt32)::UInt32
-    c4 = unpack_color(color)
+function color_edit4(label::String,color::Integer)::UInt32
+    c4 = unpack_color(UInt32(color))
     col = @MVector[Float32(c4[1]), Float32(c4[2]), Float32(c4[3]), Float32(c4[4])]
     flags = CImGui.ImGuiColorEditFlags_NoInputs |
         CImGui.ImGuiColorEditFlags_AlphaBar     |
@@ -188,6 +205,173 @@ function get_button_size(text::String)::Tuple{Float32, Float32}
 
     return (size_x,size_y)
 end
+
+abstract type PropertyHint end
+
+struct PropertyHintSlider <: PropertyHint
+    min::Real
+    max::Real
+    function PropertyHintSlider(min::Real = 0.0, max::Real = 1.0)
+        new(min, max)
+    end
+end
+
+struct PropertyHintNoEdit <: PropertyHint
+    function PropertyHintNoEdit()
+        new()
+    end
+end
+
+struct PropertyHintColor <: PropertyHint
+    input_alpha::Bool
+    function PropertyHintColor(input_alpha::Bool = true)
+        new(input_alpha)
+    end
+end
+
+struct PropertyHintNumber <: PropertyHint
+    step::Real
+    step_fast::Real
+    function PropertyHintNumber(step::Real=1.0, step_fast::Real=5.0)
+        new(step, step_fast)
+    end
+end
+
+
+struct PropertyHintText <: PropertyHint
+    buffer_size::Int
+    function PropertyHintText(buffer_size::Int=1024)
+        new(buffer_size)
+    end
+end
+
+struct PropertyHintTextMultiline <: PropertyHint
+    buffer_size::Int
+    textbox_size::Vec2F
+    function PropertyHintTextMultiline(buffer_size::Int=1024, textbox_size::CImGui.ImVec2 = CImGui.ImVec2(CImGui.GetContentRegionAvail().x,100))
+        new(buffer_size, textbox_size)
+    end
+end
+
+struct PropertyHintBitFlags <: PropertyHint
+    bitcount::UInt32
+    function PropertyHintBitFlags(bitcount::Integer = 32)
+        new(UInt32(bitcount))
+    end
+end
+
+struct PropertyHintEnum <:PropertyHint
+    values::Vector{String}
+    function PropertyHintEnum(values::Vector{String})
+        @assert length(values)>0
+        new(values)
+    end
+end
+
+get_property_hint(element::Any, property::Symbol)::Union{PropertyHint, Nothing} = nothing
+
+
+function get_vecnt(value::Vector)::Union{Nothing, VecNT}
+    if 2<=length(value) <= 4
+        types = map(v->typeof(v), value)
+        if all(t -> t<:Real, types) && allequal(types)
+
+            type = types[1]
+            if length(value) == 2
+                return Vec2T{type}(value[1], value[2])
+            elseif length(value)==3
+                return Vec3T{type}(value[1], value[2], value[3])
+            else
+                return Vec3T{type}(value[1], value[2], value[3], value[4])
+            end
+        end
+    end
+    return nothing
+end
+
+function input_property(label::String, value::Vector, property_hint::Nothing = nothing)::Vector
+        vec = get_vecnt(value)
+        if vec !==nothing
+            res = input_property(label, vec)
+            return [v for v in res]
+        end
+
+        return input_property_vec(label, value)
+end
+
+function input_property(label::String, value::Vector, property_hint::PropertyHintNumber)::Vector
+        vec = get_vecnt(value)
+        if vec !==nothing
+            res = input_property(label, vec, property_hint)
+            return [v for v in res]
+        end
+
+        return input_property_vec(label, value, property_hint)
+end
+
+input_property(label::String, value::Vector, property_hint::PropertyHintColor) = input_property_vec(label, value, property_hint)
+input_property(label::String, value::Vector, property_hint::PropertyHintSlider) = input_property_vec(label, value, property_hint)
+input_property(label::String, value::Vector, property_hint::PropertyHintBitFlags) = input_property_vec(label, value, property_hint)
+input_property(label::String, value::Vector, property_hint::PropertyHintEnum) = input_property_vec(label, value, property_hint)
+input_property(label::String, value::Vector, property_hint::PropertyHintText) = input_property_vec(label, value, property_hint)
+input_property(label::String, value::Vector, property_hint::PropertyHintTextMultiline) = input_property_vec(label, value, property_hint)
+input_property(label::String, value::Vector, property_hint::PropertyHintNoEdit) = input_property_vec(label, value, property_hint)
+
+function input_property_vec(label::String, value::Vector, property_hint::Union{PropertyHint, Nothing} = nothing)::Vector
+        if length(value) == 1
+            return [input_property(label, value[1], property_hint)]
+        end
+
+        rt::Vector = []
+        for v in eachindex(value)
+            push!(rt, input_property(label*"$v", value[v], property_hint))
+        end
+        return rt
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintColor)::T where T
+    if property_hint.input_alpha
+        return color_edit4(label, value)
+    else
+        return color_edit3(label, value)
+    end
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintSlider)::T where T
+        return slider(label, value, property_hint.min, property_hint.max)
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintNumber)::T where T
+    return input(label, value, property_hint.step, property_hint.step_fast)
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintText)::T where T
+    return input(label, value, property_hint.buffer_size)
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintTextMultiline)::T where T
+    return input_multiline(label, value, property_hint.buffer_size, property_hint.textbox_size)
+end
+function input_property(label::String, value::T, property_hint::PropertyHintBitFlags)::T where T
+    return input_bitflags(label, value, property_hint.bitcount)
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintEnum)::T where T
+    return input_enum(label, property_hint.values, value)
+end
+
+function input_property(label::String, value::T, property_hint::PropertyHintNoEdit)::T where T
+        CImGui.Text("$label: $value")
+        return value
+end
+
+function input_property(label::String, value::T, ph::Nothing=nothing)::T where T
+    if !hasmethod(input, Tuple{String, T})
+        return input_property(label, value, PropertyHintNoEdit())
+    end
+    return input(label, value)
+end
+
 
 struct CStrBuf <: IO
     v::Vector{UInt8}

@@ -1,89 +1,206 @@
-
+using CImGui.CSyntax.CStatic
 mutable struct OptionsWindow <: WindowDNA
     _window::Window
+    categories::Vector{String}
+    subcategories::Vector{String}
+    cat_segments::Dict
+    reverse_cat_segments::Dict
+    selected_subcategory::Int
+    input_actions::Dict{String, Vector{InputAction}}
+    action_names::Dict{InputAction, String}
+    input_record_mode::Union{Nothing, InputAction}
+    function OptionsWindow()
+        categories = collect(keys(global_settings.settings))
+        subcategories = []
+        cat_segments = Dict()
+        reverse_cat_segments = Dict()
+        category_indices = sortperm(categories)
+        input_actions = Dict{String, Vector{InputAction}}()
+        for a in collect(instances(InputAction))
+            v = get!(input_actions, input_category(a), [])
+            push!(v, a)
+        end
 
-    _whitebg::Ref{Bool}
-    _bgColor::Array{Cfloat}
+        begin
+            a = 1
+            b = 1
+            for i in category_indices
+            
+                k = collect(keys(global_settings.settings[categories[i]]))
 
-    _gizmoLength::Ref{Float32}
-    _gizmoThickness::Ref{Float32}
-
-    _aabbMin::Array{Cfloat}
-    _aabbMax::Array{Cfloat}
-
-    function OptionsWindow(color,aabbMin,aabbMax)
-        whitebg = false
-        bgColor = Cfloat[color[1], color[2], color[3]]
-        gizmoLength = 1.0
-        gizmoThickness = 1.0
-        aabbMin = Cfloat[aabbMin[1],aabbMin[2],aabbMin[3]]
-        aabbMax = Cfloat[aabbMax[1],aabbMax[2],aabbMax[3]]
-        new(Window(), whitebg, bgColor, gizmoLength, gizmoThickness,aabbMin,aabbMax)
+                for j in sortperm(k)
+                    push!(subcategories, k[j])
+                    reverse_cat_segments[a+j-1] = categories[i]
+                    b+=1
+                end
+                cat_segments[categories[i]] = (a,b-1)
+                reverse_cat_segments[(a,b-1)] = categories[i]
+                a=b
+                b=a
+            end
+        end
+        new(Window(), categories, subcategories, cat_segments, reverse_cat_segments, -1, input_actions, get_input_action_names(), nothing)
     end
 end
 
 _Window_(self::OptionsWindow)::Window = self._window
 getWindowName(self::OptionsWindow) = "Options"
 
-function _updateScene!(app::AppDNA)
-    app._scene_change = true
+function _render_option(name::String, subcategory::Dict{String, Any}, defaults::Dict{String, Any}, hints::Union{Dict{String, Any}, Nothing}, path::String)
+    CImGui.Text(name)
+    CImGui.Indent()
+        options = collect(keys(subcategory))
+        indices = sortperm(options)
+        for i in indices
+            o = options[i]
+            v = subcategory[o]
+            h = hints !== nothing ? get(hints, o, nothing) : nothing
+            if v isa Dict
+                _render_option(o, v, defaults[o], h, path*"/$o")
+            else
+                result = input_property(o*"##$path/$i",v, h)
+                if v!=result
+                    set_global_setting(path*"/$o", result)
+                end
+                if result != defaults[o]
+                    CImGui.SameLine()
+                    if CImGui.Button("Reset##$path/$o")
+                        set_global_setting(path*"/$o", defaults[o])
+                    end
+                end
+
+            end
+        end
+        
+    CImGui.Unindent()
 end
-function _setBackground(self::OptionsWindow, app::AppDNA)
-    if (self._whitebg[])
-        glClearColor(1.0f0, 1.0f0, 1.0f0, 1.0f0)
+
+function _render_keybinds(window::OptionsWindow, inputs::Inputs)
+    if window.input_record_mode ===nothing
+        cats = collect(keys(window.input_actions))
+        cat_idx = sortperm(cats)
+
+        for c in cat_idx
+            category = cats[c]
+            CImGui.Text(category)
+            CImGui.Indent()
+
+            actions = window.input_actions[category]
+            idx = sortperm(actions)
+
+            for i in idx
+                a = actions[i]
+                name = get!(window.action_names, a, "$a")
+
+                if CImGui.TreeNode("$name")
+                    if haskey(inputs.reverse_action_map, a)
+
+                        for kb in inputs.reverse_action_map[a]
+                            CImGui.Text(keypress_name(kb[1], kb[2]))
+                            CImGui.SameLine()
+                            if CImGui.Button("Delete##$kb")
+                                delete_action_input(inputs, kb[2], kb[1])
+                            end
+                        end
+
+                    end
+                    if CImGui.Button("Add Keybind")
+                        window.input_record_mode = a
+                        inputs.pause_key_callbacks = true
+                    end
+                    CImGui.TreePop()
+                end
+            end
+            CImGui.Unindent()
+        end
     else
-        glClearColor(self._bgColor[1], self._bgColor[2], self._bgColor[3], 1.0f0)
+        action = window.input_record_mode
+        CImGui.Text("Binding input to $action")
+        if CImGui.Button("Cancel")
+            window.input_record_mode = nothing
+            inputs.pause_key_callbacks = false
+            return
+        end
+        key = keys(inputs.keys_pressed)
+        for k in key
+            if !is_valid_key(k)
+                continue
+            end
+            event = inputs.keys_pressed[k]
+            set_action_input(inputs, action, k, event.key_mod)
+            window.input_record_mode = nothing
+            inputs.pause_key_callbacks = false
+            return
+        end
+        button = keys(inputs.mouse_pressed)
+        for k in button
+            event = inputs.mouse_pressed[k]
+            set_action_input(inputs, action, k, event.key_mod)
+            window.input_record_mode = nothing
+            inputs.pause_key_callbacks = false
+            return
+        end
     end
-    # ? updates so that the background changes instantly, instead of waiting for an actual scene_change
-    _updateScene!(app)
 end
-function _setGizmo(self::OptionsWindow, app)
-    gizmo::GizmoRenderer = app._opengl._renderers[GizmoRenderer]
-    gizmo.ubo_size[1] = self._gizmoLength[]
-    gizmo.ubo_size[2] = self._gizmoThickness[]
-    _updateScene!(app)
-end
-function _setInfiniteAABBSize(self::OptionsWindow, app)
-    app._opengl._ubo_aabb[1] = UBO_AABB(
-        Vec4F(self._aabbMin[1],self._aabbMin[2],self._aabbMin[3],0.0),
-        Vec4F(self._aabbMax[1],self._aabbMax[2],self._aabbMax[3],0.0)
-    )
-    _updateScene!(app)
+
+function render(self::OptionsWindow, app::AppDNA)
+    if (isVisible(self))
+        isVisible_Ref = Ref(isVisible(self))
+
+        CImGui.Begin(getWindowName(self),isVisible_Ref)
+        
+        renderContent(self, app)
+
+        CImGui.End()
+
+        setVisible(self,isVisible_Ref[])
+    else
+        self.input_record_mode = nothing
+        self.selected_subcategory = -1
+        app._inputs.pause_key_callbacks = false
+    end
 end
 
 function renderContent(self::OptionsWindow, app::AppDNA)
-    if (CImGui.Checkbox("White background", self._whitebg))
-        _setBackground(self, app)
+    @assert global_settings !== nothing "Settings are uninitialized"
+
+    CImGui.BeginChild("Option Categories",(CImGui.GetContentRegionAvail().x * 0.2, 0.0))
+
+    category_indices = sortperm(self.categories)
+    for i in category_indices
+        if CImGui.TreeNode(self.categories[i])
+            c = self.categories[i]
+            subs = self.cat_segments[c]
+
+            for j in subs[1]:subs[2]
+                sc = self.subcategories[j]
+                if CImGui.Selectable("$sc##$j", self.selected_subcategory == j)
+                    self.selected_subcategory = j
+                end
+            end
+            CImGui.TreePop()
+        end
     end
 
-    CImGui.BeginDisabled(self._whitebg[])
-    if (CImGui.ColorEdit3("Custom background color", self._bgColor, CImGui.ImGuiColorEditFlags_NoInputs))
-        _setBackground(self, app)
+    CImGui.Separator()
+    if CImGui.Selectable("Edit keybinds", self.selected_subcategory == -2)
+            self.selected_subcategory = -2
     end
-    CImGui.EndDisabled()
+    CImGui.EndChild()
     
     CImGui.SameLine()
-    if (CImGui.Button("Default"))
-        defcol = getOpenGL(app)._backgroundCol
-        self._bgColor = Cfloat[defcol[1], defcol[2], defcol[3]]
-        _setBackground(self, app)
-    end
+    CImGui.BeginChild("Options", (0.0,0.0))
 
-    if (CImGui.CollapsingHeader("Gizmo settings"))
-        if (CImGui.SliderFloat("Length", self._gizmoLength, 0.5, 2.0))
-            _setGizmo(self, app)
-        end
-        if (CImGui.SliderFloat("Thickness", self._gizmoThickness, 0.5, 2.0))
-            _setGizmo(self, app)
-        end
+    if checkbounds(Bool, self.subcategories, self.selected_subcategory)
+        i = self.selected_subcategory
+        cat = self.reverse_cat_segments[i]
+        subcat = self.subcategories[i]
+        settings = global_settings.settings[cat][subcat]
+            
+        _render_option("$cat/$subcat", settings, default_settings()[cat][subcat], global_settings.settings_hints[cat][subcat], "$cat/$subcat")
+        
+    elseif self.selected_subcategory == -2
+        _render_keybinds(self, app._inputs)
     end
-
-    if (CImGui.CollapsingHeader("Infinite AABB settings"))
-        if (CImGui.DragFloat3("Minimum", self._aabbMin, 1.0, -100.0, -1.0))
-            _setInfiniteAABBSize(self, app)
-        end
-        if (CImGui.DragFloat3("Maximum", self._aabbMax, 1.0, 1.0, 100.0))
-            _setInfiniteAABBSize(self, app)
-        end
-    end
+    CImGui.EndChild()
 end

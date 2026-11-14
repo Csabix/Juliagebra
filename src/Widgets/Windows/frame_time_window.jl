@@ -11,7 +11,7 @@ mutable struct FrameTime <: WindowDNA
     gc_incremental::Vector{Tuple{Float64,Float64}} # (timestamp, GC time in ms)
     gc_full::Vector{Tuple{Float64,Float64}} # (timestamp, GC time in ms)
     target_fps::Float32
-    limit_framerate::Bool
+    
 
     # Reused buffers
     x_buf::Vector{Float64}
@@ -26,9 +26,12 @@ mutable struct FrameTime <: WindowDNA
         primary = GLFW.GetPrimaryMonitor()
         mode = GLFW.GetVideoMode(primary)
         refresh_rate = mode.refreshrate
-        return new(Window(),NTuple{6,Float64}[],Float64[],Float64[],Float64[],Float64[],Float64[],
-                   Tuple{Float64,Float64}[],Tuple{Float64,Float64}[],Float32(refresh_rate),false,
+        rt = new(Window(),NTuple{6,Float64}[],Float64[],Float64[],Float64[],Float64[],Float64[],
+                   Tuple{Float64,Float64}[],Tuple{Float64,Float64}[],get_global_setting("Graphics/Display/Framerate/Max FPS"),
                    Float64[],Float64[],Float64[],[-60.0, 0.0],[0.0, 0.0],Float64[],Float64[])
+        on_setting_changed(v -> rt.target_fps = v, "Graphics/Display/Framerate/Max FPS")
+        
+        return rt
     end
 end
 
@@ -117,39 +120,6 @@ function renderContent(gui::FrameTime, app::AppDNA)::Nothing
         ImPlot.PlotLine("Allocation count", x_coords, gui.alloc_counts, num_frames)
         ImPlot.PlotLine("Allocated KiB", x_coords, gui.alloc_kbytes, num_frames)
         ImPlot.EndPlot()
-    end
-
-    limit_framerate = Ref(gui.limit_framerate)
-    if CImGui.Checkbox("Framerate Limit",limit_framerate)
-        gui.limit_framerate = limit_framerate[]
-        if gui.limit_framerate
-            app._frame_limiter = FrameLimiter(Float64(gui.target_fps))
-        else
-            app._frame_limiter = nothing
-        end
-    end
-    target_fps = Ref(gui.target_fps)
-    if CImGui.SliderFloat("Target Framerate", target_fps, 10.0, 144.0)
-        gui.target_fps = target_fps[]
-        set_limit!(app._frame_limiter, Float64(gui.target_fps))
-    end
-
-    items = ("Adaptive (-1)", "Off (0)", "On (1)")
-    current_idx = app._vsync_state == -1 ? 0 : (app._vsync_state == 0 ? 1 : 2)
-
-    if CImGui.BeginCombo("VSync Interval", items[current_idx + 1])
-        for i in 0:2
-            is_selected = (current_idx == i)
-            if CImGui.Selectable(items[i+1], is_selected)
-                new_val = i == 0 ? -1 : (i == 1 ? 0 : 1)
-                app._vsync_state = new_val
-                GLFW.SwapInterval(new_val) 
-            end
-            if is_selected
-                CImGui.SetItemDefaultFocus()
-            end
-        end
-        CImGui.EndCombo()
     end
     return nothing
 end

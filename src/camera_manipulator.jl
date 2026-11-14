@@ -20,10 +20,15 @@ mutable struct OrbitalCamera <: CameraManipulator
     _up::Int8
     _down::Int8
 
+    sensitivity::Vec2D
+    flip_rotation::Vec2T{Bool}
+    flip_panning::Vec2T{Bool}
+
     _move_state::Int8
     _capture_mouse::Bool
     _mouse_hidden::Bool
 end
+
 
 function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     to_aim = camera.at - camera.eye
@@ -32,7 +37,25 @@ function create_orbital_manipulator(camera::Camera)::OrbitalCamera
     u = atan(to_aim.y, to_aim.x)
     v = acos(to_aim.z / distance)
 
-    return OrbitalCamera(camera,u,v,log1p(distance),Float32(0.5),0,0,0,0,0,0,_ORBITAL_NONE,false,false)
+    
+    sensitivity = get_global_setting("Controls/Mouse sensitivity")
+    sensitivity = Vec2D(sensitivity["X"], sensitivity["Y"])
+    flip = get_global_setting("Controls/Invert camera")
+    flipr = Vec2T{Bool}(flip["Rotation"]["X"], flip["Rotation"]["Y"])
+    flipp = Vec2T{Bool}(flip["Panning"]["X"], flip["Panning"]["Y"])
+
+    rt = OrbitalCamera(camera,u,v,log1p(distance),Float32(0.5),0,0,0,0,0,0,sensitivity,flipr,flipp,_ORBITAL_NONE,false,false)
+
+    on_setting_changed(v -> rt.flip_panning=Vec2T{Bool}(v, rt.flip_panning.y), "Controls/Invert camera/Panning/X")
+    on_setting_changed(v -> rt.flip_panning=Vec2T{Bool}(rt.flip_panning.x, v), "Controls/Invert camera/Panning/Y")
+
+    on_setting_changed(v -> rt.flip_rotation=Vec2T{Bool}(v, rt.flip_rotation.y), "Controls/Invert camera/Rotation/X")
+    on_setting_changed(v -> rt.flip_rotation=Vec2T{Bool}(rt.flip_rotation.x, v), "Controls/Invert camera/Rotation/Y")
+
+    on_setting_changed(v -> rt.sensitivity=Vec2D(v, rt.sensitivity.y), "Controls/Mouse sensitivity/X")
+    on_setting_changed(v -> rt.sensitivity=Vec2D(rt.sensitivity.x, v), "Controls/Mouse sensitivity/Y")
+
+    return rt
 end
 
 function reset!(self::OrbitalCamera, camera::Camera)
@@ -131,58 +154,68 @@ end
 
 function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
     # --- KEYBOARD DOWN EVENTS ---
-    register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_W))
-    register_callback!(ev -> (cam._forward = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_UP))
-    register_callback!(ev -> (cam._left = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_A))
-    register_callback!(ev -> (cam._left = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_LEFT))
-    register_callback!(ev -> (cam._right = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_D))
-    register_callback!(ev -> (cam._right = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_RIGHT))
-    register_callback!(ev -> (cam._backward = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_S))
-    register_callback!(ev -> (cam._backward = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_DOWN))
-    register_callback!(ev -> (cam._down = -1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_Q))
-    register_callback!(ev -> (cam._up = 1; true), inputs, KEY_DOWN, Cint(GLFW.KEY_E))
+    register_callback_for_action((ac, ev) -> (cam._forward = 1; true), inputs, KEY_DOWN, ACTION_CAM_FORWARD)
+    register_callback_for_action((ac, ev) -> (cam._left = 1; true), inputs, KEY_DOWN, ACTION_CAM_LEFT)
+    register_callback_for_action((ac, ev) -> (cam._right = -1; true), inputs, KEY_DOWN, ACTION_CAM_RIGHT)
+    register_callback_for_action((ac, ev) -> (cam._backward = -1; true), inputs, KEY_DOWN, ACTION_CAM_BACK)
+    register_callback_for_action((ac, ev) -> (cam._down = -1; true), inputs, KEY_DOWN, ACTION_CAM_DOWN)
+    register_callback_for_action((ac, ev) -> (cam._up = 1; true), inputs, KEY_DOWN, ACTION_CAM_UP)
     
-    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_9)) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_FLIP_VIEW) do ac, ev
         cam._u += Float32(π)
         cam._v = Float32(π) - cam._v
         return true
     end
 
-    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_7)) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_Y) do ac, ev
         cam._u = 3.0f0 / 2.0f0 * Float32(π)
-        cam._v = (ev.key_mod & KEY_MOD_ALT) == KEY_MOD_ALT ? 0.0f0 : Float32(π)
+        cam._v = 0.0f0
         return true
     end
 
-    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_1)) do ev
-        cam._u = (ev.key_mod & KEY_MOD_ALT) == KEY_MOD_ALT ? Float32(π) + Float32(π) / 2.0f0 : Float32(π) / 2.0f0
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_Y) do ac, ev
+        cam._u = 3.0f0 / 2.0f0 * Float32(π)
+        cam._v = Float32(π)
+        return true
+    end
+
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_Z) do ac, ev
+        cam._u = Float32(π) + Float32(π) / 2.0f0
         cam._v = Float32(π) / 2.0f0
         return true
     end
 
-    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_3)) do ev
-        cam._u = (ev.key_mod & KEY_MOD_ALT) == KEY_MOD_ALT ? 2.0f0 * Float32(π) : Float32(π)
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_Z) do ac, ev
+        cam._u = Float32(π) / 2.0f0
         cam._v = Float32(π) / 2.0f0
         return true
     end
 
-    register_callback!(inputs, KEY_DOWN, Cint(GLFW.KEY_KP_5)) do ev
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_POS_X) do ac, ev
+        cam._u = 2.0f0 * Float32(π)
+        cam._v = Float32(π) / 2.0f0
+        return true
+    end
+
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SET_VIEW_AXIS_NEG_X) do ac, ev
+        cam._u = Float32(π)
+        cam._v = Float32(π) / 2.0f0
+        return true
+    end
+
+    register_callback_for_action(inputs, KEY_DOWN, ACTION_SWAP_PROJECTION_MODE) do ac, ev
         swap_projection!(cam._cam)
         return true
     end
 
 
     # --- KEYBOARD UP EVENTS ---
-    register_callback!(ev -> (cam._forward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_W))
-    register_callback!( ev -> (cam._forward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_UP))
-    register_callback!( ev -> (cam._left = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_A))
-    register_callback!( ev -> (cam._left = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_LEFT))
-    register_callback!( ev -> (cam._right = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_D))
-    register_callback!( ev -> (cam._right = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_RIGHT))
-    register_callback!( ev -> (cam._backward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_S))
-    register_callback!( ev -> (cam._backward = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_DOWN))
-    register_callback!( ev -> (cam._down = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_Q))
-    register_callback!( ev -> (cam._up = 0; true), inputs, KEY_UP, Cint(GLFW.KEY_E))
+    register_callback_for_action( (ac, ev) -> (cam._forward = 0; true), inputs, KEY_UP, ACTION_CAM_FORWARD)
+    register_callback_for_action( (ac, ev) -> (cam._left = 0; true), inputs, KEY_UP, ACTION_CAM_LEFT)
+    register_callback_for_action( (ac, ev) -> (cam._right = 0; true), inputs, KEY_UP, ACTION_CAM_RIGHT)
+    register_callback_for_action( (ac, ev) -> (cam._backward = 0; true), inputs, KEY_UP, ACTION_CAM_BACK)
+    register_callback_for_action( (ac, ev) -> (cam._down = 0; true), inputs, KEY_UP, ACTION_CAM_DOWN)
+    register_callback_for_action( (ac, ev) -> (cam._up = 0; true), inputs, KEY_UP, ACTION_CAM_UP)
 
 
     # --- MOUSE BUTTON DOWN EVENTS ---
@@ -227,17 +260,17 @@ function register_callbacks!(inputs::Inputs, cam::OrbitalCamera)::Nothing
 
     # --- MOUSE MOVE EVENT ---
     register_callback!(inputs, MOUSE_MOVE) do ev
-        du = -Float32(ev.dx) / 100.0f0
-        dv = -Float32(ev.dy) / 100.0f0
+        du = -Float32(ev.dx) / 100.0f0 * cam.sensitivity.x
+        dv = -Float32(ev.dy) / 100.0f0 * cam.sensitivity.y
 
         if cam._move_state == _ORBITAL_ORBIT || cam._move_state == _ORBITAL_LOOK
-            cam._u += du
-            cam._v = clamp(cam._v + dv, 0.0f0, Float32(π))
+            cam._u += du * (cam.flip_rotation.x ? -1 : 1)
+            cam._v = clamp(cam._v + dv * (cam.flip_rotation.y ? -1 : 1), 0.0f0, Float32(π))
         elseif cam._move_state == _ORBITAL_PAN
             lookat = normalize(cam._cam.at - cam._cam.eye)
             right = Vec3F(cos(cam._u + 0.5f0 * Float32(π)), sin(cam._u + 0.5f0 * Float32(π)), 0.0f0)
             up = normalize(cross(right, lookat))
-            delta = up * dv + right * du
+            delta = up * dv * (cam.flip_panning.y ? -1 : 1) + right * du * (cam.flip_panning.x ? -1 : 1)
             delta *= (exp(cam._zoom) - 1.0f0) / 15.0f0
 
             cam._cam.eye += delta

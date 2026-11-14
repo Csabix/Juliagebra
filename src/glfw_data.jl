@@ -57,6 +57,7 @@ const KEY_MOD_SUPER::UInt8      = 0x08
     ACTION_DRAG_GIZMO_AXIS_Y = 15
     ACTION_DRAG_GIZMO_AXIS_Z = 16
     ACTION_RECOMP_SHADERS = 17
+    ACTION_TAKE_SCREENSHOT = 18
 end
 
 struct Event
@@ -200,6 +201,7 @@ function get_input_action_names()::Dict{InputAction, String}
         ACTION_SET_VIEW_AXIS_POS_Z => "Move Camera to Front View Axis",
 
         ACTION_RECOMP_SHADERS => "Recompile Shaders",
+        ACTION_TAKE_SCREENSHOT => "Take Screenshot"
     )
 end
 
@@ -437,6 +439,7 @@ function default_keybinds()::Dict{Tuple{UInt8, Union{GLFW.Key, GLFW.MouseButton}
         (KEY_MOD_NONE, GLFW.KEY_Z) => ACTION_DRAG_GIZMO_AXIS_Z,
 
         (KEY_MOD_NONE, GLFW.KEY_F5) => ACTION_RECOMP_SHADERS,
+        (KEY_MOD_CONTROL, GLFW.KEY_S) => ACTION_TAKE_SCREENSHOT,
     )
 end
 

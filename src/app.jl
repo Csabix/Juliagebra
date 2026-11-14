@@ -39,6 +39,8 @@ mutable struct App <: AppDNA
     _transpiler_cfg::ShaderTranspiler.ConfigHandle
     _callback_helpers::Vector{Expr}
 
+
+    screenshot_in_progress::Bool
     function App(
         name::String="Juliagebra",
         width::Int32=Int32(1280),
@@ -76,7 +78,8 @@ mutable struct App <: AppDNA
             nothing,nothing,cam,manipulator,
             graph,false,false,asset_watcher,hovered,delta_time,vsync_state,
             0,0,0,0,0,
-            transpiler_cfg,callback_helpers)
+            transpiler_cfg,callback_helpers,
+            false)
     end
 end
 
@@ -137,12 +140,19 @@ function setup_callbacks(self::App)::Nothing
         resize!(self._imgui._coordinatesWidget, Int(self._glfw.width), Int(self._glfw.height))
         return drag
     end, self._inputs, KEY_DOWN, ACTION_DRAG_GIZMO_AXIS_Z)
-    
+    register_callback_for_action(self._inputs, KEY_DOWN, ACTION_TAKE_SCREENSHOT) do ac, ev
+        if !self.screenshot_in_progress
+            self.screenshot_in_progress = true
+            save_image(self)
+        end
+        return false
+    end
+
     # --- KEYBOARD UP EVENTS ---
     register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_X), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_X)
     register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Y), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Y)
     register_callback_for_action((ac, ev) -> on_gizmo_drag_axis_end!(self, AXIS_Z), self._inputs, KEY_UP, ACTION_DRAG_GIZMO_AXIS_Z)
-
+    register_callback_for_action((ac, ev) -> (self.screenshot_in_progress = false; return false), self._inputs, KEY_UP, ACTION_TAKE_SCREENSHOT)
     register_callbacks!(self._inputs, self._manipulator)
     return nothing
 end
@@ -241,7 +251,6 @@ function update!(self::App, iconified::Bool)
     if !iconified
         # ? Render scene and dock.
         update!(self._opengl,self._cam,self._scene_change,self._hovered)
-        save_image(self)
         self._scene_change = false
         render!(self._imgui,self)
         frame_end(self._opengl._profiler)

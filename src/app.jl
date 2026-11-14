@@ -260,12 +260,14 @@ end
 function save_image(self::App)
         pixel_buf = screen_capture(self._opengl, self._cam, UInt32(0))
         output_buf = [RGB(a.x, a.y, a.z) for a in pixel_buf[1]]
-        path = save_file(self._last_saved_path)
+        path = save_file(self._last_saved_path,; filterlist= "png,jpg")
         if path != ""
             self._last_saved_path = path
             output_buf = reshape(output_buf, pixel_buf[2], pixel_buf[3])
             reverse!(output_buf; dims = 2)
             output_buf = output_buf'
+            query
+            FileIO.formatname
             save(path, output_buf)
             _updateScene!(self)
         end

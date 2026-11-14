@@ -463,9 +463,19 @@ function update!(self::OpenGLData,cam::Camera,scene_change::Bool,hovered::UInt32
     begin_gpu(self._profiler,self._passes.post_process)
     blit_scene!(self,cam,hovered)
     end_gpu(self._profiler,self._passes.post_process)
-
+    
+    
     lock(self._ubo)
     end_cpu(self._profiler, self._cpu_stopwatch)
+end
+
+function screen_capture(self::OpenGLData, cam::Camera, hovered::UInt32)::Tuple{Vector{Vec3F}, Int32, Int32}
+    render_scene!(self,cam)
+    blit_scene!(self,cam,hovered)
+    pixel_buf = zeros(Vec3F, self._window.height * self._window.width)
+    glReadnPixels(0, 0, self._window.width, self._window.height, GL_RGB, GL_FLOAT, sizeof(pixel_buf), pixel_buf)
+    glFinish()
+    return (pixel_buf, self._window.width, self._window.height)
 end
 
 function destroy!(self::OpenGLData)
